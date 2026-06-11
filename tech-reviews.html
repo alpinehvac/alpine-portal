@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tech Reviews — Alpine HVAC Portal</title>
+<script src="auth.js"></script>
+<script>apGuard("tech-reviews");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1C6B6E;
+  --teal-light:#2A8A8E;
+  --teal-dark:#0F4547;
+  --purple:#9B8EC4;
+  --purple-light:#B8AEDC;
+  --purple-dark:#6B5E9C;
+  --snow:#C8D8E0;
+  --black:#111110;
+  --off-black:#1A1A18;
+  --charcoal:#2A2A28;
+  --mid:#3A3A37;
+  --grey:#6B6B67;
+  --light-grey:#9A9A95;
+  --white:#FFFFFF;
+  --off-white:#F5F5F2;
+  --border:rgba(255,255,255,0.08);
+  --radius:8px;
+  --radius-lg:14px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:16px;line-height:1.7;overflow-x:hidden;margin:0}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--off-black)}
+::-webkit-scrollbar-thumb{background:var(--teal)}
+
+/* ── TOP TAB BAR ── */
+.tab-bar{position:sticky;top:0;z-index:300;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35);display:flex;align-items:stretch}
+.tab-logo{display:flex;align-items:center;gap:10px;padding:0 1.5rem;border-right:1px solid rgba(255,255,255,0.07);flex-shrink:0}
+.tab-logo svg{height:32px;width:auto}
+.tab-logo-text{font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--white);line-height:1}
+.tab-logo-text small{display:block;font-size:8px;font-weight:400;letter-spacing:.16em;color:var(--teal-light);margin-top:2px}
+.tabs{display:flex;flex:1;overflow-x:auto}
+.tab-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);background:none;border:none;border-bottom:2px solid transparent;padding:0 1.75rem;height:56px;cursor:pointer;white-space:nowrap;transition:color .2s,border-color .2s;flex-shrink:0}
+.tab-btn:hover{color:rgba(255,255,255,0.75)}
+.tab-btn.active{color:var(--white);border-bottom-color:var(--teal)}
+
+/* ── TAB PANELS ── */
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ── QUARTERLY REVIEW STYLES ── */
+.qr-wrap{max-width:900px;margin:0 auto;padding:4rem 2rem}
+.qr-header{margin-bottom:3rem}
+.qr-eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.75rem;display:flex;align-items:center;gap:10px}
+.qr-eyebrow::before{content:'';width:22px;height:1px;background:var(--teal);flex-shrink:0}
+.qr-title{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.75rem);font-weight:700;text-transform:uppercase;line-height:1.05;margin-bottom:.75rem}
+.qr-sub{font-size:.9375rem;color:rgba(255,255,255,0.5);max-width:580px;line-height:1.8}
+
+/* Placeholder card */
+.qr-placeholder{background:var(--off-black);border:1px dashed rgba(255,255,255,0.1);border-radius:var(--radius-lg);padding:5rem 2rem;text-align:center;margin-top:2rem}
+.qr-placeholder-icon{font-size:3rem;opacity:.2;margin-bottom:1.25rem}
+.qr-placeholder-title{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:.75rem}
+.qr-placeholder-text{font-size:.875rem;color:rgba(255,255,255,0.2);max-width:480px;margin:0 auto;line-height:1.8}
+
+/* ── RECRUITING TAB — embed full recruiting content ── */
+
+/* scrollbar inside iframe-like panel */
+#panel-recruiting{overflow-y:auto;height:calc(100vh - 56px)}
+
+/* All recruiting styles scoped — reuse same vars since they're identical */
+::-webkit-scrollbar{width:4px}
+
+.r-hero{background:var(--black);position:relative;overflow:hidden;padding:5rem 2rem 0}
+.r-hero-bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(28,107,110,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(28,107,110,0.05) 1px,transparent 1px);background-size:64px 64px;pointer-events:none}
+.r-hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(28,107,110,0.12) 0%,transparent 65%);pointer-events:none}
+.r-hero-content{position:relative;z-index:2;max-width:1040px;margin:0 auto;text-align:center;padding-bottom:0}
+.r-eyebrow{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1.5rem;display:inline-flex;align-items:center;gap:10px}
+.r-eyebrow::before,.r-eyebrow::after{content:'';display:block;width:28px;height:1px;background:var(--teal)}
+.r-h1{font-family:'Oswald',sans-serif;font-size:clamp(2.8rem,8vw,5.5rem);font-weight:700;line-height:.95;letter-spacing:.01em;text-transform:uppercase;margin-bottom:1.75rem}
+.r-h1 .line2{color:var(--teal-light)}
+.r-h1 .line3{font-size:clamp(1.4rem,4vw,2.75rem);font-weight:400;color:rgba(255,255,255,0.4);letter-spacing:.04em;display:block;margin-top:.25rem}
+.r-body{font-size:1.05rem;color:rgba(255,255,255,0.55);max-width:540px;margin:0 auto 2.5rem;line-height:1.8}
+.r-stats{display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;margin-bottom:2.75rem}
+.r-stat{text-align:center;padding:0 1.5rem;border-right:1px solid rgba(255,255,255,0.08)}
+.r-stat:last-child{border-right:none}
+.r-stat-num{font-family:'Oswald',sans-serif;font-size:2rem;font-weight:700;color:var(--white);line-height:1}
+.r-stat-num sup{font-size:1rem;color:var(--teal-light)}
+.r-stat-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);margin-top:4px}
+.r-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:0}
+.r-btn-primary{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:var(--teal);color:var(--white);padding:13px 34px;border-radius:4px;text-decoration:none;transition:all .2s}
+.r-btn-primary:hover{background:var(--teal-light)}
+.r-btn-outline{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.6);padding:13px 28px;border-radius:4px;text-decoration:none;transition:all .2s}
+.r-btn-outline:hover{border-color:rgba(255,255,255,0.5);color:var(--white)}
+.r-mtn{display:block;width:100%;margin-top:3rem;position:relative;z-index:1;line-height:0}
+
+.r-section{padding:5.5rem 2rem}
+.r-section-inner{max-width:1040px;margin:0 auto}
+.r-section.alt{background:var(--off-black)}
+.r-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.875rem;display:flex;align-items:center;gap:10px}
+.r-label::before{content:'';width:22px;height:1px;background:var(--teal);flex-shrink:0}
+.r-title{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.75rem);font-weight:700;text-transform:uppercase;line-height:1.05;margin-bottom:1rem}
+.r-sub{font-size:.9375rem;color:rgba(255,255,255,0.5);max-width:580px;margin-bottom:3rem;line-height:1.8}
+
+.r-comp-table{width:100%;border-collapse:collapse;margin-bottom:3rem;border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.r-comp-table th{background:var(--charcoal);padding:.875rem 1.25rem;font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);text-align:left;border-bottom:1px solid rgba(255,255,255,0.07)}
+.r-comp-table td{padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:.9rem;color:rgba(255,255,255,0.7);vertical-align:middle}
+.r-comp-table tr:last-child td{border-bottom:none}
+.r-comp-table tr:hover td{background:rgba(255,255,255,0.025)}
+.r-comp-table td.tier{font-family:'Oswald',sans-serif;font-size:.9375rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--white)}
+.r-comp-table td.rate{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--white);white-space:nowrap}
+.r-comp-table td.rate span{font-size:.8rem;color:var(--teal-light);font-weight:400}
+.r-comp-table tr.hl td{background:rgba(28,107,110,0.08)}
+.r-comp-table tr.hl td.tier{color:var(--teal-light)}
+.r-comp-table td.note{font-size:.8rem;color:var(--grey)}
+.r-comp-table td.badge span{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:2px}
+.bp{background:rgba(155,142,196,0.15);color:var(--purple-light)}
+.bv{background:rgba(28,107,110,0.15);color:var(--teal-light)}
+
+.r-addons-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--grey);margin-bottom:1.25rem}
+.r-addons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.r-addon{background:var(--off-black);padding:1.5rem}
+.r-addon-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem}
+.r-addon-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.r-addon-rate{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;color:var(--teal-light);white-space:nowrap}
+.r-addon-tag{display:inline-block;font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 9px;border-radius:2px;margin-bottom:.6rem}
+.tc{background:rgba(28,107,110,0.15);color:var(--teal-light)}
+.tr2{background:rgba(155,142,196,0.15);color:var(--purple-light)}
+.tb{background:rgba(200,216,224,0.12);color:var(--snow)}
+.r-addon-desc{font-size:.8375rem;color:rgba(255,255,255,0.45);line-height:1.7}
+
+.r-ladder{border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.r-ladder-row{display:grid;grid-template-columns:160px 1fr auto;gap:2rem;align-items:center;padding:1.25rem 1.75rem;background:var(--off-black);border-bottom:1px solid rgba(255,255,255,0.05);transition:background .15s}
+.r-ladder-row:last-child{border-bottom:none}
+.r-ladder-row:hover{background:var(--charcoal)}
+.r-ladder-row.ft{background:rgba(28,107,110,0.08);border-left:2px solid var(--teal)}
+.r-ladder-row.ft:hover{background:rgba(28,107,110,0.12)}
+.r-ladder-yr{font-family:'Oswald',sans-serif;font-size:.8125rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal-light)}
+.r-ladder-title{font-family:'Oswald',sans-serif;font-size:.9375rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.3rem}
+.r-ladder-perks{display:flex;gap:.875rem;flex-wrap:wrap}
+.r-ladder-perk{font-size:.75rem;color:var(--grey);display:flex;align-items:center;gap:4px}
+.r-ladder-perk::before{content:'·';color:var(--teal)}
+.r-ladder-rate{font-family:'Oswald',sans-serif;font-size:1.625rem;font-weight:700;text-align:right;white-space:nowrap}
+.r-ladder-rate span{font-size:.75rem;color:var(--grey);font-weight:400}
+
+.r-benefits-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.r-benefit{background:var(--off-black);padding:1.75rem}
+.r-benefit-icon{font-size:1.5rem;margin-bottom:.875rem}
+.r-benefit-title{font-family:'Oswald',sans-serif;font-size:.9375rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.5rem}
+.r-benefit-desc{font-size:.8375rem;color:rgba(255,255,255,0.45);line-height:1.7}
+
+.r-eff-box{background:var(--charcoal);border:1px solid rgba(155,142,196,0.2);border-radius:var(--radius-lg);padding:2.5rem;margin-bottom:1.5rem}
+.r-eff-box h3{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--purple-light);margin-bottom:1rem}
+.r-eff-box p{font-size:.9rem;color:rgba(255,255,255,0.55);line-height:1.8;margin-bottom:.75rem}
+.r-eff-box p:last-child{margin-bottom:0}
+
+.r-culture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.5rem}
+.r-culture-card{background:var(--charcoal);border-radius:var(--radius);padding:1.75rem;border-top:2px solid var(--teal)}
+.r-culture-card.purple{border-top-color:var(--purple)}
+.r-culture-card h3{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.625rem}
+.r-culture-card p{font-size:.8375rem;color:rgba(255,255,255,0.5);line-height:1.7}
+
+.r-media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px}
+.r-media-ph{aspect-ratio:16/10;background:var(--charcoal);border:1px dashed rgba(255,255,255,0.1);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem}
+.r-media-ph-icon{font-size:1.75rem;opacity:.25}
+.r-media-ph-label{font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--grey)}
+
+.r-compare-table{width:100%;border-collapse:collapse;border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.r-compare-table th{background:var(--charcoal);padding:.875rem 1.25rem;font-family:'Oswald',sans-serif;font-size:.65rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;text-align:left;color:var(--grey);border-bottom:1px solid rgba(255,255,255,0.07)}
+.r-compare-table th.th-alpine{color:var(--teal-light)}
+.r-compare-table td{padding:.9375rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:.875rem;color:rgba(255,255,255,0.55);vertical-align:top}
+.r-compare-table tr:last-child td{border-bottom:none}
+.r-compare-table tr:hover td{background:rgba(255,255,255,0.02)}
+.r-compare-table td.factor{font-weight:600;color:rgba(255,255,255,0.8);font-size:.875rem;white-space:nowrap}
+.r-compare-table td.td-alpine{color:rgba(255,255,255,0.8)}
+.win{display:inline-block;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(28,107,110,0.2);color:var(--teal-light);border:1px solid rgba(28,107,110,0.35);padding:2px 7px;border-radius:2px;margin-left:7px;vertical-align:middle}
+.r-disclaimer{margin-top:1.75rem;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:1.5rem}
+.r-disclaimer p{font-size:.8rem;color:rgba(255,255,255,0.3);line-height:1.75}
+.r-disclaimer strong{color:rgba(255,255,255,0.45)}
+
+.r-cta-section{background:var(--teal-dark);padding:5.5rem 2rem;text-align:center;position:relative;overflow:hidden}
+.r-cta-section::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,#0F4547 0%,#0a3234 100%)}
+.r-cta-inner{position:relative;z-index:1;max-width:600px;margin:0 auto}
+.r-cta-eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:.875rem}
+.r-cta-title{font-family:'Oswald',sans-serif;font-size:clamp(2.25rem,6vw,3.75rem);font-weight:700;text-transform:uppercase;line-height:1;margin-bottom:1.125rem}
+.r-cta-sub{font-size:.9375rem;color:rgba(255,255,255,0.6);margin-bottom:2.25rem;line-height:1.8}
+.r-contact-row{display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem}
+.r-contact-item{font-size:.85rem;color:rgba(255,255,255,0.45);display:flex;align-items:center;gap:6px}
+.r-contact-item a{color:rgba(255,255,255,0.7);text-decoration:none}
+.r-contact-item a:hover{color:var(--white)}
+
+.r-footer{background:var(--black);border-top:1px solid rgba(255,255,255,0.05);padding:2rem;text-align:center}
+.r-footer-logo{font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:.5rem}
+.r-footer-copy{font-size:.7rem;color:rgba(255,255,255,0.18);line-height:1.9}
+</style>
+</head>
+<body>
+
+<!-- ── TOP TAB BAR ── -->
+<div class="tab-bar">
+  <div class="tab-logo">
+    <svg width="32" height="30" viewBox="0 0 40 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="20,3 34,25 6,25" fill="rgba(28,107,110,0.18)" stroke="#2A8A8E" stroke-width="1.4" stroke-linejoin="round"/>
+      <polygon points="29,11 39,27 19,27" fill="rgba(155,142,196,0.1)" stroke="rgba(155,142,196,0.5)" stroke-width="1" stroke-linejoin="round"/>
+      <polygon points="11,11 1,27 21,27" fill="rgba(200,216,224,0.07)" stroke="rgba(200,216,224,0.25)" stroke-width="1" stroke-linejoin="round"/>
+      <line x1="2" y1="30" x2="38" y2="30" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <line x1="0" y1="33.5" x2="40" y2="33.5" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    </svg>
+    <div class="tab-logo-text">Alpine HVAC<small>Tech Hub</small></div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('recruiting')">Recruiting</button>
+    <button class="tab-btn" onclick="showTab('reviews')">Quarterly Tech Reviews</button>
+  </div>
+</div>
+
+<!-- ── TAB: RECRUITING ── -->
+<div id="panel-recruiting" class="tab-panel active">
+
+  <div class="r-hero">
+    <div class="r-hero-bg-grid"></div>
+    <div class="r-hero-glow"></div>
+    <div class="r-hero-content">
+      <div class="r-eyebrow">Niagara &amp; Hamilton, Ontario · Commercial HVAC</div>
+      <h1 class="r-h1">
+        The Best Trade Job<br>
+        <span class="line2">In Ontario.</span>
+        <span class="line3">Full Stop.</span>
+      </h1>
+      <p class="r-body">We don't compete on culture while paying less. We pay at or above union rates, offer real advancement tied to your ticket, and actually invest in the people on our trucks.</p>
+      <div class="r-stats">
+        <div class="r-stat"><div class="r-stat-num"><sup>$</sup>25–55<sup>+</sup></div><div class="r-stat-label">Base Rate / Hr</div></div>
+        <div class="r-stat"><div class="r-stat-num"><sup>$</sup>12<sup>+</sup></div><div class="r-stat-label">Potential Add-Ons / Hr</div></div>
+        <div class="r-stat"><div class="r-stat-num">3<sup>wk</sup></div><div class="r-stat-label">Paid Vacation at Yr 5</div></div>
+        <div class="r-stat"><div class="r-stat-num">0</div><div class="r-stat-label">Union Dues</div></div>
+      </div>
+      <div class="r-btns">
+        <a href="mailto:contact@alpinehvac.ca" class="r-btn-primary">Apply Now →</a>
+        <a href="#r-compensation" class="r-btn-outline">See the Numbers</a>
+      </div>
+    </div>
+    <svg class="r-mtn" viewBox="0 0 1440 180" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <polygon points="0,180 200,65 400,155 620,30 860,140 1060,45 1280,125 1440,70 1440,180" fill="rgba(28,107,110,0.07)"/>
+      <polygon points="0,180 160,90 340,165 520,55 740,130 940,38 1140,110 1340,60 1440,82 1440,180" fill="rgba(28,107,110,0.04)"/>
+      <polyline points="0,180 200,65 400,155 620,30 860,140 1060,45 1280,125 1440,70" fill="none" stroke="rgba(42,138,142,0.28)" stroke-width="1.5"/>
+      <polyline points="0,180 160,90 340,165 520,55 740,130 940,38 1140,110 1340,60 1440,82" fill="none" stroke="rgba(155,142,196,0.13)" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <!-- COMPENSATION -->
+  <div class="r-section alt" id="r-compensation">
+    <div class="r-section-inner">
+      <div class="r-label">Compensation</div>
+      <h2 class="r-title">Base Rates + Add-Ons</h2>
+      <p class="r-sub">Your base rate reflects your apprenticeship level. Certifications and role responsibilities stack on top — your real take-home depends on what you bring to the table.</p>
+      <table class="r-comp-table">
+        <thead><tr><th>Level</th><th>Base Rate</th><th>Add-Ons Eligible</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td class="tier">1st Year Apprentice</td><td class="rate">$25<span>/hr</span></td><td>—</td><td class="note">Starting rate</td></tr>
+          <tr><td class="tier">2nd Year Apprentice</td><td class="rate">$31<span>/hr</span></td><td class="badge"><span class="bv">Company Vehicle</span></td><td class="note">Vehicle assigned Year 2</td></tr>
+          <tr><td class="tier">3rd Year Apprentice</td><td class="rate">$37<span>/hr</span></td><td class="badge"><span class="bp">Profit Sharing</span></td><td class="note">Profit sharing eligible</td></tr>
+          <tr class="hl"><td class="tier">4th Year Apprentice</td><td class="rate">$43<span>/hr</span></td><td class="badge"><span class="bp">Profit Sharing</span></td><td class="note">Cert add-ons stackable</td></tr>
+          <tr class="hl"><td class="tier">5th Year Apprentice</td><td class="rate">$49<span>/hr</span></td><td class="badge"><span class="bp">Profit Sharing</span></td><td class="note">Full stack eligible</td></tr>
+          <tr class="hl"><td class="tier">Journeyman</td><td class="rate">$55<span>/hr</span></td><td class="badge"><span class="bp">Profit Sharing</span></td><td class="note">Top of base rate scale</td></tr>
+        </tbody>
+      </table>
+      <div class="r-addons-label">Certifications &amp; Role Add-Ons</div>
+      <div class="r-addons-grid">
+        <div class="r-addon">
+          <div class="r-addon-tag tc">Certification</div>
+          <div class="r-addon-top"><div class="r-addon-name">Gas Fitter 1</div><div class="r-addon-rate">+$2.50/hr</div></div>
+          <div class="r-addon-desc">Paid for holding a valid gas fitting licence. Reflects the added legal liability and scope that comes with the certification. Yours to keep as long as the ticket is current.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tc">Certification</div>
+          <div class="r-addon-top"><div class="r-addon-name">Building Automation (BAS)</div><div class="r-addon-rate">+$2.50/hr</div></div>
+          <div class="r-addon-desc">Paid for demonstrated competency in building automation systems — programming, commissioning, and troubleshooting controls. One of the highest-value skill sets in commercial HVAC.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tr2">Role</div>
+          <div class="r-addon-top"><div class="r-addon-name">Foreman</div><div class="r-addon-rate">+$5/hr</div></div>
+          <div class="r-addon-desc">Designated foremen carry full accountability for crew efficiency, job quality, schedule adherence, safety, and mentorship of junior techs. This designation is earned and must be actively maintained.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tb">Benefit</div>
+          <div class="r-addon-top"><div class="r-addon-name">Company Vehicle</div><div class="r-addon-rate">Yr 2+</div></div>
+          <div class="r-addon-desc">Assigned from Year 2 onward. Fully stocked, maintained, and insured by Alpine. You drive a company truck to every site — no personal vehicle, no wear and tear on your own wheels.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tb">Incentive</div>
+          <div class="r-addon-top"><div class="r-addon-name">Profit Sharing</div><div class="r-addon-rate">Yr 3+</div></div>
+          <div class="r-addon-desc">Technicians at 3rd year and above participate in Alpine's profit sharing program. When the business performs, the team shares in that directly.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tr2">Seniority</div>
+          <div class="r-addon-top"><div class="r-addon-name">5-Year Loyalty</div><div class="r-addon-rate">+$2/hr</div></div>
+          <div class="r-addon-desc">A permanent rate increase awarded at the 5-year mark from your Certificate of Qualification date. Earned once, kept permanently.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tr2">Seniority</div>
+          <div class="r-addon-top"><div class="r-addon-name">10-Year Loyalty</div><div class="r-addon-rate">+$3/hr</div></div>
+          <div class="r-addon-desc">A second permanent rate increase at the 10-year mark from your CoQ date. Stacks on top of the 5-year add-on — long-term commitment is recognized and rewarded.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESSION -->
+  <div class="r-section" id="r-progression">
+    <div class="r-section-inner">
+      <div class="r-label">Advancement</div>
+      <h2 class="r-title">Your Path at Alpine</h2>
+      <p class="r-sub">Advancement is tied to your ticket — not a manager's discretion. Every level unlocks higher pay, new responsibilities, and more opportunity.</p>
+      <div class="r-ladder">
+        <div class="r-ladder-row"><div class="r-ladder-yr">Year 1 · AP1</div><div><div class="r-ladder-title">1st Year Apprentice</div><div class="r-ladder-perks"><span class="r-ladder-perk">Tools provided</span><span class="r-ladder-perk">Field training</span><span class="r-ladder-perk">2 wks paid vacation</span><span class="r-ladder-perk">9 stat holidays</span></div></div><div class="r-ladder-rate">$25<span>/hr</span></div></div>
+        <div class="r-ladder-row"><div class="r-ladder-yr">Year 2 · AP2</div><div><div class="r-ladder-title">2nd Year Apprentice</div><div class="r-ladder-perks"><span class="r-ladder-perk">Company vehicle assigned</span><span class="r-ladder-perk">2 wks paid vacation</span><span class="r-ladder-perk">Expanded field scope</span></div></div><div class="r-ladder-rate">$31<span>/hr</span></div></div>
+        <div class="r-ladder-row"><div class="r-ladder-yr">Year 3 · AP3</div><div><div class="r-ladder-title">3rd Year Apprentice</div><div class="r-ladder-perks"><span class="r-ladder-perk">Profit sharing eligible</span><span class="r-ladder-perk">2 wks paid vacation</span><span class="r-ladder-perk">Foreman track opens</span></div></div><div class="r-ladder-rate">$37<span>/hr</span></div></div>
+        <div class="r-ladder-row ft"><div class="r-ladder-yr">Year 4 · AP4</div><div><div class="r-ladder-title">4th Year Apprentice</div><div class="r-ladder-perks"><span class="r-ladder-perk">Profit sharing eligible</span><span class="r-ladder-perk">2 wks paid vacation</span><span class="r-ladder-perk">Full cert stack eligible</span></div></div><div class="r-ladder-rate">$43<span>/hr</span></div></div>
+        <div class="r-ladder-row ft"><div class="r-ladder-yr">Year 5 · AP5</div><div><div class="r-ladder-title">5th Year Apprentice</div><div class="r-ladder-perks"><span class="r-ladder-perk">Profit sharing eligible</span><span class="r-ladder-perk">2 wks paid vacation</span><span class="r-ladder-perk">Full cert stack eligible</span></div></div><div class="r-ladder-rate">$49<span>/hr</span></div></div>
+        <div class="r-ladder-row ft"><div class="r-ladder-yr">Journeyman</div><div><div class="r-ladder-title">Journeyman</div><div class="r-ladder-perks"><span class="r-ladder-perk">Profit sharing eligible</span><span class="r-ladder-perk">3 wks paid vacation</span><span class="r-ladder-perk">Full cert + role stack</span></div></div><div class="r-ladder-rate">$55<span>/hr</span></div></div>
+        <div class="r-ladder-row"><div class="r-ladder-yr">Year 10+</div><div><div class="r-ladder-title">Senior Journeyman</div><div class="r-ladder-perks"><span class="r-ladder-perk">Profit sharing eligible</span><span class="r-ladder-perk">4 wks paid vacation</span><span class="r-ladder-perk">Leadership roles</span></div></div><div class="r-ladder-rate">$55+<span>/hr</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BENEFITS -->
+  <div class="r-section alt" id="r-benefits">
+    <div class="r-section-inner">
+      <div class="r-label">Benefits &amp; Perks</div>
+      <h2 class="r-title">The Full Package</h2>
+      <p class="r-sub">Pay is the headline. Here's everything else that comes with working at Alpine.</p>
+      <div class="r-benefits-grid">
+        <div class="r-benefit"><div class="r-benefit-icon">🏖️</div><div class="r-benefit-title">Paid Vacation</div><div class="r-benefit-desc">2 weeks paid from Year 1. 3 weeks at Year 5. 4 weeks at Year 10. Ontario's 9 stat holidays are in addition — they don't count against your vacation.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🚛</div><div class="r-benefit-title">Company Vehicle</div><div class="r-benefit-desc">Assigned from Year 2. Fully stocked, insured, and maintained by Alpine. You drive a company truck to every site.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🔧</div><div class="r-benefit-title">Tools &amp; Equipment</div><div class="r-benefit-desc">Alpine provides all required tools and equipment. No nickel-and-diming on consumables or specialty gear.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">📈</div><div class="r-benefit-title">Profit Sharing</div><div class="r-benefit-desc">Available from Year 3. When Alpine wins, you win. Real dollars tied to company performance.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🎓</div><div class="r-benefit-title">Training &amp; Certification</div><div class="r-benefit-desc">Certification costs, training programs, and schooling are supported — not something you fund yourself.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🏗️</div><div class="r-benefit-title">Commercial &amp; ICI Work</div><div class="r-benefit-desc">Hydronics, controls, building systems. Commercial, industrial, institutional — not residential service calls.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">📋</div><div class="r-benefit-title">Clear Advancement</div><div class="r-benefit-desc">Your progression is tied to your ticket — not a manager's mood. Rate increases are documented and honoured.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🤝</div><div class="r-benefit-title">Small Team, Real Impact</div><div class="r-benefit-desc">Intentionally lean. More variety, more responsibility, faster growth — you're not a number on a dispatch board.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFIT SHARING -->
+  <div class="r-section" id="r-profitsharing">
+    <div class="r-section-inner">
+      <div class="r-label">Performance Pay</div>
+      <h2 class="r-title">Profit Sharing</h2>
+      <p class="r-sub">At Alpine, when the business does well, the people who built that result share in it.</p>
+      <div class="r-eff-box">
+        <h3>How It Works</h3>
+        <p>Technicians at 3rd year and above are eligible to participate in Alpine's profit sharing program. At the end of each period, a portion of net profit is distributed to eligible team members. This is not a discretionary bonus — it's a structured share of the outcome tied directly to how the business performed.</p>
+        <p>The intent is simple: the people doing the work should benefit when the work pays off. Profit sharing is reviewed annually and details are discussed individually during onboarding.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CULTURE -->
+  <div class="r-section alt" id="r-culture">
+    <div class="r-section-inner">
+      <div class="r-label">Culture &amp; Values</div>
+      <h2 class="r-title">Why People Stay</h2>
+      <p class="r-sub">We built Alpine around a simple idea: a small team of highly skilled people, treated well, doing excellent work on excellent buildings.</p>
+      <div class="r-culture-grid">
+        <div class="r-culture-card"><h3>Skill Over Volume</h3><p>Fewer, better technicians. Real training investment, better jobs, and a team that actually knows each other.</p></div>
+        <div class="r-culture-card purple"><h3>Advancement Is Real</h3><p>Every level has a pay number attached to it, and we honour it. Your ticket progression is your pay progression.</p></div>
+        <div class="r-culture-card"><h3>Commercial Focus</h3><p>Hydronics, controls, commercial and institutional systems. The kind of work that makes your trade ticket mean something.</p></div>
+        <div class="r-culture-card purple"><h3>Accountability Goes Both Ways</h3><p>We hold our techs to a high standard. In return we hold ourselves to one too: investing in growth, showing up for the team.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEDIA -->
+  <div class="r-section" id="r-work">
+    <div class="r-section-inner">
+      <div class="r-label">Our Work</div>
+      <h2 class="r-title">The Buildings We Look After</h2>
+      <p class="r-sub">Commercial, industrial, institutional — drop in photos and videos below when ready.</p>
+      <div class="r-media-grid">
+        <div class="r-media-ph"><div class="r-media-ph-icon">▶</div><div class="r-media-ph-label">Video Placeholder</div></div>
+        <div class="r-media-ph"><div class="r-media-ph-icon">🖼</div><div class="r-media-ph-label">Photo Placeholder</div></div>
+        <div class="r-media-ph"><div class="r-media-ph-icon">▶</div><div class="r-media-ph-label">Video Placeholder</div></div>
+        <div class="r-media-ph"><div class="r-media-ph-icon">🖼</div><div class="r-media-ph-label">Photo Placeholder</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNION COMPARE -->
+  <div class="r-section alt" id="r-compare">
+    <div class="r-section-inner">
+      <div class="r-label">Honest Comparison</div>
+      <h2 class="r-title">Alpine vs. The Union</h2>
+      <p class="r-sub">Most non-union shops try to match union pay while pitching "better culture." That's not the angle here. We match the money — and then stack on top of it.</p>
+      <table class="r-compare-table">
+        <thead><tr><th style="width:200px">Factor</th><th>UA Local (Union)</th><th class="th-alpine">Alpine HVAC</th></tr></thead>
+        <tbody>
+          <tr><td class="factor">Base Rate (JM)</td><td>Union scale rate</td><td class="td-alpine">Competitive with union scale <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Advancement Path</td><td>Hours-based only, no merit path</td><td class="td-alpine">Ticket-based + cert and role add-ons <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Foreman Premium</td><td>~10%, fluctuates by job and headcount</td><td class="td-alpine">Flat +$5/hr, designated and consistent <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Paid Vacation</td><td>4–6% vacation pay baked in — no actual weeks off</td><td class="td-alpine">2–4 actual weeks off; 9 stat holidays separate <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Work Consistency</td><td>Hall dispatch — no guaranteed ongoing work</td><td class="td-alpine">Year-round employment <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Company Vehicle</td><td>Not provided</td><td class="td-alpine">Assigned from Year 2 <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Performance Pay</td><td>None</td><td class="td-alpine">Profit sharing (Yr 3+) <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Loyalty Bonus</td><td>None</td><td class="td-alpine">+$2/hr at 5 yrs, +$3/hr at 10 yrs (permanent) <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Union Dues</td><td>$0.37/hr + monthly deductions</td><td class="td-alpine">None <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Team Structure</td><td>Rotational crews, contract-based</td><td class="td-alpine">Consistent team, direct relationships <span class="win">Alpine ✓</span></td></tr>
+        </tbody>
+      </table>
+      <div class="r-disclaimer">
+        <p><strong>Important Notice:</strong> All compensation rates, benefits, add-ons, bonuses, vacation entitlements, and other terms described on this page are provided for informational purposes only and are subject to change at the sole discretion of Alpine HVAC Service Inc. leadership at any time without prior notice, except where otherwise stipulated in a written employment agreement signed by both parties. Nothing contained herein constitutes a binding offer of employment or a guarantee of any compensation. Only a signed written offer of employment issued by Alpine HVAC Service Inc. is binding.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="r-cta-section">
+    <div class="r-cta-inner">
+      <div class="r-cta-eyebrow">Ready to Make a Move?</div>
+      <h2 class="r-cta-title">Let's Talk.</h2>
+      <p class="r-cta-sub">No lengthy application. No HR gatekeeping. Just a conversation about whether Alpine is the right fit.</p>
+      <a href="mailto:contact@alpinehvac.ca" class="r-btn-primary">Get In Touch →</a>
+      <div class="r-contact-row">
+        <div class="r-contact-item">📞 <a href="tel:2894381175">(289) 438-1175</a></div>
+        <div class="r-contact-item">✉️ <a href="mailto:contact@alpinehvac.ca">contact@alpinehvac.ca</a></div>
+        <div class="r-contact-item">🌐 <a href="https://alpinehvac.ca" target="_blank">alpinehvac.ca</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="r-footer">
+    <div class="r-footer-logo">Alpine HVAC Service Inc.</div>
+    <div class="r-footer-copy">Niagara &amp; Hamilton, Ontario · Commercial · Industrial · Institutional HVAC Service<br>Hydronics · Controls · Building Systems<br>All compensation and benefit details subject to change at leadership's discretion. Only a signed written offer of employment is binding.</div>
+  </div>
+
+</div><!-- end panel-recruiting -->
+
+<!-- ── TAB: QUARTERLY TECH REVIEWS ── -->
+<div id="panel-reviews" class="tab-panel">
+<style>
+/* ── REVIEW TAB STYLES ── */
+.rv-wrap{max-width:960px;margin:0 auto;padding:3rem 2rem 6rem}
+
+/* Header */
+.rv-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2.5rem;flex-wrap:wrap;gap:1rem}
+.rv-header-left{}
+.rv-eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.5rem;display:flex;align-items:center;gap:8px}
+.rv-eyebrow::before{content:'';width:18px;height:1px;background:var(--teal)}
+.rv-page-title{font-family:'Oswald',sans-serif;font-size:2rem;font-weight:700;text-transform:uppercase;line-height:1}
+.rv-page-sub{font-size:.875rem;color:rgba(255,255,255,0.4);margin-top:.5rem}
+.rv-new-btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:var(--teal);color:var(--white);border:none;padding:11px 24px;border-radius:4px;cursor:pointer;transition:background .2s;white-space:nowrap}
+.rv-new-btn:hover{background:var(--teal-light)}
+
+/* Saved reviews list */
+.rv-list{display:flex;flex-direction:column;gap:2px;margin-bottom:3rem}
+.rv-list-empty{background:var(--off-black);border:1px dashed rgba(255,255,255,0.08);border-radius:var(--radius);padding:3rem;text-align:center;color:rgba(255,255,255,0.25);font-size:.875rem}
+.rv-list-empty span{display:block;font-size:1.75rem;margin-bottom:.75rem;opacity:.3}
+.rv-card{background:var(--off-black);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;cursor:pointer;transition:background .15s,border-color .15s}
+.rv-card:hover{background:var(--charcoal);border-color:rgba(28,107,110,0.3)}
+.rv-card-left{display:flex;align-items:center;gap:1.25rem}
+.rv-card-avatar{width:38px;height:38px;border-radius:50%;background:var(--teal-dark);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;color:var(--teal-light);flex-shrink:0}
+.rv-card-name{font-family:'Oswald',sans-serif;font-size:.9375rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.rv-card-meta{font-size:.75rem;color:var(--grey);margin-top:2px}
+.rv-card-right{display:flex;align-items:center;gap:.75rem;flex-shrink:0}
+.rv-card-quarter{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:rgba(28,107,110,0.15);color:var(--teal-light);padding:3px 10px;border-radius:2px}
+.rv-card-actions{display:flex;gap:.5rem}
+.rv-card-btn{font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:none;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);padding:5px 12px;border-radius:3px;cursor:pointer;transition:all .2s;font-family:'Oswald',sans-serif}
+.rv-card-btn:hover{border-color:rgba(255,255,255,0.3);color:var(--white)}
+.rv-card-btn.del:hover{border-color:rgba(220,80,80,0.4);color:#e07070}
+
+/* Modal overlay */
+.rv-modal{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);overflow-y:auto;padding:2rem 1rem}
+.rv-modal.open{display:flex;align-items:flex-start;justify-content:center}
+.rv-modal-box{background:var(--off-black);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-lg);width:100%;max-width:760px;overflow:hidden;margin:auto}
+.rv-modal-top{background:var(--charcoal);padding:1.5rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.06)}
+.rv-modal-top-title{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.rv-modal-close{background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.25rem;cursor:pointer;padding:4px 8px;border-radius:4px;transition:color .2s}
+.rv-modal-close:hover{color:var(--white)}
+.rv-modal-body{padding:2rem}
+
+/* Form */
+.rv-field-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+.rv-field{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.25rem}
+.rv-field.full{grid-column:1/-1}
+.rv-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--grey)}
+.rv-input,.rv-select,.rv-textarea{background:var(--charcoal);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);color:var(--white);font-family:'Inter',sans-serif;font-size:.875rem;padding:.625rem .875rem;transition:border-color .2s;outline:none;width:100%}
+.rv-input:focus,.rv-select:focus,.rv-textarea:focus{border-color:var(--teal)}
+.rv-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6B67' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .875rem center;padding-right:2.25rem}
+.rv-textarea{resize:vertical;min-height:90px;line-height:1.6}
+.rv-textarea.tall{min-height:120px}
+
+/* Section dividers inside form */
+.rv-form-section{margin:1.75rem 0 1.25rem;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,0.06)}
+.rv-form-section-title{font-family:'Oswald',sans-serif;font-size:.8125rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.25rem}
+.rv-form-section-sub{font-size:.75rem;color:rgba(255,255,255,0.3)}
+
+/* Core values rating */
+.rv-values-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.875rem;margin-bottom:1.25rem}
+.rv-value-item{background:var(--charcoal);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1rem}
+.rv-value-name{font-family:'Oswald',sans-serif;font-size:.8125rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.625rem}
+.rv-stars{display:flex;gap:4px}
+.rv-star{font-size:1.1rem;cursor:pointer;opacity:.25;transition:opacity .15s,transform .1s;user-select:none}
+.rv-star:hover,.rv-star.active{opacity:1}
+.rv-star:hover{transform:scale(1.15)}
+
+/* Difficult conversation toggle */
+.rv-diff-toggle{background:rgba(155,142,196,0.08);border:1px solid rgba(155,142,196,0.2);border-radius:var(--radius);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:1rem;transition:background .2s}
+.rv-diff-toggle:hover{background:rgba(155,142,196,0.12)}
+.rv-diff-toggle-label{font-family:'Oswald',sans-serif;font-size:.8125rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--purple-light)}
+.rv-diff-toggle-sub{font-size:.75rem;color:rgba(255,255,255,0.35);margin-top:2px}
+.rv-diff-chevron{color:var(--purple-light);font-size:.75rem;transition:transform .2s}
+.rv-diff-content{display:none;background:rgba(155,142,196,0.06);border:1px solid rgba(155,142,196,0.15);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem}
+.rv-diff-content.open{display:block}
+.rv-diff-steps{list-style:none;counter-reset:steps;display:flex;flex-direction:column;gap:.625rem;margin-bottom:1rem}
+.rv-diff-steps li{counter-increment:steps;display:flex;align-items:flex-start;gap:.75rem;font-size:.8375rem;color:rgba(255,255,255,0.5)}
+.rv-diff-steps li::before{content:counter(steps);font-family:'Oswald',sans-serif;font-weight:700;font-size:.75rem;color:var(--purple-light);background:rgba(155,142,196,0.15);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+
+/* Form footer */
+.rv-modal-footer{padding:1.25rem 2rem;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:flex-end;gap:.75rem;background:var(--charcoal)}
+.rv-save-btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:var(--teal);color:var(--white);border:none;padding:10px 28px;border-radius:4px;cursor:pointer;transition:background .2s}
+.rv-save-btn:hover{background:var(--teal-light)}
+.rv-cancel-btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:none;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);padding:10px 20px;border-radius:4px;cursor:pointer;transition:all .2s}
+.rv-cancel-btn:hover{border-color:rgba(255,255,255,0.3);color:var(--white)}
+
+/* View modal (read-only) */
+.rv-view-section{margin-bottom:1.75rem}
+.rv-view-section-title{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.875rem;padding-bottom:.5rem;border-bottom:1px solid rgba(255,255,255,0.06)}
+.rv-view-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.875rem}
+.rv-view-field{display:flex;flex-direction:column;gap:.3rem}
+.rv-view-field.full{grid-column:1/-1}
+.rv-view-field-label{font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--grey)}
+.rv-view-field-value{font-size:.875rem;color:rgba(255,255,255,0.8);line-height:1.6;white-space:pre-wrap}
+.rv-view-stars{display:flex;gap:3px;margin-top:2px}
+.rv-view-star{font-size:.9rem}
+.rv-view-star.on{opacity:1}
+.rv-view-star.off{opacity:.18}
+
+@media(max-width:600px){
+  .rv-field-row,.rv-view-row{grid-template-columns:1fr}
+  .rv-values-grid{grid-template-columns:1fr 1fr}
+  .rv-card{flex-direction:column;align-items:flex-start}
+}
+</style>
+
+<div class="rv-wrap">
+  <div class="rv-header">
+    <div class="rv-header-left">
+      <div class="rv-eyebrow">Internal · Confidential</div>
+      <h1 class="rv-page-title">Quarterly Tech Reviews</h1>
+      <p class="rv-page-sub">One-on-one review notes, performance ratings, and action items — stored locally in this file.</p>
+    </div>
+    <button class="rv-new-btn" onclick="openNewReview()">+ New Review</button>
+  </div>
+
+  <div id="rv-list" class="rv-list">
+    <div class="rv-list-empty"><span>📋</span>No reviews yet. Click "New Review" to add the first one.</div>
+  </div>
+</div>
+
+<!-- ── NEW / EDIT MODAL ── -->
+<div id="rv-modal" class="rv-modal">
+  <div class="rv-modal-box">
+    <div class="rv-modal-top">
+      <div class="rv-modal-top-title" id="rv-modal-title">New Quarterly Review</div>
+      <button class="rv-modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="rv-modal-body">
+
+      <!-- Header fields -->
+      <div class="rv-field-row">
+        <div class="rv-field">
+          <label class="rv-label">Technician Name</label>
+          <input class="rv-input" id="rv-tech" type="text" placeholder="e.g. Brandon">
+        </div>
+        <div class="rv-field">
+          <label class="rv-label">Date</label>
+          <input class="rv-input" id="rv-date" type="date">
+        </div>
+      </div>
+      <div class="rv-field-row">
+        <div class="rv-field">
+          <label class="rv-label">Quarter</label>
+          <select class="rv-select" id="rv-quarter">
+            <option value="">Select quarter</option>
+            <option>Q1 2026</option><option>Q2 2026</option><option>Q3 2026</option><option>Q4 2026</option>
+            <option>Q1 2027</option><option>Q2 2027</option><option>Q3 2027</option><option>Q4 2027</option>
+          </select>
+        </div>
+        <div class="rv-field">
+          <label class="rv-label">Apprenticeship Level</label>
+          <select class="rv-select" id="rv-level">
+            <option value="">Select level</option>
+            <option>1st Year Apprentice</option>
+            <option>2nd Year Apprentice</option>
+            <option>3rd Year Apprentice</option>
+            <option>4th Year Apprentice</option>
+            <option>5th Year Apprentice</option>
+            <option>Journeyman</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Review questions -->
+      <div class="rv-form-section">
+        <div class="rv-form-section-title">Review Questions</div>
+        <div class="rv-form-section-sub">Record employee responses during the one-on-one</div>
+      </div>
+
+      <div class="rv-field">
+        <label class="rv-label">What should the company start, stop, and keep doing?</label>
+        <textarea class="rv-textarea" id="rv-q1" placeholder="Employee response..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">Where have you seen your skills grow? What would you like to grow into?</label>
+        <textarea class="rv-textarea" id="rv-q2" placeholder="Employee response..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">What administrative hitches could be improved?</label>
+        <textarea class="rv-textarea" id="rv-q3" placeholder="Employee response..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">What are 1–2 things you want to dial in for 2026?</label>
+        <textarea class="rv-textarea" id="rv-q4" placeholder="Employee response..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">1–2 ways we can improve in 2026</label>
+        <textarea class="rv-textarea" id="rv-q5" placeholder="Employee response..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">Are there any personality conflicts troubling you?</label>
+        <textarea class="rv-textarea" id="rv-q6" placeholder="Employee response..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">What is your dream outcome at Alpine?</label>
+        <textarea class="rv-textarea" id="rv-q7" placeholder="Employee response..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">Does the future look bright?</label>
+        <textarea class="rv-textarea" id="rv-q8" placeholder="Employee response..."></textarea>
+      </div>
+
+      <!-- Core values -->
+      <div class="rv-form-section">
+        <div class="rv-form-section-title">Core Values — Performance Rating</div>
+        <div class="rv-form-section-sub">Rate 1–5 stars</div>
+      </div>
+      <div class="rv-values-grid">
+        <div class="rv-value-item">
+          <div class="rv-value-name">Character</div>
+          <div class="rv-stars" data-value="character">
+            <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
+          </div>
+        </div>
+        <div class="rv-value-item">
+          <div class="rv-value-name">Courage</div>
+          <div class="rv-stars" data-value="courage">
+            <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
+          </div>
+        </div>
+        <div class="rv-value-item">
+          <div class="rv-value-name">Curiosity</div>
+          <div class="rv-stars" data-value="curiosity">
+            <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
+          </div>
+        </div>
+        <div class="rv-value-item">
+          <div class="rv-value-name">Competence</div>
+          <div class="rv-stars" data-value="competence">
+            <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
+          </div>
+        </div>
+        <div class="rv-value-item">
+          <div class="rv-value-name">Caring</div>
+          <div class="rv-stars" data-value="caring">
+            <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance notes -->
+      <div class="rv-field">
+        <label class="rv-label">Performance Notes (manager observations)</label>
+        <textarea class="rv-textarea tall" id="rv-perf" placeholder="Your notes on employee performance this quarter..."></textarea>
+      </div>
+
+      <!-- Action items -->
+      <div class="rv-form-section">
+        <div class="rv-form-section-title">Action Items &amp; Follow-Ups</div>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">Action Items</label>
+        <textarea class="rv-textarea tall" id="rv-actions" placeholder="List action items from this review — one per line..."></textarea>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">Additional Notes</label>
+        <textarea class="rv-textarea" id="rv-notes" placeholder="Anything else worth noting..."></textarea>
+      </div>
+
+      <!-- Difficult conversation toggle -->
+      <div class="rv-form-section">
+        <div class="rv-form-section-title">Difficult Conversation</div>
+        <div class="rv-form-section-sub">Toggle if this review involved a difficult conversation</div>
+      </div>
+      <div class="rv-diff-toggle" onclick="toggleDiff()">
+        <div>
+          <div class="rv-diff-toggle-label">Difficult Conversation Flag</div>
+          <div class="rv-diff-toggle-sub">Tap to expand strategy framework</div>
+        </div>
+        <div class="rv-diff-chevron" id="rv-diff-chevron">▼</div>
+      </div>
+      <div class="rv-diff-content" id="rv-diff-content">
+        <ol class="rv-diff-steps">
+          <li>This is going to be a difficult conversation.</li>
+          <li>Nobody is getting fired today.</li>
+          <li>It appears from my perspective that you are…</li>
+          <li>Tell me about that.</li>
+        </ol>
+        <div class="rv-field">
+          <label class="rv-label">Difficult Conversation Notes</label>
+          <textarea class="rv-textarea" id="rv-diff-notes" placeholder="Notes on the difficult conversation..."></textarea>
+        </div>
+      </div>
+
+    </div><!-- end modal body -->
+    <div class="rv-modal-footer">
+      <button class="rv-cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="rv-save-btn" onclick="saveReview()">Save Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── VIEW MODAL ── -->
+<div id="rv-view-modal" class="rv-modal">
+  <div class="rv-modal-box">
+    <div class="rv-modal-top">
+      <div class="rv-modal-top-title" id="rv-view-title">Review</div>
+      <button class="rv-modal-close" onclick="closeViewModal()">✕</button>
+    </div>
+    <div class="rv-modal-body" id="rv-view-body"></div>
+    <div class="rv-modal-footer">
+      <button class="rv-cancel-btn" onclick="closeViewModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end panel-reviews -->
+
+<script>
+// ── TAB SWITCHING ──
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── STORAGE KEY ──
+const STORAGE_KEY = 'alpine_reviews_v1';
+
+function loadReviews() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e) { return []; }
+}
+function saveReviews(reviews) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
+}
+
+// ── STAR RATINGS ──
+const ratings = { character:0, courage:0, curiosity:0, competence:0, caring:0 };
+document.querySelectorAll('.rv-stars').forEach(group => {
+  const key = group.dataset.value;
+  group.querySelectorAll('.rv-star').forEach(star => {
+    star.addEventListener('click', () => {
+      ratings[key] = parseInt(star.dataset.n);
+      updateStars(group, ratings[key]);
+    });
+    star.addEventListener('mouseover', () => updateStars(group, parseInt(star.dataset.n)));
+    star.addEventListener('mouseout', () => updateStars(group, ratings[key]));
+  });
+});
+function updateStars(group, val) {
+  group.querySelectorAll('.rv-star').forEach(s => s.classList.toggle('active', parseInt(s.dataset.n) <= val));
+}
+function resetStars() {
+  Object.keys(ratings).forEach(k => ratings[k] = 0);
+  document.querySelectorAll('.rv-stars').forEach(g => updateStars(g, 0));
+}
+function setStars(vals) {
+  Object.keys(vals).forEach(k => {
+    ratings[k] = vals[k];
+    const group = document.querySelector(`.rv-stars[data-value="${k}"]`);
+    if(group) updateStars(group, vals[k]);
+  });
+}
+
+// ── DIFFICULT CONVO TOGGLE ──
+function toggleDiff() {
+  const content = document.getElementById('rv-diff-content');
+  const chevron = document.getElementById('rv-diff-chevron');
+  content.classList.toggle('open');
+  chevron.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+// ── MODAL ──
+let editingId = null;
+function openNewReview() {
+  editingId = null;
+  document.getElementById('rv-modal-title').textContent = 'New Quarterly Review';
+  clearForm();
+  document.getElementById('rv-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('rv-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('rv-modal').classList.remove('open');
+}
+function closeViewModal() {
+  document.getElementById('rv-view-modal').classList.remove('open');
+}
+
+function clearForm() {
+  ['rv-tech','rv-date','rv-quarter','rv-level','rv-q1','rv-q2','rv-q3','rv-q4','rv-q5','rv-q6','rv-q7','rv-q8','rv-perf','rv-actions','rv-notes','rv-diff-notes']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  resetStars();
+  document.getElementById('rv-diff-content').classList.remove('open');
+  document.getElementById('rv-diff-chevron').style.transform = '';
+}
+
+// ── SAVE ──
+function saveReview() {
+  const tech = document.getElementById('rv-tech').value.trim();
+  if(!tech) { alert('Please enter a technician name.'); return; }
+  const review = {
+    id: editingId || Date.now(),
+    tech,
+    date: document.getElementById('rv-date').value,
+    quarter: document.getElementById('rv-quarter').value,
+    level: document.getElementById('rv-level').value,
+    q1: document.getElementById('rv-q1').value,
+    q2: document.getElementById('rv-q2').value,
+    q3: document.getElementById('rv-q3').value,
+    q4: document.getElementById('rv-q4').value,
+    q5: document.getElementById('rv-q5').value,
+    q6: document.getElementById('rv-q6').value,
+    q7: document.getElementById('rv-q7').value,
+    q8: document.getElementById('rv-q8').value,
+    perf: document.getElementById('rv-perf').value,
+    actions: document.getElementById('rv-actions').value,
+    notes: document.getElementById('rv-notes').value,
+    diffNotes: document.getElementById('rv-diff-notes').value,
+    ratings: {...ratings}
+  };
+  const reviews = loadReviews();
+  const idx = reviews.findIndex(r => r.id === editingId);
+  if(idx > -1) reviews[idx] = review;
+  else reviews.unshift(review);
+  saveReviews(reviews);
+  closeModal();
+  renderList();
+}
+
+// ── DELETE ──
+function deleteReview(id, e) {
+  e.stopPropagation();
+  if(!confirm('Delete this review?')) return;
+  const reviews = loadReviews().filter(r => r.id !== id);
+  saveReviews(reviews);
+  renderList();
+}
+
+// ── EDIT ──
+function editReview(id, e) {
+  e.stopPropagation();
+  const review = loadReviews().find(r => r.id === id);
+  if(!review) return;
+  editingId = id;
+  document.getElementById('rv-modal-title').textContent = 'Edit Review — ' + review.tech;
+  document.getElementById('rv-tech').value = review.tech;
+  document.getElementById('rv-date').value = review.date;
+  document.getElementById('rv-quarter').value = review.quarter;
+  document.getElementById('rv-level').value = review.level;
+  document.getElementById('rv-q1').value = review.q1 || '';
+  document.getElementById('rv-q2').value = review.q2 || '';
+  document.getElementById('rv-q3').value = review.q3 || '';
+  document.getElementById('rv-q4').value = review.q4 || '';
+  document.getElementById('rv-q5').value = review.q5 || '';
+  document.getElementById('rv-q6').value = review.q6 || '';
+  document.getElementById('rv-q7').value = review.q7 || '';
+  document.getElementById('rv-q8').value = review.q8 || '';
+  document.getElementById('rv-perf').value = review.perf || '';
+  document.getElementById('rv-actions').value = review.actions || '';
+  document.getElementById('rv-notes').value = review.notes || '';
+  document.getElementById('rv-diff-notes').value = review.diffNotes || '';
+  if(review.ratings) setStars(review.ratings);
+  document.getElementById('rv-modal').classList.add('open');
+}
+
+// ── VIEW ──
+function viewReview(id) {
+  const review = loadReviews().find(r => r.id === id);
+  if(!review) return;
+  document.getElementById('rv-view-title').textContent = review.tech + (review.quarter ? ' · ' + review.quarter : '');
+  const stars = (n) => [1,2,3,4,5].map(i => `<span class="rv-view-star ${i<=n?'on':'off'}">★</span>`).join('');
+  const field = (label, val, full=false) => val ? `
+    <div class="rv-view-field${full?' full':''}">
+      <div class="rv-view-field-label">${label}</div>
+      <div class="rv-view-field-value">${val}</div>
+    </div>` : '';
+  const qs = [
+    ['Start / Stop / Keep', review.q1],
+    ['Skills Growth', review.q2],
+    ['Admin Hitches', review.q3],
+    ['Dial In for 2026', review.q4],
+    ['Improvements for 2026', review.q5],
+    ['Personality Conflicts', review.q6],
+    ['Dream Outcome at Alpine', review.q7],
+    ['Does the Future Look Bright?', review.q8],
+  ];
+  const qHtml = qs.filter(([,v])=>v).map(([l,v]) => field(l,v,true)).join('');
+  const rv = review.ratings || {};
+  const valNames = ['character','courage','curiosity','competence','caring'];
+  const valHtml = valNames.some(k=>rv[k]) ? `
+    <div class="rv-view-section">
+      <div class="rv-view-section-title">Core Values Ratings</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem">
+        ${valNames.map(k=>`<div><div style="font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--grey);margin-bottom:4px">${k}</div><div class="rv-view-stars">${stars(rv[k]||0)}</div></div>`).join('')}
+      </div>
+    </div>` : '';
+  document.getElementById('rv-view-body').innerHTML = `
+    <div class="rv-view-section">
+      <div class="rv-view-section-title">Details</div>
+      <div class="rv-view-row">
+        ${field('Date', review.date ? new Date(review.date+'T00:00:00').toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'}) : '')}
+        ${field('Quarter', review.quarter)}
+        ${field('Level', review.level)}
+      </div>
+    </div>
+    ${qHtml ? `<div class="rv-view-section"><div class="rv-view-section-title">Review Questions</div><div class="rv-view-row">${qHtml}</div></div>` : ''}
+    ${valHtml}
+    ${review.perf ? `<div class="rv-view-section"><div class="rv-view-section-title">Performance Notes</div>${field('','',false)}<div class="rv-view-field full"><div class="rv-view-field-value">${review.perf}</div></div></div>` : ''}
+    ${review.actions ? `<div class="rv-view-section"><div class="rv-view-section-title">Action Items</div><div class="rv-view-field full"><div class="rv-view-field-value">${review.actions}</div></div></div>` : ''}
+    ${review.notes ? `<div class="rv-view-section"><div class="rv-view-section-title">Additional Notes</div><div class="rv-view-field full"><div class="rv-view-field-value">${review.notes}</div></div></div>` : ''}
+    ${review.diffNotes ? `<div class="rv-view-section"><div class="rv-view-section-title" style="color:var(--purple-light)">Difficult Conversation Notes</div><div class="rv-view-field full"><div class="rv-view-field-value">${review.diffNotes}</div></div></div>` : ''}
+  `;
+  document.getElementById('rv-view-modal').classList.add('open');
+}
+
+// ── RENDER LIST ──
+function renderList() {
+  const reviews = loadReviews();
+  const list = document.getElementById('rv-list');
+  if(!reviews.length) {
+    list.innerHTML = '<div class="rv-list-empty"><span>📋</span>No reviews yet. Click "New Review" to add the first one.</div>';
+    return;
+  }
+  list.innerHTML = reviews.map(r => {
+    const initials = r.tech.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const dateStr = r.date ? new Date(r.date+'T00:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}) : '';
+    return `
+    <div class="rv-card" onclick="viewReview(${r.id})">
+      <div class="rv-card-left">
+        <div class="rv-card-avatar">${initials}</div>
+        <div>
+          <div class="rv-card-name">${r.tech}</div>
+          <div class="rv-card-meta">${r.level || ''}${r.level && dateStr ? ' · ' : ''}${dateStr}</div>
+        </div>
+      </div>
+      <div class="rv-card-right">
+        ${r.quarter ? `<div class="rv-card-quarter">${r.quarter}</div>` : ''}
+        <div class="rv-card-actions">
+          <button class="rv-card-btn" onclick="editReview(${r.id}, event)">Edit</button>
+          <button class="rv-card-btn del" onclick="deleteReview(${r.id}, event)">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Init
+renderList();
+</script>
+</body>
+</html>

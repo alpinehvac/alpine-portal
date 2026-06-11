@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tech Recruiting — Alpine HVAC Portal</title>
+<script src="auth.js"></script>
+<script>apGuard("tech-recruiting");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1C6B6E;
+  --teal-light:#2A8A8E;
+  --teal-dark:#0F4547;
+  --purple:#9B8EC4;
+  --purple-light:#B8AEDC;
+  --purple-dark:#6B5E9C;
+  --snow:#C8D8E0;
+  --black:#111110;
+  --off-black:#1A1A18;
+  --charcoal:#2A2A28;
+  --mid:#3A3A37;
+  --grey:#6B6B67;
+  --light-grey:#9A9A95;
+  --white:#FFFFFF;
+  --off-white:#F5F5F2;
+  --border:rgba(255,255,255,0.08);
+  --radius:8px;
+  --radius-lg:14px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:16px;line-height:1.7;overflow-x:hidden}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--off-black)}
+::-webkit-scrollbar-thumb{background:var(--teal)}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35)}
+.nav-inner{max-width:1040px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:12px}
+.nav-wordmark{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--white);line-height:1}
+.nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;color:var(--teal-light);margin-top:2px}
+.nav-links{display:flex;gap:1.75rem;align-items:center}
+.nav-links a{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,0.45);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--white)}
+.nav-cta{background:var(--teal)!important;color:var(--white)!important;padding:8px 20px;border-radius:4px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;transition:background .2s!important}
+.nav-cta:hover{background:var(--teal-light)!important}
+@media(max-width:700px){.nav-links{display:none}}
+
+/* ── HERO ── */
+.hero{background:var(--black);position:relative;overflow:hidden;padding:5rem 2rem 0}
+.hero-bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(28,107,110,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(28,107,110,0.05) 1px,transparent 1px);background-size:64px 64px;pointer-events:none}
+.hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(28,107,110,0.12) 0%,transparent 65%);pointer-events:none}
+.hero-content{position:relative;z-index:2;max-width:1040px;margin:0 auto;text-align:center;padding-bottom:0}
+.hero-eyebrow{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1.5rem;display:inline-flex;align-items:center;gap:10px}
+.hero-eyebrow::before,.hero-eyebrow::after{content:'';display:block;width:28px;height:1px;background:var(--teal)}
+.hero h1{font-family:'Oswald',sans-serif;font-size:clamp(2.8rem,8vw,5.5rem);font-weight:700;line-height:.95;letter-spacing:.01em;text-transform:uppercase;margin-bottom:1.75rem}
+.hero h1 .line2{color:var(--teal-light)}
+.hero h1 .line3{font-size:clamp(1.4rem,4vw,2.75rem);font-weight:400;color:rgba(255,255,255,0.4);letter-spacing:.04em;display:block;margin-top:.25rem}
+.hero-body{font-size:1.05rem;color:rgba(255,255,255,0.55);max-width:540px;margin:0 auto 2.5rem;line-height:1.8}
+.hero-stats{display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;margin-bottom:2.75rem}
+.stat{text-align:center;padding:0 1.5rem;border-right:1px solid rgba(255,255,255,0.08)}
+.stat:last-child{border-right:none}
+.stat-num{font-family:'Oswald',sans-serif;font-size:2rem;font-weight:700;color:var(--white);line-height:1}
+.stat-num sup{font-size:1rem;color:var(--teal-light)}
+.stat-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);margin-top:4px}
+.hero-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:0}
+.btn-primary{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:var(--teal);color:var(--white);padding:13px 34px;border-radius:4px;text-decoration:none;transition:all .2s}
+.btn-primary:hover{background:var(--teal-light)}
+.btn-outline{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.6);padding:13px 28px;border-radius:4px;text-decoration:none;transition:all .2s}
+.btn-outline:hover{border-color:rgba(255,255,255,0.5);color:var(--white)}
+
+/* Mountain SVG positioned below hero content */
+.hero-mtn{display:block;width:100%;margin-top:3rem;position:relative;z-index:1;line-height:0}
+
+/* ── SECTIONS ── */
+.section{padding:5.5rem 2rem}
+.section-inner{max-width:1040px;margin:0 auto}
+.section.alt{background:var(--off-black)}
+.section-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.875rem;display:flex;align-items:center;gap:10px}
+.section-label::before{content:'';width:22px;height:1px;background:var(--teal);flex-shrink:0}
+.section-title{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.75rem);font-weight:700;text-transform:uppercase;line-height:1.05;margin-bottom:1rem}
+.section-sub{font-size:.9375rem;color:rgba(255,255,255,0.5);max-width:580px;margin-bottom:3rem;line-height:1.8}
+
+/* ── COMP TABLE ── */
+.comp-table{width:100%;border-collapse:collapse;margin-bottom:3rem;border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.comp-table th{background:var(--charcoal);padding:.875rem 1.25rem;font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);text-align:left;border-bottom:1px solid rgba(255,255,255,0.07)}
+.comp-table td{padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:.9rem;color:rgba(255,255,255,0.7);vertical-align:middle}
+.comp-table tr:last-child td{border-bottom:none}
+.comp-table tr:hover td{background:rgba(255,255,255,0.025)}
+.comp-table td.tier{font-family:'Oswald',sans-serif;font-size:.9375rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--white)}
+.comp-table td.rate{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;color:var(--white);white-space:nowrap}
+.comp-table td.rate span{font-size:.8rem;color:var(--teal-light);font-weight:400}
+.comp-table tr.highlight td{background:rgba(28,107,110,0.08)}
+.comp-table tr.highlight td.tier{color:var(--teal-light)}
+.comp-table td.note{font-size:.8rem;color:var(--grey)}
+.comp-table td.badge span{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:2px}
+.badge-profit{background:rgba(155,142,196,0.15);color:var(--purple-light)}
+.badge-veh{background:rgba(28,107,110,0.15);color:var(--teal-light)}
+
+/* ── ADD-ONS ── */
+.addons-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--grey);margin-bottom:1.25rem}
+.addons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.addon{background:var(--off-black);padding:1.5rem}
+.addon-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem}
+.addon-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.addon-rate{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;color:var(--teal-light);white-space:nowrap}
+.addon-tag{display:inline-block;font-size:.65rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 9px;border-radius:2px;margin-bottom:.6rem}
+.tag-cert{background:rgba(28,107,110,0.15);color:var(--teal-light)}
+.tag-role{background:rgba(155,142,196,0.15);color:var(--purple-light)}
+.tag-benefit{background:rgba(200,216,224,0.12);color:var(--snow)}
+.addon-desc{font-size:.8375rem;color:rgba(255,255,255,0.45);line-height:1.7}
+
+/* ── PROGRESSION LADDER ── */
+.ladder{border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.ladder-row{display:grid;grid-template-columns:160px 1fr auto;gap:2rem;align-items:center;padding:1.25rem 1.75rem;background:var(--off-black);border-bottom:1px solid rgba(255,255,255,0.05);transition:background .15s}
+.ladder-row:last-child{border-bottom:none}
+.ladder-row:hover{background:var(--charcoal)}
+.ladder-row.featured{background:rgba(28,107,110,0.08);border-left:2px solid var(--teal)}
+.ladder-row.featured:hover{background:rgba(28,107,110,0.12)}
+.ladder-yr{font-family:'Oswald',sans-serif;font-size:.8125rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal-light)}
+.ladder-title{font-family:'Oswald',sans-serif;font-size:.9375rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.3rem}
+.ladder-perks{display:flex;gap:.875rem;flex-wrap:wrap}
+.ladder-perk{font-size:.75rem;color:var(--grey);display:flex;align-items:center;gap:4px}
+.ladder-perk::before{content:'·';color:var(--teal)}
+.ladder-rate{font-family:'Oswald',sans-serif;font-size:1.625rem;font-weight:700;text-align:right;white-space:nowrap}
+.ladder-rate span{font-size:.75rem;color:var(--grey);font-weight:400}
+@media(max-width:600px){.ladder-row{grid-template-columns:1fr 1fr}.ladder-yr{grid-column:1 2}}
+
+/* ── BENEFITS ── */
+.benefits-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.benefit{background:var(--off-black);padding:1.75rem}
+.benefit-icon{font-size:1.5rem;margin-bottom:.875rem}
+.benefit-title{font-family:'Oswald',sans-serif;font-size:.9375rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.5rem}
+.benefit-desc{font-size:.8375rem;color:rgba(255,255,255,0.45);line-height:1.7}
+
+/* ── EFFICIENCY BONUS ── */
+.efficiency-box{background:var(--charcoal);border:1px solid rgba(155,142,196,0.2);border-radius:var(--radius-lg);padding:2.5rem;margin-bottom:1.5rem}
+.efficiency-box h3{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--purple-light);margin-bottom:1rem}
+.efficiency-box p{font-size:.9rem;color:rgba(255,255,255,0.55);line-height:1.8;margin-bottom:.75rem}
+.efficiency-box p:last-child{margin-bottom:0}
+
+/* ── CULTURE ── */
+.culture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.5rem}
+.culture-card{background:var(--charcoal);border-radius:var(--radius);padding:1.75rem;border-top:2px solid var(--teal)}
+.culture-card.purple{border-top-color:var(--purple)}
+.culture-card h3{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.625rem}
+.culture-card p{font-size:.8375rem;color:rgba(255,255,255,0.5);line-height:1.7}
+
+/* ── MEDIA PLACEHOLDERS ── */
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px}
+.media-ph{aspect-ratio:16/10;background:var(--charcoal);border:1px dashed rgba(255,255,255,0.1);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;transition:border-color .2s;cursor:default}
+.media-ph:hover{border-color:var(--teal)}
+.media-ph-icon{font-size:1.75rem;opacity:.25}
+.media-ph-label{font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--grey)}
+
+/* ── UNION COMPARE ── */
+.compare-table{width:100%;border-collapse:collapse;border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);overflow:hidden}
+.compare-table th{background:var(--charcoal);padding:.875rem 1.25rem;font-family:'Oswald',sans-serif;font-size:.65rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;text-align:left;color:var(--grey);border-bottom:1px solid rgba(255,255,255,0.07)}
+.compare-table th.th-alpine{color:var(--teal-light)}
+.compare-table td{padding:.9375rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:.875rem;color:rgba(255,255,255,0.55);vertical-align:top}
+.compare-table tr:last-child td{border-bottom:none}
+.compare-table tr:hover td{background:rgba(255,255,255,0.02)}
+.compare-table td.factor{font-weight:600;color:rgba(255,255,255,0.8);font-size:.875rem;white-space:nowrap}
+.compare-table td.td-alpine{color:rgba(255,255,255,0.8)}
+.win{display:inline-block;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(28,107,110,0.2);color:var(--teal-light);border:1px solid rgba(28,107,110,0.35);padding:2px 7px;border-radius:2px;margin-left:7px;vertical-align:middle}
+.disclaimer{margin-top:1.75rem;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:1.5rem}
+.disclaimer p{font-size:.8rem;color:rgba(255,255,255,0.3);line-height:1.75}
+.disclaimer strong{color:rgba(255,255,255,0.45)}
+
+/* ── CTA ── */
+.cta-section{background:var(--teal-dark);padding:5.5rem 2rem;text-align:center;position:relative;overflow:hidden}
+.cta-section::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,#0F4547 0%,#0a3234 100%)}
+.cta-inner{position:relative;z-index:1;max-width:600px;margin:0 auto}
+.cta-eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:.875rem}
+.cta-title{font-family:'Oswald',sans-serif;font-size:clamp(2.25rem,6vw,3.75rem);font-weight:700;text-transform:uppercase;line-height:1;margin-bottom:1.125rem}
+.cta-sub{font-size:.9375rem;color:rgba(255,255,255,0.6);margin-bottom:2.25rem;line-height:1.8}
+.contact-row{display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem}
+.contact-item{font-size:.85rem;color:rgba(255,255,255,0.45);display:flex;align-items:center;gap:6px}
+.contact-item a{color:rgba(255,255,255,0.7);text-decoration:none;transition:color .2s}
+.contact-item a:hover{color:var(--white)}
+
+/* ── FOOTER ── */
+footer{background:var(--black);border-top:1px solid rgba(255,255,255,0.05);padding:2rem;text-align:center}
+.footer-logo{font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:.5rem}
+.footer-copy{font-size:.7rem;color:rgba(255,255,255,0.18);line-height:1.9}
+
+/* ── FADE IN ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.hero-eyebrow{animation:fadeUp .5s ease both}
+.hero h1{animation:fadeUp .6s .08s ease both}
+.hero-body{animation:fadeUp .6s .16s ease both}
+.hero-stats{animation:fadeUp .6s .24s ease both}
+.hero-btns{animation:fadeUp .6s .32s ease both}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <!-- Mountain logo SVG matching Alpine brand -->
+      <svg width="40" height="38" viewBox="0 0 40 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="20,3 34,25 6,25" fill="rgba(28,107,110,0.18)" stroke="#2A8A8E" stroke-width="1.4" stroke-linejoin="round"/>
+        <polygon points="29,11 39,27 19,27" fill="rgba(155,142,196,0.1)" stroke="rgba(155,142,196,0.5)" stroke-width="1" stroke-linejoin="round"/>
+        <polygon points="11,11 1,27 21,27" fill="rgba(200,216,224,0.07)" stroke="rgba(200,216,224,0.25)" stroke-width="1" stroke-linejoin="round"/>
+        <line x1="2" y1="30" x2="38" y2="30" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <line x1="0" y1="33.5" x2="40" y2="33.5" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <line x1="0" y1="37" x2="40" y2="37" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+      </svg>
+      <div class="nav-wordmark">Alpine HVAC<small>Hydronics · Controls · Building Systems</small></div>
+    </div>
+    <div class="nav-links">
+      <a href="#compensation">Compensation</a>
+      <a href="#progression">Advancement</a>
+      <a href="#benefits">Benefits</a>
+      <a href="#culture">Culture</a>
+      <a href="#compare">vs. Union</a>
+      <a href="#contact" class="nav-cta">Get In Touch</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="hero-bg-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">Niagara &amp; Hamilton, Ontario · Commercial HVAC</div>
+    <h1>
+      The Best Trade Job<br>
+      <span class="line2">In Ontario.</span>
+      <span class="line3">Full Stop.</span>
+    </h1>
+    <p class="hero-body">We don't compete on culture while paying less. We pay at or above union rates, offer real advancement tied to your ticket, and actually invest in the people on our trucks.</p>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num"><sup>$</sup>25–55<sup>+</sup></div>
+        <div class="stat-label">Base Rate / Hr</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num"><sup>$</sup>12<sup>+</sup></div>
+        <div class="stat-label">Potential Add-Ons / Hr</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">3<sup>wk</sup></div>
+        <div class="stat-label">Paid Vacation at Yr 5</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0</div>
+        <div class="stat-label">Union Dues</div>
+      </div>
+    </div>
+    <div class="hero-btns">
+      <a href="#contact" class="btn-primary">Apply Now →</a>
+      <a href="#compensation" class="btn-outline">See the Numbers</a>
+    </div>
+  </div>
+  <!-- Mountain range across bottom of hero -->
+  <svg class="hero-mtn" viewBox="0 0 1440 180" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <polygon points="0,180 200,65 400,155 620,30 860,140 1060,45 1280,125 1440,70 1440,180" fill="rgba(28,107,110,0.07)"/>
+    <polygon points="0,180 160,90 340,165 520,55 740,130 940,38 1140,110 1340,60 1440,82 1440,180" fill="rgba(28,107,110,0.04)"/>
+    <polyline points="0,180 200,65 400,155 620,30 860,140 1060,45 1280,125 1440,70" fill="none" stroke="rgba(42,138,142,0.28)" stroke-width="1.5"/>
+    <polyline points="0,180 160,90 340,165 520,55 740,130 940,38 1140,110 1340,60 1440,82" fill="none" stroke="rgba(155,142,196,0.13)" stroke-width="1"/>
+  </svg>
+</div>
+
+<!-- ── COMPENSATION ── -->
+<div class="section alt" id="compensation">
+  <div class="section-inner">
+    <div class="section-label">Compensation</div>
+    <h2 class="section-title">Base Rates + Add-Ons</h2>
+    <p class="section-sub">Your base rate reflects your apprenticeship level. Certifications and role responsibilities stack on top — your real take-home depends on what you bring to the table.</p>
+
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Base Rate</th>
+          <th>Add-Ons Eligible</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tier">1st Year Apprentice</td>
+          <td class="rate">$25<span>/hr</span></td>
+          <td>—</td>
+          <td class="note">Starting rate</td>
+        </tr>
+        <tr>
+          <td class="tier">2nd Year Apprentice</td>
+          <td class="rate">$31<span>/hr</span></td>
+          <td class="badge"><span class="badge-veh">Company Vehicle</span></td>
+          <td class="note">Vehicle assigned Year 2</td>
+        </tr>
+        <tr>
+          <td class="tier">3rd Year Apprentice</td>
+          <td class="rate">$37<span>/hr</span></td>
+          <td class="badge"><span class="badge-profit">Profit Sharing</span></td>
+          <td class="note">Profit sharing eligible</td>
+        </tr>
+        <tr class="highlight">
+          <td class="tier">4th Year Apprentice</td>
+          <td class="rate">$43<span>/hr</span></td>
+          <td class="badge"><span class="badge-profit">Profit Sharing</span></td>
+          <td class="note">Cert add-ons stackable</td>
+        </tr>
+        <tr class="highlight">
+          <td class="tier">5th Year Apprentice</td>
+          <td class="rate">$49<span>/hr</span></td>
+          <td class="badge"><span class="badge-profit">Profit Sharing</span></td>
+          <td class="note">Full stack eligible</td>
+        </tr>
+        <tr class="highlight">
+          <td class="tier">Journeyman</td>
+          <td class="rate">$55<span>/hr</span></td>
+          <td class="badge"><span class="badge-profit">Profit Sharing</span></td>
+          <td class="note">Top of base rate scale</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="addons-label">Certifications &amp; Role Add-Ons</div>
+    <div class="addons-grid">
+      <div class="addon">
+        <div class="addon-tag tag-cert">Certification</div>
+        <div class="addon-top">
+          <div class="addon-name">Gas Fitter 1</div>
+          <div class="addon-rate">+$2.50/hr</div>
+        </div>
+        <div class="addon-desc">Paid for holding a valid gas fitting licence. Reflects the added legal liability and scope that comes with the certification. Yours to keep as long as the ticket is current.</div>
+      </div>
+      <div class="addon">
+        <div class="addon-tag tag-cert">Certification</div>
+        <div class="addon-top">
+          <div class="addon-name">Building Automation (BAS)</div>
+          <div class="addon-rate">+$2.50/hr</div>
+        </div>
+        <div class="addon-desc">Paid for demonstrated competency in building automation systems — programming, commissioning, and troubleshooting controls. One of the highest-value skill sets in commercial HVAC.</div>
+      </div>
+      <div class="addon">
+        <div class="addon-tag tag-role">Role</div>
+        <div class="addon-top">
+          <div class="addon-name">Foreman</div>
+          <div class="addon-rate">+$5/hr</div>
+        </div>
+        <div class="addon-desc">Designated foremen carry full accountability for crew efficiency, job quality, schedule adherence, safety, and mentorship of junior techs. This designation is earned and must be actively maintained — not automatic with tenure. Requirements are reviewed on an ongoing basis.</div>
+      </div>
+      <div class="addon">
+        <div class="addon-tag tag-benefit">Benefit</div>
+        <div class="addon-top">
+          <div class="addon-name">Company Vehicle</div>
+          <div class="addon-rate">Yr 2+</div>
+        </div>
+        <div class="addon-desc">Assigned from Year 2 onward. Fully stocked, maintained, and insured by Alpine. You drive a company truck to every site — no using your personal vehicle, no wear and tear on your own wheels.</div>
+      </div>
+      <div class="addon">
+        <div class="addon-tag tag-benefit">Incentive</div>
+        <div class="addon-top">
+          <div class="addon-name">Profit Sharing</div>
+          <div class="addon-rate">Yr 3+</div>
+        </div>
+        <div class="addon-desc">Technicians at 3rd year and above participate in Alpine's profit sharing program. When the business performs, the team shares in that directly. Details are discussed during onboarding and reviewed annually.</div>
+      </div>
+      <div class="addon">
+        <div class="addon-tag tag-role">Seniority</div>
+        <div class="addon-top">
+          <div class="addon-name">5-Year Loyalty</div>
+          <div class="addon-rate">+$2/hr</div>
+        </div>
+        <div class="addon-desc">A permanent rate increase awarded at the 5-year mark from your Certificate of Qualification date. Not your hire date — your ticket date. Earned once, kept permanently.</div>
+      </div>
+      <div class="addon">
+        <div class="addon-tag tag-role">Seniority</div>
+        <div class="addon-top">
+          <div class="addon-name">10-Year Loyalty</div>
+          <div class="addon-rate">+$3/hr</div>
+        </div>
+        <div class="addon-desc">A second permanent rate increase at the 10-year mark from your CoQ date. Stacks on top of the 5-year add-on — long-term commitment is recognized and rewarded.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROGRESSION ── -->
+<div class="section" id="progression">
+  <div class="section-inner">
+    <div class="section-label">Advancement</div>
+    <h2 class="section-title">Your Path at Alpine</h2>
+    <p class="section-sub">Advancement is tied to your ticket — not a manager's discretion. Every level unlocks higher pay, new responsibilities, and more opportunity.</p>
+
+    <div class="ladder">
+      <div class="ladder-row">
+        <div class="ladder-yr">Year 1 · AP1</div>
+        <div>
+          <div class="ladder-title">1st Year Apprentice</div>
+          <div class="ladder-perks">
+            <span class="ladder-perk">Tools provided</span>
+            <span class="ladder-perk">Field training</span>
+            <span class="ladder-perk">2 wks paid vacation</span>
+            <span class="ladder-perk">9 stat holidays</span>
+          </div>
+        </div>
+        <div class="ladder-rate">$25<span>/hr</span></div>
+      </div>
+      <div class="ladder-row">
+        <div class="ladder-yr">Year 2 · AP2</div>
+        <div>
+          <div class="ladder-title">2nd Year Apprentice</div>
+          <div class="ladder-perks">
+            <span class="ladder-perk">Company vehicle assigned</span>
+            <span class="ladder-perk">2 wks paid vacation</span>
+            <span class="ladder-perk">Expanded field scope</span>
+          </div>
+        </div>
+        <div class="ladder-rate">$31<span>/hr</span></div>
+      </div>
+      <div class="ladder-row">
+        <div class="ladder-yr">Year 3 · AP3</div>
+        <div>
+          <div class="ladder-title">3rd Year Apprentice</div>
+          <div class="ladder-perks">
+            <span class="ladder-perk">Profit sharing eligible</span>
+            <span class="ladder-perk">2 wks paid vacation</span>
+            <span class="ladder-perk">Foreman track opens</span>
+          </div>
+        </div>
+        <div class="ladder-rate">$37<span>/hr</span></div>
+      </div>
+      <div class="ladder-row featured">
+        <div class="ladder-yr">Year 4 · AP4</div>
+        <div>
+          <div class="ladder-title">4th Year Apprentice</div>
+          <div class="ladder-perks">
+            <span class="ladder-perk">Profit sharing eligible</span>
+            <span class="ladder-perk">2 wks paid vacation</span>
+            <span class="ladder-perk">Full cert stack eligible</span>
+          </div>
+        </div>
+        <div class="ladder-rate">$43<span>/hr</span></div>
+      </div>
+      <div class="ladder-row featured">
+        <div class="ladder-yr">Year 5 · AP5</div>
+        <div>
+          <div class="ladder-title">5th Year Apprentice</div>
+          <div class="ladder-perks">
+            <span class="ladder-perk">Profit sharing eligible</span>
+            <span class="ladder-perk">2 wks paid vacation</span>
+            <span class="ladder-perk">Full cert stack eligible</span>
+          </div>
+        </div>
+        <div class="ladder-rate">$49<span>/hr</span></div>
+      </div>
+      <div class="ladder-row featured">
+        <div class="ladder-yr">Journeyman</div>
+        <div>
+          <div class="ladder-title">Journeyman</div>
+          <div class="ladder-perks">
+            <span class="ladder-perk">Profit sharing eligible</span>
+            <span class="ladder-perk">3 wks paid vacation</span>
+            <span class="ladder-perk">Full cert + role stack</span>
+          </div>
+        </div>
+        <div class="ladder-rate">$55<span>/hr</span></div>
+      </div>
+      <div class="ladder-row">
+        <div class="ladder-yr">Year 10+</div>
+        <div>
+          <div class="ladder-title">Senior Journeyman</div>
+          <div class="ladder-perks">
+            <span class="ladder-perk">Profit sharing eligible</span>
+            <span class="ladder-perk">4 wks paid vacation</span>
+            <span class="ladder-perk">Leadership roles</span>
+          </div>
+        </div>
+        <div class="ladder-rate">$55+<span>/hr</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BENEFITS ── -->
+<div class="section alt" id="benefits">
+  <div class="section-inner">
+    <div class="section-label">Benefits &amp; Perks</div>
+    <h2 class="section-title">The Full Package</h2>
+    <p class="section-sub">Pay is the headline. Here's everything else that comes with working at Alpine.</p>
+
+    <div class="benefits-grid">
+      <div class="benefit">
+        <div class="benefit-icon">🏖️</div>
+        <div class="benefit-title">Paid Vacation</div>
+        <div class="benefit-desc">2 weeks paid from Year 1. 3 weeks at Year 5. 4 weeks at Year 10. Ontario's 9 legislated stat holidays are in addition to your vacation — they don't count against it.</div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🚛</div>
+        <div class="benefit-title">Company Vehicle</div>
+        <div class="benefit-desc">Assigned from Year 2. Fully stocked, insured, and maintained by Alpine. You drive a company truck to every site.</div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🔧</div>
+        <div class="benefit-title">Tools &amp; Equipment</div>
+        <div class="benefit-desc">Alpine provides all required tools and equipment. No nickel-and-diming on consumables or specialty gear — you show up and we have you covered.</div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">📈</div>
+        <div class="benefit-title">Profit Sharing</div>
+        <div class="benefit-desc">Available from Year 3. When Alpine wins, you win. Real dollars tied to company performance — not a token gesture or vague promise.</div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🎓</div>
+        <div class="benefit-title">Training &amp; Certification</div>
+        <div class="benefit-desc">We actively invest in upgrading the team's skills. Certification costs, training programs, and schooling are supported — not something you're expected to fund yourself.</div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🏗️</div>
+        <div class="benefit-title">Commercial &amp; ICI Work</div>
+        <div class="benefit-desc">Hydronics, controls, building systems — the kind of work that builds a real résumé. Commercial, industrial, institutional. Not residential, not service calls on home furnaces.</div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">📋</div>
+        <div class="benefit-title">Clear Advancement</div>
+        <div class="benefit-desc">Your progression is tied to your ticket — not a manager's mood. Rate increases are documented, predictable, and honoured.</div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🤝</div>
+        <div class="benefit-title">Small Team, Real Impact</div>
+        <div class="benefit-desc">We're intentionally lean. Fewer techs means more variety, more responsibility, faster growth, and you're not a number on a dispatch board.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROFIT SHARING ── -->
+<div class="section" id="efficiency">
+  <div class="section-inner">
+    <div class="section-label">Performance Pay</div>
+    <h2 class="section-title">Profit Sharing</h2>
+    <p class="section-sub">At Alpine, when the business does well, the people who built that result share in it.</p>
+
+    <div class="efficiency-box">
+      <h3>How It Works</h3>
+      <p>Technicians at 3rd year and above are eligible to participate in Alpine's profit sharing program. At the end of each period, a portion of net profit is distributed to eligible team members. This is not a discretionary bonus — it's a structured share of the outcome tied directly to how the business performed.</p>
+      <p>The intent is simple: the people doing the work should benefit when the work pays off. Profit sharing is reviewed annually and details are discussed individually during onboarding.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CULTURE ── -->
+<div class="section alt" id="culture">
+  <div class="section-inner">
+    <div class="section-label">Culture &amp; Values</div>
+    <h2 class="section-title">Why People Stay</h2>
+    <p class="section-sub">We built Alpine around a simple idea: a small team of highly skilled people, treated well, doing excellent work on excellent buildings.</p>
+
+    <div class="culture-grid">
+      <div class="culture-card">
+        <h3>Skill Over Volume</h3>
+        <p>We'd rather have fewer, better technicians than a revolving door of warm bodies. That means real training investment, better jobs, and a team that actually knows each other.</p>
+      </div>
+      <div class="culture-card purple">
+        <h3>Advancement Is Real</h3>
+        <p>Every level has a pay number attached to it, and we honour it. You won't be stuck at one rate for years waiting for someone to notice you. Your ticket progression is your pay progression.</p>
+      </div>
+      <div class="culture-card">
+        <h3>Commercial Focus</h3>
+        <p>We work on buildings worth caring about — hydronics, controls, commercial and institutional systems. The kind of work that makes your trade ticket mean something.</p>
+      </div>
+      <div class="culture-card purple">
+        <h3>Accountability Goes Both Ways</h3>
+        <p>We hold our techs to a high standard. In return, we hold ourselves to one too: showing up for the team, investing in growth, and not asking more than we're willing to give.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MEDIA ── -->
+<div class="section" id="work">
+  <div class="section-inner">
+    <div class="section-label">Our Work</div>
+    <h2 class="section-title">The Buildings We Look After</h2>
+    <p class="section-sub">Commercial, industrial, institutional — drop in photos and videos below when ready.</p>
+    <div class="media-grid">
+      <div class="media-ph"><div class="media-ph-icon">▶</div><div class="media-ph-label">Video Placeholder</div></div>
+      <div class="media-ph"><div class="media-ph-icon">🖼</div><div class="media-ph-label">Photo Placeholder</div></div>
+      <div class="media-ph"><div class="media-ph-icon">▶</div><div class="media-ph-label">Video Placeholder</div></div>
+      <div class="media-ph"><div class="media-ph-icon">🖼</div><div class="media-ph-label">Photo Placeholder</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── UNION COMPARE ── -->
+<div class="section alt" id="compare">
+  <div class="section-inner">
+    <div class="section-label">Honest Comparison</div>
+    <h2 class="section-title">Alpine vs. The Union</h2>
+    <p class="section-sub">Most non-union shops try to match union pay while pitching "better culture." That's not the angle here. We match the money — and then stack on top of it.</p>
+
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th style="width:200px">Factor</th>
+          <th>UA Local (Union)</th>
+          <th class="th-alpine">Alpine HVAC</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="factor">Base Rate (JP)</td>
+          <td>Union scale rate</td>
+          <td class="td-alpine">Competitive with union scale <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Advancement Path</td>
+          <td>Hours-based only, no merit path</td>
+          <td class="td-alpine">Ticket-based + cert and role add-ons <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Foreman Premium</td>
+          <td>~10%, fluctuates by job and headcount on a given day</td>
+          <td class="td-alpine">Flat +$5/hr, designated and consistent <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Paid Vacation</td>
+          <td>4–6% vacation pay baked into rate — no actual weeks off</td>
+          <td class="td-alpine">2–4 actual weeks off per year; 9 stat holidays separate and in addition <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Work Consistency</td>
+          <td>Hall dispatch — no guaranteed ongoing work</td>
+          <td class="td-alpine">Year-round employment <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Company Vehicle</td>
+          <td>Not provided</td>
+          <td class="td-alpine">Assigned from Year 2 <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Performance Pay</td>
+          <td>None</td>
+          <td class="td-alpine">Profit sharing (Yr 3+), efficiency bonuses (Foreman) <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Union Dues</td>
+          <td>$0.37/hr + monthly deductions from benefit fund</td>
+          <td class="td-alpine">None <span class="win">Alpine ✓</span></td>
+        </tr>
+        <tr>
+          <td class="factor">Team Structure</td>
+          <td>Rotational crews, contract-based, inconsistent teams</td>
+          <td class="td-alpine">Consistent team, direct relationships, shared ownership of outcomes <span class="win">Alpine ✓</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="disclaimer">
+      <p><strong>Important Notice:</strong> All compensation rates, benefits, add-ons, bonuses, vacation entitlements, and other terms described on this page are provided for informational purposes only and are subject to change at the sole discretion of Alpine HVAC Service Inc. leadership at any time without prior notice, except where otherwise stipulated in a written employment agreement signed by both parties. Nothing contained herein constitutes a binding offer of employment or a guarantee of any compensation. Only a signed written offer of employment issued by Alpine HVAC Service Inc. is binding. Alpine reserves the right to modify, suspend, or discontinue any element of this compensation structure at any time.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CTA ── -->
+<div class="cta-section" id="contact">
+  <div class="cta-inner">
+    <div class="cta-eyebrow">Ready to Make a Move?</div>
+    <h2 class="cta-title">Let's Talk.</h2>
+    <p class="cta-sub">No lengthy application. No HR gatekeeping. Just a conversation about whether Alpine is the right fit for where you're headed.</p>
+    <a href="mailto:contact@alpinehvac.ca" class="btn-primary">Get In Touch →</a>
+    <div class="contact-row">
+      <div class="contact-item">📞 <a href="tel:2894381175">(289) 438-1175</a></div>
+      <div class="contact-item">✉️ <a href="mailto:contact@alpinehvac.ca">contact@alpinehvac.ca</a></div>
+      <div class="contact-item">🌐 <a href="https://alpinehvac.ca" target="_blank">alpinehvac.ca</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">Alpine HVAC Service Inc.</div>
+  <div class="footer-copy">
+    Niagara &amp; Hamilton, Ontario · Commercial · Industrial · Institutional HVAC Service<br>
+    Hydronics · Controls · Building Systems<br>
+    All compensation and benefit details subject to change at leadership's discretion. Only a signed written offer of employment is binding.
+  </div>
+</footer>
+
+</body>
+</html>

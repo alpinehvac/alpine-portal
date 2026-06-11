@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BDR Recruiting — Alpine HVAC Portal</title>
+<script src="auth.js"></script>
+<script>apGuard("bdr-recruiting");</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg-2: #f7f6f3; --bg-3: #f0ede8;
+    --bg-info: #eaf3fb; --bg-warn: #fef9ec; --bg-success: #eaf3de; --bg-danger: #fcebeb;
+    --text-1: #1a1a18; --text-2: #5f5e5a; --text-3: #888780;
+    --text-info: #185fa5; --text-warn: #854f0b; --text-success: #3b6d11; --text-danger: #a32d2d;
+    --border: rgba(30,28,24,0.12); --border-med: rgba(30,28,24,0.22);
+    --green: #1D9E75; --amber: #EF9F27; --red: #E24B4A; --blue: #378ADD;
+    --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
+    --font: -apple-system,'Helvetica Neue',Arial,sans-serif;
+  }
+  body { font-family: var(--font); background: var(--bg-3); color: var(--text-1); font-size: 15px; line-height: 1.6; min-height: 100vh; padding: 2rem 1rem 4rem; }
+  .container { max-width: 860px; margin: 0 auto; background: var(--bg); border-radius: var(--r-lg); border: 0.5px solid var(--border); overflow: hidden; }
+  .topbar { background: #1a1a18; padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .topbar-title { color: #fff; font-size: 16px; font-weight: 500; }
+  .topbar-sub { color: rgba(255,255,255,.5); font-size: 13px; margin-top: 2px; }
+  .topbar-badge { font-size: 11px; padding: 4px 10px; border-radius: var(--r-md); background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); white-space: nowrap; }
+  .tab-bar { display: flex; border-bottom: 0.5px solid var(--border); background: var(--bg-2); overflow-x: auto; }
+  .tab-btn { flex-shrink: 0; padding: 11px 20px; font-size: 13px; color: var(--text-2); background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: all .15s; }
+  .tab-btn:hover { color: var(--text-1); }
+  .tab-btn.active { color: var(--text-1); font-weight: 500; border-bottom-color: var(--text-1); }
+  .panel { display: none; padding: 2rem; }
+  .panel.active { display: block; }
+  .panel-header { margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 0.5px solid var(--border); }
+  .panel-header-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .panel-icon { font-size: 20px; }
+  h2 { font-size: 18px; font-weight: 500; color: var(--text-1); }
+  h3 { font-size: 15px; font-weight: 500; color: var(--text-1); margin-bottom: 10px; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .meta-tag { font-size: 12px; padding: 3px 10px; border-radius: var(--r-sm); background: var(--bg-3); color: var(--text-2); border: 0.5px solid var(--border); }
+  .section { margin-bottom: 1.75rem; }
+  .section-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 10px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .trait-card { border-radius: var(--r-md); padding: 1rem; border: 0.5px solid var(--border); }
+  .trait-card.positive { background: var(--bg-success); border-color: rgba(29,158,117,.2); }
+  .trait-card.negative { background: var(--bg-danger); border-color: rgba(226,75,74,.2); }
+  .trait-title { font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+  .trait-card.positive .trait-title { color: var(--text-success); }
+  .trait-card.negative .trait-title { color: var(--text-danger); }
+  .trait-list { list-style: none; padding: 0; }
+  .trait-list li { font-size: 13px; color: var(--text-1); padding: 4px 0; border-bottom: 0.5px solid rgba(0,0,0,.06); line-height: 1.5; }
+  .trait-list li:last-child { border-bottom: none; }
+
+  /* ── Editable question list ── */
+  .question-list-editable { list-style: none; padding: 0; }
+  .question-item-editable { padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .question-item-editable:last-child { border-bottom: none; }
+  .q-edit-row { display: flex; gap: 8px; align-items: flex-start; }
+  .q-drag-handle { flex-shrink: 0; cursor: grab; color: var(--text-3); font-size: 14px; padding: 4px 2px; margin-top: 2px; line-height: 1; user-select: none; }
+  .q-drag-handle:active { cursor: grabbing; }
+  .q-num-badge { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--bg-3); color: var(--text-2); font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: center; margin-top: 3px; }
+  .q-edit-body { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .q-edit-text { width: 100%; padding: 6px 10px; border: 0.5px solid var(--border-med); border-radius: var(--r-sm); font-size: 14px; font-family: var(--font); color: var(--text-1); background: var(--bg); font-weight: 500; resize: none; overflow: hidden; line-height: 1.45; }
+  .q-edit-text:focus { outline: none; border-color: var(--blue); }
+  .q-edit-note { width: 100%; padding: 5px 10px; border: 0.5px solid transparent; border-radius: var(--r-sm); font-size: 13px; font-family: var(--font); color: var(--text-2); background: transparent; resize: none; overflow: hidden; line-height: 1.45; }
+  .q-edit-note:focus { outline: none; border-color: var(--border-med); background: var(--bg); }
+  .q-edit-note::placeholder { color: var(--text-3); font-style: italic; }
+  .q-delete-btn { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: transparent; border: 0.5px solid transparent; color: var(--text-3); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-top: 3px; transition: all .15s; }
+  .q-delete-btn:hover { background: var(--bg-danger); color: var(--text-danger); border-color: rgba(226,75,74,.3); }
+  .add-question-row { display: flex; align-items: center; gap: 8px; padding: 10px 0 0; }
+  .add-question-btn { font-size: 13px; color: var(--text-info); background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
+  .add-question-btn:hover { text-decoration: underline; }
+  .q-item-dragging { opacity: 0.4; }
+  .q-item-dragover { border-top: 2px solid var(--blue); }
+
+  .next-steps { display: flex; flex-direction: column; gap: 8px; }
+  .next-step-item { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--text-1); }
+  .step-dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); margin-top: 8px; }
+  .step-item { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: var(--text-1); padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+  .step-item:last-child { border-bottom: none; }
+  .step-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--text-1); color: #fff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .step-text { line-height: 1.5; }
+  .info-box { background: var(--bg-info); border: 0.5px solid rgba(24,95,165,.2); border-radius: var(--r-md); padding: 1rem 1.25rem; font-size: 14px; color: var(--text-info); margin-bottom: 1.5rem; line-height: 1.5; }
+  .warn-box { background: var(--bg-warn); border: 0.5px solid rgba(133,79,11,.2); border-radius: var(--r-md); padding: 1rem 1.25rem; font-size: 14px; color: var(--text-warn); margin-bottom: 1.5rem; line-height: 1.5; }
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
+
+  /* ── Candidate tracker (list view) ── */
+  .add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--text-1); color: #fff; border: none; border-radius: var(--r-md); font-size: 13px; font-weight: 500; cursor: pointer; }
+  .add-btn:hover { background: #333; }
+  .tracker-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+
+  /* Candidate list rows */
+  .cand-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: 0.5px solid var(--border); border-radius: var(--r-md); cursor: pointer; background: var(--bg); transition: border-color .15s, background .15s; margin-bottom: 6px; }
+  .cand-row:hover { background: var(--bg-2); border-color: var(--border-med); }
+  .cand-row.active-row { background: var(--bg-2); border-color: var(--blue); }
+  .cand-row-name { font-size: 14px; font-weight: 500; color: var(--text-1); flex: 1; }
+  .cand-row-meta { font-size: 12px; color: var(--text-3); }
+  .cand-row-badges { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: var(--r-sm); font-weight: 500; }
+  .badge-advance { background: var(--bg-success); color: var(--text-success); }
+  .badge-pass { background: var(--bg-danger); color: var(--text-danger); }
+  .badge-pending { background: var(--bg-warn); color: var(--text-warn); }
+  .badge-stage { background: var(--bg-3); color: var(--text-2); }
+  .badge-score { background: var(--bg-info); color: var(--text-info); }
+
+  /* Candidate file view */
+  .cand-file { display: none; }
+  .cand-file.open { display: block; }
+  .cand-file-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 0.5px solid var(--border); }
+  .cand-file-back { background: none; border: 0.5px solid var(--border-med); border-radius: var(--r-sm); padding: 5px 12px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+  .cand-file-back:hover { background: var(--bg-2); }
+  .cand-file-name { font-size: 18px; font-weight: 500; flex: 1; }
+  .cand-file-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* Interview sub-tabs inside candidate file */
+  .cand-subtab-bar { display: flex; gap: 2px; margin-bottom: 1.25rem; background: var(--bg-2); border-radius: var(--r-md); padding: 3px; }
+  .cand-subtab { flex: 1; padding: 8px 12px; font-size: 13px; color: var(--text-2); background: transparent; border: none; border-radius: calc(var(--r-md) - 2px); cursor: pointer; text-align: center; transition: all .15s; }
+  .cand-subtab:hover { color: var(--text-1); }
+  .cand-subtab.active { background: var(--bg); color: var(--text-1); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .cand-interview-panel { display: none; }
+  .cand-interview-panel.active { display: block; }
+
+  /* Interview note sections in candidate file */
+  .interview-note-section { margin-bottom: 1.25rem; }
+  .interview-note-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 6px; }
+  .interview-note-field { width: 100%; min-height: 120px; padding: 10px 12px; border: 0.5px solid var(--border-med); border-radius: var(--r-md); font-size: 13px; font-family: var(--font); color: var(--text-1); background: var(--bg); resize: vertical; line-height: 1.55; }
+  .interview-note-field:focus { outline: none; border-color: var(--blue); }
+  .interview-meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+  .interview-meta-field { display: flex; flex-direction: column; gap: 4px; }
+  .interview-meta-field label { font-size: 12px; color: var(--text-3); font-weight: 500; }
+  .interview-meta-field input, .interview-meta-field select { padding: 7px 10px; border: 0.5px solid var(--border-med); border-radius: var(--r-sm); font-size: 13px; font-family: var(--font); color: var(--text-1); background: var(--bg); }
+  .interview-meta-field input:focus, .interview-meta-field select:focus { outline: none; border-color: var(--blue); }
+  .save-interview-btn { padding: 7px 18px; background: var(--text-1); color: #fff; border: none; border-radius: var(--r-md); font-size: 13px; font-weight: 500; cursor: pointer; }
+  .save-interview-btn:hover { background: #333; }
+  .interview-save-row { display: flex; align-items: center; gap: 10px; margin-top: 1rem; }
+  .save-confirm { font-size: 13px; color: var(--text-success); display: none; }
+
+  /* Trait chips in candidate file */
+  .cand-traits { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+  .chip { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+  .chip-green { background: var(--bg-success); color: var(--text-success); }
+  .chip-red { background: var(--bg-danger); color: var(--text-danger); }
+
+  /* Analyze bar */
+  .analyze-bar { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 0.5px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .analyze-btn { padding: 9px 18px; background: var(--bg-2); border: 0.5px solid var(--border-med); border-radius: var(--r-md); font-size: 13px; font-weight: 500; color: var(--text-1); cursor: pointer; }
+  .analyze-btn:hover { background: var(--bg-3); }
+  .copy-msg { font-size: 13px; color: var(--text-success); display: none; }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-3); font-size: 14px; }
+
+  /* Add candidate modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--bg); border-radius: var(--r-lg); padding: 1.75rem; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; border: 0.5px solid var(--border); }
+  .modal h3 { margin-bottom: 1.25rem; font-size: 16px; }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 5px; font-weight: 500; }
+  .field input, .field select, .field textarea { width: 100%; padding: 8px 11px; border: 0.5px solid var(--border-med); border-radius: var(--r-md); font-size: 14px; font-family: var(--font); color: var(--text-1); background: var(--bg); }
+  .field textarea { min-height: 80px; resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--blue); }
+  .tchips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tchip { font-size: 12px; padding: 4px 11px; border-radius: 20px; border: 0.5px solid var(--border-med); background: var(--bg-2); color: var(--text-2); cursor: pointer; user-select: none; }
+  .tchip.sel-green { background: var(--bg-success); color: var(--text-success); border-color: rgba(29,158,117,.3); }
+  .tchip.sel-red { background: var(--bg-danger); color: var(--text-danger); border-color: rgba(226,75,74,.3); }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
+  .btn-cancel { padding: 8px 16px; border: 0.5px solid var(--border-med); border-radius: var(--r-md); background: var(--bg-2); color: var(--text-2); font-size: 13px; cursor: pointer; }
+  .btn-save { padding: 8px 16px; border: none; border-radius: var(--r-md); background: var(--text-1); color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-sm { font-size: 12px; padding: 5px 12px; border-radius: var(--r-sm); border: 0.5px solid var(--border-med); background: var(--bg-2); color: var(--text-2); cursor: pointer; }
+  .btn-sm:hover { background: var(--bg-3); }
+  .btn-sm.danger { color: var(--text-danger); border-color: rgba(226,75,74,.3); }
+  .btn-sm.danger:hover { background: var(--bg-danger); }
+
+  /* Resume upload */
+  .resume-drop { border: 1.5px dashed var(--border-med); border-radius: var(--r-md); padding: 1rem; text-align: center; cursor: pointer; background: var(--bg-2); }
+
+  /* ── Performance Tiers ── */
+  .assumptions-box { background: var(--bg-2); border-radius: var(--r-lg); border: 0.5px solid var(--border); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  .assumptions-box h3 { margin-bottom: 1rem; font-size: 13px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+  .assume-inputs { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+  .assume-field { display: flex; flex-direction: column; gap: 4px; }
+  .assume-field label { font-size: 11px; color: var(--text-3); font-weight: 500; }
+  .assume-field input { width: 100%; padding: 6px 9px; border: 0.5px solid var(--border-med); border-radius: var(--r-sm); font-size: 13px; font-family: var(--font); color: var(--text-1); background: var(--bg); text-align: right; }
+  .assume-field input:focus { outline: none; border-color: var(--blue); }
+  .payout-box { border-radius: var(--r-lg); border: 0.5px solid rgba(133,79,11,.25); background: var(--bg-warn); padding: 1.25rem 1.5rem; margin-bottom: 1.75rem; }
+  .payout-box h3 { font-size: 13px; color: var(--text-warn); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1rem; }
+  .payout-timeline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  .payout-step { background: var(--bg); border-radius: var(--r-md); border: 0.5px solid rgba(133,79,11,.2); padding: .875rem 1rem; }
+  .payout-step-label { font-size: 11px; font-weight: 500; color: var(--text-warn); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .payout-step-title { font-size: 14px; font-weight: 500; color: var(--text-1); margin-bottom: 4px; }
+  .payout-step-desc { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+  .payout-step-amount { font-size: 13px; font-weight: 500; color: var(--text-success); margin-top: 6px; }
+  .payout-note { font-size: 13px; color: var(--text-warn); line-height: 1.5; }
+  .tier-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .tier-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.25rem; }
+  .tier-card.featured { border: 2px solid var(--blue); }
+  .tier-badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: var(--r-md); margin-bottom: 10px; font-weight: 500; }
+  .tier-title { font-size: 15px; font-weight: 500; color: var(--text-1); margin: 0 0 4px; }
+  .tier-sub { font-size: 12px; color: var(--text-2); margin: 0 0 14px; }
+  .metric-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-label { color: var(--text-2); flex-shrink: 0; padding-right: 8px; }
+  .metric-value { font-weight: 500; color: var(--text-1); text-align: right; }
+  .metric-green { font-weight: 500; color: var(--text-success); text-align: right; }
+  .metric-blue { font-weight: 500; color: var(--text-info); text-align: right; }
+  .metric-amber { font-weight: 500; color: var(--text-warn); text-align: right; }
+  .tier-section-label { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin: 14px 0 6px; }
+  .editable-field { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .editable-field:last-child { border-bottom: none; }
+  .editable-field label { color: var(--text-2); font-size: 13px; flex-shrink: 0; padding-right: 8px; }
+  .editable-field input { width: 90px; padding: 2px 6px; border: 0.5px solid var(--border-med); border-radius: var(--r-sm); font-size: 13px; font-family: var(--font); color: var(--text-1); background: var(--bg-2); text-align: right; }
+  .editable-field input:focus { outline: none; border-color: var(--blue); background: var(--bg); }
+  .ltv-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+  .ltv-card { background: var(--bg-2); border-radius: var(--r-md); padding: .875rem 1rem; }
+  .ltv-label { font-size: 12px; color: var(--text-2); margin: 0 0 2px; }
+  .ltv-title { font-size: 13px; font-weight: 500; color: var(--text-1); margin: 0 0 10px; }
+  .ltv-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 0.5px solid var(--border); }
+  .ltv-row:last-child { border-bottom: none; }
+  .ltv-row span:first-child { color: var(--text-2); }
+  .ltv-row span:last-child { font-weight: 500; color: var(--text-1); }
+  .ltv-row.total span { color: var(--text-success); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Alpine HVAC Service Inc.</div>
+      <div class="topbar-sub">Business Development Representative — Recruiting</div>
+    </div>
+    <div class="topbar-badge">Niagara–Hamilton Region</div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab(0)">Interview 1</button>
+    <button class="tab-btn" onclick="switchTab(1)">Interview 2</button>
+    <button class="tab-btn" onclick="switchTab(2)">Offer process</button>
+    <button class="tab-btn" onclick="switchTab(3)">Candidates</button>
+    <button class="tab-btn" onclick="switchTab(4)">Performance tiers</button>
+  </div>
+
+  <!-- PANEL 0: INTERVIEW 1 -->
+  <div class="panel active" id="panel-0">
+    <div class="panel-header">
+      <div class="panel-header-row"><span class="panel-icon">📞</span><h2>Interview 1 — screening call</h2></div>
+      <div class="meta-row">
+        <span class="meta-tag">10–30 min</span>
+        <span class="meta-tag">Talk 30% · Listen 70%</span>
+        <span class="meta-tag">Record via Indeed if possible</span>
+        <span class="meta-tag">Schedule EOD — 3–4 back to back</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Candidate signals</div>
+      <div class="two-col">
+        <div class="trait-card positive">
+          <div class="trait-title">Green flags</div>
+          <ul class="trait-list">
+            <li>Hungry — talks about results, targets, wins</li>
+            <li>Humble — gives credit, acknowledges growth areas</li>
+            <li>Smart — connects dots quickly, asks sharp questions</li>
+            <li>Motivated by learning and growing, not just money</li>
+            <li>Long tenure at previous roles — loyalty signals</li>
+          </ul>
+        </div>
+        <div class="trait-card negative">
+          <div class="trait-title">Red flags</div>
+          <ul class="trait-list">
+            <li>Late to interview without acknowledgment</li>
+            <li>Not physically presentable</li>
+            <li>Asks about compensation before discussing the role</li>
+            <li>Speaks very negatively about current/past employers</li>
+            <li>No long-term positions on resume</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Key questions</div>
+      <ul class="question-list-editable" id="q-list-1" ondragover="event.preventDefault()" ondrop="dropQuestion(event,'q-list-1')"></ul>
+      <div class="add-question-row">
+        <button class="add-question-btn" onclick="addQuestion('q-list-1')">+ Add question</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Next steps</div>
+      <div class="next-steps">
+        <div class="next-step-item"><div class="step-dot"></div><span class="step-text">Record notes against candidate profile in Indeed immediately after call</span></div>
+        <div class="next-step-item"><div class="step-dot"></div><span class="step-text">Schedule Interview 2 via Indeed for candidates advancing</span></div>
+        <div class="next-step-item"><div class="step-dot"></div><span class="step-text">Send polite follow-up to all candidates regardless of outcome</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 1: INTERVIEW 2 -->
+  <div class="panel" id="panel-1">
+    <div class="panel-header">
+      <div class="panel-header-row"><span class="panel-icon">💼</span><h2>Interview 2 — sales knowledge & process</h2></div>
+      <div class="meta-row">
+        <span class="meta-tag">30–45 min</span>
+        <span class="meta-tag">Director of Sales</span>
+        <span class="meta-tag">Notes via Indeed</span>
+        <span class="meta-tag">Talk 30% · Listen 70%</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Candidate signals</div>
+      <div class="two-col">
+        <div class="trait-card positive">
+          <div class="trait-title">Green flags</div>
+          <ul class="trait-list">
+            <li>Understands B2B sales cycles — not transactional thinking</li>
+            <li>Honest about deals they've lost and why</li>
+            <li>Asks smart questions about Alpine's pipeline or client base</li>
+            <li>Demonstrates genuine curiosity about the HVAC / BAS space</li>
+            <li>Comfortable with ambiguity in a growth-stage environment</li>
+          </ul>
+        </div>
+        <div class="trait-card negative">
+          <div class="trait-title">Red flags</div>
+          <ul class="trait-list">
+            <li>Overstates results without specifics</li>
+            <li>Never lost a deal or takes no ownership of losses</li>
+            <li>Expects a warm inbound pipeline to work from</li>
+            <li>Asks about compensation before discussing the role further</li>
+            <li>Visibly uncomfortable with rejection or cold outreach</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Key questions</div>
+      <ul class="question-list-editable" id="q-list-2" ondragover="event.preventDefault()" ondrop="dropQuestion(event,'q-list-2')"></ul>
+      <div class="add-question-row">
+        <button class="add-question-btn" onclick="addQuestion('q-list-2')">+ Add question</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Next step if advancing</div>
+      <div class="next-steps">
+        <div class="step-item"><span class="step-num">1</span><span class="step-text">Call references before extending any offer</span></div>
+        <div class="step-item"><span class="step-num">2</span><span class="step-text">Review compensation package with candidate — confirm understanding of structure</span></div>
+        <div class="step-item"><span class="step-num">3</span><span class="step-text">Add notes to Indeed profile before end of day</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: OFFER PROCESS -->
+  <div class="panel" id="panel-2">
+    <div class="info-box"><strong>Offer process</strong> — Only proceed once references are complete and both parties have confirmed mutual interest. Do not rush this step.</div>
+    <div class="section">
+      <div class="section-label">Compensation to confirm with candidate</div>
+      <div class="next-steps">
+        <div class="step-item"><span class="step-num">—</span><span class="step-text">Base salary: <strong>$45,000/year</strong></span></div>
+        <div class="step-item"><span class="step-num">—</span><span class="step-text">Burden (vehicle + benefits): <strong>~$20,000</strong> company cost</span></div>
+        <div class="step-item"><span class="step-num">—</span><span class="step-text">Commission — self-generated service agreement revenue: <strong>30%</strong></span></div>
+        <div class="step-item"><span class="step-num">—</span><span class="step-text">Commission — company-generated leads: <strong>5%</strong></span></div>
+        <div class="step-item"><span class="step-num">—</span><span class="step-text">Commission payout: <strong>50% on contract signing</strong>, <strong>50% at 6-month mark</strong> — contingent on account remaining active</span></div>
+        <div class="step-item"><span class="step-num">—</span><span class="step-text">OTE: avg first year <strong>$90K–$120K</strong> · top performers <strong>$150K+</strong> · uncapped</span></div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="section">
+      <div class="section-label">Steps to complete</div>
+      <div class="next-steps">
+        <div class="step-item"><span class="step-num">1</span><span class="step-text">Confirm all references are complete before verbal offer</span></div>
+        <div class="step-item"><span class="step-num">2</span><span class="step-text">Verbal offer — walk through full compensation structure clearly</span></div>
+        <div class="step-item"><span class="step-num">3</span><span class="step-text">Send written offer letter via email — confirm receipt</span></div>
+        <div class="step-item"><span class="step-num">4</span><span class="step-text">Gather SIN, driver's licence, banking info, emergency contact</span></div>
+        <div class="step-item"><span class="step-num">5</span><span class="step-text">Schedule start date via Outlook Calendar</span></div>
+        <div class="step-item"><span class="step-num">6</span><span class="step-text">Prepare onboarding documentation and first-week schedule</span></div>
+        <div class="step-item"><span class="step-num">7</span><span class="step-text">Set 90-day probationary review date at time of hire</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 3: CANDIDATES -->
+  <div class="panel" id="panel-3">
+
+    <!-- LIST VIEW -->
+    <div id="cand-list-view">
+      <div class="tracker-top">
+        <h3 style="margin:0;">Candidate pipeline</h3>
+        <button class="add-btn" onclick="openModal()">+ Add candidate</button>
+      </div>
+
+      <!-- Interview 1 bucket -->
+      <div style="margin-bottom:1.5rem;">
+        <div class="section-label" style="margin-bottom:8px;">Interview 1 — Screening</div>
+        <div id="bucket-i1"></div>
+      </div>
+
+      <!-- Interview 2 bucket -->
+      <div style="margin-bottom:1.5rem;">
+        <div class="section-label" style="margin-bottom:8px;">Interview 2 — Sales knowledge</div>
+        <div id="bucket-i2"></div>
+      </div>
+
+      <!-- Later stage / Offer bucket -->
+      <div style="margin-bottom:1.5rem;">
+        <div class="section-label" style="margin-bottom:8px;">Later stages</div>
+        <div id="bucket-later"></div>
+      </div>
+
+      <div class="analyze-bar">
+        <button class="analyze-btn" onclick="copyAnalyzePrompt()">Copy batch analyze prompt ↗</button>
+        <span class="copy-msg" id="copy-msg">Prompt copied — paste into Claude</span>
+      </div>
+    </div>
+
+    <!-- CANDIDATE FILE VIEW -->
+    <div id="cand-file-view" class="cand-file">
+      <div class="cand-file-header">
+        <button class="cand-file-back" onclick="closeFile()">← All candidates</button>
+        <div class="cand-file-name" id="file-name-display"></div>
+        <div class="cand-file-badges" id="file-badges-display"></div>
+        <button class="btn-sm" onclick="editCurrentCandidate()">Edit</button>
+        <button class="btn-sm danger" onclick="deleteCurrentCandidate()">Remove</button>
+      </div>
+
+      <!-- Trait chips summary -->
+      <div id="file-traits-display" style="margin-bottom:1.25rem;"></div>
+
+      <!-- Interview sub-tabs -->
+      <div class="cand-subtab-bar">
+        <button class="cand-subtab active" onclick="switchSubtab(0)">Interview 1</button>
+        <button class="cand-subtab" onclick="switchSubtab(1)">Interview 2</button>
+        <button class="cand-subtab" onclick="switchSubtab(2)">Interview 3 / Offer</button>
+      </div>
+
+      <!-- Interview 1 panel -->
+      <div class="cand-interview-panel active" id="cand-sub-0">
+        <div class="interview-meta-row">
+          <div class="interview-meta-field">
+            <label>Interview date</label>
+            <input type="date" id="i1-date">
+          </div>
+          <div class="interview-meta-field">
+            <label>Score (1–10)</label>
+            <input type="number" id="i1-score" min="1" max="10" placeholder="—">
+          </div>
+          <div class="interview-meta-field">
+            <label>Decision</label>
+            <select id="i1-decision">
+              <option value="pending">Pending</option>
+              <option value="advance">Advance to Interview 2</option>
+              <option value="pass">Pass</option>
+            </select>
+          </div>
+          <div class="interview-meta-field">
+            <label>Interviewer</label>
+            <input type="text" id="i1-interviewer" placeholder="Name">
+          </div>
+        </div>
+        <div class="interview-note-section">
+          <div class="interview-note-label">Transcript / Notes</div>
+          <textarea class="interview-note-field" id="i1-notes" placeholder="Paste full transcript or key notes from the screening call here…" style="min-height:180px;"></textarea>
+        </div>
+        <div class="interview-note-section">
+          <div class="interview-note-label">Observations & summary</div>
+          <textarea class="interview-note-field" id="i1-summary" placeholder="Interviewer summary, standout moments, concerns…"></textarea>
+        </div>
+        <div class="interview-note-section">
+          <div class="interview-note-label">Traits observed</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;" id="i1-trait-chips"></div>
+        </div>
+        <div class="interview-save-row">
+          <button class="save-interview-btn" onclick="saveInterviewData(0)">Save Interview 1</button>
+          <span class="save-confirm" id="save-confirm-0">Saved ✓</span>
+          <button class="analyze-btn" style="margin-left:auto;" onclick="copyFilePrompt(0)">Copy analyze prompt ↗</button>
+        </div>
+      </div>
+
+      <!-- Interview 2 panel -->
+      <div class="cand-interview-panel" id="cand-sub-1">
+        <div class="interview-meta-row">
+          <div class="interview-meta-field">
+            <label>Interview date</label>
+            <input type="date" id="i2-date">
+          </div>
+          <div class="interview-meta-field">
+            <label>Score (1–10)</label>
+            <input type="number" id="i2-score" min="1" max="10" placeholder="—">
+          </div>
+          <div class="interview-meta-field">
+            <label>Decision</label>
+            <select id="i2-decision">
+              <option value="pending">Pending</option>
+              <option value="advance">Advance to Interview 3</option>
+              <option value="pass">Pass</option>
+            </select>
+          </div>
+          <div class="interview-meta-field">
+            <label>Interviewer</label>
+            <input type="text" id="i2-interviewer" placeholder="Name">
+          </div>
+        </div>
+        <div class="interview-note-section">
+          <div class="interview-note-label">Transcript / Notes</div>
+          <textarea class="interview-note-field" id="i2-notes" placeholder="Paste full transcript or key notes from the sales knowledge interview here…" style="min-height:180px;"></textarea>
+        </div>
+        <div class="interview-note-section">
+          <div class="interview-note-label">Observations & summary</div>
+          <textarea class="interview-note-field" id="i2-summary" placeholder="Interviewer summary, standout moments, concerns…"></textarea>
+        </div>
+        <div class="interview-save-row">
+          <button class="save-interview-btn" onclick="saveInterviewData(1)">Save Interview 2</button>
+          <span class="save-confirm" id="save-confirm-1">Saved ✓</span>
+          <button class="analyze-btn" style="margin-left:auto;" onclick="copyFilePrompt(1)">Copy analyze prompt ↗</button>
+        </div>
+      </div>
+
+      <!-- Interview 3 / Offer panel -->
+      <div class="cand-interview-panel" id="cand-sub-2">
+        <div class="interview-meta-row">
+          <div class="interview-meta-field">
+            <label>Interview date</label>
+            <input type="date" id="i3-date">
+          </div>
+          <div class="interview-meta-field">
+            <label>Score (1–10)</label>
+            <input type="number" id="i3-score" min="1" max="10" placeholder="—">
+          </div>
+          <div class="interview-meta-field">
+            <label>Decision</label>
+            <select id="i3-decision">
+              <option value="pending">Pending</option>
+              <option value="offer">Extend offer</option>
+              <option value="pass">Pass</option>
+            </select>
+          </div>
+          <div class="interview-meta-field">
+            <label>Interviewer</label>
+            <input type="text" id="i3-interviewer" placeholder="Name">
+          </div>
+        </div>
+        <div class="interview-note-section">
+          <div class="interview-note-label">Transcript / Notes</div>
+          <textarea class="interview-note-field" id="i3-notes" placeholder="Notes from CEO interview or offer conversation…" style="min-height:180px;"></textarea>
+        </div>
+        <div class="interview-note-section">
+          <div class="interview-note-label">References & compensation confirmed</div>
+          <textarea class="interview-note-field" id="i3-refs" placeholder="Reference check notes, compensation discussion notes…"></textarea>
+        </div>
+        <div class="interview-save-row">
+          <button class="save-interview-btn" onclick="saveInterviewData(2)">Save Interview 3</button>
+          <span class="save-confirm" id="save-confirm-2">Saved ✓</span>
+          <button class="analyze-btn" style="margin-left:auto;" onclick="copyFilePrompt(2)">Copy analyze prompt ↗</button>
+        </div>
+      </div>
+
+    </div><!-- /cand-file-view -->
+  </div><!-- /panel-3 -->
+
+  <!-- PANEL 4: PERFORMANCE TIERS -->
+  <div class="panel" id="panel-4">
+    <div class="panel-header">
+      <div class="panel-header-row"><span class="panel-icon">📈</span><h2>BDR performance tiers</h2></div>
+      <div class="meta-row"><span class="meta-tag">All fields editable — figures recalculate live</span></div>
+    </div>
+    <div class="assumptions-box">
+      <h3>Global assumptions</h3>
+      <div class="assume-inputs">
+        <div class="assume-field"><label>Avg contract value ($)</label><input type="number" id="a-acv" value="9000" oninput="recalc()"></div>
+        <div class="assume-field"><label>Pull-through multiplier (×)</label><input type="number" id="a-pt" value="3" step="0.1" oninput="recalc()"></div>
+        <div class="assume-field"><label>Gross margin (%)</label><input type="number" id="a-gm" value="40" oninput="recalc()"></div>
+        <div class="assume-field"><label>Retention (years)</label><input type="number" id="a-ret" value="3" oninput="recalc()"></div>
+        <div class="assume-field"><label>Base salary ($)</label><input type="number" id="a-base" value="45000" oninput="recalc()"></div>
+        <div class="assume-field"><label>Fixed burden ($/yr)</label><input type="number" id="a-burden" value="20000" oninput="recalc()"></div>
+        <div class="assume-field"><label>Self-gen commission (%)</label><input type="number" id="a-comm" value="30" oninput="recalc()"></div>
+        <div class="assume-field"><label>Co. lead commission (%)</label><input type="number" id="a-co-comm" value="5" oninput="recalc()"></div>
+      </div>
+    </div>
+    <div class="payout-box">
+      <h3>Commission payout terms</h3>
+      <div class="payout-timeline">
+        <div class="payout-step">
+          <div class="payout-step-label">Payment 1 — on signing</div>
+          <div class="payout-step-title">50% of earned commission</div>
+          <div class="payout-step-desc">Paid upon execution of the signed service agreement.</div>
+          <div class="payout-step-amount" id="pt-example-1"></div>
+        </div>
+        <div class="payout-step">
+          <div class="payout-step-label">Payment 2 — at 6 months</div>
+          <div class="payout-step-title">50% of earned commission</div>
+          <div class="payout-step-desc">Paid at the 6-month anniversary. <strong>Contingent on account remaining active.</strong> If account cancels, this payment is forfeited — no clawback of payment 1.</div>
+          <div class="payout-step-amount" id="pt-example-2"></div>
+        </div>
+      </div>
+      <div class="payout-note">The deferred second payment functions as built-in protection against early cancellations without requiring a formal clawback clause.</div>
+    </div>
+    <div class="tier-grid" id="tier-grid"></div>
+    <hr class="divider">
+    <h3 style="margin-bottom:12px;" id="ltv-heading">3-year lifetime value — by tier</h3>
+    <div class="ltv-grid" id="ltv-grid"></div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ADD/EDIT CANDIDATE MODAL -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title">Add candidate</h3>
+    <div class="field"><label>Full name</label><input type="text" id="f-name" placeholder="e.g. Jordan Smith"></div>
+    <div class="field"><label>Interview date</label><input type="date" id="f-date"></div>
+    <div class="field">
+      <label>Current stage</label>
+      <select id="f-stage">
+        <option value="Interview 1">Interview 1 — screening</option>
+        <option value="Interview 2">Interview 2 — sales knowledge</option>
+        <option value="Interview 3">Interview 3 — CEO</option>
+        <option value="Offer">Offer extended</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Overall decision</label>
+      <select id="f-decision">
+        <option value="pending">Pending</option>
+        <option value="advance">Advance</option>
+        <option value="pass">Pass</option>
+      </select>
+    </div>
+    <div class="field"><label>Overall score (1–10)</label><input type="number" id="f-score" min="1" max="10" placeholder="7"></div>
+    <div class="field">
+      <label>Positive traits observed</label>
+      <div class="tchips" id="pos-chips">
+        <span class="tchip" data-val="Hungry" onclick="toggleChip(this,'green')">Hungry</span>
+        <span class="tchip" data-val="Humble" onclick="toggleChip(this,'green')">Humble</span>
+        <span class="tchip" data-val="Smart" onclick="toggleChip(this,'green')">Smart</span>
+        <span class="tchip" data-val="Motivated" onclick="toggleChip(this,'green')">Motivated</span>
+        <span class="tchip" data-val="Process-driven" onclick="toggleChip(this,'green')">Process-driven</span>
+        <span class="tchip" data-val="Curious" onclick="toggleChip(this,'green')">Curious</span>
+        <span class="tchip" data-val="Honest" onclick="toggleChip(this,'green')">Honest</span>
+        <span class="tchip" data-val="Long tenure" onclick="toggleChip(this,'green')">Long tenure</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Red flags observed</label>
+      <div class="tchips" id="neg-chips">
+        <span class="tchip" data-val="Late" onclick="toggleChip(this,'red')">Late</span>
+        <span class="tchip" data-val="Unpresentable" onclick="toggleChip(this,'red')">Unpresentable</span>
+        <span class="tchip" data-val="Asked about comp" onclick="toggleChip(this,'red')">Asked about comp</span>
+        <span class="tchip" data-val="Blamed employer" onclick="toggleChip(this,'red')">Blamed employer</span>
+        <span class="tchip" data-val="No long tenure" onclick="toggleChip(this,'red')">No long tenure</span>
+        <span class="tchip" data-val="Wants warm leads" onclick="toggleChip(this,'red')">Wants warm leads</span>
+        <span class="tchip" data-val="Vague on process" onclick="toggleChip(this,'red')">Vague on process</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Resume</label>
+      <div class="resume-drop" id="resume-drop-area" onclick="document.getElementById('f-resume').click()" ondragover="event.preventDefault();this.style.borderColor='var(--blue)';" ondragleave="this.style.borderColor='';" ondrop="handleResumeDrop(event)">
+        <div id="resume-drop-label" style="font-size:13px;color:var(--text-3);">Click to upload or drag & drop — PDF or Word</div>
+        <div id="resume-file-name" style="font-size:13px;font-weight:500;color:var(--text-success);display:none;"></div>
+      </div>
+      <input type="file" id="f-resume" accept=".pdf,.doc,.docx" style="display:none;" onchange="handleResumeSelect(this)">
+      <button type="button" id="resume-clear-btn" onclick="clearResume()" style="display:none;margin-top:6px;font-size:12px;color:var(--text-danger);background:none;border:none;cursor:pointer;">Remove resume</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveCandidate()">Save candidate</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   TABS
+════════════════════════════════════════ */
+var tabs = document.querySelectorAll('.tab-btn');
+var panels = document.querySelectorAll('.panel');
+function switchTab(i){
+  tabs.forEach(function(t,x){ t.classList.toggle('active',x===i); });
+  panels.forEach(function(p,x){ p.classList.toggle('active',x===i); });
+}
+
+/* ════════════════════════════════════════
+   EDITABLE QUESTIONS
+════════════════════════════════════════ */
+var DEFAULT_Q1 = [
+  { text: "Tell me about yourself.", note: "Listen for energy, clarity, and whether they naturally talk about results vs. responsibilities." },
+  { text: "Tell me one good thing and one bad thing about your current or most recent employer.", note: "Green: balanced and specific. Red: excessive negativity or complete deflection." },
+  { text: "What are you looking to get out of this role?", note: "Listen for growth, challenge, earning potential. Flag if purely compensation-driven." },
+  { text: "Let me tell you about Alpine HVAC in 30 seconds — where do you see yourself fitting in?", note: "Brief Alpine overview, then listen for self-awareness and fit recognition." },
+  { text: "What questions do you have for me?", note: "Thoughtful questions about the company, market, or success criteria indicate genuine interest. Silence is a flag." },
+  { text: "If this feels like a mutual fit — would you be open to a second interview with our Director of Sales?", note: "If yes: schedule via Indeed. If no mutual fit: advise you will follow up regardless of outcome once the process is complete." }
+];
+var DEFAULT_Q2 = [
+  { text: "Walk me through a deal you're proud of — from first contact to close.", note: "Listen for process, not just outcome. Do they know their own sales motion?" },
+  { text: "Tell me about a deal you lost. What happened and what would you do differently?", note: "Self-awareness and ownership are the signal here. Blame is a red flag." },
+  { text: "How do you typically build a territory from scratch — what does week one look like for you?", note: "A true hunter will have a clear answer. Vagueness suggests they've only worked warm pipelines." },
+  { text: "What does your typical prospecting week look like — how many touches, what methods?", note: "Look for specifics: call volume, door knocking, email sequences, LinkedIn. Generic answers are a flag." },
+  { text: "How do you handle a prospect who keeps saying \"not right now\"?", note: "Persistence without pushiness is the target. Both giving up and being aggressive are wrong." },
+  { text: "This role hands off clients to an account manager after onboarding. How do you feel about that structure?", note: "A hunter will be relieved. If they push back on not owning the account, that's a mismatch." },
+  { text: "What do you know about building automation systems or commercial HVAC service agreements?", note: "They don't need to know the tech — but curiosity and willingness to learn are non-negotiable." },
+  { text: "Walk me through the longest sales cycle you've managed. How did you keep momentum?", note: "Commercial HVAC deals take 3–12 months. This tests patience, follow-through, and pipeline management." },
+  { text: "What questions do you have about the role, the market, or Alpine?", note: "Low-effort questions here are a flag." }
+];
+
+var questions = {
+  'q-list-1': JSON.parse(localStorage.getItem('alpine_q1') || 'null') || DEFAULT_Q1,
+  'q-list-2': JSON.parse(localStorage.getItem('alpine_q2') || 'null') || DEFAULT_Q2
+};
+var qStorageKeys = { 'q-list-1': 'alpine_q1', 'q-list-2': 'alpine_q2' };
+var dragSrc = null;
+
+function saveQuestions(listId){
+  localStorage.setItem(qStorageKeys[listId], JSON.stringify(questions[listId]));
+}
+
+function renderQuestions(listId){
+  var el = document.getElementById(listId);
+  el.innerHTML = '';
+  questions[listId].forEach(function(q, i){
+    var li = document.createElement('li');
+    li.className = 'question-item-editable';
+    li.setAttribute('draggable','true');
+    li.dataset.idx = i;
+    li.dataset.list = listId;
+    li.innerHTML =
+      '<div class="q-edit-row">' +
+        '<span class="q-drag-handle" title="Drag to reorder">⠿</span>' +
+        '<span class="q-num-badge">'+(i+1)+'</span>' +
+        '<div class="q-edit-body">' +
+          '<textarea class="q-edit-text" rows="1" data-list="'+listId+'" data-idx="'+i+'" data-field="text" oninput="updateQ(this);autoGrow(this)" onblur="saveQuestions(\''+listId+'\')">'+escHtml(q.text)+'</textarea>' +
+          '<textarea class="q-edit-note" rows="1" placeholder="Add a note for the interviewer…" data-list="'+listId+'" data-idx="'+i+'" data-field="note" oninput="updateQ(this);autoGrow(this)" onblur="saveQuestions(\''+listId+'\')">'+escHtml(q.note||'')+'</textarea>' +
+        '</div>' +
+        '<button class="q-delete-btn" title="Remove question" onclick="deleteQuestion(\''+listId+'\','+i+')">×</button>' +
+      '</div>';
+    li.addEventListener('dragstart', function(e){ dragSrc = this; this.classList.add('q-item-dragging'); e.dataTransfer.effectAllowed='move'; });
+    li.addEventListener('dragend', function(){ this.classList.remove('q-item-dragging'); document.querySelectorAll('.q-item-dragover').forEach(function(x){ x.classList.remove('q-item-dragover'); }); });
+    li.addEventListener('dragover', function(e){ e.preventDefault(); this.classList.add('q-item-dragover'); });
+    li.addEventListener('dragleave', function(){ this.classList.remove('q-item-dragover'); });
+    li.addEventListener('drop', function(e){
+      e.preventDefault(); e.stopPropagation();
+      this.classList.remove('q-item-dragover');
+      if(dragSrc===this || !dragSrc) return;
+      var fromIdx = parseInt(dragSrc.dataset.idx);
+      var toIdx = parseInt(this.dataset.idx);
+      var arr = questions[listId];
+      var moved = arr.splice(fromIdx,1)[0];
+      arr.splice(toIdx,0,moved);
+      saveQuestions(listId);
+      renderQuestions(listId);
+    });
+    el.appendChild(li);
+  });
+  el.querySelectorAll('textarea').forEach(autoGrow);
+}
+function dropQuestion(e,listId){ e.preventDefault(); }
+function updateQ(el){
+  var listId = el.dataset.list;
+  var idx = parseInt(el.dataset.idx);
+  var field = el.dataset.field;
+  questions[listId][idx][field] = el.value;
+}
+function deleteQuestion(listId, idx){
+  if(questions[listId].length<=1){ return; }
+  questions[listId].splice(idx,1);
+  saveQuestions(listId);
+  renderQuestions(listId);
+}
+function addQuestion(listId){
+  questions[listId].push({ text:'', note:'' });
+  saveQuestions(listId);
+  renderQuestions(listId);
+  var list = document.getElementById(listId);
+  var newItem = list.lastElementChild;
+  if(newItem){ newItem.querySelector('.q-edit-text').focus(); }
+}
+function autoGrow(el){
+  el.style.height='auto';
+  el.style.height=(el.scrollHeight)+'px';
+}
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+renderQuestions('q-list-1');
+renderQuestions('q-list-2');
+
+/* ════════════════════════════════════════
+   CANDIDATE TRACKER
+════════════════════════════════════════ */
+var candidates = JSON.parse(localStorage.getItem('alpine_bdr_candidates')||'[]');
+
+/* ── Migrate old-format candidates (flat notes field → interviews[0].notes) ── */
+(function migrateCandidates(){
+  var changed = false;
+  candidates.forEach(function(c){
+    if(!c.interviews) {
+      c.interviews = [
+        {
+          date:        c.date        || '',
+          score:       c.score       || '',
+          decision:    c.decision    || 'pending',
+          interviewer: '',
+          notes:       c.notes       || '',
+          summary:     '',
+          traits:      c.posTraits   || []
+        },
+        {}, {}
+      ];
+      changed = true;
+    }
+  });
+  if(changed) localStorage.setItem('alpine_bdr_candidates', JSON.stringify(candidates));
+})();
+
+var editIdx = -1;
+var openFileIdx = -1;
+var pendingResume = null;
+
+function saveCandidates(){ localStorage.setItem('alpine_bdr_candidates',JSON.stringify(candidates)); }
+
+function decisionLabel(d){
+  if(d==='advance') return '<span class="badge badge-advance">advance</span>';
+  if(d==='pass')    return '<span class="badge badge-pass">pass</span>';
+  return '<span class="badge badge-pending">pending</span>';
+}
+
+function renderList(){
+  var i1 = document.getElementById('bucket-i1');
+  var i2 = document.getElementById('bucket-i2');
+  var later = document.getElementById('bucket-later');
+  var buckets = { i1:[], i2:[], later:[] };
+  candidates.forEach(function(c,i){
+    var stage = (c.stage||'Interview 1');
+    if(stage==='Interview 1') buckets.i1.push(i);
+    else if(stage==='Interview 2') buckets.i2.push(i);
+    else buckets.later.push(i);
+  });
+  function renderBucket(el, idxs){
+    if(!idxs.length){ el.innerHTML='<div style="font-size:13px;color:var(--text-3);padding:8px 0;">None yet</div>'; return; }
+    el.innerHTML = idxs.map(function(i){
+      var c = candidates[i];
+      return '<div class="cand-row" onclick="openFile('+i+')">'
+        +'<div class="cand-row-name">'+escHtml(c.name)+'</div>'
+        +'<div class="cand-row-meta">'+(c.date||'')+'</div>'
+        +'<div class="cand-row-badges">'
+          +(c.score?'<span class="badge badge-score">'+c.score+'/10</span>':'')+' '
+          +decisionLabel(c.decision||'pending')
+        +'</div>'
+      +'</div>';
+    }).join('');
+  }
+  renderBucket(i1, buckets.i1);
+  renderBucket(i2, buckets.i2);
+  renderBucket(later, buckets.later);
+}
+
+/* ─ Candidate file ─ */
+function openFile(idx){
+  openFileIdx = idx;
+  var c = candidates[idx];
+  document.getElementById('file-name-display').textContent = c.name;
+  var bdg = '<span class="badge badge-stage">'+(c.stage||'Interview 1')+'</span>';
+  if(c.score) bdg += ' <span class="badge badge-score">'+c.score+'/10</span>';
+  bdg += ' '+decisionLabel(c.decision||'pending');
+  document.getElementById('file-badges-display').innerHTML = bdg;
+  var traits = '';
+  (c.posTraits||[]).forEach(function(t){ traits+='<span class="chip chip-green">'+escHtml(t)+'</span> '; });
+  (c.negTraits||[]).forEach(function(t){ traits+='<span class="chip chip-red">'+escHtml(t)+'</span> '; });
+  document.getElementById('file-traits-display').innerHTML = traits ? '<div class="cand-traits">'+traits+'</div>' : '';
+
+  // Populate interview panels
+  var interviews = c.interviews || [{},{},{}];
+  while(interviews.length<3) interviews.push({});
+
+  // Interview 1
+  document.getElementById('i1-date').value = interviews[0].date||'';
+  document.getElementById('i1-score').value = interviews[0].score||'';
+  document.getElementById('i1-decision').value = interviews[0].decision||'pending';
+  document.getElementById('i1-interviewer').value = interviews[0].interviewer||'';
+  document.getElementById('i1-notes').value = interviews[0].notes||'';
+  document.getElementById('i1-summary').value = interviews[0].summary||'';
+  renderInterviewTraitChips(0, interviews[0].traits||[]);
+
+  // Interview 2
+  document.getElementById('i2-date').value = interviews[1].date||'';
+  document.getElementById('i2-score').value = interviews[1].score||'';
+  document.getElementById('i2-decision').value = interviews[1].decision||'pending';
+  document.getElementById('i2-interviewer').value = interviews[1].interviewer||'';
+  document.getElementById('i2-notes').value = interviews[1].notes||'';
+  document.getElementById('i2-summary').value = interviews[1].summary||'';
+
+  // Interview 3
+  document.getElementById('i3-date').value = interviews[2].date||'';
+  document.getElementById('i3-score').value = interviews[2].score||'';
+  document.getElementById('i3-decision').value = interviews[2].decision||'pending';
+  document.getElementById('i3-interviewer').value = interviews[2].interviewer||'';
+  document.getElementById('i3-notes').value = interviews[2].notes||'';
+  document.getElementById('i3-refs').value = interviews[2].refs||'';
+
+  switchSubtab(0);
+  document.getElementById('cand-list-view').style.display='none';
+  var fv = document.getElementById('cand-file-view');
+  fv.classList.add('open');
+}
+
+function closeFile(){
+  openFileIdx = -1;
+  document.getElementById('cand-file-view').classList.remove('open');
+  document.getElementById('cand-list-view').style.display='';
+}
+
+function switchSubtab(i){
+  document.querySelectorAll('.cand-subtab').forEach(function(t,x){ t.classList.toggle('active',x===i); });
+  document.querySelectorAll('.cand-interview-panel').forEach(function(p,x){ p.classList.toggle('active',x===i); });
+}
+
+var INTERVIEW_TRAITS = ['Hungry','Humble','Smart','Motivated','Process-driven','Curious','Honest','Long tenure','Vague on process','Wants warm leads','Blamed employer','No long tenure'];
+function renderInterviewTraitChips(interviewIdx, selected){
+  var el = document.getElementById('i'+(interviewIdx+1)+'-trait-chips');
+  if(!el) return;
+  el.innerHTML = INTERVIEW_TRAITS.map(function(t){
+    var sel = selected.indexOf(t)>=0;
+    var cls = sel ? 'tchip sel-green' : 'tchip';
+    return '<span class="'+cls+'" data-val="'+t+'" onclick="toggleInterviewChip(this,'+interviewIdx+')">'+t+'</span>';
+  }).join('');
+}
+function toggleInterviewChip(el, interviewIdx){
+  el.classList.toggle('sel-green');
+}
+
+function saveInterviewData(interviewIdx){
+  if(openFileIdx<0) return;
+  var c = candidates[openFileIdx];
+  if(!c.interviews) c.interviews = [{},{},{}];
+  while(c.interviews.length<3) c.interviews.push({});
+  var n = interviewIdx+1;
+  var obj = {
+    date: document.getElementById('i'+n+'-date').value,
+    score: document.getElementById('i'+n+'-score').value,
+    decision: document.getElementById('i'+n+'-decision').value,
+    interviewer: document.getElementById('i'+n+'-interviewer').value,
+    notes: document.getElementById('i'+n+'-notes').value,
+    summary: document.getElementById('i'+n+'-summary') ? document.getElementById('i'+n+'-summary').value : '',
+    refs: document.getElementById('i'+n+'-refs') ? document.getElementById('i'+n+'-refs').value : '',
+    traits: []
+  };
+  var chipsEl = document.getElementById('i1-trait-chips');
+  if(chipsEl && interviewIdx===0){
+    obj.traits = Array.from(chipsEl.querySelectorAll('.sel-green')).map(function(x){ return x.dataset.val; });
+  }
+  c.interviews[interviewIdx] = obj;
+  saveCandidates();
+  renderList();
+  // Show confirm
+  var cf = document.getElementById('save-confirm-'+interviewIdx);
+  cf.style.display='inline';
+  setTimeout(function(){ cf.style.display='none'; },2000);
+}
+
+function editCurrentCandidate(){ if(openFileIdx>=0) editCandidate(openFileIdx); }
+function deleteCurrentCandidate(){
+  if(openFileIdx<0) return;
+  if(!confirm('Remove '+candidates[openFileIdx].name+'?')) return;
+  candidates.splice(openFileIdx,1);
+  saveCandidates();
+  renderList();
+  closeFile();
+}
+
+function copyFilePrompt(interviewIdx){
+  if(openFileIdx<0) return;
+  var c = candidates[openFileIdx];
+  var interviews = c.interviews || [];
+  var iData = interviews[interviewIdx]||{};
+  var iLabel = ['Interview 1 (Screening)','Interview 2 (Sales Knowledge)','Interview 3 / CEO Round'][interviewIdx];
+  var txt = 'Please analyze this BDR candidate file for Alpine HVAC — '+iLabel+':\n\n'
+    +'Candidate: '+c.name+'\n'
+    +'Overall stage: '+(c.stage||'N/A')+' | Score: '+(c.score||'?')+'/10 | Decision: '+(c.decision||'pending')+'\n'
+    +'Overall traits: Green: '+((c.posTraits||[]).join(', ')||'none')+' | Red flags: '+((c.negTraits||[]).join(', ')||'none')+'\n\n'
+    +iLabel+' data:\n'
+    +'Date: '+(iData.date||'N/A')+' | Score: '+(iData.score||'?')+'/10 | Decision: '+(iData.decision||'pending')+'\n'
+    +'Interviewer: '+(iData.interviewer||'N/A')+'\n'
+    +'Notes / Transcript:\n'+(iData.notes||'(none)')+'\n\n'
+    +'Observations:\n'+(iData.summary||iData.refs||'(none)');
+  navigator.clipboard.writeText(txt).then(function(){ alert('Prompt copied — paste it into Claude.'); });
+}
+
+function copyAnalyzePrompt(){
+  if(!candidates.length){ alert('No candidates logged yet.'); return; }
+  var summary = candidates.map(function(c){
+    return c.name+' | Stage: '+c.stage+' | Score: '+(c.score||'?')+'/10 | Decision: '+c.decision
+      +' | Green: '+((c.posTraits||[]).join(', ')||'—')+' | Red flags: '+((c.negTraits||[]).join(', ')||'—')
+      +'\nI1 notes: '+((c.interviews&&c.interviews[0]&&c.interviews[0].notes)||'none')
+      +'\nI2 notes: '+((c.interviews&&c.interviews[1]&&c.interviews[1].notes)||'none');
+  }).join('\n\n');
+  var txt = 'Please analyze all '+candidates.length+' BDR candidates logged for Alpine HVAC. Identify top candidates, common patterns in green flags and red flags, and any trends in the pipeline.\n\n'+summary;
+  navigator.clipboard.writeText(txt).then(function(){
+    var m=document.getElementById('copy-msg'); m.style.display='block';
+    setTimeout(function(){ m.style.display='none'; },3000);
+  });
+}
+
+renderList();
+
+/* ─ Modal ─ */
+function openModal(){ editIdx=-1; document.getElementById('modal-title').textContent='Add candidate'; clearForm(); document.getElementById('modal-bg').classList.add('open'); }
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+function clearForm(){
+  ['f-name','f-date','f-score'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('f-stage').value='Interview 1';
+  document.getElementById('f-decision').value='pending';
+  document.querySelectorAll('.tchip').forEach(function(c){ c.classList.remove('sel-green','sel-red'); });
+  clearResume();
+}
+function toggleChip(el,color){ el.classList.toggle(color==='green'?'sel-green':'sel-red'); }
+function saveCandidate(){
+  var name=document.getElementById('f-name').value.trim();
+  if(!name){ alert('Please enter a name.'); return; }
+  var existingResume=(editIdx>=0&&candidates[editIdx])?candidates[editIdx].resume:null;
+  var existingInterviews=(editIdx>=0&&candidates[editIdx])?candidates[editIdx].interviews:null;
+  var obj={
+    name:name, date:document.getElementById('f-date').value,
+    stage:document.getElementById('f-stage').value, decision:document.getElementById('f-decision').value,
+    score:document.getElementById('f-score').value,
+    posTraits:Array.from(document.querySelectorAll('#pos-chips .tchip.sel-green')).map(function(c){ return c.dataset.val; }),
+    negTraits:Array.from(document.querySelectorAll('#neg-chips .tchip.sel-red')).map(function(c){ return c.dataset.val; }),
+    resume:pendingResume!==null?pendingResume:existingResume,
+    interviews: existingInterviews||[{},{},{}]
+  };
+  if(editIdx>=0){ candidates[editIdx]=obj; } else { candidates.push(obj); }
+  pendingResume=null;
+  saveCandidates(); renderList(); closeModal();
+  // If we were viewing the file, refresh it
+  if(editIdx>=0 && openFileIdx===editIdx) openFile(editIdx);
+}
+function editCandidate(i){
+  editIdx=i; pendingResume=null; var c=candidates[i];
+  document.getElementById('modal-title').textContent='Edit candidate';
+  document.getElementById('f-name').value=c.name||'';
+  document.getElementById('f-date').value=c.date||'';
+  document.getElementById('f-stage').value=c.stage||'Interview 1';
+  document.getElementById('f-decision').value=c.decision||'pending';
+  document.getElementById('f-score').value=c.score||'';
+  document.querySelectorAll('#pos-chips .tchip').forEach(function(el){ el.classList.toggle('sel-green',(c.posTraits||[]).indexOf(el.dataset.val)>=0); });
+  document.querySelectorAll('#neg-chips .tchip').forEach(function(el){ el.classList.toggle('sel-red',(c.negTraits||[]).indexOf(el.dataset.val)>=0); });
+  setResumeDisplay(c.resume||null);
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+/* ─ Resume ─ */
+function handleResumeSelect(input){ if(!input.files||!input.files[0]) return; readResumeFile(input.files[0]); }
+function handleResumeDrop(e){ e.preventDefault(); document.getElementById('resume-drop-area').style.borderColor=''; var f=e.dataTransfer.files[0]; if(f) readResumeFile(f); }
+function readResumeFile(file){
+  if(file.size>5*1024*1024){ alert('File too large — keep under 5MB.'); return; }
+  var r=new FileReader();
+  r.onload=function(e){
+    pendingResume={name:file.name,type:file.type,data:e.target.result};
+    document.getElementById('resume-drop-label').style.display='none';
+    document.getElementById('resume-file-name').textContent='Attached: '+file.name;
+    document.getElementById('resume-file-name').style.display='block';
+    document.getElementById('resume-clear-btn').style.display='inline-block';
+  };
+  r.readAsDataURL(file);
+}
+function clearResume(){
+  pendingResume=null;
+  document.getElementById('f-resume').value='';
+  document.getElementById('resume-drop-label').style.display='block';
+  document.getElementById('resume-file-name').style.display='none';
+  document.getElementById('resume-file-name').textContent='';
+  document.getElementById('resume-clear-btn').style.display='none';
+}
+function setResumeDisplay(resume){
+  if(resume){
+    document.getElementById('resume-drop-label').style.display='none';
+    document.getElementById('resume-file-name').textContent='Attached: '+resume.name;
+    document.getElementById('resume-file-name').style.display='block';
+    document.getElementById('resume-clear-btn').style.display='inline-block';
+  } else { clearResume(); }
+}
+
+/* ════════════════════════════════════════
+   PERFORMANCE TIERS
+════════════════════════════════════════ */
+var TIER_DEFS=[
+  {id:'floor',label:'Minimum — keep your seat',title:'Floor',sub:'Year 1 ramp target',featured:false,badge:'background:#f0ede8;color:#5f5e5a',contractRev:150000,contractsPerMonth:'1–2',proposals:'3–4',meetings:'6–8',touches:'120–160'},
+  {id:'mid',label:'Strong performer',title:'Mid-tier',sub:'Year 2–3 expectation',featured:true,badge:'background:#eaf3fb;color:#185fa5',contractRev:350000,contractsPerMonth:'3–4',proposals:'8–10',meetings:'14–18',touches:'300–400'},
+  {id:'elite',label:'Elite producer',title:'Maximum',sub:'Year 3+ high performer',featured:false,badge:'background:#eaf3de;color:#3b6d11',contractRev:600000,contractsPerMonth:'5–6',proposals:'14–18',meetings:'25–35',touches:'500–700'}
+];
+function fmt(n){ return '$'+Math.round(n).toLocaleString(); }
+function getGlobal(){
+  return {
+    acv:parseFloat(document.getElementById('a-acv').value)||9000,
+    pt:parseFloat(document.getElementById('a-pt').value)||3,
+    gm:parseFloat(document.getElementById('a-gm').value)/100||0.4,
+    ret:parseFloat(document.getElementById('a-ret').value)||3,
+    base:parseFloat(document.getElementById('a-base').value)||45000,
+    burden:parseFloat(document.getElementById('a-burden').value)||20000,
+    comm:parseFloat(document.getElementById('a-comm').value)/100||0.3
+  };
+}
+function getTierInputVal(id,field,fallback){
+  var el=document.getElementById('t-'+id+'-'+field);
+  return el?(parseFloat(el.value)||fallback):fallback;
+}
+function recalc(){
+  var G=getGlobal();
+  var fixedTotal=G.base+G.burden;
+  var exHalf=fmt((G.acv*G.comm)/2);
+  document.getElementById('pt-example-1').textContent='e.g. '+exHalf+' on a '+fmt(G.acv)+' contract at '+Math.round(G.comm*100)+'%';
+  document.getElementById('pt-example-2').textContent='e.g. '+exHalf+' on a '+fmt(G.acv)+' contract at '+Math.round(G.comm*100)+'% — if account still active';
+  var tierHTML=TIER_DEFS.map(function(T){
+    var contractRev=getTierInputVal(T.id,'contractrev',T.contractRev);
+    var pullRev=contractRev*(G.pt-1),totalRev1=contractRev*G.pt,gp1=totalRev1*G.gm;
+    var commission=contractRev*G.comm,commOnSign=commission*0.5,commDeferred=commission*0.5;
+    var repTotal=G.base+commission,netProfit1=gp1-fixedTotal-commission;
+    var contracts=Math.round(contractRev/G.acv);
+    var cpm=document.getElementById('t-'+T.id+'-cpm')?document.getElementById('t-'+T.id+'-cpm').value:T.contractsPerMonth;
+    var prop=document.getElementById('t-'+T.id+'-prop')?document.getElementById('t-'+T.id+'-prop').value:T.proposals;
+    var mtg=document.getElementById('t-'+T.id+'-mtg')?document.getElementById('t-'+T.id+'-mtg').value:T.meetings;
+    var tch=document.getElementById('t-'+T.id+'-tch')?document.getElementById('t-'+T.id+'-tch').value:T.touches;
+    return '<div class="tier-card'+(T.featured?' featured':'')+'"><span class="tier-badge" style="'+T.badge+'">'+T.label+'</span><p class="tier-title">'+T.title+'</p><p class="tier-sub">'+T.sub+'</p>'
+      +'<div class="tier-section-label">Activity</div>'
+      +'<div class="editable-field"><label>Contract revenue/yr ($)</label><input type="number" id="t-'+T.id+'-contractrev" value="'+contractRev+'" oninput="recalc()"></div>'
+      +'<div class="metric-row"><span class="metric-label">Contracts secured/yr</span><span class="metric-value">~'+contracts+'</span></div>'
+      +'<div class="editable-field"><label>Contracts/month</label><input type="text" id="t-'+T.id+'-cpm" value="'+cpm+'" oninput="recalc()"></div>'
+      +'<div class="editable-field"><label>Proposals/month</label><input type="text" id="t-'+T.id+'-prop" value="'+prop+'" oninput="recalc()"></div>'
+      +'<div class="editable-field"><label>First meetings/month</label><input type="text" id="t-'+T.id+'-mtg" value="'+mtg+'" oninput="recalc()"></div>'
+      +'<div class="editable-field"><label>Outbound touches/month</label><input type="text" id="t-'+T.id+'-tch" value="'+tch+'" oninput="recalc()"></div>'
+      +'<div class="tier-section-label">Rep earnings — year 1</div>'
+      +'<div class="metric-row"><span class="metric-label">Base salary</span><span class="metric-value">'+fmt(G.base)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Total commission ('+Math.round(G.comm*100)+'%)</span><span class="metric-value">'+fmt(commission)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">↳ Paid on signing (50%)</span><span class="metric-amber">'+fmt(commOnSign)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">↳ Deferred to 6 months (50%)</span><span class="metric-amber">'+fmt(commDeferred)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Total rep earnings</span><span class="metric-blue">'+fmt(repTotal)+'</span></div>'
+      +'<div class="tier-section-label">Business — year 1</div>'
+      +'<div class="metric-row"><span class="metric-label">Contract revenue</span><span class="metric-value">'+fmt(contractRev)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Pull-through ('+(G.pt-1).toFixed(1)+'×)</span><span class="metric-value">'+fmt(pullRev)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Total yr 1 revenue</span><span class="metric-value">'+fmt(totalRev1)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Gross profit ('+Math.round(G.gm*100)+'%)</span><span class="metric-value">'+fmt(gp1)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Less: fixed cost</span><span class="metric-value">−'+fmt(fixedTotal)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Less: commission</span><span class="metric-value">−'+fmt(commission)+'</span></div>'
+      +'<div class="metric-row"><span class="metric-label">Net yr 1 profit</span><span class="metric-green">'+fmt(netProfit1)+'</span></div>'
+      +'</div>';
+  });
+  document.getElementById('tier-grid').innerHTML=tierHTML.join('');
+  document.getElementById('ltv-heading').textContent=Math.round(G.ret)+'-year lifetime value — by tier';
+  var ltvHTML=TIER_DEFS.map(function(T){
+    var contractRev=getTierInputVal(T.id,'contractrev',T.contractRev);
+    var annualRev=contractRev*G.pt,lifetimeRev=annualRev*G.ret,lifetimeGP=lifetimeRev*G.gm;
+    var commission=contractRev*G.comm,fixedLife=fixedTotal*G.ret,netLTV=lifetimeGP-fixedLife-commission;
+    return '<div class="ltv-card"><p class="ltv-label">'+T.title+'</p><p class="ltv-title">'+T.label+'</p>'
+      +'<div class="ltv-row"><span>Lifetime revenue ('+Math.round(G.ret)+' yrs)</span><span>'+fmt(lifetimeRev)+'</span></div>'
+      +'<div class="ltv-row"><span>Lifetime gross profit ('+Math.round(G.gm*100)+'%)</span><span>'+fmt(lifetimeGP)+'</span></div>'
+      +'<div class="ltv-row"><span>Less: '+Math.round(G.ret)+'-yr fixed cost</span><span>−'+fmt(fixedLife)+'</span></div>'
+      +'<div class="ltv-row"><span>Less: yr 1 commission (one-time)</span><span>−'+fmt(commission)+'</span></div>'
+      +'<div class="ltv-row total"><span>Net '+Math.round(G.ret)+'-yr profit</span><span>'+fmt(netLTV)+'</span></div>'
+      +'</div>';
+  });
+  document.getElementById('ltv-grid').innerHTML=ltvHTML.join('');
+}
+recalc();
+</script>
+</body>
+</html>
