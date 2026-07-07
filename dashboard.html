@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Internal Portal</title>
+<script src="auth.js"></script>
+<script>
+const __session = apGetSession();
+if (!__session) window.location.href = "index.html";
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1C6B6E;--teal-light:#2A8A8E;--teal-dark:#0F4547;
+  --black:#111110;--off-black:#1A1A18;--charcoal:#2A2A28;
+  --grey:#6B6B67;--light-grey:#9A9A95;--white:#FFFFFF;
+  --border:rgba(255,255,255,0.08);--radius:8px;--radius-lg:14px;
+}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);min-height:100vh}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--off-black)}
+::-webkit-scrollbar-thumb{background:var(--teal)}
+
+nav{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35)}
+.nav-inner{max-width:1040px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-wordmark{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--white);line-height:1}
+.nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;color:var(--teal-light);margin-top:2px}
+.nav-right{display:flex;align-items:center;gap:1.5rem}
+.nav-user{font-size:12px;color:var(--light-grey)}
+.nav-user b{color:var(--white);font-weight:600}
+.logout-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,0.5);background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px 16px;cursor:pointer;transition:all .2s}
+.logout-btn:hover{color:var(--white);border-color:rgba(255,255,255,0.35)}
+
+.wrap{max-width:1040px;margin:0 auto;padding:3.5rem 2rem 5rem}
+.eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.75rem;display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:'';width:22px;height:1px;background:var(--teal);flex-shrink:0}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700;text-transform:uppercase;line-height:1.1;margin-bottom:.5rem}
+.sub{font-size:.9375rem;color:rgba(255,255,255,0.5);margin-bottom:3rem}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem}
+.card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.75rem;text-decoration:none;color:var(--white);transition:border-color .2s,transform .2s;display:flex;flex-direction:column;gap:.75rem}
+.card:hover{border-color:rgba(28,107,110,0.5);transform:translateY(-2px)}
+.card-icon{width:40px;height:40px;background:rgba(28,107,110,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--teal-light)}
+.card-title{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.card-desc{font-size:.8125rem;color:rgba(255,255,255,0.45);line-height:1.6}
+
+.empty{background:var(--off-black);border:1px dashed rgba(255,255,255,0.1);border-radius:var(--radius-lg);padding:4rem 2rem;text-align:center;color:rgba(255,255,255,0.35);font-size:.9rem}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div class="nav-wordmark">Alpine HVAC<small>Internal Portal</small></div>
+    </div>
+    <div class="nav-right">
+      <span class="nav-user">Signed in as <b id="nav-user-name"></b></span>
+      <button class="logout-btn" onclick="apLogout()">Sign Out</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="eyebrow">Dashboard</div>
+  <h1>Your Tools</h1>
+  <p class="sub">Select a tool below. You'll only see what's relevant to your role.</p>
+  <div class="grid" id="tool-grid"></div>
+</div>
+
+<script>
+const TOOL_META = {
+  "pl-calculator":     { icon: "📊", desc: "Model P&L outcomes and compensation scenarios." },
+  "team-hub":          { icon: "🧭", desc: "Recruiting, onboarding, and team management in one place." },
+  "service-agreement": { icon: "🧮", desc: "Calculate man-hours and pricing for service agreements." },
+};
+
+const session = apGetSession();
+document.getElementById("nav-user-name").textContent = session.name;
+
+const visible = apVisibleTools();
+const grid = document.getElementById("tool-grid");
+
+if (visible.length === 0) {
+  grid.outerHTML = '<div class="empty">No tools are assigned to your account yet. Contact your administrator.</div>';
+} else {
+  visible.forEach(id => {
+    const meta = TOOL_META[id] || {};
+    const label = (window.AP_TOOLS && AP_TOOLS[id] && AP_TOOLS[id].label) || id;
+    const a = document.createElement("a");
+    a.className = "card";
+    a.href = id + ".html";
+    a.innerHTML = `
+      <div class="card-icon">${meta.icon || "🔧"}</div>
+      <div class="card-title">${label}</div>
+      <div class="card-desc">${meta.desc || ""}</div>
+    `;
+    grid.appendChild(a);
+  });
+}
+</script>
+</body>
+</html>
