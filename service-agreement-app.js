@@ -546,3 +546,117 @@
     });
   });
 
+
+// ── Saved Agreements (history with load/delete) ──
+const SA_KEY = 'alpine_service_agreements_v1';
+
+function saGetAll(){
+  try {
+    const raw = localStorage.getItem(SA_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch(e) { return []; }
+}
+
+function saSaveAll(arr){
+  localStorage.setItem(SA_KEY, JSON.stringify(arr));
+}
+
+function saSnapshot(){
+  const g = id => document.getElementById(id) ? document.getElementById(id).value : '';
+  return {
+    id: Date.now(),
+    savedAt: new Date().toISOString(),
+    facName: g('facName'),
+    facLoc: g('facLoc'),
+    buildingType: g('buildingType'),
+    buildingStructure: g('buildingStructure'),
+    buildingStructureCustom: g('buildingStructureCustom'),
+    quoteRep: g('quoteRep'),
+    specialConsiderations: g('specialConsiderations'),
+    lines: JSON.parse(JSON.stringify(lines))
+  };
+}
+
+function saApplySnapshot(snap){
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; return el; };
+  setVal('facName', snap.facName);
+  setVal('facLoc', snap.facLoc);
+  const btEl = setVal('buildingType', snap.buildingType);
+  if (btEl) btEl.dispatchEvent(new Event('change'));
+  const bsEl = setVal('buildingStructure', snap.buildingStructure);
+  if (bsEl) bsEl.dispatchEvent(new Event('change'));
+  setVal('buildingStructureCustom', snap.buildingStructureCustom);
+  setVal('quoteRep', snap.quoteRep);
+  setVal('specialConsiderations', snap.specialConsiderations);
+  lines = JSON.parse(JSON.stringify(snap.lines || []));
+  idCounter = lines.reduce((m,l) => Math.max(m, l.id || 0), 0) + 1;
+  if (typeof syncRestaurantExclusion === 'function') syncRestaurantExclusion();
+  render();
+}
+
+function saSaveCurrent(){
+  const arr = saGetAll();
+  const snap = saSnapshot();
+  const label = (snap.facName && snap.facName.trim()) ? snap.facName.trim() : ('Agreement ' + new Date(snap.savedAt).toLocaleDateString());
+  snap.label = label;
+  arr.unshift(snap);
+  saSaveAll(arr);
+  saRenderList();
+  const status = document.getElementById('saStatus');
+  if (status) {
+    status.style.display = 'block';
+    status.style.color = '#2f7a3d';
+    status.textContent = '\u2713 Saved "' + label + '"';
+    setTimeout(() => { status.style.display = 'none'; }, 2000);
+  }
+}
+
+function saLoadAgreement(id){
+  const arr = saGetAll();
+  const snap = arr.find(a => a.id === id);
+  if (!snap) return;
+  saApplySnapshot(snap);
+  saCloseModal();
+}
+
+function saDeleteAgreement(id){
+  if (!confirm('Delete this saved agreement? This cannot be undone.')) return;
+  let arr = saGetAll();
+  arr = arr.filter(a => a.id !== id);
+  saSaveAll(arr);
+  saRenderList();
+}
+
+function saRenderList(){
+  const list = document.getElementById('saList');
+  if (!list) return;
+  const arr = saGetAll();
+  if (!arr.length) {
+    list.innerHTML = '<div style="font-family:\'Inter\',sans-serif; font-size:12px; color:#9aa19b; padding:8px 0;">No saved agreements yet.</div>';
+    return;
+  }
+  list.innerHTML = arr.map(a => {
+    const date = new Date(a.savedAt).toLocaleDateString();
+    const safeLabel = (a.label || 'Untitled').replace(/</g, '&lt;');
+    return '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid #eee;">'
+      + '<div style="min-width:0;">'
+      + '<div style="font-family:\'Inter\',sans-serif; font-size:13px; color:#1b2024; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + safeLabel + '</div>'
+      + '<div style="font-family:\'IBM Plex Mono\',monospace; font-size:10px; color:#9aa19b;">' + date + '</div>'
+      + '</div>'
+      + '<div style="display:flex; gap:6px; flex-shrink:0;">'
+      + '<button type="button" onclick="saLoadAgreement(' + a.id + ')" style="font-family:\'Oswald\',sans-serif; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; background:none; border:1px solid #1C6B6E; color:#1C6B6E; border-radius:3px; padding:5px 10px; cursor:pointer;">Load</button>'
+      + '<button type="button" onclick="saDeleteAgreement(' + a.id + ')" style="font-family:\'Oswald\',sans-serif; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; background:none; border:1px solid #b83227; color:#b83227; border-radius:3px; padding:5px 10px; cursor:pointer;">Delete</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function saOpenModal(){
+  saRenderList();
+  document.getElementById('saModal').style.display = 'flex';
+}
+function saCloseModal(){
+  document.getElementById('saModal').style.display = 'none';
+}

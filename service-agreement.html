@@ -722,6 +722,7 @@
       <button class="btn-view" id="btnCustomerView" type="button">Customer View</button>
       <button class="btn-print" id="btnPrint" type="button"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="1" width="10" height="7" rx="0.5" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="6" width="14" height="7" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="4" y="10" width="8" height="1.2" rx="0.4" fill="currentColor"/><rect x="4" y="12" width="5" height="1.2" rx="0.4" fill="currentColor"/><circle cx="12.5" cy="8.5" r="0.8" fill="currentColor"/></svg>Print</button>
       <button class="btn-print" id="btnPrintPDF" type="button"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 1h6l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z" stroke="currentColor" stroke-width="1.2"/><path d="M10 1v3h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M5.5 9h2c.8 0 1.2-.4 1.2-1s-.4-1-1.2-1H5.5v4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="10" y1="7" x2="10" y2="11" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><line x1="9" y1="11" x2="11" y2="11" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>PDF</button>
+      <button class="btn-print" id="btnSavedAgreements" type="button" onclick="saOpenModal()"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3z" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 6h7M4.5 8.5h7M4.5 11h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Saved Agreements</button>
     </div>
   </div>
 </div>
@@ -1025,6 +1026,20 @@
   </div>
 </div>
 
+</div>
+
+<!-- Saved Agreements modal -->
+<div id="saModal" style="display:none; position:fixed; inset:0; background:rgba(27,32,36,0.55); z-index:999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:5px; padding:28px 28px 24px; width:420px; max-width:90vw; max-height:80vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.22); border-top:4px solid #d98e04;">
+    <div style="font-family:'Oswald',sans-serif; font-weight:700; font-size:13px; letter-spacing:1.2px; text-transform:uppercase; color:#1b2024; margin-bottom:8px;">Saved Agreements</div>
+    <div style="font-family:'Inter',sans-serif; font-size:13px; color:#5b6168; margin-bottom:16px;">Save the current agreement, or load/delete a past one.</div>
+    <button type="button" onclick="saSaveCurrent()" style="width:100%; font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.8px; text-transform:uppercase; background:#d98e04; color:#1b2024; border:1px solid #b87703; border-radius:3px; padding:10px 16px; cursor:pointer; margin-bottom:16px;">+ Save Current Agreement</button>
+    <div id="saStatus" style="font-family:'IBM Plex Mono',monospace; font-size:11px; margin-bottom:10px; display:none;"></div>
+    <div id="saList"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+      <button type="button" onclick="saCloseModal()" style="font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; background:none; border:1px solid #9aa19b; border-radius:3px; padding:8px 14px; cursor:pointer; color:#5b6168;">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- PIN modal -->
