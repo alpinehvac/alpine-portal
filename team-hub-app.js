@@ -1,6 +1,6 @@
 
 // ── DATA MANAGER ──
-const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3'];
+const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_onboarding_v2'];
 
 function openDataManager() {
   document.getElementById('dm-import-field').value = '';
