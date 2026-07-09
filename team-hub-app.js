@@ -1,6 +1,5 @@
-
 // ── DATA MANAGER ──
-const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_onboarding_v2'];
+const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_onboarding_v2'];
 
 function openDataManager() {
   document.getElementById('dm-import-field').value = '';
@@ -83,6 +82,16 @@ function srTab(id) {
   if (id === 'sr-int3') setTimeout(() => srRenderQ('sr-q-list-3'), 0);
 }
 
+/* ── TC TAB SWITCHING (TECH RECRUITING: OVERVIEW / CANDIDATES) ── */
+function tcTab(id) {
+  document.querySelectorAll('#panel-recruiting .sr-tab').forEach((t) => {
+    t.classList.toggle('active', t.getAttribute('onclick').includes(id));
+  });
+  document.querySelectorAll('#panel-recruiting .sr-panel').forEach(p => {
+    p.classList.toggle('active', p.id === id);
+  });
+}
+
 /* ── QUESTIONS ── */
 const SR_DEFAULT_Q1 = [
   {text:'Tell me about yourself.',note:'Listen for energy, clarity, and whether they naturally talk about results vs. responsibilities.'},
@@ -141,7 +150,7 @@ srRenderQ('sr-q-list-1');
 srRenderQ('sr-q-list-2');
 srRenderQ('sr-q-list-3');
 
-/* ── CANDIDATE TRACKER ── */
+/* ── CANDIDATE TRACKER (SALES) ── */
 const SR_CANDS_KEY = 'alpine_bdr_candidates';
 function srLoadCands() {
   try {
@@ -355,7 +364,7 @@ function srSaveInterview(n) {
   const ok = document.getElementById('sr-save-ok-'+n); if(ok){ok.style.display='inline';setTimeout(()=>ok.style.display='none',2000);}
 }
 
-/* ── AI FRAMEWORK EVALUATION ── */
+/* ── AI FRAMEWORK EVALUATION (SALES) ── */
 const SR_EVAL_FRAMEWORK_DEF = [
   {val:'Engaging',    desc:'Does the candidate naturally draw people in? Are they energetic, personable, and easy to talk to? Do they make the interviewer want to keep talking?'},
   {val:'Empathetic',  desc:'Do they demonstrate awareness of others\' perspectives and feelings? Do they talk about customers or colleagues with genuine understanding?'},
@@ -479,11 +488,341 @@ function srAcceptAIEval(observedVals) {
   const subtitle = evalSection.querySelector('.sr-eval-title span');
   if(subtitle) subtitle.textContent = `${evalChecked.length} of 6 observed`;
   // Flash confirmation
-  const acceptBtn = document.querySelector('.sr-ai-accept-btn');
+  const acceptBtn = document.querySelector('#sr-cands .sr-ai-accept-btn');
   if(acceptBtn){ acceptBtn.textContent = 'Applied ✓'; acceptBtn.style.background='rgba(28,107,110,0.35)'; setTimeout(()=>{ acceptBtn.textContent='Apply to Profile'; acceptBtn.style.background=''; },2000); }
 }
 
 srRenderCands();
+
+/* ── CANDIDATE TRACKER (TECH) ── */
+const TC_CANDS_KEY = 'alpine_tech_candidates';
+function tcLoadCands() {
+  try {
+    const v = localStorage.getItem(TC_CANDS_KEY);
+    if (!v || v === 'null') return [];
+    const p = JSON.parse(v);
+    if (!Array.isArray(p)) return [];
+    let changed = false;
+    p.forEach((c, i) => {
+      if (!c.id) { c.id = Date.now() + i; changed = true; }
+    });
+    if (changed) localStorage.setItem(TC_CANDS_KEY, JSON.stringify(p));
+    return p;
+  } catch(e) { return []; }
+}
+function tcSaveCands(c) { localStorage.setItem(TC_CANDS_KEY, JSON.stringify(c)); }
+
+let tcCands = tcLoadCands();
+let tcEditingId = null;
+let tcCurrentId = null;
+
+function tcToggleChip(el, color) {
+  const cls = 'sel-'+color;
+  el.classList.toggle(cls);
+}
+function tcGetSelectedChips(containerId) {
+  return Array.from(document.querySelectorAll('#'+containerId+' .sr-chip.sel-green')).map(c=>c.dataset.val);
+}
+function tcGetSelectedRedChips(containerId) {
+  return Array.from(document.querySelectorAll('#'+containerId+' .sr-chip.sel-red')).map(c=>c.dataset.val);
+}
+function tcResetChips() {
+  document.querySelectorAll('#tc-pos-chips .sr-chip').forEach(c=>c.classList.remove('sel-green','sel-red'));
+  document.querySelectorAll('#tc-neg-chips .sr-chip').forEach(c=>c.classList.remove('sel-green','sel-red'));
+}
+function tcToggleEval(el) { el.classList.toggle('checked'); }
+function tcGetEvalTraits() {
+  return Array.from(document.querySelectorAll('#tc-modal-eval-grid .sr-eval-item.checked')).map(el=>el.dataset.val);
+}
+function tcSetEvalTraits(vals) {
+  document.querySelectorAll('#tc-modal-eval-grid .sr-eval-item').forEach(el=>{
+    el.classList.toggle('checked', (vals||[]).includes(el.dataset.val));
+  });
+}
+function tcResetEval() { document.querySelectorAll('#tc-modal-eval-grid .sr-eval-item').forEach(el=>el.classList.remove('checked')); }
+function tcSetChips(posTraits, negTraits) {
+  tcResetChips();
+  document.querySelectorAll('#tc-pos-chips .sr-chip').forEach(c=>{ if((posTraits||[]).includes(c.dataset.val)) c.classList.add('sel-green'); });
+  document.querySelectorAll('#tc-neg-chips .sr-chip').forEach(c=>{ if((negTraits||[]).includes(c.dataset.val)) c.classList.add('sel-red'); });
+}
+
+function tcOpenModal(id) {
+  tcEditingId = id||null;
+  document.getElementById('tc-modal-title').textContent = id ? 'Edit Candidate' : 'Add Candidate';
+  if(id) {
+    const c = tcCands.find(x=>x.id===id); if(!c) return;
+    document.getElementById('tcf-name').value = c.name||'';
+    document.getElementById('tcf-date').value = c.date||'';
+    document.getElementById('tcf-stage').value = c.stage||'Interview 1';
+    document.getElementById('tcf-decision').value = c.decision||'pending';
+    document.getElementById('tcf-score').value = c.score||'';
+    tcSetChips(c.posTraits, c.negTraits);
+    tcSetEvalTraits(c.evalTraits);
+  } else {
+    document.getElementById('tcf-name').value=''; document.getElementById('tcf-date').value='';
+    document.getElementById('tcf-stage').value='Interview 1'; document.getElementById('tcf-decision').value='pending';
+    document.getElementById('tcf-score').value=''; tcResetChips(); tcResetEval();
+  }
+  document.getElementById('tc-modal').classList.add('open');
+}
+function tcCloseModal() { document.getElementById('tc-modal').classList.remove('open'); }
+function tcSaveCandidate() {
+  const name = document.getElementById('tcf-name').value.trim(); if(!name){alert('Please enter a name.');return;}
+  const cand = {
+    id: tcEditingId || Date.now(),
+    name, date: document.getElementById('tcf-date').value,
+    stage: document.getElementById('tcf-stage').value,
+    decision: document.getElementById('tcf-decision').value,
+    score: document.getElementById('tcf-score').value,
+    posTraits: tcGetSelectedChips('tc-pos-chips'),
+    negTraits: tcGetSelectedRedChips('tc-neg-chips'),
+    evalTraits: tcGetEvalTraits(),
+    interviews: tcEditingId ? (tcCands.find(x=>x.id===tcEditingId)||{}).interviews||[{},{},{}] : [{},{},{}]
+  };
+  if(tcEditingId) { const idx=tcCands.findIndex(x=>x.id===tcEditingId); if(idx>-1) tcCands[idx]=cand; }
+  else tcCands.unshift(cand);
+  tcSaveCands(tcCands); tcCloseModal(); tcRenderCands();
+}
+function tcDeleteCurrent() {
+  if(!confirm('Remove this candidate?')) return;
+  tcCands = tcCands.filter(x=>x.id!==tcCurrentId);
+  tcSaveCands(tcCands); tcCloseFile(); tcRenderCands();
+}
+function tcEditCurrent() { tcOpenModal(tcCurrentId); }
+
+function tcRenderCands() {
+  const buckets = {'Interview 1':'tc-bucket-i1','Interview 2':'tc-bucket-i2'};
+  ['tc-bucket-i1','tc-bucket-i2','tc-bucket-later'].forEach(id => {
+    document.getElementById(id).innerHTML = '';
+  });
+  if (!tcCands.length) {
+    document.getElementById('tc-bucket-i1').innerHTML = '<div class="sr-empty">No candidates yet. Click "+ Add Candidate" to get started.</div>';
+    return;
+  }
+  tcCands.forEach(c => {
+    const initials = c.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const decBadge = c.decision==='advance'?'sr-badge-advance':c.decision==='pass'?'sr-badge-pass':'sr-badge-pending';
+    const decLabel = c.decision==='advance'?'Advance':c.decision==='pass'?'Pass':'Pending';
+    const dateStr = c.date ? new Date(c.date+'T00:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}) : '';
+    const row = document.createElement('div');
+    row.className = 'sr-cand-row';
+    row.innerHTML = `
+      <div style="width:32px;height:32px;border-radius:50%;background:rgba(28,107,110,0.2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:var(--teal-light);flex-shrink:0">${initials}</div>
+      <div style="flex:1"><div class="sr-cand-name">${c.name}</div><div class="sr-cand-meta">${c.stage||''}${dateStr?' · '+dateStr:''}</div></div>
+      <div class="sr-badges">
+        ${c.score?`<span class="sr-badge sr-badge-score">${c.score}/10</span>`:''}
+        <span class="sr-badge ${decBadge}">${decLabel}</span>
+      </div>`;
+    row.addEventListener('click', (function(candId){ return function(){ tcOpenFile(candId); }; })(c.id));
+    const targetId = buckets[c.stage] || 'tc-bucket-later';
+    document.getElementById(targetId).appendChild(row);
+  });
+  ['tc-bucket-i1','tc-bucket-i2','tc-bucket-later'].forEach(id => {
+    if (!document.getElementById(id).children.length) {
+      document.getElementById(id).innerHTML = '<div class="sr-empty">No candidates at this stage.</div>';
+    }
+  });
+}
+
+function tcOpenFile(id) {
+  tcCurrentId = id;
+  const c = tcCands.find(x => x.id == id); if (!c) return;
+  document.getElementById('tc-file-name').textContent = c.name;
+  const decBadge = c.decision==='advance'?'sr-badge-advance':c.decision==='pass'?'sr-badge-pass':'sr-badge-pending';
+  const decLabel = c.decision==='advance'?'Advance':c.decision==='pass'?'Pass':'Pending';
+  document.getElementById('tc-file-badges').innerHTML = `<span class="sr-badge ${decBadge}" style="margin-left:8px">${decLabel}</span>${c.score?`<span class="sr-badge sr-badge-score" style="margin-left:4px">${c.score}/10</span>`:''}`;
+  const traitsHtml = (c.posTraits||[]).map(t=>`<span class="sr-chip sel-green" style="cursor:default">${t}</span>`).join('')+(c.negTraits||[]).map(t=>`<span class="sr-chip sel-red" style="cursor:default">${t}</span>`).join('');
+  document.getElementById('tc-file-traits').innerHTML = traitsHtml;
+
+  const TC_EVAL_FRAMEWORK = [
+    {val:'Technical Competence', label:'Technical Competence'},
+    {val:'Safety Mindset', label:'Safety Mindset'},
+    {val:'Reliability', label:'Reliability'},
+    {val:'Communication', label:'Communication'},
+    {val:'Coachability', label:'Coachability'},
+    {val:'Work Ethic', label:'Work Ethic'}
+  ];
+  const evalChecked = c.evalTraits || [];
+  const evalCount = evalChecked.length;
+  const evalGrid = document.getElementById('tc-file-eval-grid');
+  const evalSection = document.getElementById('tc-file-eval');
+  evalGrid.innerHTML = TC_EVAL_FRAMEWORK.map(t => {
+    const checked = evalChecked.includes(t.val);
+    return `<div class="sr-eval-item${checked?' checked':''}">
+      <div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div>
+      <div class="sr-eval-label">${t.label}</div>
+    </div>`;
+  }).join('');
+  const subtitle = evalSection.querySelector('.sr-eval-title span');
+  if(subtitle) subtitle.textContent = evalCount > 0 ? `${evalCount} of 6 observed` : 'Not yet evaluated';
+
+  let interviews = c.interviews;
+  if (!interviews || !Array.isArray(interviews)) {
+    interviews = [
+      { date: c.date||'', score: c.score||'', decision: c.decision||'pending', interviewer: '', notes: c.notes||'', summary: '' },
+      {}, {}
+    ];
+  }
+  const fieldSets = [
+    ['tci1-date','tci1-score','tci1-decision','tci1-interviewer','tci1-notes','tci1-summary'],
+    ['tci2-date','tci2-score','tci2-decision','tci2-interviewer','tci2-notes','tci2-summary'],
+    ['tci3-date','tci3-score','tci3-decision','tci3-interviewer','tci3-notes','tci3-refs']
+  ];
+  const keys = ['date','score','decision','interviewer','notes','summary'];
+  fieldSets.forEach((flds, i) => {
+    const iv = interviews[i] || {};
+    flds.forEach((fid, j) => { const el = document.getElementById(fid); if (el) el.value = iv[keys[j]] || ''; });
+  });
+  tcSubtab(0);
+  document.getElementById('tc-cand-list-view').style.display = 'none';
+  document.getElementById('tc-cand-file-view').classList.add('open');
+}
+function tcCloseFile() {
+  document.getElementById('tc-cand-file-view').classList.remove('open');
+  document.getElementById('tc-cand-list-view').style.display='block';
+  tcCurrentId = null;
+}
+function tcSubtab(n) {
+  document.querySelectorAll('#panel-recruiting .sr-subtab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  document.querySelectorAll('#panel-recruiting .sr-sub-panel').forEach((p,i)=>p.classList.toggle('active',i===n));
+}
+function tcSaveInterview(n) {
+  const c = tcCands.find(x=>x.id===tcCurrentId); if(!c) return;
+  if(!c.interviews) c.interviews=[{},{},{}];
+  const fldSets = [['tci1-date','tci1-score','tci1-decision','tci1-interviewer','tci1-notes','tci1-summary'],['tci2-date','tci2-score','tci2-decision','tci2-interviewer','tci2-notes','tci2-summary'],['tci3-date','tci3-score','tci3-decision','tci3-interviewer','tci3-notes','tci3-refs']];
+  const keys = ['date','score','decision','interviewer','notes','summary'];
+  const flds = fldSets[n]; const iv = {};
+  flds.forEach((fid,i)=>{ const el=document.getElementById(fid); if(el) iv[keys[i]]=el.value; });
+  c.interviews[n]=iv;
+  tcSaveCands(tcCands);
+  const ok = document.getElementById('tc-save-ok-'+n); if(ok){ok.style.display='inline';setTimeout(()=>ok.style.display='none',2000);}
+}
+
+/* ── AI FRAMEWORK EVALUATION (TECH) ── */
+const TC_EVAL_FRAMEWORK_DEF = [
+  {val:'Technical Competence', desc:'Do they demonstrate real hands-on knowledge of HVAC systems, diagnostics, and repair? Do they speak concretely about past technical work rather than vaguely?'},
+  {val:'Safety Mindset',       desc:'Do they treat safety as a habit, not an afterthought? Do they mention safety procedures, PPE, or lockout/tagout unprompted?'},
+  {val:'Reliability',          desc:'Is there evidence of consistent attendance, follow-through, and dependability in past roles? Do they own missed commitments rather than deflect?'},
+  {val:'Communication',        desc:'Can they explain technical issues clearly to a non-technical customer or teammate? Are they easy to understand and straightforward?'},
+  {val:'Coachability',         desc:'Do they show openness to feedback and willingness to learn new methods, tools, or systems rather than being set in their ways?'},
+  {val:'Work Ethic',           desc:'Do they show evidence of going the extra mile — staying late to finish a job, taking initiative, or taking pride in their work?'}
+];
+
+async function tcRunAIEval(n) {
+  const noteIds = [['tci1-notes','tci1-summary'],['tci2-notes','tci2-summary'],['tci3-notes','tci3-refs']];
+  const transcript = (document.getElementById(noteIds[n][0])||{}).value||'';
+  const summary    = (document.getElementById(noteIds[n][1])||{}).value||'';
+  if (!transcript.trim() && !summary.trim()) {
+    alert('Please paste a transcript or notes into this interview before running the AI evaluation.');
+    return;
+  }
+  const btn = document.getElementById('tc-ai-btn-'+n);
+  const resultEl = document.getElementById('tc-ai-result-'+n);
+  btn.disabled = true;
+  btn.textContent = '✦ Evaluating…';
+  resultEl.style.display = 'none';
+
+  const c = tcCands.find(x=>x.id==tcCurrentId);
+  const candidateName = c ? c.name : 'this candidate';
+
+  const prompt = `You are an expert HVAC technician hiring evaluator for Alpine HVAC, a commercial HVAC and building automation company based in Hamilton, Ontario. You are evaluating a technician candidate named ${candidateName}.
+
+Evaluate the following interview transcript and/or notes against the Alpine Technician Evaluation Framework — 6 core traits. For each trait, determine whether it was OBSERVED (yes) or NOT OBSERVED (no) in this interview, and provide a concise 1–2 sentence rationale citing specific evidence from the transcript.
+
+ALPINE TECHNICIAN EVALUATION FRAMEWORK:
+${TC_EVAL_FRAMEWORK_DEF.map((t,i)=>`${i+1}. ${t.val}: ${t.desc}`).join('\n')}
+
+INTERVIEW TRANSCRIPT / NOTES:
+${transcript}
+
+INTERVIEWER SUMMARY (if any):
+${summary}
+
+Respond ONLY with a valid JSON object. No markdown, no preamble, no backticks. Format:
+{
+  "traits": [
+    {"val": "Technical Competence", "observed": true, "rationale": "..."},
+    {"val": "Safety Mindset", "observed": false, "rationale": "..."},
+    {"val": "Reliability", "observed": true, "rationale": "..."},
+    {"val": "Communication", "observed": true, "rationale": "..."},
+    {"val": "Coachability", "observed": false, "rationale": "..."},
+    {"val": "Work Ethic", "observed": true, "rationale": "..."}
+  ],
+  "overall": "One sentence overall impression of this candidate based on this interview."
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).map(b=>b.text||'').join('').trim();
+    const clean = text.replace(/```json|```/g,'').trim();
+    const result = JSON.parse(clean);
+
+    const traitsHtml = result.traits.map(t => {
+      const checkClass = t.observed ? 'yes' : 'no';
+      const checkMark  = t.observed ? '✓' : '–';
+      return `<div class="sr-ai-trait-row">
+        <div class="sr-ai-trait-check ${checkClass}">${checkMark}</div>
+        <div>
+          <div class="sr-ai-trait-name">${t.val}</div>
+          <div class="sr-ai-trait-note">${t.rationale}</div>
+        </div>
+        <div></div>
+      </div>`;
+    }).join('');
+
+    const observedVals = result.traits.filter(t=>t.observed).map(t=>t.val);
+    const count = observedVals.length;
+
+    resultEl.innerHTML = `
+      <div class="sr-ai-result-header">
+        <div class="sr-ai-result-title">✦ AI Evaluation — ${count} of 6 traits observed</div>
+        <button class="sr-ai-accept-btn" onclick="tcAcceptAIEval(${JSON.stringify(observedVals).replace(/"/g,'&quot;')})">Apply to Profile</button>
+      </div>
+      <div class="sr-ai-result-body">${traitsHtml}</div>
+      ${result.overall ? `<div class="sr-ai-overall">${result.overall}</div>` : ''}`;
+    resultEl.style.display = 'block';
+  } catch(e) {
+    resultEl.innerHTML = `<div class="sr-ai-result-body" style="color:rgba(220,100,100,0.8);font-size:.8rem;padding:.75rem">Evaluation failed. Check your connection and try again. (${e.message})</div>`;
+    resultEl.style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '✦ AI Evaluate';
+}
+
+function tcAcceptAIEval(observedVals) {
+  const c = tcCands.find(x=>x.id==tcCurrentId); if(!c) return;
+  const existing = c.evalTraits || [];
+  const merged = [...new Set([...existing, ...observedVals])];
+  c.evalTraits = merged;
+  tcSaveCands(tcCands);
+  const evalChecked = c.evalTraits;
+  const evalGrid = document.getElementById('tc-file-eval-grid');
+  const evalSection = document.getElementById('tc-file-eval');
+  const TC_EVAL_LABELS = [{val:'Technical Competence',label:'Technical Competence'},{val:'Safety Mindset',label:'Safety Mindset'},{val:'Reliability',label:'Reliability'},{val:'Communication',label:'Communication'},{val:'Coachability',label:'Coachability'},{val:'Work Ethic',label:'Work Ethic'}];
+  evalGrid.innerHTML = TC_EVAL_LABELS.map(t => {
+    const checked = evalChecked.includes(t.val);
+    return `<div class="sr-eval-item${checked?' checked':''}"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">${t.label}</div></div>`;
+  }).join('');
+  const subtitle = evalSection.querySelector('.sr-eval-title span');
+  if(subtitle) subtitle.textContent = `${evalChecked.length} of 6 observed`;
+  const acceptBtn = document.querySelector('#tc-cands .sr-ai-accept-btn');
+  if(acceptBtn){ acceptBtn.textContent = 'Applied ✓'; acceptBtn.style.background='rgba(28,107,110,0.35)'; setTimeout(()=>{ acceptBtn.textContent='Apply to Profile'; acceptBtn.style.background=''; },2000); }
+}
+
+tcRenderCands();
 
 /* ── PERFORMANCE TIERS ── */
 const SR_TIER_DEFS = [

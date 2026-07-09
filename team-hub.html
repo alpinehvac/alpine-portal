@@ -293,6 +293,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 <!-- ── TAB: RECRUITING ── -->
 <div id="panel-recruiting" class="tab-panel active">
 
+<div class="sr-tab-bar" style="max-width:960px;margin:1.5rem auto 0">
+  <button class="sr-tab active" onclick="tcTab('tc-overview')">Overview</button>
+  <button class="sr-tab" onclick="tcTab('tc-cands')">Candidates</button>
+</div>
+
+<div class="sr-panel active" id="tc-overview">
+
   <div class="r-hero">
     <div class="r-hero-bg-grid"></div>
     <div class="r-hero-glow"></div>
@@ -508,6 +515,160 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
     <div class="r-footer-logo">Alpine HVAC Service Inc.</div>
     <div class="r-footer-copy">Niagara &amp; Hamilton, Ontario · Commercial · Industrial · Institutional HVAC Service<br>Hydronics · Controls · Building Systems<br>All compensation and benefit details subject to change at leadership's discretion. Only a signed written offer of employment is binding.</div>
   </div>
+
+</div><!-- end tc-overview -->
+
+<!-- ── TECH RECRUITING: CANDIDATES ── -->
+<div class="sr-panel" id="tc-cands">
+  <div class="sr-wrap" style="padding-top:2rem">
+    <div id="tc-cand-list-view">
+      <div class="sr-tracker-top">
+        <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Candidate Pipeline</div>
+        <button class="sr-add-btn" onclick="tcOpenModal()">+ Add Candidate</button>
+      </div>
+      <div class="sr-bucket"><div class="sr-bucket-label">Interview 1 — Screening</div><div id="tc-bucket-i1"></div></div>
+      <div class="sr-bucket"><div class="sr-bucket-label">Interview 2 — Technical Assessment</div><div id="tc-bucket-i2"></div></div>
+      <div class="sr-bucket"><div class="sr-bucket-label">Later Stages / Offer</div><div id="tc-bucket-later"></div></div>
+    </div>
+    <div id="tc-cand-file-view" class="sr-file">
+      <div class="sr-file-header">
+        <button class="sr-back-btn" onclick="tcCloseFile()">← All Candidates</button>
+        <div class="sr-file-name" id="tc-file-name"></div>
+        <div id="tc-file-badges"></div>
+        <button class="sr-btn-sm" onclick="tcEditCurrent()">Edit</button>
+        <button class="sr-btn-sm danger" onclick="tcDeleteCurrent()">Remove</button>
+      </div>
+      <div id="tc-file-traits" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:1.25rem"></div>
+      <div class="sr-eval-section" id="tc-file-eval">
+        <div class="sr-eval-title">Alpine Technician Evaluation Framework <span>From candidate profile</span></div>
+        <div class="sr-eval-grid" id="tc-file-eval-grid"></div>
+      </div>
+      <div class="sr-subtab-bar">
+        <button class="sr-subtab active" onclick="tcSubtab(0)">Interview 1</button>
+        <button class="sr-subtab" onclick="tcSubtab(1)">Interview 2</button>
+        <button class="sr-subtab" onclick="tcSubtab(2)">Interview 3 / Offer</button>
+      </div>
+      <div class="sr-sub-panel active" id="tc-sub-0">
+        <div class="sr-meta-grid">
+          <div class="sr-meta-field"><label>Date</label><input type="date" id="tci1-date"></div>
+          <div class="sr-meta-field"><label>Score (1–10)</label><input type="number" id="tci1-score" min="1" max="10" placeholder="—"></div>
+          <div class="sr-meta-field"><label>Decision</label><select id="tci1-decision"><option value="pending">Pending</option><option value="advance">Advance to Interview 2</option><option value="pass">Pass</option></select></div>
+          <div class="sr-meta-field"><label>Interviewer</label><input type="text" id="tci1-interviewer" placeholder="Name"></div>
+        </div>
+        <div class="sr-interview-label">Transcript / Notes</div>
+        <textarea class="sr-textarea" id="tci1-notes" placeholder="Paste transcript or key notes…" style="min-height:160px"></textarea>
+        <div class="sr-interview-label">Observations & Summary</div>
+        <textarea class="sr-textarea" id="tci1-summary" placeholder="Interviewer summary, standout moments, concerns…"></textarea>
+        <div class="sr-interview-label" style="margin-bottom:.5rem">Traits Observed</div>
+        <div id="tci1-trait-chips" class="sr-chips" style="margin-bottom:1rem"></div>
+        <div class="sr-save-row">
+          <button class="sr-save-btn" onclick="tcSaveInterview(0)">Save Interview 1</button>
+          <button class="sr-ai-eval-btn" id="tc-ai-btn-0" onclick="tcRunAIEval(0)">✦ AI Evaluate</button>
+          <span class="sr-save-ok" id="tc-save-ok-0">Saved ✓</span>
+        </div>
+        <div class="sr-ai-result" id="tc-ai-result-0" style="display:none"></div>
+      </div>
+      <div class="sr-sub-panel" id="tc-sub-1">
+        <div class="sr-meta-grid">
+          <div class="sr-meta-field"><label>Date</label><input type="date" id="tci2-date"></div>
+          <div class="sr-meta-field"><label>Score (1–10)</label><input type="number" id="tci2-score" min="1" max="10" placeholder="—"></div>
+          <div class="sr-meta-field"><label>Decision</label><select id="tci2-decision"><option value="pending">Pending</option><option value="advance">Advance to Interview 3</option><option value="pass">Pass</option></select></div>
+          <div class="sr-meta-field"><label>Interviewer</label><input type="text" id="tci2-interviewer" placeholder="Name"></div>
+        </div>
+        <div class="sr-interview-label">Transcript / Notes</div>
+        <textarea class="sr-textarea" id="tci2-notes" placeholder="Paste transcript or key notes…" style="min-height:160px"></textarea>
+        <div class="sr-interview-label">Observations & Summary</div>
+        <textarea class="sr-textarea" id="tci2-summary" placeholder="Interviewer summary…"></textarea>
+        <div class="sr-save-row">
+          <button class="sr-save-btn" onclick="tcSaveInterview(1)">Save Interview 2</button>
+          <button class="sr-ai-eval-btn" id="tc-ai-btn-1" onclick="tcRunAIEval(1)">✦ AI Evaluate</button>
+          <span class="sr-save-ok" id="tc-save-ok-1">Saved ✓</span>
+        </div>
+        <div class="sr-ai-result" id="tc-ai-result-1" style="display:none"></div>
+      </div>
+      <div class="sr-sub-panel" id="tc-sub-2">
+        <div class="sr-meta-grid">
+          <div class="sr-meta-field"><label>Date</label><input type="date" id="tci3-date"></div>
+          <div class="sr-meta-field"><label>Score (1–10)</label><input type="number" id="tci3-score" min="1" max="10" placeholder="—"></div>
+          <div class="sr-meta-field"><label>Decision</label><select id="tci3-decision"><option value="pending">Pending</option><option value="offer">Extend Offer</option><option value="pass">Pass</option></select></div>
+          <div class="sr-meta-field"><label>Interviewer</label><input type="text" id="tci3-interviewer" placeholder="Name"></div>
+        </div>
+        <div class="sr-interview-label">Transcript / Notes</div>
+        <textarea class="sr-textarea" id="tci3-notes" placeholder="Final interview or offer conversation notes…" style="min-height:160px"></textarea>
+        <div class="sr-interview-label">References & Compensation Confirmed</div>
+        <textarea class="sr-textarea" id="tci3-refs" placeholder="Reference check notes, compensation discussion notes…"></textarea>
+        <div class="sr-save-row">
+          <button class="sr-save-btn" onclick="tcSaveInterview(2)">Save Interview 3</button>
+          <button class="sr-ai-eval-btn" id="tc-ai-btn-2" onclick="tcRunAIEval(2)">✦ AI Evaluate</button>
+          <span class="sr-save-ok" id="tc-save-ok-2">Saved ✓</span>
+        </div>
+        <div class="sr-ai-result" id="tc-ai-result-2" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- end tc-cands -->
+
+<div class="sr-modal" id="tc-modal">
+  <div class="sr-modal-box">
+    <div class="sr-modal-title" id="tc-modal-title">Add Candidate</div>
+    <div class="sr-field"><label>Full Name</label><input type="text" id="tcf-name" placeholder="e.g. Jordan Smith"></div>
+    <div class="sr-field"><label>Interview Date</label><input type="date" id="tcf-date"></div>
+    <div class="sr-field"><label>Current Stage</label>
+      <select id="tcf-stage">
+        <option value="Interview 1">Interview 1 — Screening</option>
+        <option value="Interview 2">Interview 2 — Technical Assessment</option>
+        <option value="Interview 3">Interview 3 — Final</option>
+        <option value="Offer">Offer Extended</option>
+      </select>
+    </div>
+    <div class="sr-field"><label>Overall Decision</label>
+      <select id="tcf-decision">
+        <option value="pending">Pending</option>
+        <option value="advance">Advance</option>
+        <option value="pass">Pass</option>
+      </select>
+    </div>
+    <div class="sr-field"><label>Overall Score (1–10)</label><input type="number" id="tcf-score" min="1" max="10" placeholder="7"></div>
+    <div class="sr-field"><label>Positive Traits</label>
+      <div class="sr-chips" id="tc-pos-chips">
+        <span class="sr-chip" data-val="Skilled" onclick="tcToggleChip(this,'green')">Skilled</span>
+        <span class="sr-chip" data-val="Safety-focused" onclick="tcToggleChip(this,'green')">Safety-focused</span>
+        <span class="sr-chip" data-val="Reliable" onclick="tcToggleChip(this,'green')">Reliable</span>
+        <span class="sr-chip" data-val="Coachable" onclick="tcToggleChip(this,'green')">Coachable</span>
+        <span class="sr-chip" data-val="Team player" onclick="tcToggleChip(this,'green')">Team player</span>
+        <span class="sr-chip" data-val="Problem-solver" onclick="tcToggleChip(this,'green')">Problem-solver</span>
+        <span class="sr-chip" data-val="Certified" onclick="tcToggleChip(this,'green')">Certified</span>
+        <span class="sr-chip" data-val="Long tenure" onclick="tcToggleChip(this,'green')">Long tenure</span>
+      </div>
+    </div>
+    <div class="sr-field"><label>Red Flags</label>
+      <div class="sr-chips" id="tc-neg-chips">
+        <span class="sr-chip" data-val="Late" onclick="tcToggleChip(this,'red')">Late</span>
+        <span class="sr-chip" data-val="Unsafe habits" onclick="tcToggleChip(this,'red')">Unsafe habits</span>
+        <span class="sr-chip" data-val="Blamed employer" onclick="tcToggleChip(this,'red')">Blamed employer</span>
+        <span class="sr-chip" data-val="Vague on experience" onclick="tcToggleChip(this,'red')">Vague on experience</span>
+        <span class="sr-chip" data-val="Job-hopper" onclick="tcToggleChip(this,'red')">Job-hopper</span>
+        <span class="sr-chip" data-val="Unpresentable" onclick="tcToggleChip(this,'red')">Unpresentable</span>
+        <span class="sr-chip" data-val="No certifications" onclick="tcToggleChip(this,'red')">No certifications</span>
+      </div>
+    </div>
+    <div class="sr-field">
+      <label>Alpine Technician Evaluation Framework</label>
+      <div class="sr-eval-grid" id="tc-modal-eval-grid" style="margin-top:.4rem">
+        <div class="sr-eval-item" data-clickable data-val="Technical Competence" onclick="tcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Technical Competence</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Safety Mindset" onclick="tcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Safety Mindset</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Reliability" onclick="tcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Reliability</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Communication" onclick="tcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Communication</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Coachability" onclick="tcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Coachability</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Work Ethic" onclick="tcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Work Ethic</div></div>
+      </div>
+    </div>
+    <div class="sr-modal-btns">
+      <button class="sr-btn-cancel" onclick="tcCloseModal()">Cancel</button>
+      <button class="sr-save-btn" onclick="tcSaveCandidate()">Save Candidate</button>
+    </div>
+  </div>
+</div>
 
 </div><!-- end panel-recruiting -->
 
