@@ -109,6 +109,8 @@
       const annualRevenue = total * t.rate * bufferMult;
       document.getElementById(t.annualId).textContent = fmtCurrency(annualRevenue);
       document.getElementById(t.monthlyId).textContent = fmtCurrency(annualRevenue / 12);
+      const discountedEl = document.getElementById(t.annualId + 'Discounted');
+      if(discountedEl) discountedEl.textContent = fmtCurrency(annualRevenue * 0.95);
       document.getElementById(t.bufferNoteId).textContent = bufferOn ? '+ 5% buffer' : '';
       const featEl = document.getElementById('tier' + t.key.charAt(0).toUpperCase() + t.key.slice(1) + 'Features');
       if(featEl) featEl.innerHTML = buildFeatureList(t.key);
@@ -350,11 +352,12 @@
         <li><strong>Preventative Maintenance:</strong> Client agrees to allow scheduled maintenance visits at the agreed frequency. Missed or delayed visits due to restricted access or client scheduling may impact performance outcomes and coverage guarantees.</li>
         <li><strong>Emergency &amp; After-Hours Service:</strong> 24/7 on-call service is included; response times are target-based, not guaranteed, and calls outside normal business hours may be prioritized based on severity and system impact.</li>
         <li><strong>Building Automation Systems:</strong> Where BAS monitoring or operation is included, system access, network connectivity, and permissions must be provided by the client. Alpine is not responsible for failures caused by IT/network outages, third-party software issues, or manufacturer limitations.</li>
-        <li><strong>Consumables &amp; Materials:</strong> Minimum — all consumables billed separately. Core — discounted markup applied. Premium — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
+        <li><strong>Consumables &amp; Materials:</strong> Minimum package — labour only; covers scheduled preventative maintenance visits exclusively, with no service/repair hours and no consumables, materials, or replacement equipment of any kind included. Core package — includes all preventative maintenance and service/repair labour hours, plus consumable materials required for standard maintenance (filters, belts, and other manufacturer-specified maintenance consumables); major components are excluded and will be quoted and billed separately if replacement is required, including but not limited to compressors, blower/fan motors, control boards, heat exchangers, coils, pumps, and tanks. Premium package — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
         <li><strong>Client Responsibilities:</strong> Client agrees to provide safe and timely access, maintain appropriate operating conditions, notify Alpine of issues promptly, and ensure utilities are operational. Unsafe conditions may result in suspension of service until corrected.</li>
         <li><strong>Payment Terms:</strong> Invoices are due within 15 days. Late payments may result in suspension of service, removal of coverage benefits, and interest charges of 2% per month.</li>
+        <li><strong>Annual Payment Discount:</strong> Clients who pay the full annual agreement value in a single payment at the time of signing receive a 5% discount off the total annual price. This discount does not apply to monthly or quarterly payment plans.</li>
         <li><strong>Trial Period:</strong> Client will not be charged if unsatisfied after the initial service visit, provided concerns are communicated within 5 business days.</li>
-        <li><strong>Term &amp; Cancellation:</strong> This agreement remains in effect until cancelled by either party with written notice. No cancellation penalties apply; services performed up to the cancellation date remain payable.</li>
+        <li><strong>Term &amp; Cancellation:</strong> This agreement carries an initial term of six (6) months from the effective date, during which it may not be cancelled by the client. Regardless of billing frequency (monthly or quarterly, billed in advance), the client is responsible for payment in full for the entire initial 6-month period, as setup, onboarding labour, and materials costs are front-loaded into the early months of this agreement. After the initial 6-month term, either party may cancel this agreement at any time by providing thirty (30) days' written notice. Fees for the billing period in progress at the time of cancellation remain payable in full.</li>
         <li><strong>Liability Limitation:</strong> Alpine's liability is limited to the value of services provided under this agreement. Alpine is not liable for loss of business or revenue, tenant disruption, or secondary or consequential damages.</li>
         <li><strong>Warranty Disclaimer:</strong> Alpine does not warranty manufacturer equipment unless explicitly stated. Any warranties provided are limited to workmanship for a period of 90 days.</li>
         <li><strong>Force Majeure:</strong> Alpine is not liable for delays or failure to perform due to circumstances beyond reasonable control, including labour shortages, supply chain issues, or extreme weather events.</li>
@@ -398,7 +401,8 @@
       const rateRow    = isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:2px;">$${t.rate} / hr</div>`;
       const formulaRow = isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">${fmt(total)} hrs × $${t.rate}${bufferOn ? ' + 5% buffer' : ''}</div>`;
       const annualLine = (!isCustomer || showAnnual)
-        ? `<div style="font-size:10.5px;color:#666;margin-top:2px;">$${fmtCurrency(annualAmt)} / yr</div>`
+        ? `<div style="font-size:10.5px;color:#666;margin-top:2px;">$${fmtCurrency(annualAmt)} / yr</div>
+           <div style="font-size:9.5px;color:#666;margin-top:2px;">Pay annually at signing: <strong style="color:#333;">$${fmtCurrency(annualAmt * 0.95)}</strong> <span style="font-family:sans-serif;font-size:8px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;background:#b8962e;color:#fff;border-radius:3px;padding:2px 5px;">Save 5%</span></div>`
         : '';
       return `
         <div style="border:1px solid #c9b8d4;border-top:4px solid ${t.color};border-radius:4px;padding:14px;display:flex;flex-direction:column;">

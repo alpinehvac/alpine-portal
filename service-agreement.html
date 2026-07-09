@@ -673,6 +673,31 @@
   .price-secondary.annual-only{ display:block; }
   body.customer-mode .price-secondary.annual-only{ display:none; }
   body.customer-mode.show-annual .price-secondary.annual-only{ display:block; }
+  .price-annual-discount{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--stone);
+    margin-top:3px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .price-annual-discount strong{ color:inherit; font-weight:700; }
+  .discount-badge{
+    font-family:'Inter',sans-serif;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:.4px;
+    text-transform:uppercase;
+    background:var(--summit);
+    color:#fff;
+    border-radius:3px;
+    padding:2px 6px;
+    white-space:nowrap;
+  }
+  .price-annual-discount.annual-only{ display:block; }
+  body.customer-mode .price-annual-discount.annual-only{ display:none; }
+  body.customer-mode.show-annual .price-annual-discount.annual-only{ display:block; }
 
   /* ── Buffer checkbox ──────────────────────────────────────────────── */
   .buffer-row{
@@ -906,6 +931,7 @@
             <div class="price-block">
               <div class="price-primary">$<span id="tierMinMonthly">0</span><span class="per">/ mo</span></div>
               <div class="price-secondary annual-only">$<span id="tierMinAnnual">0</span> / yr</div>
+              <div class="price-annual-discount annual-only">Pay annually at signing: <strong>$<span id="tierMinAnnualDiscounted">0</span></strong> <span class="discount-badge">Save 5%</span></div>
             </div>
             <div class="tier-formula rep-only"><span id="tierMinHours">0</span> hrs &times; $150 <span id="tierMinBufferNote"></span></div>
           </div>
@@ -935,6 +961,7 @@
             <div class="price-block">
               <div class="price-primary">$<span id="tierCoreMonthly">0</span><span class="per">/ mo</span></div>
               <div class="price-secondary annual-only">$<span id="tierCoreAnnual">0</span> / yr</div>
+              <div class="price-annual-discount annual-only">Pay annually at signing: <strong>$<span id="tierCoreAnnualDiscounted">0</span></strong> <span class="discount-badge">Save 5%</span></div>
             </div>
             <div class="tier-formula rep-only"><span id="tierCoreHours">0</span> hrs &times; $300 <span id="tierCoreBufferNote"></span></div>
           </div>
@@ -963,6 +990,7 @@
             <div class="price-block">
               <div class="price-primary">$<span id="tierPremiumMonthly">0</span><span class="per">/ mo</span></div>
               <div class="price-secondary annual-only">$<span id="tierPremiumAnnual">0</span> / yr</div>
+              <div class="price-annual-discount annual-only">Pay annually at signing: <strong>$<span id="tierPremiumAnnualDiscounted">0</span></strong> <span class="discount-badge">Save 5%</span></div>
             </div>
             <div class="tier-formula rep-only"><span id="tierPremiumHours">0</span> hrs &times; $900 <span id="tierPremiumBufferNote"></span></div>
           </div>
@@ -1006,11 +1034,12 @@
       <li><strong>Preventative Maintenance:</strong> Client agrees to allow scheduled maintenance visits at the agreed frequency. Missed or delayed visits due to restricted access or client scheduling may impact performance outcomes and coverage guarantees.</li>
       <li><strong>Emergency &amp; After-Hours Service:</strong> 24/7 on-call service is included; however, response times are target-based, not guaranteed, and emergency calls outside normal business hours may be prioritized based on severity and system impact.</li>
       <li><strong>Building Automation Systems:</strong> Where BAS monitoring or operation is included, system access, network connectivity, and permissions must be provided by the client. Alpine is not responsible for failures caused by IT/network outages, third-party software issues, or manufacturer limitations.</li>
-      <li><strong>Consumables &amp; Materials:</strong> Minimum package — all consumables billed separately. Core package — discounted markup applied. Premium package — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
+      <li><strong>Consumables &amp; Materials:</strong> Minimum package — labour only; covers scheduled preventative maintenance visits exclusively, with no service/repair hours and no consumables, materials, or replacement equipment of any kind included. Core package — includes all preventative maintenance and service/repair labour hours, plus consumable materials required for standard maintenance (filters, belts, and other manufacturer-specified maintenance consumables); major components are excluded and will be quoted and billed separately if replacement is required, including but not limited to compressors, blower/fan motors, control boards, heat exchangers, coils, pumps, and tanks. Premium package — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
       <li><strong>Client Responsibilities:</strong> Client agrees to provide safe and timely access to equipment, maintain appropriate operating conditions, notify Alpine of issues promptly, and ensure utilities (power, gas, water) are operational. Unsafe conditions may result in suspension of service until corrected.</li>
       <li><strong>Payment Terms:</strong> Invoices are due within 15 days. Late payments may result in suspension of service, removal of coverage benefits, and interest charges of 2% per month.</li>
+      <li><strong>Annual Payment Discount:</strong> Clients who pay the full annual agreement value in a single payment at the time of signing receive a 5% discount off the total annual price. This discount does not apply to monthly or quarterly payment plans.</li>
       <li><strong>Trial Period:</strong> Client will not be charged if unsatisfied after the initial service visit, provided concerns are communicated within 5 business days.</li>
-      <li><strong>Term &amp; Cancellation:</strong> This agreement remains in effect until cancelled by either party. Client may cancel at any time with written notice. No cancellation penalties apply; however, services performed up to the cancellation date remain payable.</li>
+      <li><strong>Term &amp; Cancellation:</strong> This agreement carries an initial term of six (6) months from the effective date, during which it may not be cancelled by the client. Regardless of billing frequency (monthly or quarterly, billed in advance), the client is responsible for payment in full for the entire initial 6-month period, as setup, onboarding labour, and materials costs are front-loaded into the early months of this agreement. After the initial 6-month term, either party may cancel this agreement at any time by providing thirty (30) days' written notice. Fees for the billing period in progress at the time of cancellation remain payable in full.</li>
       <li><strong>Liability Limitation:</strong> Alpine's liability is limited to the value of services provided under this agreement. Alpine is not liable for loss of business or revenue, tenant disruption, or secondary or consequential damages.</li>
       <li><strong>Warranty Disclaimer:</strong> Alpine does not warranty manufacturer equipment unless explicitly stated. Any warranties provided are limited to workmanship for a period of 90 days.</li>
       <li><strong>Force Majeure:</strong> Alpine is not liable for delays or failure to perform due to circumstances beyond reasonable control, including labour shortages, supply chain issues, or extreme weather events.</li>
