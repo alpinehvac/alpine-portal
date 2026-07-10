@@ -38,14 +38,21 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 ::-webkit-scrollbar-track{background:var(--off-black)}
 ::-webkit-scrollbar-thumb{background:var(--teal)}
 
+/* ── ROLE TAB BAR ── */
+.role-bar{position:sticky;top:0;z-index:301;background:var(--off-black);border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:8px;padding:8px 1.5rem}
+.role-bar-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-right:6px}
+.role-tab-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,0.45);background:none;border:1px solid rgba(255,255,255,0.14);border-radius:4px;padding:5px 14px;cursor:pointer;white-space:nowrap;transition:all .2s}
+.role-tab-btn:hover{color:var(--white);border-color:rgba(155,142,196,0.6)}
+.role-tab-btn.active{color:var(--black);background:var(--purple-light);border-color:var(--purple-light)}
+
 /* ── TOP TAB BAR ── */
-.tab-bar{position:sticky;top:0;z-index:300;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35);display:flex;align-items:stretch}
+.tab-bar{position:sticky;top:43px;z-index:300;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35);display:flex;align-items:stretch}
 .tab-logo{display:flex;align-items:center;gap:10px;padding:0 1.5rem;border-right:1px solid rgba(255,255,255,0.07);flex-shrink:0}
 .tab-logo svg{height:32px;width:auto}
 .tab-logo-text{font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--white);line-height:1}
 .tab-logo-text small{display:block;font-size:8px;font-weight:400;letter-spacing:.16em;color:var(--teal-light);margin-top:2px}
 .tabs{display:flex;flex:1;overflow-x:auto}
-.tab-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);background:none;border:none;border-bottom:2px solid transparent;padding:0 1.75rem;height:56px;cursor:pointer;white-space:nowrap;transition:color .2s,border-color .2s;flex-shrink:0}
+.tab-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);background:none;border:none;border-bottom:2px solid transparent;padding:0 1.75rem;height:56px;cursor:pointer;white-space:nowrap;transition:color .2s,border-color .2s;flex-shrink:0;text-decoration:none;display:flex;align-items:center}
 .tab-btn:hover{color:rgba(255,255,255,0.75)}
 .tab-btn.active{color:var(--white);border-bottom-color:var(--teal)}
 
@@ -200,6 +207,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 </head>
 <body>
 
+<!-- ── ROLE TAB BAR ── -->
+<div class="role-bar">
+  <span class="role-bar-label">View as</span>
+  <button class="role-tab-btn" data-role="sales" onclick="setRole('sales')">Sales</button>
+  <button class="role-tab-btn" data-role="operations" onclick="setRole('operations')">Operations</button>
+  <button class="role-tab-btn" data-role="admin" onclick="setRole('admin')">Admin</button>
+  <button class="role-tab-btn active" data-role="owners" onclick="setRole('owners')">Owners</button>
+</div>
+
 <!-- ── TOP TAB BAR ── -->
 <div class="tab-bar">
   <div class="tab-logo">
@@ -212,13 +228,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
     </svg>
     <div class="tab-logo-text">Alpine HVAC<small>Team Hub</small></div>
   </div>
-  <div class="tabs">
-    <button class="tab-btn active" onclick="showTab('recruiting')">Tech Recruiting</button>
-    <button class="tab-btn" onclick="showTab('sales-recruiting')">Sales Recruiting</button>
-    <button class="tab-btn" onclick="showTab('support-recruiting')">Support Recruiting</button>
-    <button class="tab-btn" onclick="showTab('reviews')">Quarterly Team Reviews</button>
-    <button class="tab-btn" onclick="showTab('foreman')">Foreman Standards</button>
-    <button class="tab-btn" onclick="showTab('onboarding')">Onboarding</button>
+  <div class="tabs" id="mainTabs">
+    <button class="tab-btn active" data-roles="admin owners" onclick="showTab('recruiting')">Tech Recruiting</button>
+    <button class="tab-btn" data-roles="admin owners" onclick="showTab('sales-recruiting')">Sales Recruiting</button>
+    <button class="tab-btn" data-roles="admin owners" onclick="showTab('support-recruiting')">Support Recruiting</button>
+    <button class="tab-btn" data-roles="admin owners" onclick="showTab('reviews')">Quarterly Team Reviews</button>
+    <button class="tab-btn" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
+    <button class="tab-btn" data-roles="operations admin owners" onclick="showTab('onboarding')">Onboarding</button>
+    <a class="tab-btn" data-roles="sales owners" href="service-agreement.html">Service Agreements</a>
+    <a class="tab-btn" data-roles="sales owners" href="https://netorg13787440-my.sharepoint.com/:x:/g/personal/jake_gilmore_alpinehvac_ca/IQAJTpFRETgpSrAS0p-6AD6XAYT5_0syYV6aydZ0km1HPHY?e=rzg2Ij" target="_blank" rel="noopener">Lead Sheets</a>
+    <a class="tab-btn" data-roles="operations owners" href="https://docs.google.com/spreadsheets/d/1IaDmMURNjVWhIQZ0eVhDRFjUFVhevVXNHTJ0-BW3ZvM/edit?usp=sharing" target="_blank" rel="noopener">Alpine Call Log / On-Call</a>
   </div>
   <a class="tab-data-btn" href="dashboard.html" title="Back to dashboard" style="text-decoration:none;display:flex;align-items:center">🏠 Dashboard</a>
   <button class="tab-data-btn" onclick="openDataManager()" title="Export or import saved data">⇅ Data</button>
