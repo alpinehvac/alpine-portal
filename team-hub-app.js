@@ -924,6 +924,48 @@ function showTab(name) {
   }
 }
 
+// ── ROLE-BASED TAB FILTERING ──
+const ROLE_KEY = 'alpine_teamhub_role_v1';
+
+function applyRoleFilter(role) {
+  const tabs = document.querySelectorAll('#mainTabs .tab-btn');
+  let activeStillVisible = false;
+  let firstVisible = null;
+
+  tabs.forEach(btn => {
+    const roles = (btn.getAttribute('data-roles') || '').split(' ');
+    const visible = role === 'owners' || roles.indexOf(role) !== -1;
+    btn.style.display = visible ? '' : 'none';
+    if (visible && !firstVisible) firstVisible = btn;
+    if (visible && btn.classList.contains('active')) activeStillVisible = true;
+  });
+
+  // If the currently active tab got hidden by this role filter, jump to the first visible
+  // in-page tab. Never auto-click link tabs (Service Agreements / Lead Sheets / Call Log),
+  // since those navigate away or open external sites.
+  if (!activeStillVisible && firstVisible && firstVisible.tagName === 'BUTTON') {
+    firstVisible.click();
+  } else if (!activeStillVisible && firstVisible) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+  }
+
+  document.querySelectorAll('.role-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-role') === role);
+  });
+}
+
+function setRole(role) {
+  try { localStorage.setItem(ROLE_KEY, role); } catch (e) {}
+  applyRoleFilter(role);
+}
+
+(function initRoleFilter() {
+  let savedRole = 'owners';
+  try { savedRole = localStorage.getItem(ROLE_KEY) || 'owners'; } catch (e) {}
+  applyRoleFilter(savedRole);
+})();
+
 // ── STORAGE KEYS ──
 const STORAGE_KEY = 'alpine_reviews_v1';
 const QS_KEY = 'alpine_review_questions_v1';
