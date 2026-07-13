@@ -392,6 +392,8 @@
     const specialConsiderations = document.getElementById('specialConsiderations').value.trim();
     const paymentMethod = document.getElementById('paymentEFT').checked ? 'EFT' : (document.getElementById('paymentVisa').checked ? 'Visa' : '');
     const date    = new Date().toLocaleDateString('en-CA', {year:'numeric',month:'long',day:'numeric'});
+    const logoImg = document.querySelector('.brand-logo');
+    const logoSrc = logoImg ? logoImg.src : '';
     const termStartYear = new Date().getFullYear();
     const contractTerm  = `${termStartYear}–${termStartYear + 1}`;
     const bufferOn = document.getElementById('bufferToggle').checked;
@@ -529,6 +531,7 @@
       + '@media print{body{padding:10px 14px;}@page{margin:10mm 12mm;size:A4 portrait;}}'
       + '</style></head><body>'
       + '<div style="display:flex;align-items:center;border-bottom:4px solid #10444e;padding-bottom:12px;margin-bottom:16px;">'
+      +   (logoSrc ? '<img src="' + logoSrc + '" alt="Alpine HVAC" style="height:46px;width:auto;margin-right:14px;flex-shrink:0;">' : '')
       +   '<div><h1>Alpine HVAC Service</h1>'
       +   '<div style="font-size:10px;color:#6c5d8d;letter-spacing:.8px;text-transform:uppercase;margin-top:2px;">Hydronics · Controls · Building Systems</div></div>'
       +   '<div style="margin-left:auto;"><div style="font-size:11px;font-weight:600;color:#10444e;">Service Agreement Estimate</div></div>'
