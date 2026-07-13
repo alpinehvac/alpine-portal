@@ -120,11 +120,11 @@
     { label: 'Site Visits', detail: { min: 'Quarterly+', core: 'Monthly', premium: 'Monthly+' } },
     { label: 'CLEAR Reports', min: true, core: true, premium: true },
     { label: '24/7 On-Call Services', min: true, core: true, premium: true },
-    { label: 'Multi-Trade Service Access', min: true, core: true, premium: true },
+    { label: "Access to Alpine's Trade Network", min: true, core: true, premium: true },
     { label: 'Monthly Check-In Meetings (if desired)', min: false, core: true, premium: true },
-    { label: 'Bulk Discounts', min: false, core: true, premium: true },
-    { label: 'Building Automation Monitoring with Automatic Dispatching', min: false, core: true, premium: true },
-    { label: 'Building Automation Operation', min: false, core: false, premium: true },
+    { label: 'Special pricing on Critical Components', min: false, core: true, premium: true },
+    { label: 'Building Automation Monitoring with Automatic Dispatching', sublabel: 'If system already exists', min: false, core: true, premium: true },
+    { label: 'Installation of monitoring system with pre-annual payment', min: false, core: false, premium: true },
     { label: 'Cost Pricing on Replacements', min: false, core: false, premium: true }
   ];
 
@@ -133,7 +133,8 @@
       if(f.detail){
         return `<li class="feat-yes">Site Visits — <span class="feat-detail">${f.detail[tierKey]}</span></li>`;
       }
-      return `<li class="feat-yes">${f.label}</li>`;
+      const sub = f.sublabel ? ` <span class="feat-sublabel" style="font-style:italic;font-size:0.9em;opacity:0.75;">(${f.sublabel})</span>` : '';
+      return `<li class="feat-yes">${f.label}${sub}</li>`;
     }).join('');
   }
 
@@ -248,6 +249,7 @@
     'Cooling Tower — Large': { icon:'tower', desc:'Larger multi-cell version with multiple fan stacks, often induced or forced draft.' },
     'Damper': { icon:'valve', desc:'Metal blade inside ductwork with a visible actuator on the exterior that regulates airflow.' },
     'Dehumidifier': { icon:'droplet', desc:'Standalone or ducted unit with a refrigerant coil and drain line that pulls moisture from the air.' },
+    'Ductless Split': { icon:'coil', desc:'Wall-mounted or ceiling cassette indoor head connected to an outdoor condensing unit by refrigerant lines — no ductwork. Often multiple indoor heads per outdoor unit.' },
     'Electric Heater': { icon:'flame', desc:'Resistance heating element in a duct or cabinet — electrical connections only, no combustion venting.' },
     'ERV — Light Commercial': { icon:'erv', desc:'Compact box with two crossing air streams through an energy-recovery core, with two duct pairs in/out.' },
     'Exhaust Fan': { icon:'fan', desc:'Small roof-mounted "mushroom cap" or inline duct fan pulling air out of a space.' },
@@ -267,7 +269,6 @@
     'Unit Heater': { icon:'flame', desc:'Wall or ceiling-hung heater with a fan blowing across a coil — common in shops and warehouses.' },
     'Valve': { icon:'valve', desc:'Control valve on piping with an actuator (electric or pneumatic) mounted on top.' },
     'Vestibule Heater': { icon:'flame', desc:'Small heater mounted near an entryway to offset door heat loss.' },
-    'Vertical Packaged (VP) Unit Ventilator': { icon:'box', desc:'Floor or wall-mounted packaged unit combining heating and cooling coils with a blower, typically under a window or along a perimeter wall.' },
     'Water Filtration': { icon:'droplet', desc:'Cartridge or tank-style filtration system on a water line, with a pressure gauge and bypass valves.' }
   };
 
@@ -316,6 +317,24 @@
     cheatSheetViewEl.style.display = 'block';
   });
 
+  // ---- Estimator Guide sub-tabs ----
+  const guideSubtabs = [
+    { btn: 'guideTabCheatSheet',   view: 'guideViewCheatSheet' },
+    { btn: 'guideTabPortal',       view: 'guideViewPortal' },
+    { btn: 'guideTabClear',        view: 'guideViewClear' },
+    { btn: 'guideTabMaintenance',  view: 'guideViewMaintenance' }
+  ];
+  guideSubtabs.forEach(entry => {
+    const btnEl = document.getElementById(entry.btn);
+    if(!btnEl) return;
+    btnEl.addEventListener('click', function(){
+      guideSubtabs.forEach(other => {
+        document.getElementById(other.btn).classList.toggle('active', other.btn === entry.btn);
+        document.getElementById(other.view).style.display = (other.btn === entry.btn) ? 'block' : 'none';
+      });
+    });
+  });
+
   render();
 
   document.getElementById('bufferToggle').addEventListener('change', render);
@@ -333,7 +352,8 @@
       if(f.detail){
         return `<li style="font-weight:700;color:${color};">Site Visits — <strong>${f.detail[tierKey]}</strong></li>`;
       }
-      return `<li style="font-weight:700;color:${color};">${f.label}</li>`;
+      const sub = f.sublabel ? ` <span style="font-style:italic;font-weight:400;font-size:0.9em;color:#777;">(${f.sublabel})</span>` : '';
+      return `<li style="font-weight:700;color:${color};">${f.label}${sub}</li>`;
     }).join('');
   }
 
@@ -372,6 +392,8 @@
     const specialConsiderations = document.getElementById('specialConsiderations').value.trim();
     const paymentMethod = document.getElementById('paymentEFT').checked ? 'EFT' : (document.getElementById('paymentVisa').checked ? 'Visa' : '');
     const date    = new Date().toLocaleDateString('en-CA', {year:'numeric',month:'long',day:'numeric'});
+    const termStartYear = new Date().getFullYear();
+    const contractTerm  = `${termStartYear}–${termStartYear + 1}`;
     const bufferOn = document.getElementById('bufferToggle').checked;
     const bufferMult = bufferOn ? 1.05 : 1;
     const showAnnual = document.body.classList.contains('show-annual');
@@ -431,7 +453,8 @@
       bType   ? `<tr><td style="color:#555;">Business Type</td><td>${escapeHtml(bType)}</td></tr>` : '',
       bStruct ? `<tr><td style="color:#555;">Building Type</td><td>${escapeHtml(bStruct)}</td></tr>` : '',
       rep     ? `<tr><td style="color:#555;">Representative</td><td>${escapeHtml(rep)}</td></tr>` : '',
-      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`
+      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`,
+      `<tr><td style="color:#555;">Contract Term</td><td><strong>${contractTerm}</strong></td></tr>`
     ].filter(Boolean).join('');
 
     const specialSection = specialConsiderations ? `
@@ -527,14 +550,33 @@
       + '</body></html>';
   }
 
-  // PRINT — prints current page directly
+  // PRINT — prints current page directly, but always in customer view.
+  // Regardless of whether the rep is currently on the User View or Customer
+  // View tab, this temporarily forces customer-mode styling for the print
+  // itself so rep-only (sensitive) info never accidentally goes to print.
   document.getElementById('btnPrint').addEventListener('click', function(){
+    const wasCustomer = document.body.classList.contains('customer-mode');
+    if(!wasCustomer) document.body.classList.add('customer-mode');
+    let restored = false;
+    function restore(){
+      if(restored) return;
+      restored = true;
+      if(!wasCustomer) document.body.classList.remove('customer-mode');
+      window.removeEventListener('afterprint', restore);
+    }
+    window.addEventListener('afterprint', restore);
     window.print();
+    // Fallback in case 'afterprint' doesn't fire in some browsers/print flows
+    setTimeout(restore, 3000);
   });
 
-  // PDF — opens a new tab with clean print layout and triggers print dialog
+  // PDF — opens a new tab with clean print layout and triggers print dialog.
+  // Always builds the customer-facing version, regardless of which tab
+  // (User View or Customer View) the rep currently has open, so sensitive
+  // rep-only info (hours/yr, hourly rates, formulas) can never be
+  // accidentally printed or PDF'd to a customer.
   document.getElementById('btnPrintPDF').addEventListener('click', function(){
-    const isCustomer = document.body.classList.contains('customer-mode');
+    const isCustomer = true;
     const html = buildPrintHTML(isCustomer);
     const win = window.open('', '_blank');
     if(!win){ alert('Please allow pop-ups for this page to use the PDF export.'); return; }

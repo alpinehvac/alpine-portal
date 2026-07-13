@@ -52,6 +52,15 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 .card-desc{font-size:.8125rem;color:rgba(255,255,255,0.45);line-height:1.6}
 
 .empty{background:var(--off-black);border:1px dashed rgba(255,255,255,0.1);border-radius:var(--radius-lg);padding:4rem 2rem;text-align:center;color:rgba(255,255,255,0.35);font-size:.9rem}
+
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem}
+.cat-card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2.25rem 1.75rem;text-decoration:none;color:var(--white);transition:border-color .2s,transform .2s;display:flex;flex-direction:column;align-items:flex-start;gap:.6rem;cursor:pointer}
+.cat-card:hover{border-color:rgba(28,107,110,0.5);transform:translateY(-2px)}
+.cat-icon{width:48px;height:48px;background:rgba(28,107,110,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--teal-light)}
+.cat-title{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.cat-desc{font-size:.825rem;color:rgba(255,255,255,0.45);line-height:1.6}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-light);text-decoration:none;margin-bottom:1.5rem}
+.back-link:hover{color:var(--white)}
 </style>
 </head>
 <body>
@@ -71,9 +80,11 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 </nav>
 
 <div class="wrap">
-  <div class="eyebrow">Dashboard</div>
-  <h1>Your Tools</h1>
-  <p class="sub">Select a tool below. You'll only see what's relevant to your role.</p>
+  <div class="eyebrow" id="page-eyebrow">Dashboard</div>
+  <div id="back-link-wrap"></div>
+  <h1 id="page-h1">Your Tools</h1>
+  <p class="sub" id="page-sub">Select a tool below. You'll only see what's relevant to your role.</p>
+  <div class="cat-grid" id="cat-grid" style="display:none"></div>
   <div class="grid" id="tool-grid"></div>
 </div>
 
@@ -84,16 +95,39 @@ const TOOL_META = {
   "service-agreement": { icon: "🧮", desc: "Calculate man-hours and pricing for service agreements." },
 };
 
+// Owner "tool belt" categories. Adjust freely as tools are added/moved —
+// a tool can appear in more than one category if it's relevant to both.
+const TOOL_CATEGORIES = {
+  sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "team-hub"] },
+  operations: { label: "Operations", icon: "🛠️", desc: "Scheduling, dispatch, and day-to-day ops tools.",  tools: ["team-hub"] },
+  financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["pl-calculator"] },
+};
+
 const session = apGetSession();
 document.getElementById("nav-user-name").textContent = session.name;
 
-const visible = apVisibleTools();
-const grid = document.getElementById("tool-grid");
+const isOwner = session.roles.includes("super_admin");
+const isPureSales = session.roles.includes("sales") && !isOwner;
 
-if (visible.length === 0) {
-  grid.outerHTML = '<div class="empty">No tools are assigned to your account yet. Contact your administrator.</div>';
-} else {
-  visible.forEach(id => {
+const catGrid = document.getElementById("cat-grid");
+const toolGrid = document.getElementById("tool-grid");
+const eyebrow = document.getElementById("page-eyebrow");
+const h1 = document.getElementById("page-h1");
+const sub = document.getElementById("page-sub");
+const backWrap = document.getElementById("back-link-wrap");
+
+const params = new URLSearchParams(window.location.search);
+const cat = params.get("cat");
+
+function renderToolGrid(toolIds, emptyMsg) {
+  catGrid.style.display = "none";
+  toolGrid.style.display = "";
+  if (toolIds.length === 0) {
+    toolGrid.outerHTML = `<div class="empty">${emptyMsg}</div>`;
+    return;
+  }
+  toolGrid.innerHTML = "";
+  toolIds.forEach(id => {
     const meta = TOOL_META[id] || {};
     const label = (window.AP_TOOLS && AP_TOOLS[id] && AP_TOOLS[id].label) || id;
     const a = document.createElement("a");
@@ -104,8 +138,57 @@ if (visible.length === 0) {
       <div class="card-title">${label}</div>
       <div class="card-desc">${meta.desc || ""}</div>
     `;
-    grid.appendChild(a);
+    toolGrid.appendChild(a);
   });
+}
+
+function renderCategoryGrid() {
+  toolGrid.style.display = "none";
+  catGrid.style.display = "";
+  catGrid.innerHTML = "";
+  Object.keys(TOOL_CATEGORIES).forEach(key => {
+    const c = TOOL_CATEGORIES[key];
+    const a = document.createElement("a");
+    a.className = "cat-card";
+    a.href = "dashboard.html?cat=" + key;
+    a.innerHTML = `
+      <div class="cat-icon">${c.icon}</div>
+      <div class="cat-title">${c.label}</div>
+      <div class="cat-desc">${c.desc}</div>
+    `;
+    catGrid.appendChild(a);
+  });
+}
+
+const visible = apVisibleTools();
+
+if (isPureSales) {
+  // Sales team members skip the category picker entirely and land straight
+  // on their tools.
+  eyebrow.textContent = "Dashboard";
+  h1.textContent = "Your Tools";
+  sub.textContent = "Select a tool below.";
+  renderToolGrid(visible, "No tools are assigned to your account yet. Contact your administrator.");
+} else if (isOwner && !cat) {
+  // Owners land on the 3-category homepage first.
+  eyebrow.textContent = "Dashboard";
+  h1.textContent = "Your Tool Belts";
+  sub.textContent = "Choose a category to see the tools inside it.";
+  renderCategoryGrid();
+} else if (isOwner && cat && TOOL_CATEGORIES[cat]) {
+  const c = TOOL_CATEGORIES[cat];
+  eyebrow.textContent = "Dashboard · " + c.label;
+  h1.textContent = c.label + " Tools";
+  sub.textContent = c.desc;
+  backWrap.innerHTML = '<a class="back-link" href="dashboard.html">&larr; All Categories</a>';
+  const catTools = c.tools.filter(id => visible.includes(id));
+  renderToolGrid(catTools, "No tools in this category are assigned to your account yet.");
+} else {
+  // Support, ops, or anyone else not covered above: flat list, unchanged.
+  eyebrow.textContent = "Dashboard";
+  h1.textContent = "Your Tools";
+  sub.textContent = "Select a tool below. You'll only see what's relevant to your role.";
+  renderToolGrid(visible, "No tools are assigned to your account yet. Contact your administrator.");
 }
 </script>
 </body>
