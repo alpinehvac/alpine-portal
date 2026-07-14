@@ -120,11 +120,11 @@
     { label: 'Site Visits', detail: { min: 'Quarterly+', core: 'Monthly', premium: 'Monthly+' } },
     { label: 'CLEAR Reports', min: true, core: true, premium: true },
     { label: '24/7 On-Call Services', min: true, core: true, premium: true },
-    { label: "Access to Alpine's Trade Network", min: true, core: true, premium: true },
+    { label: 'Multi-Trade Service Access', min: true, core: true, premium: true },
     { label: 'Monthly Check-In Meetings (if desired)', min: false, core: true, premium: true },
-    { label: 'Special pricing on Critical Components', min: false, core: true, premium: true },
-    { label: 'Building Automation Monitoring with Automatic Dispatching', sublabel: 'If system already exists', min: false, core: true, premium: true },
-    { label: 'Installation of monitoring system with pre-annual payment', min: false, core: false, premium: true },
+    { label: 'Bulk Discounts', min: false, core: true, premium: true },
+    { label: 'Building Automation Monitoring with Automatic Dispatching', min: false, core: true, premium: true },
+    { label: 'Building Automation Operation', min: false, core: false, premium: true },
     { label: 'Cost Pricing on Replacements', min: false, core: false, premium: true }
   ];
 
@@ -133,8 +133,7 @@
       if(f.detail){
         return `<li class="feat-yes">Site Visits — <span class="feat-detail">${f.detail[tierKey]}</span></li>`;
       }
-      const sub = f.sublabel ? ` <span class="feat-sublabel" style="font-style:italic;font-size:0.9em;opacity:0.75;">(${f.sublabel})</span>` : '';
-      return `<li class="feat-yes">${f.label}${sub}</li>`;
+      return `<li class="feat-yes">${f.label}</li>`;
     }).join('');
   }
 
@@ -238,38 +237,38 @@
     erv:    '<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="8" width="32" height="32" rx="2" stroke="currentColor" stroke-width="2.2"/><line x1="8" y1="8" x2="40" y2="40" stroke="currentColor" stroke-width="1.4" opacity="0.5"/><line x1="40" y1="8" x2="8" y2="40" stroke="currentColor" stroke-width="1.4" opacity="0.5"/><circle cx="24" cy="24" r="5" stroke="currentColor" stroke-width="1.8"/></svg>'
   };
   const EQUIP_GUIDE = {
-    'A/C': { icon:'coil', desc:'Outdoor split or packaged condensing unit with a top or side fan; refrigerant lines run to an indoor coil.', photo:'https://media.tranetechnologies.com/is/image/TraneTechnologies/TC-Small-Splits-AC-HP-closed:medium-4-3' },
-    'AHU': { icon:'box', desc:'Large sheet-metal cabinet moving air through coils, filters, and a blower — usually in a mechanical room with ductwork on both sides.', photo:'https://media.tranetechnologies.com/is/image/TraneTechnologies/UCCA-AHU-transparent:medium-4-3' },
-    'Air Compressor': { icon:'gauge', desc:'Tank-mounted motor and pump storing compressed air; look for a pressure gauge and piping manifold.' },
-    'Boiler — Commercial Large': { icon:'flame', desc:'Large floor-standing combustion appliance with burner, heat exchanger, and venting feeding the hot water/steam loop.' },
-    'Boiler — Commercial Medium': { icon:'flame', desc:'Mid-size floor or wall-mounted boiler with visible gas piping, venting, and circulator pumps nearby.' },
-    'Boiler — Light Commercial/Residential Small': { icon:'flame', desc:'Compact wall-hung condensing boiler, typically with PVC intake/exhaust venting.' },
-    'Chiller': { icon:'coil', desc:'Large air-cooled unit with condenser coils/fans, or a water-cooled shell-and-tube vessel, producing chilled water.' },
-    'Cooling Tower — Small/Medium': { icon:'tower', desc:'Rooftop structure with louvered sides, a fan stack on top, and a water basin below.' },
-    'Cooling Tower — Large': { icon:'tower', desc:'Larger multi-cell version with multiple fan stacks, often induced or forced draft.' },
-    'Damper': { icon:'valve', desc:'Metal blade inside ductwork with a visible actuator on the exterior that regulates airflow.' },
-    'Dehumidifier': { icon:'droplet', desc:'Standalone or ducted unit with a refrigerant coil and drain line that pulls moisture from the air.' },
-    'Ductless Split': { icon:'coil', desc:'Wall-mounted or ceiling cassette indoor head connected to an outdoor condensing unit by refrigerant lines — no ductwork. Often multiple indoor heads per outdoor unit.' },
-    'Electric Heater': { icon:'flame', desc:'Resistance heating element in a duct or cabinet — electrical connections only, no combustion venting.' },
-    'ERV — Light Commercial': { icon:'erv', desc:'Compact box with two crossing air streams through an energy-recovery core, with two duct pairs in/out.' },
-    'Exhaust Fan': { icon:'fan', desc:'Small roof-mounted "mushroom cap" or inline duct fan pulling air out of a space.' },
-    'Fan': { icon:'fan', desc:'General air-moving propeller or utility fan, wall-mounted or inline.' },
-    'FCU': { icon:'box', desc:'Small cabinet unit (ceiling, wall, or floor) with a coil and blower, fed by chilled/hot water piping.' },
-    'Furnace': { icon:'box', desc:'Gas or electric forced-air unit in a mechanical closet with a blower compartment and venting.' },
-    'Glycol Pump': { icon:'pump', desc:'Small circulator pump inline on hydronic piping, moving glycol solution through the loop.' },
-    'Heat Pump': { icon:'coil', desc:'Outdoor unit resembling an A/C condenser but reversible, with a reversing valve for heating and cooling.' },
-    'Hot Water Tank': { icon:'tank', desc:'Vertical cylindrical tank, gas or electric, storing domestic hot water.' },
-    'Humidifier': { icon:'droplet', desc:'Small duct-mounted or standalone unit adding moisture via steam, evaporative pad, or spray.' },
-    'Make Up Air Unit (MUA)': { icon:'box', desc:'Larger rooftop or wall unit conditioning 100% outdoor air, often paired with kitchen exhaust.' },
-    'Pump — Small/Medium': { icon:'pump', desc:'Inline or base-mounted circulator pump on hydronic piping.' },
-    'Pump — Large': { icon:'pump', desc:'Larger base-mounted centrifugal pump with a coupling guard and larger motor.' },
-    'Rooftop Unit (RTU) — Small/Medium': { icon:'box', desc:'Packaged rooftop unit combining heating, cooling, and ventilation in one cabinet on a roof curb.', photo:'https://media.tranetechnologies.com/is/image/TraneTechnologies/Nextgen_image_03_Y_model_right_LHV_gas:large-2-1' },
-    'Rooftop Unit (RTU) — Large': { icon:'box', desc:'Larger packaged rooftop unit, often multi-zone with multiple compressor/fan sections.' },
-    'Tube Heater': { icon:'flame', desc:'Suspended radiant heating tube with a burner at one end — common in warehouses and bays.' },
-    'Unit Heater': { icon:'flame', desc:'Wall or ceiling-hung heater with a fan blowing across a coil — common in shops and warehouses.' },
-    'Valve': { icon:'valve', desc:'Control valve on piping with an actuator (electric or pneumatic) mounted on top.' },
-    'Vestibule Heater': { icon:'flame', desc:'Small heater mounted near an entryway to offset door heat loss.' },
-    'Water Filtration': { icon:'droplet', desc:'Cartridge or tank-style filtration system on a water line, with a pressure gauge and bypass valves.' }
+    'A/C': { icon:'coil', desc:'Outdoor split or packaged condensing unit with a top or side fan; refrigerant lines run to an indoor coil.', photo:'https://media.tranetechnologies.com/is/image/TraneTechnologies/TC-Small-Splits-AC-HP-closed:medium-4-3', critical:'Compressor, condenser fan motor, condenser coil, evaporator coil, and major control boards/circuit boards.' },
+    'AHU': { icon:'box', desc:'Large sheet-metal cabinet moving air through coils, filters, and a blower — usually in a mechanical room with ductwork on both sides.', photo:'https://media.tranetechnologies.com/is/image/TraneTechnologies/UCCA-AHU-transparent:medium-4-3', critical:'Supply fan motor, compressor (if DX), heating or cooling coil, major piping system, and major control boards/circuit boards.' },
+    'Air Compressor': { icon:'gauge', desc:'Tank-mounted motor and pump storing compressed air; look for a pressure gauge and piping manifold.', photo:'images/air-compressor.jpg', critical:'Compressor pump/motor, tank, and major control boards/circuit boards.' },
+    'Boiler — Commercial Large': { icon:'flame', desc:'Large floor-standing combustion appliance with burner, heat exchanger, and venting feeding the hot water/steam loop.', photo:'images/boiler-commercial-large.jpg', critical:'Burner assembly, heat exchanger, major gas train components, and major control boards/circuit boards.' },
+    'Boiler — Commercial Medium': { icon:'flame', desc:'Mid-size floor or wall-mounted boiler with visible gas piping, venting, and circulator pumps nearby.', photo:'images/boiler-commercial-medium.jpg', critical:'Burner assembly, heat exchanger, major gas train components, and major control boards/circuit boards.' },
+    'Boiler — Light Commercial/Residential Small': { icon:'flame', desc:'Compact wall-hung condensing boiler, typically with PVC intake/exhaust venting.', photo:'images/boiler-light-commercial-residential-small.jpg', critical:'Burner assembly, heat exchanger, circulator pump, and major control boards/circuit boards.' },
+    'Chiller': { icon:'coil', desc:'Large air-cooled unit with condenser coils/fans, or a water-cooled shell-and-tube vessel, producing chilled water.', photo:'images/chiller-air-cooled.jpg', critical:'Compressor(s), evaporator, condenser, refrigerant circuit, and major control boards/circuit boards.' },
+    'Cooling Tower — Small/Medium': { icon:'tower', desc:'Rooftop structure with louvered sides, a fan stack on top, and a water basin below.', photo:'images/cooling-tower-small-medium.jpg', critical:'Fan motor, gearbox/drive assembly, fill media structure, and basin/sump.' },
+    'Cooling Tower — Large': { icon:'tower', desc:'Larger multi-cell version with multiple fan stacks, often induced or forced draft.', photo:'images/cooling-tower-large.jpg', critical:'Fan motor(s), gearbox/drive assembly, fill media structure, and basin/sump.' },
+    'Damper': { icon:'valve', desc:'Metal blade inside ductwork with a visible actuator on the exterior that regulates airflow.', photo:'images/damper.jpg', critical:'Actuator.' },
+    'Dehumidifier': { icon:'droplet', desc:'Standalone or ducted unit with a refrigerant coil and drain line that pulls moisture from the air.', photo:'images/dehumidifier.jpg', critical:'Compressor, condenser fan motor, condenser coil, evaporator coil, and major control boards/circuit boards.' },
+    'Electric Heater': { icon:'flame', desc:'Resistance heating element in a duct or cabinet — electrical connections only, no combustion venting.', photo:'images/electric-heater.jpg', critical:'Heating element and control board/contactor assembly.' },
+    'ERV — Light Commercial': { icon:'erv', desc:'Compact box with two crossing air streams through an energy-recovery core, with two duct pairs in/out.', photo:'images/erv-light-commercial.jpg', critical:'Energy recovery core, supply/exhaust fan motors, and control board.' },
+    'Exhaust Fan': { icon:'fan', desc:'Small roof-mounted "mushroom cap" or inline duct fan pulling air out of a space.', photo:'images/exhaust-fan.jpg', critical:'Fan motor.' },
+    'Fan': { icon:'fan', desc:'General air-moving propeller or utility fan, wall-mounted or inline.', photo:'images/fan.jpg', critical:'Fan motor.' },
+    'FCU': { icon:'box', desc:'Small cabinet unit (ceiling, wall, or floor) with a coil and blower, fed by chilled/hot water piping.', photo:'images/fcu.jpg', critical:'Fan motor and coil.' },
+    'Furnace': { icon:'box', desc:'Gas or electric forced-air unit in a mechanical closet with a blower compartment and venting.', photo:'images/furnace.jpg', critical:'Heat exchanger, burner assembly, and blower motor.' },
+    'Glycol Pump': { icon:'pump', desc:'Small circulator pump inline on hydronic piping, moving glycol solution through the loop.', photo:'images/glycol-pump.jpg', critical:'Pump motor.' },
+    'Heat Pump': { icon:'coil', desc:'Outdoor unit resembling an A/C condenser but reversible, with a reversing valve for heating and cooling.', photo:'images/heat-pump.jpg', critical:'Compressor, condenser fan motor, condenser coil, evaporator coil, reversing valve, and major control boards/circuit boards.' },
+    'Ductless Split': { icon:'coil', desc:'Wall-mounted indoor head connected to an outdoor condensing unit via refrigerant lines — no ductwork.', photo:'images/ductless-split.jpg', critical:'Compressor, condenser fan motor, condenser coil, evaporator coil, reversing valve, and major control boards/circuit boards.' },
+    'Hot Water Tank': { icon:'tank', desc:'Vertical cylindrical tank, gas or electric, storing domestic hot water.', photo:'images/hot-water-tank.jpg', critical:'Tank and heating element/burner.' },
+    'Humidifier': { icon:'droplet', desc:'Small duct-mounted or standalone unit adding moisture via steam, evaporative pad, or spray.', photo:'images/humidifier.jpg', critical:'Steam generator/evaporator pad assembly and control board.' },
+    'Make Up Air Unit (MUA)': { icon:'box', desc:'Larger rooftop or wall unit conditioning 100% outdoor air, often paired with kitchen exhaust.', photo:'images/mua.jpg', critical:'Supply fan motor, burner/heating element or DX compressor, heating or cooling coil, and major control boards/circuit boards.' },
+    'Pump — Small/Medium': { icon:'pump', desc:'Inline or base-mounted circulator pump on hydronic piping.', photo:'images/pump-small-medium.jpg', critical:'Pump motor.' },
+    'Pump — Large': { icon:'pump', desc:'Larger base-mounted centrifugal pump with a coupling guard and larger motor.', photo:'images/pump-large.jpg', critical:'Pump motor and coupling assembly.' },
+    'Rooftop Unit (RTU) — Small/Medium': { icon:'box', desc:'Packaged rooftop unit combining heating, cooling, and ventilation in one cabinet on a roof curb.', photo:'https://media.tranetechnologies.com/is/image/TraneTechnologies/Nextgen_image_03_Y_model_right_LHV_gas:large-2-1', critical:'Compressor(s), supply fan motor, heating/cooling coil, and major control boards/circuit boards.' },
+    'Rooftop Unit (RTU) — Large': { icon:'box', desc:'Larger packaged rooftop unit, often multi-zone with multiple compressor/fan sections.', photo:'images/rtu-large.jpg', critical:'Compressor(s), supply fan motor, heating/cooling coil, and major control boards/circuit boards.' },
+    'Tube Heater': { icon:'flame', desc:'Suspended radiant heating tube with a burner at one end — common in warehouses and bays.', photo:'images/tube-heater.jpg', critical:'Burner assembly and heat exchanger tube.' },
+    'Unit Heater': { icon:'flame', desc:'Wall or ceiling-hung heater with a fan blowing across a coil — common in shops and warehouses.', photo:'images/unit-heater.jpg', critical:'Fan motor and heat exchanger.' },
+    'Valve': { icon:'valve', desc:'Control valve on piping with an actuator (electric or pneumatic) mounted on top.', photo:'images/valve.jpg', critical:'Actuator.' },
+    'Vestibule Heater': { icon:'flame', desc:'Small heater mounted near an entryway to offset door heat loss.', photo:'images/vestibule-heater.jpg', critical:'Heating element and control board/contactor assembly.' },
+    'Water Filtration': { icon:'droplet', desc:'Cartridge or tank-style filtration system on a water line, with a pressure gauge and bypass valves.', photo:'images/water-filtration.jpg', critical:'Tank/housing assembly.' }
   };
 
   function renderCheatSheet(){
@@ -285,11 +284,15 @@
       const visual = meta.photo
         ? `<img src="${meta.photo}" alt="${escapeHtml(name)}" loading="lazy" style="width:100%;height:100%;object-fit:contain;border-radius:50%;" onerror="this.parentElement.innerHTML=${JSON.stringify(iconMarkup)};">`
         : iconMarkup;
+      const criticalBlock = meta.critical
+        ? `<div class="cheat-critical"><span class="cheat-critical-label">Critical components (excluded from Minimum/Core):</span> ${escapeHtml(meta.critical)}</div>`
+        : '';
       html += `
         <div class="cheat-card">
           <div class="icon-wrap">${visual}</div>
           <div class="cheat-name">${escapeHtml(name)}</div>
           <div class="cheat-desc">${escapeHtml(meta.desc)}</div>
+          ${criticalBlock}
           <div class="cheat-hrs">${hrs} hrs / yr baseline</div>
         </div>`;
     });
@@ -317,24 +320,6 @@
     cheatSheetViewEl.style.display = 'block';
   });
 
-  // ---- Estimator Guide sub-tabs ----
-  const guideSubtabs = [
-    { btn: 'guideTabCheatSheet',   view: 'guideViewCheatSheet' },
-    { btn: 'guideTabPortal',       view: 'guideViewPortal' },
-    { btn: 'guideTabClear',        view: 'guideViewClear' },
-    { btn: 'guideTabMaintenance',  view: 'guideViewMaintenance' }
-  ];
-  guideSubtabs.forEach(entry => {
-    const btnEl = document.getElementById(entry.btn);
-    if(!btnEl) return;
-    btnEl.addEventListener('click', function(){
-      guideSubtabs.forEach(other => {
-        document.getElementById(other.btn).classList.toggle('active', other.btn === entry.btn);
-        document.getElementById(other.view).style.display = (other.btn === entry.btn) ? 'block' : 'none';
-      });
-    });
-  });
-
   render();
 
   document.getElementById('bufferToggle').addEventListener('change', render);
@@ -352,8 +337,7 @@
       if(f.detail){
         return `<li style="font-weight:700;color:${color};">Site Visits — <strong>${f.detail[tierKey]}</strong></li>`;
       }
-      const sub = f.sublabel ? ` <span style="font-style:italic;font-weight:400;font-size:0.9em;color:#777;">(${f.sublabel})</span>` : '';
-      return `<li style="font-weight:700;color:${color};">${f.label}${sub}</li>`;
+      return `<li style="font-weight:700;color:${color};">${f.label}</li>`;
     }).join('');
   }
 
@@ -392,10 +376,6 @@
     const specialConsiderations = document.getElementById('specialConsiderations').value.trim();
     const paymentMethod = document.getElementById('paymentEFT').checked ? 'EFT' : (document.getElementById('paymentVisa').checked ? 'Visa' : '');
     const date    = new Date().toLocaleDateString('en-CA', {year:'numeric',month:'long',day:'numeric'});
-    const logoImg = document.querySelector('.brand-logo');
-    const logoSrc = logoImg ? logoImg.src : '';
-    const termStartYear = new Date().getFullYear();
-    const contractTerm  = `${termStartYear}–${termStartYear + 1}`;
     const bufferOn = document.getElementById('bufferToggle').checked;
     const bufferMult = bufferOn ? 1.05 : 1;
     const showAnnual = document.body.classList.contains('show-annual');
@@ -455,8 +435,7 @@
       bType   ? `<tr><td style="color:#555;">Business Type</td><td>${escapeHtml(bType)}</td></tr>` : '',
       bStruct ? `<tr><td style="color:#555;">Building Type</td><td>${escapeHtml(bStruct)}</td></tr>` : '',
       rep     ? `<tr><td style="color:#555;">Representative</td><td>${escapeHtml(rep)}</td></tr>` : '',
-      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`,
-      `<tr><td style="color:#555;">Contract Term</td><td><strong>${contractTerm}</strong></td></tr>`
+      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`
     ].filter(Boolean).join('');
 
     const specialSection = specialConsiderations ? `
@@ -531,7 +510,6 @@
       + '@media print{body{padding:10px 14px;}@page{margin:10mm 12mm;size:A4 portrait;}}'
       + '</style></head><body>'
       + '<div style="display:flex;align-items:center;border-bottom:4px solid #10444e;padding-bottom:12px;margin-bottom:16px;">'
-      +   (logoSrc ? '<img src="' + logoSrc + '" alt="Alpine HVAC" style="height:46px;width:auto;margin-right:14px;flex-shrink:0;">' : '')
       +   '<div><h1>Alpine HVAC Service</h1>'
       +   '<div style="font-size:10px;color:#6c5d8d;letter-spacing:.8px;text-transform:uppercase;margin-top:2px;">Hydronics · Controls · Building Systems</div></div>'
       +   '<div style="margin-left:auto;"><div style="font-size:11px;font-weight:600;color:#10444e;">Service Agreement Estimate</div></div>'
@@ -553,33 +531,14 @@
       + '</body></html>';
   }
 
-  // PRINT — prints current page directly, but always in customer view.
-  // Regardless of whether the rep is currently on the User View or Customer
-  // View tab, this temporarily forces customer-mode styling for the print
-  // itself so rep-only (sensitive) info never accidentally goes to print.
+  // PRINT — prints current page directly
   document.getElementById('btnPrint').addEventListener('click', function(){
-    const wasCustomer = document.body.classList.contains('customer-mode');
-    if(!wasCustomer) document.body.classList.add('customer-mode');
-    let restored = false;
-    function restore(){
-      if(restored) return;
-      restored = true;
-      if(!wasCustomer) document.body.classList.remove('customer-mode');
-      window.removeEventListener('afterprint', restore);
-    }
-    window.addEventListener('afterprint', restore);
     window.print();
-    // Fallback in case 'afterprint' doesn't fire in some browsers/print flows
-    setTimeout(restore, 3000);
   });
 
-  // PDF — opens a new tab with clean print layout and triggers print dialog.
-  // Always builds the customer-facing version, regardless of which tab
-  // (User View or Customer View) the rep currently has open, so sensitive
-  // rep-only info (hours/yr, hourly rates, formulas) can never be
-  // accidentally printed or PDF'd to a customer.
+  // PDF — opens a new tab with clean print layout and triggers print dialog
   document.getElementById('btnPrintPDF').addEventListener('click', function(){
-    const isCustomer = true;
+    const isCustomer = document.body.classList.contains('customer-mode');
     const html = buildPrintHTML(isCustomer);
     const win = window.open('', '_blank');
     if(!win){ alert('Please allow pop-ups for this page to use the PDF export.'); return; }
