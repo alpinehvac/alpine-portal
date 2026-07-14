@@ -78,6 +78,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 /* scrollbar inside iframe-like panel */
 #panel-recruiting{overflow-y:auto;height:calc(100vh - 56px)}
+#panel-bas-recruiting{overflow-y:auto;height:calc(100vh - 56px)}
 
 /* All recruiting styles scoped — reuse same vars since they're identical */
 ::-webkit-scrollbar{width:4px}
@@ -230,14 +231,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   </div>
   <div class="tabs" id="mainTabs">
     <button class="tab-btn active" data-roles="admin owners" onclick="showTab('recruiting')">Tech Recruiting</button>
+    <button class="tab-btn" data-roles="admin owners" onclick="showTab('bas-recruiting')">BAS Recruiting</button>
     <button class="tab-btn" data-roles="admin owners" onclick="showTab('sales-recruiting')">Sales Recruiting</button>
     <button class="tab-btn" data-roles="admin owners" onclick="showTab('support-recruiting')">Support Recruiting</button>
     <button class="tab-btn" data-roles="admin owners" onclick="showTab('reviews')">Quarterly Team Reviews</button>
     <button class="tab-btn" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
     <button class="tab-btn" data-roles="operations admin owners" onclick="showTab('onboarding')">Onboarding</button>
     <a class="tab-btn" data-roles="sales owners" href="service-agreement.html">Service Agreements</a>
-    <a class="tab-btn" data-roles="sales owners" href="https://netorg13787440-my.sharepoint.com/:x:/g/personal/jake_gilmore_alpinehvac_ca/IQAJTpFRETgpSrAS0p-6AD6XAYT5_0syYV6aydZ0km1HPHY?e=rzg2Ij" target="_blank" rel="noopener">Lead Sheets</a>
-    <a class="tab-btn" data-roles="operations owners" href="https://docs.google.com/spreadsheets/d/1IaDmMURNjVWhIQZ0eVhDRFjUFVhevVXNHTJ0-BW3ZvM/edit?usp=sharing" target="_blank" rel="noopener">Alpine Call Log / On-Call</a>
   </div>
   <a class="tab-data-btn" href="dashboard.html" title="Back to dashboard" style="text-decoration:none;display:flex;align-items:center">🏠 Dashboard</a>
   <button class="tab-data-btn" onclick="openDataManager()" title="Export or import saved data">⇅ Data</button>
@@ -690,6 +690,374 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 </div>
 
 </div><!-- end panel-recruiting -->
+
+
+<!-- ── TAB: BAS RECRUITING ── -->
+<div id="panel-bas-recruiting" class="tab-panel">
+
+<div class="sr-tab-bar" style="max-width:960px;margin:1.5rem auto 0">
+  <button class="sr-tab active" onclick="bcTab('bc-overview')">Overview</button>
+  <button class="sr-tab" onclick="bcTab('bc-cands')">Candidates</button>
+</div>
+
+<div class="sr-panel active" id="bc-overview">
+
+  <div class="r-hero">
+    <div class="r-hero-bg-grid"></div>
+    <div class="r-hero-glow"></div>
+    <div class="r-hero-content">
+      <div class="r-eyebrow">Niagara &amp; Hamilton, Ontario · Commercial HVAC</div>
+      <h1 class="r-h1">
+        The Best Trade Job<br>
+        <span class="line2">In Ontario.</span>
+        <span class="line3">Full Stop.</span>
+      </h1>
+      <p class="r-body">We don't compete on culture while paying less. We pay at or above union rates, offer real advancement tied to what you can actually do, and actually invest in the people on our team.</p>
+      <div class="r-stats">
+        <div class="r-stat"><div class="r-stat-num"><sup>$</sup>30–45</div><div class="r-stat-label">Base Rate / Hr</div></div>
+        <div class="r-stat"><div class="r-stat-num"><sup>$</sup>10<sup>+</sup></div><div class="r-stat-label">Potential Add-Ons / Hr</div></div>
+        <div class="r-stat"><div class="r-stat-num">3<sup>wk</sup></div><div class="r-stat-label">Paid Vacation at Yr 5</div></div>
+        <div class="r-stat"><div class="r-stat-num">0</div><div class="r-stat-label">Union Dues</div></div>
+      </div>
+      <div class="r-btns">
+        <a href="mailto:contact@alpinehvac.ca" class="r-btn-primary">Apply Now →</a>
+        <a href="#r-compensation" class="r-btn-outline">See the Numbers</a>
+      </div>
+    </div>
+    <svg class="r-mtn" viewBox="0 0 1440 180" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <polygon points="0,180 200,65 400,155 620,30 860,140 1060,45 1280,125 1440,70 1440,180" fill="rgba(28,107,110,0.07)"/>
+      <polygon points="0,180 160,90 340,165 520,55 740,130 940,38 1140,110 1340,60 1440,82 1440,180" fill="rgba(28,107,110,0.04)"/>
+      <polyline points="0,180 200,65 400,155 620,30 860,140 1060,45 1280,125 1440,70" fill="none" stroke="rgba(42,138,142,0.28)" stroke-width="1.5"/>
+      <polyline points="0,180 160,90 340,165 520,55 740,130 940,38 1140,110 1340,60 1440,82" fill="none" stroke="rgba(155,142,196,0.13)" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <!-- COMPENSATION -->
+  <div class="r-section alt" id="r-compensation">
+    <div class="r-section-inner">
+      <div class="r-label">Compensation</div>
+      <h2 class="r-title">Pay Based on Capability</h2>
+      <p class="r-sub">There's no fixed apprenticeship ladder for BAS the way there is for a licensed trade. Your rate falls in the $30–45/hr range based on what you can actually do — the platforms you know, the systems you can run independently, and how much oversight you need.</p>
+      <table class="r-comp-table">
+        <thead><tr><th>Level</th><th>Rate Range</th><th>Add-Ons Eligible</th><th>What This Looks Like</th></tr></thead>
+        <tbody>
+          <tr><td class="tier">Entry-Level</td><td class="rate">$30–33<span>/hr</span></td><td>—</td><td class="note">Learning core platforms, working under supervision</td></tr>
+          <tr><td class="tier">Growing</td><td class="rate">$34–38<span>/hr</span></td><td class="badge"><span class="bv">Company Vehicle</span></td><td class="note">Independent on standard commissioning &amp; troubleshooting</td></tr>
+          <tr class="hl"><td class="tier">Advanced</td><td class="rate">$39–42<span>/hr</span></td><td class="badge"><span class="bp">Profit Sharing</span></td><td class="note">Multi-platform, handles complex systems</td></tr>
+          <tr class="hl"><td class="tier">Expert / Lead</td><td class="rate">$43–45<span>/hr</span></td><td class="badge"><span class="bp">Profit Sharing</span></td><td class="note">Runs projects solo, mentors other techs</td></tr>
+        </tbody>
+      </table>
+      <div class="r-addons-label">Role Add-Ons &amp; Loyalty</div>
+      <div class="r-addons-grid">
+        <div class="r-addon">
+          <div class="r-addon-tag tr2">Role</div>
+          <div class="r-addon-top"><div class="r-addon-name">Team Lead</div><div class="r-addon-rate">+$5/hr</div></div>
+          <div class="r-addon-desc">Designated leads carry full accountability for job quality, schedule adherence, safety, and mentorship of less experienced techs. This designation is earned and must be actively maintained.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tb">Benefit</div>
+          <div class="r-addon-top"><div class="r-addon-name">Company Vehicle</div><div class="r-addon-rate">Yr 2+</div></div>
+          <div class="r-addon-desc">Assigned from Year 2 onward. Fully stocked, maintained, and insured by Alpine. You drive a company vehicle to every site — no personal vehicle, no wear and tear on your own wheels.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tb">Incentive</div>
+          <div class="r-addon-top"><div class="r-addon-name">Profit Sharing</div><div class="r-addon-rate">Yr 3+</div></div>
+          <div class="r-addon-desc">Technicians at 3 years and above participate in Alpine's profit sharing program. When the business performs, the team shares in that directly.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tr2">Seniority</div>
+          <div class="r-addon-top"><div class="r-addon-name">5-Year Loyalty</div><div class="r-addon-rate">+$2/hr</div></div>
+          <div class="r-addon-desc">A permanent rate increase awarded at the 5-year mark from your hire date. Earned once, kept permanently.</div>
+        </div>
+        <div class="r-addon">
+          <div class="r-addon-tag tr2">Seniority</div>
+          <div class="r-addon-top"><div class="r-addon-name">10-Year Loyalty</div><div class="r-addon-rate">+$3/hr</div></div>
+          <div class="r-addon-desc">A second permanent rate increase at the 10-year mark from your hire date. Stacks on top of the 5-year add-on — long-term commitment is recognized and rewarded.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESSION -->
+  <div class="r-section" id="r-progression">
+    <div class="r-section-inner">
+      <div class="r-label">Advancement</div>
+      <h2 class="r-title">What Moves Your Rate</h2>
+      <p class="r-sub">There's no fixed year-by-year schedule here — advancement isn't tied to a manager's discretion, but it also isn't tied to a ticket or a clock. It's tied to what you can demonstrably do.</p>
+      <div class="r-ladder">
+        <div class="r-ladder-row"><div class="r-ladder-yr">Entry Point</div><div><div class="r-ladder-title">Building Core Skills</div><div class="r-ladder-perks"><span class="r-ladder-perk">Learning primary platforms</span><span class="r-ladder-perk">Working under supervision</span><span class="r-ladder-perk">Basic point mapping &amp; troubleshooting</span></div></div><div class="r-ladder-rate">$30–33<span>/hr</span></div></div>
+        <div class="r-ladder-row"><div class="r-ladder-yr">Growing</div><div><div class="r-ladder-title">Independent on Standard Systems</div><div class="r-ladder-perks"><span class="r-ladder-perk">Independent commissioning</span><span class="r-ladder-perk">Standard sequence programming</span><span class="r-ladder-perk">Single-platform proficiency</span></div></div><div class="r-ladder-rate">$34–38<span>/hr</span></div></div>
+        <div class="r-ladder-row ft"><div class="r-ladder-yr">Advanced</div><div><div class="r-ladder-title">Multi-Platform &amp; Complex Systems</div><div class="r-ladder-perks"><span class="r-ladder-perk">Multiple BAS platforms</span><span class="r-ladder-perk">Complex integrations</span><span class="r-ladder-perk">Handles escalations</span></div></div><div class="r-ladder-rate">$39–42<span>/hr</span></div></div>
+        <div class="r-ladder-row ft"><div class="r-ladder-yr">Expert / Lead</div><div><div class="r-ladder-title">Runs Projects, Mentors Others</div><div class="r-ladder-perks"><span class="r-ladder-perk">Project ownership</span><span class="r-ladder-perk">Mentors other techs</span><span class="r-ladder-perk">Minimal oversight needed</span></div></div><div class="r-ladder-rate">$43–45<span>/hr</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BENEFITS -->
+  <div class="r-section alt" id="r-benefits">
+    <div class="r-section-inner">
+      <div class="r-label">Benefits &amp; Perks</div>
+      <h2 class="r-title">The Full Package</h2>
+      <p class="r-sub">Pay is the headline. Here's everything else that comes with working at Alpine.</p>
+      <div class="r-benefits-grid">
+        <div class="r-benefit"><div class="r-benefit-icon">🏖️</div><div class="r-benefit-title">Paid Vacation</div><div class="r-benefit-desc">2 weeks paid from Year 1. 3 weeks at Year 5. 4 weeks at Year 10. Ontario's 9 stat holidays are in addition — they don't count against your vacation.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🚛</div><div class="r-benefit-title">Company Vehicle</div><div class="r-benefit-desc">Assigned from Year 2. Fully stocked, insured, and maintained by Alpine. You drive a company truck to every site.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🔧</div><div class="r-benefit-title">Tools &amp; Equipment</div><div class="r-benefit-desc">Alpine provides all required tools and equipment. No nickel-and-diming on consumables or specialty gear.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">📈</div><div class="r-benefit-title">Profit Sharing</div><div class="r-benefit-desc">Available from Year 3. When Alpine wins, you win. Real dollars tied to company performance.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🎓</div><div class="r-benefit-title">Training &amp; Certification</div><div class="r-benefit-desc">Certification costs, training programs, and schooling are supported — not something you fund yourself.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🏗️</div><div class="r-benefit-title">Commercial &amp; ICI Work</div><div class="r-benefit-desc">Hydronics, controls, building systems. Commercial, industrial, institutional — not residential service calls.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">📋</div><div class="r-benefit-title">Clear Advancement</div><div class="r-benefit-desc">Your progression is tied to demonstrated capability — not a manager's mood. Rate increases are documented and honoured.</div></div>
+        <div class="r-benefit"><div class="r-benefit-icon">🤝</div><div class="r-benefit-title">Small Team, Real Impact</div><div class="r-benefit-desc">Intentionally lean. More variety, more responsibility, faster growth — you're not a number on a dispatch board.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFIT SHARING -->
+  <div class="r-section" id="r-profitsharing">
+    <div class="r-section-inner">
+      <div class="r-label">Performance Pay</div>
+      <h2 class="r-title">Profit Sharing</h2>
+      <p class="r-sub">At Alpine, when the business does well, the people who built that result share in it.</p>
+      <div class="r-eff-box">
+        <h3>How It Works</h3>
+        <p>Technicians at 3rd year and above are eligible to participate in Alpine's profit sharing program. At the end of each period, a portion of net profit is distributed to eligible team members. This is not a discretionary bonus — it's a structured share of the outcome tied directly to how the business performed.</p>
+        <p>The intent is simple: the people doing the work should benefit when the work pays off. Profit sharing is reviewed annually and details are discussed individually during onboarding.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CULTURE -->
+  <div class="r-section alt" id="r-culture">
+    <div class="r-section-inner">
+      <div class="r-label">Culture &amp; Values</div>
+      <h2 class="r-title">Why People Stay</h2>
+      <p class="r-sub">We built Alpine around a simple idea: a small team of highly skilled people, treated well, doing excellent work on excellent buildings.</p>
+      <div class="r-culture-grid">
+        <div class="r-culture-card"><h3>Skill Over Volume</h3><p>Fewer, better technicians. Real training investment, better jobs, and a team that actually knows each other.</p></div>
+        <div class="r-culture-card purple"><h3>Advancement Is Real</h3><p>Every level has a pay number attached to it, and we honour it. Your skill progression is your pay progression.</p></div>
+        <div class="r-culture-card"><h3>Commercial Focus</h3><p>Controls, integrations, commercial and institutional systems. The kind of work that puts your BAS skills to real use.</p></div>
+        <div class="r-culture-card purple"><h3>Accountability Goes Both Ways</h3><p>We hold our techs to a high standard. In return we hold ourselves to one too: investing in growth, showing up for the team.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEDIA -->
+  <div class="r-section" id="r-work">
+    <div class="r-section-inner">
+      <div class="r-label">Our Work</div>
+      <h2 class="r-title">The Buildings We Look After</h2>
+      <p class="r-sub">Commercial, industrial, institutional — drop in photos and videos below when ready.</p>
+      <div class="r-media-grid">
+        <div class="r-media-ph"><div class="r-media-ph-icon">▶</div><div class="r-media-ph-label">Video Placeholder</div></div>
+        <div class="r-media-ph"><div class="r-media-ph-icon">🖼</div><div class="r-media-ph-label">Photo Placeholder</div></div>
+        <div class="r-media-ph"><div class="r-media-ph-icon">▶</div><div class="r-media-ph-label">Video Placeholder</div></div>
+        <div class="r-media-ph"><div class="r-media-ph-icon">🖼</div><div class="r-media-ph-label">Photo Placeholder</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNION COMPARE -->
+  <div class="r-section alt" id="r-compare">
+    <div class="r-section-inner">
+      <div class="r-label">Honest Comparison</div>
+      <h2 class="r-title">Alpine vs. The Union</h2>
+      <p class="r-sub">Most non-union shops try to match union pay while pitching "better culture." That's not the angle here. We match the money — and then stack on top of it.</p>
+      <table class="r-compare-table">
+        <thead><tr><th style="width:200px">Factor</th><th>UA Local (Union)</th><th class="th-alpine">Alpine HVAC</th></tr></thead>
+        <tbody>
+          <tr><td class="factor">Base Rate (JM)</td><td>Union scale rate</td><td class="td-alpine">Competitive with union scale <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Advancement Path</td><td>Hours-based only, no merit path</td><td class="td-alpine">Capability-based + role add-ons <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Foreman Premium</td><td>~10%, fluctuates by job and headcount</td><td class="td-alpine">Flat +$5/hr, designated and consistent <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Paid Vacation</td><td>4–6% vacation pay baked in — no actual weeks off</td><td class="td-alpine">2–4 actual weeks off; 9 stat holidays separate <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Work Consistency</td><td>Hall dispatch — no guaranteed ongoing work</td><td class="td-alpine">Year-round employment <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Company Vehicle</td><td>Not provided</td><td class="td-alpine">Assigned from Year 2 <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Performance Pay</td><td>None</td><td class="td-alpine">Profit sharing (Yr 3+) <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Loyalty Bonus</td><td>None</td><td class="td-alpine">+$2/hr at 5 yrs, +$3/hr at 10 yrs (permanent) <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Union Dues</td><td>$0.37/hr + monthly deductions</td><td class="td-alpine">None <span class="win">Alpine ✓</span></td></tr>
+          <tr><td class="factor">Team Structure</td><td>Rotational crews, contract-based</td><td class="td-alpine">Consistent team, direct relationships <span class="win">Alpine ✓</span></td></tr>
+        </tbody>
+      </table>
+      <div class="r-disclaimer">
+        <p><strong>Important Notice:</strong> All compensation rates, benefits, add-ons, bonuses, vacation entitlements, and other terms described on this page are provided for informational purposes only and are subject to change at the sole discretion of Alpine HVAC Service Inc. leadership at any time without prior notice, except where otherwise stipulated in a written employment agreement signed by both parties. Nothing contained herein constitutes a binding offer of employment or a guarantee of any compensation. Only a signed written offer of employment issued by Alpine HVAC Service Inc. is binding.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="r-cta-section">
+    <div class="r-cta-inner">
+      <div class="r-cta-eyebrow">Ready to Make a Move?</div>
+      <h2 class="r-cta-title">Let's Talk.</h2>
+      <p class="r-cta-sub">No lengthy application. No HR gatekeeping. Just a conversation about whether Alpine is the right fit.</p>
+      <a href="mailto:contact@alpinehvac.ca" class="r-btn-primary">Get In Touch →</a>
+      <div class="r-contact-row">
+        <div class="r-contact-item">📞 <a href="tel:2894381175">(289) 438-1175</a></div>
+        <div class="r-contact-item">✉️ <a href="mailto:contact@alpinehvac.ca">contact@alpinehvac.ca</a></div>
+        <div class="r-contact-item">🌐 <a href="https://alpinehvac.ca" target="_blank">alpinehvac.ca</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="r-footer">
+    <div class="r-footer-logo">Alpine HVAC Service Inc.</div>
+    <div class="r-footer-copy">Niagara &amp; Hamilton, Ontario · Commercial · Industrial · Institutional HVAC Service<br>Hydronics · Controls · Building Systems<br>All compensation and benefit details subject to change at leadership's discretion. Only a signed written offer of employment is binding.</div>
+  </div>
+
+</div><!-- end bc-overview -->
+
+<!-- ── BAS RECRUITING: CANDIDATES ── -->
+<div class="sr-panel" id="bc-cands">
+  <div class="sr-wrap" style="padding-top:2rem">
+    <div id="bc-cand-list-view">
+      <div class="sr-tracker-top">
+        <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Candidate Pipeline</div>
+        <button class="sr-add-btn" onclick="bcOpenModal()">+ Add Candidate</button>
+      </div>
+      <div class="sr-bucket"><div class="sr-bucket-label">Interview 1 — Screening</div><div id="bc-bucket-i1"></div></div>
+      <div class="sr-bucket"><div class="sr-bucket-label">Interview 2 — Technical Assessment</div><div id="bc-bucket-i2"></div></div>
+      <div class="sr-bucket"><div class="sr-bucket-label">Later Stages / Offer</div><div id="bc-bucket-later"></div></div>
+    </div>
+    <div id="bc-cand-file-view" class="sr-file">
+      <div class="sr-file-header">
+        <button class="sr-back-btn" onclick="bcCloseFile()">← All Candidates</button>
+        <div class="sr-file-name" id="bc-file-name"></div>
+        <div id="bc-file-badges"></div>
+        <button class="sr-btn-sm" onclick="bcEditCurrent()">Edit</button>
+        <button class="sr-btn-sm danger" onclick="bcDeleteCurrent()">Remove</button>
+      </div>
+      <div id="bc-file-traits" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:1.25rem"></div>
+      <div class="sr-eval-section" id="bc-file-eval">
+        <div class="sr-eval-title">Alpine Technician Evaluation Framework <span>From candidate profile</span></div>
+        <div class="sr-eval-grid" id="bc-file-eval-grid"></div>
+      </div>
+      <div class="sr-subtab-bar">
+        <button class="sr-subtab active" onclick="bcSubtab(0)">Interview 1</button>
+        <button class="sr-subtab" onclick="bcSubtab(1)">Interview 2</button>
+        <button class="sr-subtab" onclick="bcSubtab(2)">Interview 3 / Offer</button>
+      </div>
+      <div class="sr-sub-panel active" id="bc-sub-0">
+        <div class="sr-meta-grid">
+          <div class="sr-meta-field"><label>Date</label><input type="date" id="bci1-date"></div>
+          <div class="sr-meta-field"><label>Score (1–10)</label><input type="number" id="bci1-score" min="1" max="10" placeholder="—"></div>
+          <div class="sr-meta-field"><label>Decision</label><select id="bci1-decision"><option value="pending">Pending</option><option value="advance">Advance to Interview 2</option><option value="pass">Pass</option></select></div>
+          <div class="sr-meta-field"><label>Interviewer</label><input type="text" id="bci1-interviewer" placeholder="Name"></div>
+        </div>
+        <div class="sr-interview-label">Transcript / Notes</div>
+        <textarea class="sr-textarea" id="bci1-notes" placeholder="Paste transcript or key notes…" style="min-height:160px"></textarea>
+        <div class="sr-interview-label">Observations & Summary</div>
+        <textarea class="sr-textarea" id="bci1-summary" placeholder="Interviewer summary, standout moments, concerns…"></textarea>
+        <div class="sr-interview-label" style="margin-bottom:.5rem">Traits Observed</div>
+        <div id="bci1-trait-chips" class="sr-chips" style="margin-bottom:1rem"></div>
+        <div class="sr-save-row">
+          <button class="sr-save-btn" onclick="bcSaveInterview(0)">Save Interview 1</button>
+          <button class="sr-ai-eval-btn" id="bc-ai-btn-0" onclick="bcRunAIEval(0)">✦ AI Evaluate</button>
+          <span class="sr-save-ok" id="bc-save-ok-0">Saved ✓</span>
+        </div>
+        <div class="sr-ai-result" id="bc-ai-result-0" style="display:none"></div>
+      </div>
+      <div class="sr-sub-panel" id="bc-sub-1">
+        <div class="sr-meta-grid">
+          <div class="sr-meta-field"><label>Date</label><input type="date" id="bci2-date"></div>
+          <div class="sr-meta-field"><label>Score (1–10)</label><input type="number" id="bci2-score" min="1" max="10" placeholder="—"></div>
+          <div class="sr-meta-field"><label>Decision</label><select id="bci2-decision"><option value="pending">Pending</option><option value="advance">Advance to Interview 3</option><option value="pass">Pass</option></select></div>
+          <div class="sr-meta-field"><label>Interviewer</label><input type="text" id="bci2-interviewer" placeholder="Name"></div>
+        </div>
+        <div class="sr-interview-label">Transcript / Notes</div>
+        <textarea class="sr-textarea" id="bci2-notes" placeholder="Paste transcript or key notes…" style="min-height:160px"></textarea>
+        <div class="sr-interview-label">Observations & Summary</div>
+        <textarea class="sr-textarea" id="bci2-summary" placeholder="Interviewer summary…"></textarea>
+        <div class="sr-save-row">
+          <button class="sr-save-btn" onclick="bcSaveInterview(1)">Save Interview 2</button>
+          <button class="sr-ai-eval-btn" id="bc-ai-btn-1" onclick="bcRunAIEval(1)">✦ AI Evaluate</button>
+          <span class="sr-save-ok" id="bc-save-ok-1">Saved ✓</span>
+        </div>
+        <div class="sr-ai-result" id="bc-ai-result-1" style="display:none"></div>
+      </div>
+      <div class="sr-sub-panel" id="bc-sub-2">
+        <div class="sr-meta-grid">
+          <div class="sr-meta-field"><label>Date</label><input type="date" id="bci3-date"></div>
+          <div class="sr-meta-field"><label>Score (1–10)</label><input type="number" id="bci3-score" min="1" max="10" placeholder="—"></div>
+          <div class="sr-meta-field"><label>Decision</label><select id="bci3-decision"><option value="pending">Pending</option><option value="offer">Extend Offer</option><option value="pass">Pass</option></select></div>
+          <div class="sr-meta-field"><label>Interviewer</label><input type="text" id="bci3-interviewer" placeholder="Name"></div>
+        </div>
+        <div class="sr-interview-label">Transcript / Notes</div>
+        <textarea class="sr-textarea" id="bci3-notes" placeholder="Final interview or offer conversation notes…" style="min-height:160px"></textarea>
+        <div class="sr-interview-label">References & Compensation Confirmed</div>
+        <textarea class="sr-textarea" id="bci3-refs" placeholder="Reference check notes, compensation discussion notes…"></textarea>
+        <div class="sr-save-row">
+          <button class="sr-save-btn" onclick="bcSaveInterview(2)">Save Interview 3</button>
+          <button class="sr-ai-eval-btn" id="bc-ai-btn-2" onclick="bcRunAIEval(2)">✦ AI Evaluate</button>
+          <span class="sr-save-ok" id="bc-save-ok-2">Saved ✓</span>
+        </div>
+        <div class="sr-ai-result" id="bc-ai-result-2" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- end bc-cands -->
+
+<div class="sr-modal" id="bc-modal">
+  <div class="sr-modal-box">
+    <div class="sr-modal-title" id="bc-modal-title">Add Candidate</div>
+    <div class="sr-field"><label>Full Name</label><input type="text" id="bcf-name" placeholder="e.g. Jordan Smith"></div>
+    <div class="sr-field"><label>Interview Date</label><input type="date" id="bcf-date"></div>
+    <div class="sr-field"><label>Current Stage</label>
+      <select id="bcf-stage">
+        <option value="Interview 1">Interview 1 — Screening</option>
+        <option value="Interview 2">Interview 2 — Technical Assessment</option>
+        <option value="Interview 3">Interview 3 — Final</option>
+        <option value="Offer">Offer Extended</option>
+      </select>
+    </div>
+    <div class="sr-field"><label>Overall Decision</label>
+      <select id="bcf-decision">
+        <option value="pending">Pending</option>
+        <option value="advance">Advance</option>
+        <option value="pass">Pass</option>
+      </select>
+    </div>
+    <div class="sr-field"><label>Overall Score (1–10)</label><input type="number" id="bcf-score" min="1" max="10" placeholder="7"></div>
+    <div class="sr-field"><label>Positive Traits</label>
+      <div class="sr-chips" id="bc-pos-chips">
+        <span class="sr-chip" data-val="Skilled" onclick="bcToggleChip(this,'green')">Skilled</span>
+        <span class="sr-chip" data-val="Safety-focused" onclick="bcToggleChip(this,'green')">Safety-focused</span>
+        <span class="sr-chip" data-val="Reliable" onclick="bcToggleChip(this,'green')">Reliable</span>
+        <span class="sr-chip" data-val="Coachable" onclick="bcToggleChip(this,'green')">Coachable</span>
+        <span class="sr-chip" data-val="Team player" onclick="bcToggleChip(this,'green')">Team player</span>
+        <span class="sr-chip" data-val="Problem-solver" onclick="bcToggleChip(this,'green')">Problem-solver</span>
+        <span class="sr-chip" data-val="Certified" onclick="bcToggleChip(this,'green')">Certified</span>
+        <span class="sr-chip" data-val="Long tenure" onclick="bcToggleChip(this,'green')">Long tenure</span>
+      </div>
+    </div>
+    <div class="sr-field"><label>Red Flags</label>
+      <div class="sr-chips" id="bc-neg-chips">
+        <span class="sr-chip" data-val="Late" onclick="bcToggleChip(this,'red')">Late</span>
+        <span class="sr-chip" data-val="Unsafe habits" onclick="bcToggleChip(this,'red')">Unsafe habits</span>
+        <span class="sr-chip" data-val="Blamed employer" onclick="bcToggleChip(this,'red')">Blamed employer</span>
+        <span class="sr-chip" data-val="Vague on experience" onclick="bcToggleChip(this,'red')">Vague on experience</span>
+        <span class="sr-chip" data-val="Job-hopper" onclick="bcToggleChip(this,'red')">Job-hopper</span>
+        <span class="sr-chip" data-val="Unpresentable" onclick="bcToggleChip(this,'red')">Unpresentable</span>
+        <span class="sr-chip" data-val="No certifications" onclick="bcToggleChip(this,'red')">No certifications</span>
+      </div>
+    </div>
+    <div class="sr-field">
+      <label>Alpine Technician Evaluation Framework</label>
+      <div class="sr-eval-grid" id="bc-modal-eval-grid" style="margin-top:.4rem">
+        <div class="sr-eval-item" data-clickable data-val="Technical Competence" onclick="bcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Technical Competence</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Safety Mindset" onclick="bcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Safety Mindset</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Reliability" onclick="bcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Reliability</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Communication" onclick="bcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Communication</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Coachability" onclick="bcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Coachability</div></div>
+        <div class="sr-eval-item" data-clickable data-val="Work Ethic" onclick="bcToggleEval(this)"><div class="sr-eval-check"><span class="sr-eval-check-mark">✓</span></div><div class="sr-eval-label">Work Ethic</div></div>
+      </div>
+    </div>
+    <div class="sr-modal-btns">
+      <button class="sr-btn-cancel" onclick="bcCloseModal()">Cancel</button>
+      <button class="sr-save-btn" onclick="bcSaveCandidate()">Save Candidate</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end panel-bas-recruiting -->
 
 <!-- ── TAB: SALES RECRUITING ── -->
 <div id="panel-sales-recruiting" class="tab-panel">
