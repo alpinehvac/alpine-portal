@@ -569,6 +569,72 @@
   }
   body.customer-mode .tab-btn.rep-only{ display:none !important; }
 
+  /* ── Estimator Guide sub-tabs ──────────────────────────────────────── */
+  .subtab-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:18px;
+  }
+  .subtab-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    background:var(--off-white);
+    border:1px solid var(--border-color, #ddd);
+    border-radius:6px;
+    padding:8px 14px;
+    cursor:pointer;
+    color:#555;
+    transition:all .15s;
+  }
+  .subtab-btn:hover{ background:#f0eef7; }
+  .subtab-btn.active{
+    background:#6c5d8d;
+    border-color:#6c5d8d;
+    color:#fff;
+  }
+  .guide-placeholder{
+    text-align:center;
+    padding:60px 20px;
+    border:1px dashed #c9b8e8;
+    border-radius:10px;
+    background:#faf9fd;
+  }
+  .guide-placeholder .ph-icon{ font-size:40px; margin-bottom:14px; }
+  .guide-placeholder .ph-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+    font-size:15px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    color:#4e4268;
+    margin-bottom:10px;
+  }
+  .guide-placeholder .ph-note{
+    font-size:13px;
+    color:#777;
+    max-width:480px;
+    margin:0 auto 18px;
+    line-height:1.6;
+  }
+  .guide-placeholder .ph-link{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    background:#6c5d8d;
+    color:#fff;
+    padding:9px 18px;
+    border-radius:6px;
+    text-decoration:none;
+  }
+  .guide-placeholder .ph-link:hover{ background:#584a75; }
+
   /* ── Equipment cheat sheet ─────────────────────────────────────────── */
   .cheat-grid{
     display:grid;
@@ -751,8 +817,15 @@
 </div>
 
 <div class="section-tabs">
-  <button class="tab-btn active" id="tabEstimator" type="button">Estimator</button>
-  <button class="tab-btn rep-only" id="tabCheatSheet" type="button">Equipment Guide</button>
+  <button class="tab-btn active" id="tabEstimator" type="button">SA Estimator</button>
+  <button class="tab-btn rep-only" id="tabCheatSheet" type="button">Estimator Guide</button>
+</div>
+
+<div class="rep-only" style="max-width:760px;margin:14px auto 0;padding:0 16px;">
+  <div style="background:#ede9f5;border:1px solid #c9b8e8;border-radius:6px;padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#4e4268;line-height:1.6;">
+    <strong style="text-transform:uppercase;letter-spacing:.5px;">iPad tip — getting a signed copy:</strong>
+    PDF &rarr; Print &rarr; Preview &rarr; Sign &rarr; Save to Files &rarr; Share with Admin Team + Customer
+  </div>
 </div>
 
 <div id="estimatorView">
@@ -1033,8 +1106,8 @@
       <li><strong>Consumables &amp; Materials:</strong> Minimum package — all consumables billed separately. Core package — discounted markup applied. Premium package — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
       <li><strong>Client Responsibilities:</strong> Client agrees to provide safe and timely access to equipment, maintain appropriate operating conditions, notify Alpine of issues promptly, and ensure utilities (power, gas, water) are operational. Unsafe conditions may result in suspension of service until corrected.</li>
       <li><strong>Payment Terms:</strong> Invoices are due within 15 days. Late payments may result in suspension of service, removal of coverage benefits, and interest charges of 2% per month.</li>
-      <li><strong>Trial Period:</strong> Client will not be charged if unsatisfied after the initial service visit, provided concerns are communicated within 5 business days.</li>
-      <li><strong>Term &amp; Cancellation:</strong> This agreement remains in effect until cancelled by either party. Client may cancel at any time with written notice. No cancellation penalties apply; however, services performed up to the cancellation date remain payable.</li>
+      <li><strong>Taxes:</strong> All prices quoted are exclusive of applicable taxes. HST and any other applicable federal, provincial, or municipal taxes will be added to invoices as required by law.</li>
+      <li><strong>Term &amp; Cancellation:</strong> This agreement carries an initial commitment period of 6 months from the contract start date. After the initial 6-month term, either party may cancel with 30 days' written notice. No cancellation penalties apply; services performed up to the cancellation date remain payable.</li>
       <li><strong>Liability Limitation:</strong> Alpine's liability is limited to the value of services provided under this agreement. Alpine is not liable for loss of business or revenue, tenant disruption, or secondary or consequential damages.</li>
       <li><strong>Warranty Disclaimer:</strong> Alpine does not warranty manufacturer equipment unless explicitly stated. Any warranties provided are limited to workmanship for a period of 90 days.</li>
       <li><strong>Force Majeure:</strong> Alpine is not liable for delays or failure to perform due to circumstances beyond reasonable control, including labour shortages, supply chain issues, or extreme weather events.</li>
@@ -1046,8 +1119,44 @@
 
 <div id="cheatSheetView" style="display:none">
   <div class="panel">
-    <h2>Equipment Identification Guide</h2>
-    <div class="cheat-grid" id="cheatGrid"></div>
+    <h2>Estimator Guide</h2>
+    <div class="subtab-row">
+      <button class="subtab-btn active" id="guideTabCheatSheet" type="button">Equipment Cheat Sheet</button>
+      <button class="subtab-btn" id="guideTabPortal" type="button">Customer Portal Example</button>
+      <button class="subtab-btn" id="guideTabClear" type="button">CLEAR Report Example</button>
+      <button class="subtab-btn" id="guideTabMaintenance" type="button">What Is Maintenance</button>
+    </div>
+
+    <div id="guideViewCheatSheet">
+      <div class="cheat-grid" id="cheatGrid"></div>
+    </div>
+
+    <div id="guideViewPortal" style="display:none">
+      <div class="guide-placeholder">
+        <div class="ph-icon">🖥️</div>
+        <div class="ph-title">Customer Portal Example</div>
+        <div class="ph-note">Placeholder — Jake to upload an example PDF showing what the customer-facing Alpine portal looks like, for reps to walk clients through during the quote.</div>
+        <a class="ph-link" href="customer-portal-example.pdf" target="_blank" rel="noopener">Open Customer Portal Example (PDF)</a>
+      </div>
+    </div>
+
+    <div id="guideViewClear" style="display:none">
+      <div class="guide-placeholder">
+        <div class="ph-icon">📋</div>
+        <div class="ph-title">CLEAR Report Example</div>
+        <div class="ph-note">Placeholder — Jake to upload a sample CLEAR report so reps can show customers exactly what they'll receive after each visit.</div>
+        <a class="ph-link" href="clear-report-example.pdf" target="_blank" rel="noopener">Open CLEAR Report Example (PDF)</a>
+      </div>
+    </div>
+
+    <div id="guideViewMaintenance" style="display:none">
+      <div class="guide-placeholder">
+        <div class="ph-icon">🔧</div>
+        <div class="ph-title">What Is Maintenance?</div>
+        <div class="ph-note">Placeholder — Jake to upload a short description/PDF explaining what "maintenance" includes at Alpine, useful for reps fielding that question on-site.</div>
+        <a class="ph-link" href="what-is-maintenance.pdf" target="_blank" rel="noopener">Open What Is Maintenance (PDF)</a>
+      </div>
+    </div>
   </div>
 </div>
 
