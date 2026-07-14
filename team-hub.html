@@ -697,6 +697,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 <div class="sr-tab-bar" style="max-width:960px;margin:1.5rem auto 0">
   <button class="sr-tab active" onclick="bcTab('bc-overview')">Overview</button>
+  <button class="sr-tab" onclick="bcTab('bc-int1')">Interview 1</button>
+  <button class="sr-tab" onclick="bcTab('bc-int2')">Interview 2</button>
+  <button class="sr-tab" onclick="bcTab('bc-int3')">Interview 3</button>
+  <button class="sr-tab" onclick="bcTab('bc-offer')">Offer Process</button>
   <button class="sr-tab" onclick="bcTab('bc-cands')">Candidates</button>
 </div>
 
@@ -904,6 +908,236 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   </div>
 
 </div><!-- end bc-overview -->
+
+<!-- ── BAS RECRUITING: INTERVIEW 1 ── -->
+<div class="sr-panel" id="bc-int1">
+  <div class="sr-wrap" style="padding-top:2rem">
+    <div class="sr-section">
+      <div class="sr-section-label">Interview 1 — Screening Call</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem">
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">15–30 min</span>
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">Talk 30% · Listen 70%</span>
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">Phone or video</span>
+      </div>
+      <div class="sr-two-col" style="margin-bottom:1.75rem">
+        <div class="sr-flag-card green">
+          <div class="sr-flag-title">Green Flags</div>
+          <ul class="sr-flag-list">
+            <li>Talks specifically about actual systems/platforms they've worked on</li>
+            <li>Describes troubleshooting process step by step, not just outcomes</li>
+            <li>Asks about the work itself before asking about pay</li>
+            <li>Mentions safety procedures unprompted</li>
+            <li>Stable work history, or a clear reason for moves</li>
+          </ul>
+        </div>
+        <div class="sr-flag-card red">
+          <div class="sr-flag-title">Red Flags</div>
+          <ul class="sr-flag-list">
+            <li>Vague or generic when asked what they've actually done</li>
+            <li>Can't name a single BAS platform or system they've worked on</li>
+            <li>Asks about compensation before discussing the role</li>
+            <li>Speaks negatively about past employers</li>
+            <li>Frequent job changes with no clear explanation</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="sr-section">
+      <div class="sr-section-label">Key Questions</div>
+      <ul class="sr-q-list" id="bc-q-list-1"></ul>
+      <button class="sr-add-q-btn" onclick="bcAddQ('bc-q-list-1')">+ Add Question</button>
+    </div>
+    <div class="sr-section">
+      <div class="sr-section-label">Next Steps</div>
+      <div class="sr-steps">
+        <div class="sr-step"><div class="sr-step-dot"></div><span>Record notes against candidate profile immediately after the call</span></div>
+        <div class="sr-step"><div class="sr-step-dot"></div><span>Schedule Interview 2 (Technical Assessment) for candidates advancing</span></div>
+        <div class="sr-step"><div class="sr-step-dot"></div><span>Send a polite follow-up to all candidates regardless of outcome</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BAS RECRUITING: INTERVIEW 2 ── -->
+<div class="sr-panel" id="bc-int2">
+  <div class="sr-wrap" style="padding-top:2rem">
+    <div class="sr-section">
+      <div class="sr-section-label">Interview 2 — Technical Assessment</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem">
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">45–60 min</span>
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">In-person or hands-on preferred</span>
+      </div>
+      <div class="sr-two-col" style="margin-bottom:1.75rem">
+        <div class="sr-flag-card green">
+          <div class="sr-flag-title">Green Flags</div>
+          <ul class="sr-flag-list">
+            <li>Can clearly explain a sequence of operations for a system they've worked on</li>
+            <li>Understands the difference between hardwired and networked/software points</li>
+            <li>Stays calm and methodical when challenged with a troubleshooting scenario</li>
+            <li>Asks smart clarifying questions instead of guessing</li>
+            <li>Comfortable admitting what they don't know</li>
+          </ul>
+        </div>
+        <div class="sr-flag-card red">
+          <div class="sr-flag-title">Red Flags</div>
+          <ul class="sr-flag-list">
+            <li>Can't explain basic control loop or sequence concepts</li>
+            <li>Over-claims expertise but can't back it up when pressed</li>
+            <li>Gets defensive or evasive when challenged</li>
+            <li>No real troubleshooting methodology — jumps straight to guesses</li>
+            <li>Blames documentation or tools rather than working the problem</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="sr-section">
+      <div class="sr-section-label">Key Questions</div>
+      <ul class="sr-q-list" id="bc-q-list-2"></ul>
+      <button class="sr-add-q-btn" onclick="bcAddQ('bc-q-list-2')">+ Add Question</button>
+    </div>
+    <div class="sr-section">
+      <div class="sr-section-label">If Advancing</div>
+      <div class="sr-steps">
+        <div class="sr-step"><div class="sr-step-num">1</div><span>Call references before extending any offer</span></div>
+        <div class="sr-step"><div class="sr-step-num">2</div><span>Review the full compensation range and what drives movement within it — confirm understanding</span></div>
+        <div class="sr-step"><div class="sr-step-num">3</div><span>Add notes to candidate file before end of day</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BAS RECRUITING: INTERVIEW 3 ── -->
+<div class="sr-panel" id="bc-int3">
+  <div class="sr-wrap" style="padding-top:2rem">
+    <div class="sr-section">
+      <div class="sr-section-label">Interview 3 — Reality Check & Commitment</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem">
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">45–60 min</span>
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">In-Person — Jake</span>
+        <span style="font-size:.7rem;padding:3px 10px;border-radius:3px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">Objective: Surface conflicts before commitment</span>
+      </div>
+      <div class="ob-intro" style="margin-bottom:1.75rem">
+        The goal of this interview is not to sell Alpine — it's to stress-test the candidate's fit before they or we make a commitment. Present the harder realities of the role honestly and watch how they respond. A candidate who stays enthusiastic through this conversation is the right hire. One who hesitates or pushes back on the fundamentals is not.
+      </div>
+      <div class="sr-two-col" style="margin-bottom:1.75rem">
+        <div class="sr-flag-card green">
+          <div class="sr-flag-title">Green Flags</div>
+          <ul class="sr-flag-list">
+            <li>Responds to hard truths with curiosity, not defensiveness</li>
+            <li>Comfortable working solo on job sites without a supervisor present</li>
+            <li>Fine with rotating on-call responsibilities</li>
+            <li>Understands pay is tied to demonstrated capability, not tenure</li>
+            <li>Confidence holds under pressure</li>
+          </ul>
+        </div>
+        <div class="sr-flag-card red">
+          <div class="sr-flag-title">Red Flags</div>
+          <ul class="sr-flag-list">
+            <li>Uncomfortable with solo fieldwork or independent judgment calls</li>
+            <li>Pushes back hard on on-call expectations</li>
+            <li>Expects automatic raises tied to time served rather than skill</li>
+            <li>Reacts defensively rather than curiously to challenging questions</li>
+            <li>Needs rigid structure or oversight to function</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-Call & Fieldwork -->
+    <div class="sr-section">
+      <div class="sr-section-label">On-Call &amp; Fieldwork Expectations</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.5rem">
+        <div class="sr-step"><div class="sr-step-dot" style="background:var(--teal)"></div><span><strong>Rotating on-call:</strong> Participation in a rotating on-call schedule for after-hours emergencies is expected, not optional.</span></div>
+        <div class="sr-step"><div class="sr-step-dot" style="background:var(--teal)"></div><span><strong>Solo fieldwork:</strong> Most jobs are solo — the tech must be self-sufficient and comfortable making judgment calls without a supervisor present.</span></div>
+      </div>
+    </div>
+
+    <!-- Tools & Vehicle -->
+    <div class="sr-section">
+      <div class="sr-section-label">Tools &amp; Vehicle</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.5rem">
+        <div class="sr-step"><div class="sr-step-dot" style="background:var(--teal)"></div><span><strong>Company vehicle:</strong> Assigned from Year 2 onward — fully stocked, maintained, and insured by Alpine.</span></div>
+        <div class="sr-step"><div class="sr-step-dot" style="background:var(--teal)"></div><span><strong>Programming tools:</strong> Laptop and software access provided for controls work — expected to be maintained responsibly.</span></div>
+      </div>
+    </div>
+
+    <!-- Continuing Education -->
+    <div class="sr-section">
+      <div class="sr-section-label">Continuing Education</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.5rem">
+        <div class="sr-step"><div class="sr-step-dot" style="background:var(--teal)"></div><span><strong>Platforms evolve constantly:</strong> Techs are expected to pursue vendor training and certifications as they become available. Alpine supports this, but initiative is expected — not assigned.</span></div>
+      </div>
+    </div>
+
+    <!-- Pay Reflects Capability -->
+    <div class="sr-section">
+      <div class="sr-section-label">Pay Reflects Capability, Not Tenure</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.5rem">
+        <div class="sr-step"><div class="sr-step-dot" style="background:rgba(220,160,60,.7)"></div><span><strong>No fixed year-based ladder:</strong> Rate increases require demonstrated growth — more platforms, more autonomy, more complexity handled independently. Candidates must be genuinely comfortable with this, not just tolerating it.</span></div>
+      </div>
+    </div>
+
+    <!-- Closing question -->
+    <div class="sr-section">
+      <div class="sr-section-label">Closing Question</div>
+      <div class="ob-intro">
+        After walking through all of the above: <em>"Having heard all of that — the on-call rotation, working solo, and the fact that your pay depends on what you can prove you can do, not how long you've been here — are you more or less excited about this role than when you walked in? And why?"</em><br><br>
+        A great answer gets more specific and more energized. A poor answer hedges, deflects, or focuses on the negatives just surfaced. Trust the response.
+      </div>
+    </div>
+
+    <!-- Key Questions -->
+    <div class="sr-section">
+      <div class="sr-section-label">Additional Notes / Questions</div>
+      <ul class="sr-q-list" id="bc-q-list-3"></ul>
+      <button class="sr-add-q-btn" onclick="bcAddQ('bc-q-list-3')">+ Add Question</button>
+    </div>
+
+    <div class="sr-section">
+      <div class="sr-section-label">Next Steps</div>
+      <div class="sr-steps">
+        <div class="sr-step"><div class="sr-step-num">1</div><span>Debrief internally — does confidence hold up or does hesitation show?</span></div>
+        <div class="sr-step"><div class="sr-step-num">2</div><span>Complete reference checks before any offer is extended</span></div>
+        <div class="sr-step"><div class="sr-step-num">3</div><span>If advancing, move to Offer Process tab</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BAS RECRUITING: OFFER PROCESS ── -->
+<div class="sr-panel" id="bc-offer">
+  <div class="sr-wrap" style="padding-top:2rem">
+    <div class="sr-section">
+      <div class="sr-section-label">Compensation to Confirm with Candidate</div>
+      <table class="sr-comp-table">
+        <thead><tr><th>Item</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td class="label">Base Rate Range</td><td class="value">$30–45 / hr</td></tr>
+          <tr><td class="label">Starting Rate</td><td>Assigned based on Interview 2 technical assessment</td></tr>
+          <tr><td class="label">Company Vehicle</td><td>Assigned Yr 2+ — full cost borne by Alpine</td></tr>
+          <tr><td class="label">Profit Sharing</td><td>Eligible Yr 3+</td></tr>
+          <tr><td class="label">5-Year Loyalty</td><td class="value">+$2/hr, permanent, from hire date</td></tr>
+          <tr><td class="label">10-Year Loyalty</td><td class="value">+$3/hr, permanent, stacks with 5-year</td></tr>
+          <tr><td class="label">Team Lead Add-On</td><td class="value">+$5/hr, if designated</td></tr>
+          <tr><td class="label">On-Call</td><td>Rotating schedule — confirm current on-call policy/pay with Jake before extending</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="sr-section">
+      <div class="sr-section-label">Steps to Complete</div>
+      <div class="sr-steps">
+        <div class="sr-step"><div class="sr-step-num">1</div><span>Confirm all references are complete before verbal offer</span></div>
+        <div class="sr-step"><div class="sr-step-num">2</div><span>Verbal offer — walk through the full compensation range and what determines starting rate</span></div>
+        <div class="sr-step"><div class="sr-step-num">3</div><span>Send written offer letter via email — confirm receipt</span></div>
+        <div class="sr-step"><div class="sr-step-num">4</div><span>Gather SIN, driver's licence, banking info, emergency contact</span></div>
+        <div class="sr-step"><div class="sr-step-num">5</div><span>Schedule start date via Outlook Calendar</span></div>
+        <div class="sr-step"><div class="sr-step-num">6</div><span>Prepare onboarding documentation and first-week schedule</span></div>
+        <div class="sr-step"><div class="sr-step-num">7</div><span>Set 90-day probationary review date at time of hire</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- ── BAS RECRUITING: CANDIDATES ── -->
 <div class="sr-panel" id="bc-cands">

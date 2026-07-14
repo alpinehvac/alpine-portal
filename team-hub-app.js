@@ -1,5 +1,5 @@
 // ── DATA MANAGER ──
-const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_bas_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_onboarding_v2'];
+const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_bas_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_bc_q1','alpine_bc_q2','alpine_bc_q3','alpine_onboarding_v2'];
 
 function openDataManager() {
   document.getElementById('dm-import-field').value = '';
@@ -832,7 +832,63 @@ function bcTab(id) {
   document.querySelectorAll('#panel-bas-recruiting .sr-panel').forEach(p => {
     p.classList.toggle('active', p.id === id);
   });
+  // Re-render questions after panel becomes visible so autoGrow works
+  if (id === 'bc-int1') setTimeout(() => bcRenderQ('bc-q-list-1'), 0);
+  if (id === 'bc-int2') setTimeout(() => bcRenderQ('bc-q-list-2'), 0);
+  if (id === 'bc-int3') setTimeout(() => bcRenderQ('bc-q-list-3'), 0);
 }
+
+/* ── QUESTIONS (BAS) ── */
+const BC_DEFAULT_Q1 = [
+  {text:'Tell me about yourself and how you got into building automation / controls work.', note:'Listen for genuine interest vs. it being an accident.'},
+  {text:'What BAS platforms have you worked with — Niagara, Distech, Automated Logic, KMC, Honeywell, etc.?', note:'Specificity is the signal. Vague answers mean limited real hands-on time.'},
+  {text:'Walk me through a system you commissioned or troubleshot from start to finish.', note:'Do they own the story, or is someone else clearly doing the real work?'},
+  {text:'What are you looking for in your next role?', note:'Growth and skill-building vs. just a paycheck.'},
+  {text:'What questions do you have for me?', note:'Thoughtful questions indicate genuine interest. Silence is a flag.'}
+];
+const BC_DEFAULT_Q2 = [
+  {text:'Pick a system you know well and walk me through its sequence of operation.', note:'Depth and clarity here separate real experience from résumé padding.'},
+  {text:'A space is calling for cooling but the AHU isn\'t responding — how would you troubleshoot that?', note:'Listen for a logical process, not a random guess.'},
+  {text:'What\'s the difference between a hardwired point and a networked point?', note:'Fundamental concept — should be second nature for a real BAS tech.'},
+  {text:'Have you written or edited control logic yourself, or mostly worked from existing programs?', note:'Matters for where they\'d land in the pay range.'},
+  {text:'How do you handle a job where the documentation is wrong or missing?', note:'Real-world resourcefulness signal.'}
+];
+const BC_DEFAULT_Q3 = [
+  {text:'You\'ll be part of a rotating on-call schedule for after-hours emergencies. How do you feel about that?', note:'Listen for genuine comfort, not just compliance. Discomfort here is a signal.'},
+  {text:'Pay here isn\'t tied to years of service — it\'s tied to what you can demonstrably do. Walk me through how you\'re thinking about that.', note:'Motivated candidates find this exciting, not threatening.'},
+  {text:'Most jobs are solo, with no supervisor on site. How do you handle making judgment calls on your own?', note:'Listen for confidence and sound reasoning, not bravado.'}
+];
+
+function bcLoadQ(key, defaults) {
+  try { const v = localStorage.getItem(key); if (!v || v === 'null') return defaults.map(q=>({...q})); const p = JSON.parse(v); return Array.isArray(p) && p.length ? p : defaults.map(q=>({...q})); } catch(e) { return defaults.map(q=>({...q})); }
+}
+const bcQuestions = {
+  'bc-q-list-1': bcLoadQ('alpine_bc_q1', BC_DEFAULT_Q1),
+  'bc-q-list-2': bcLoadQ('alpine_bc_q2', BC_DEFAULT_Q2),
+  'bc-q-list-3': bcLoadQ('alpine_bc_q3', BC_DEFAULT_Q3)
+};
+const bcQKeys = {'bc-q-list-1':'alpine_bc_q1','bc-q-list-2':'alpine_bc_q2','bc-q-list-3':'alpine_bc_q3'};
+
+function bcSaveQ(listId) { localStorage.setItem(bcQKeys[listId], JSON.stringify(bcQuestions[listId])); }
+
+function bcRenderQ(listId) {
+  const el = document.getElementById(listId); if(!el) return;
+  el.innerHTML = '';
+  bcQuestions[listId].forEach((q, i) => {
+    const li = document.createElement('li'); li.className='sr-q-item';
+    li.innerHTML = `<div class="sr-q-row"><span class="sr-q-num">${i+1}</span><div class="sr-q-body"><textarea class="sr-q-text" rows="1" oninput="bcUpdateQ('${listId}',${i},'text',this);srAutoGrow(this)">${srEsc(q.text)}</textarea><textarea class="sr-q-note" rows="1" placeholder="Add a note for the interviewer…" oninput="bcUpdateQ('${listId}',${i},'note',this);srAutoGrow(this)">${srEsc(q.note||'')}</textarea></div><button class="sr-q-del" onclick="bcDeleteQ('${listId}',${i})">×</button></div>`;
+    el.appendChild(li);
+  });
+  el.querySelectorAll('textarea').forEach(srAutoGrow);
+}
+function bcUpdateQ(listId, i, field, el) { bcQuestions[listId][i][field] = el.value; bcSaveQ(listId); }
+function bcDeleteQ(listId, i) { if(bcQuestions[listId].length<=1) return; bcQuestions[listId].splice(i,1); bcSaveQ(listId); bcRenderQ(listId); }
+function bcAddQ(listId) { bcQuestions[listId].push({text:'',note:''}); bcSaveQ(listId); bcRenderQ(listId); const last = document.getElementById(listId).lastElementChild; if(last) last.querySelector('.sr-q-text').focus(); }
+
+bcRenderQ('bc-q-list-1');
+bcRenderQ('bc-q-list-2');
+bcRenderQ('bc-q-list-3');
+
 /* ── CANDIDATE TRACKER (BAS) ── */
 const BC_CANDS_KEY = 'alpine_bas_candidates';
 function bcLoadCands() {

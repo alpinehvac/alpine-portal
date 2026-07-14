@@ -120,11 +120,11 @@
     { label: 'Site Visits', detail: { min: 'Quarterly+', core: 'Monthly', premium: 'Monthly+' } },
     { label: 'CLEAR Reports', min: true, core: true, premium: true },
     { label: '24/7 On-Call Services', min: true, core: true, premium: true },
-    { label: 'Multi-Trade Service Access', min: true, core: true, premium: true },
+    { label: "Access to Alpine's Trade Network", min: true, core: true, premium: true },
     { label: 'Monthly Check-In Meetings (if desired)', min: false, core: true, premium: true },
-    { label: 'Bulk Discounts', min: false, core: true, premium: true },
-    { label: 'Building Automation Monitoring with Automatic Dispatching', min: false, core: true, premium: true },
-    { label: 'Building Automation Operation', min: false, core: false, premium: true },
+    { label: 'Special pricing on Critical Components', min: false, core: true, premium: true },
+    { label: 'Building Automation Monitoring with Automatic Dispatching', sublabel: 'If system already exists', min: false, core: true, premium: true },
+    { label: 'Installation of monitoring system with pre-annual payment', min: false, core: false, premium: true },
     { label: 'Cost Pricing on Replacements', min: false, core: false, premium: true }
   ];
 
@@ -133,7 +133,8 @@
       if(f.detail){
         return `<li class="feat-yes">Site Visits — <span class="feat-detail">${f.detail[tierKey]}</span></li>`;
       }
-      return `<li class="feat-yes">${f.label}</li>`;
+      const sub = f.sublabel ? ` <span class="feat-sublabel" style="font-style:italic;font-size:0.9em;opacity:0.75;">(${f.sublabel})</span>` : '';
+      return `<li class="feat-yes">${f.label}${sub}</li>`;
     }).join('');
   }
 
@@ -337,7 +338,8 @@
       if(f.detail){
         return `<li style="font-weight:700;color:${color};">Site Visits — <strong>${f.detail[tierKey]}</strong></li>`;
       }
-      return `<li style="font-weight:700;color:${color};">${f.label}</li>`;
+      const sub = f.sublabel ? ` <span style="font-style:italic;font-weight:400;font-size:0.9em;color:#777;">(${f.sublabel})</span>` : '';
+      return `<li style="font-weight:700;color:${color};">${f.label}${sub}</li>`;
     }).join('');
   }
 
@@ -376,6 +378,8 @@
     const specialConsiderations = document.getElementById('specialConsiderations').value.trim();
     const paymentMethod = document.getElementById('paymentEFT').checked ? 'EFT' : (document.getElementById('paymentVisa').checked ? 'Visa' : '');
     const date    = new Date().toLocaleDateString('en-CA', {year:'numeric',month:'long',day:'numeric'});
+    const termStartYear = new Date().getFullYear();
+    const contractTerm  = `${termStartYear}–${termStartYear + 1}`;
     const bufferOn = document.getElementById('bufferToggle').checked;
     const bufferMult = bufferOn ? 1.05 : 1;
     const showAnnual = document.body.classList.contains('show-annual');
@@ -435,7 +439,8 @@
       bType   ? `<tr><td style="color:#555;">Business Type</td><td>${escapeHtml(bType)}</td></tr>` : '',
       bStruct ? `<tr><td style="color:#555;">Building Type</td><td>${escapeHtml(bStruct)}</td></tr>` : '',
       rep     ? `<tr><td style="color:#555;">Representative</td><td>${escapeHtml(rep)}</td></tr>` : '',
-      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`
+      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`,
+      `<tr><td style="color:#555;">Contract Term</td><td>${contractTerm}</td></tr>`
     ].filter(Boolean).join('');
 
     const specialSection = specialConsiderations ? `
