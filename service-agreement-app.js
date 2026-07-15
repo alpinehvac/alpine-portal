@@ -117,24 +117,26 @@
 
   const FEATURES = [
     { label: 'Maintenance Guarantee', min: true, core: true, premium: true },
-    { label: 'Site Visits', detail: { min: 'Quarterly+', core: 'Monthly', premium: 'Monthly+' } },
+    { label: 'Site Visits', detail: { min: 'Quarterly+', core: 'Quarterly+', premium: 'Quarterly+' } },
     { label: 'CLEAR Reports', min: true, core: true, premium: true },
     { label: '24/7 On-Call Services', min: true, core: true, premium: true },
-    { label: "Access to Alpine's Trade Network", min: true, core: true, premium: true },
+    { label: 'Multi-Trade Service Access', min: true, core: true, premium: true },
     { label: 'Monthly Check-In Meetings (if desired)', min: false, core: true, premium: true },
-    { label: 'Special pricing on Critical Components', min: false, core: true, premium: true },
-    { label: 'Building Automation Monitoring with Automatic Dispatching', sublabel: 'If system already exists', min: false, core: true, premium: true },
-    { label: 'Installation of monitoring system with pre-annual payment', min: false, core: false, premium: true },
+    { label: 'Bulk Discounts', min: false, core: true, premium: true },
+    { label: 'Building Automation Monitoring with Automatic Dispatching', min: false, core: true, premium: true },
+    { label: 'Building Automation Operation', min: false, core: false, premium: true },
     { label: 'Cost Pricing on Replacements', min: false, core: false, premium: true }
   ];
 
   function buildFeatureList(tierKey){
     return FEATURES.filter(f => f.detail || f[tierKey]).map(f => {
       if(f.detail){
-        return `<li class="feat-yes">Site Visits — <span class="feat-detail">${f.detail[tierKey]}</span></li>`;
+        const note = (tierKey === 'core' || tierKey === 'premium')
+          ? `<li class="feat-note">Quarterly+ means quarterly visits + service as-needed</li>`
+          : '';
+        return `<li class="feat-yes">Site Visits — <span class="feat-detail">${f.detail[tierKey]}</span></li>${note}`;
       }
-      const sub = f.sublabel ? ` <span class="feat-sublabel" style="font-style:italic;font-size:0.9em;opacity:0.75;">(${f.sublabel})</span>` : '';
-      return `<li class="feat-yes">${f.label}${sub}</li>`;
+      return `<li class="feat-yes">${f.label}</li>`;
     }).join('');
   }
 
@@ -321,24 +323,6 @@
     cheatSheetViewEl.style.display = 'block';
   });
 
-  // Estimator Guide sub-tabs
-  const guideTabs = [
-    { btn: 'guideTabCheatSheet', view: 'guideViewCheatSheet' },
-    { btn: 'guideTabPortal', view: 'guideViewPortal' },
-    { btn: 'guideTabClear', view: 'guideViewClear' },
-    { btn: 'guideTabMaintenance', view: 'guideViewMaintenance' }
-  ];
-  guideTabs.forEach(function(t){
-    const btnEl = document.getElementById(t.btn);
-    if(!btnEl) return;
-    btnEl.addEventListener('click', function(){
-      guideTabs.forEach(function(o){
-        document.getElementById(o.btn).classList.toggle('active', o.btn === t.btn);
-        document.getElementById(o.view).style.display = (o.view === t.view) ? 'block' : 'none';
-      });
-    });
-  });
-
   render();
 
   document.getElementById('bufferToggle').addEventListener('change', render);
@@ -354,10 +338,12 @@
   function buildPrintFeatureList(tierKey, color){
     return FEATURES.filter(f => f.detail || f[tierKey]).map(f => {
       if(f.detail){
-        return `<li style="font-weight:700;color:${color};">Site Visits — <strong>${f.detail[tierKey]}</strong></li>`;
+        const note = (tierKey === 'core' || tierKey === 'premium')
+          ? `<li style="font-style:italic;font-weight:400;font-size:8px;color:${color};opacity:.75;list-style:none;margin-left:-14px;">Quarterly+ means quarterly visits + service as-needed</li>`
+          : '';
+        return `<li style="font-weight:700;color:${color};">Site Visits — <strong>${f.detail[tierKey]}</strong></li>${note}`;
       }
-      const sub = f.sublabel ? ` <span style="font-style:italic;font-weight:400;font-size:0.9em;color:#777;">(${f.sublabel})</span>` : '';
-      return `<li style="font-weight:700;color:${color};">${f.label}${sub}</li>`;
+      return `<li style="font-weight:700;color:${color};">${f.label}</li>`;
     }).join('');
   }
 
@@ -378,8 +364,8 @@
         <li><strong>Consumables &amp; Materials:</strong> Minimum — all consumables billed separately. Core — discounted markup applied. Premium — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
         <li><strong>Client Responsibilities:</strong> Client agrees to provide safe and timely access, maintain appropriate operating conditions, notify Alpine of issues promptly, and ensure utilities are operational. Unsafe conditions may result in suspension of service until corrected.</li>
         <li><strong>Payment Terms:</strong> Invoices are due within 15 days. Late payments may result in suspension of service, removal of coverage benefits, and interest charges of 2% per month.</li>
-        <li><strong>Taxes:</strong> All prices quoted are exclusive of applicable taxes. HST and any other applicable federal, provincial, or municipal taxes will be added to invoices as required by law.</li>
-        <li><strong>Term &amp; Cancellation:</strong> This agreement carries an initial commitment period of 6 months from the contract start date. After the initial 6-month term, either party may cancel with 30 days' written notice. No cancellation penalties apply; services performed up to the cancellation date remain payable.</li>
+        <li><strong>Trial Period:</strong> Client will not be charged if unsatisfied after the initial service visit, provided concerns are communicated within 5 business days.</li>
+        <li><strong>Term &amp; Cancellation:</strong> This agreement remains in effect until cancelled by either party with written notice. No cancellation penalties apply; services performed up to the cancellation date remain payable.</li>
         <li><strong>Liability Limitation:</strong> Alpine's liability is limited to the value of services provided under this agreement. Alpine is not liable for loss of business or revenue, tenant disruption, or secondary or consequential damages.</li>
         <li><strong>Warranty Disclaimer:</strong> Alpine does not warranty manufacturer equipment unless explicitly stated. Any warranties provided are limited to workmanship for a period of 90 days.</li>
         <li><strong>Force Majeure:</strong> Alpine is not liable for delays or failure to perform due to circumstances beyond reasonable control, including labour shortages, supply chain issues, or extreme weather events.</li>
@@ -396,10 +382,6 @@
     const specialConsiderations = document.getElementById('specialConsiderations').value.trim();
     const paymentMethod = document.getElementById('paymentEFT').checked ? 'EFT' : (document.getElementById('paymentVisa').checked ? 'Visa' : '');
     const date    = new Date().toLocaleDateString('en-CA', {year:'numeric',month:'long',day:'numeric'});
-    const logoImg = document.querySelector('.brand-logo');
-    const logoSrc = logoImg ? logoImg.src : '';
-    const termStartYear = new Date().getFullYear();
-    const contractTerm  = `${termStartYear}–${termStartYear + 1}`;
     const bufferOn = document.getElementById('bufferToggle').checked;
     const bufferMult = bufferOn ? 1.05 : 1;
     const showAnnual = document.body.classList.contains('show-annual');
@@ -459,8 +441,7 @@
       bType   ? `<tr><td style="color:#555;">Business Type</td><td>${escapeHtml(bType)}</td></tr>` : '',
       bStruct ? `<tr><td style="color:#555;">Building Type</td><td>${escapeHtml(bStruct)}</td></tr>` : '',
       rep     ? `<tr><td style="color:#555;">Representative</td><td>${escapeHtml(rep)}</td></tr>` : '',
-      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`,
-      `<tr><td style="color:#555;">Contract Term</td><td>${contractTerm}</td></tr>`
+      `<tr><td style="color:#555;">Date</td><td>${date}</td></tr>`
     ].filter(Boolean).join('');
 
     const specialSection = specialConsiderations ? `
@@ -534,8 +515,7 @@
       + '.section-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6c5d8d;border-bottom:1px solid #6c5d8d;padding-bottom:5px;margin-bottom:10px;font-weight:700;}'
       + '@media print{body{padding:10px 14px;}@page{margin:10mm 12mm;size:A4 portrait;}}'
       + '</style></head><body>'
-      + '<div style="display:flex;align-items:center;gap:14px;border-bottom:4px solid #10444e;padding-bottom:12px;margin-bottom:16px;">'
-      +   (logoSrc ? '<img src="' + logoSrc + '" alt="Alpine HVAC" style="height:46px;width:auto;flex-shrink:0;">' : '')
+      + '<div style="display:flex;align-items:center;border-bottom:4px solid #10444e;padding-bottom:12px;margin-bottom:16px;">'
       +   '<div><h1>Alpine HVAC Service</h1>'
       +   '<div style="font-size:10px;color:#6c5d8d;letter-spacing:.8px;text-transform:uppercase;margin-top:2px;">Hydronics · Controls · Building Systems</div></div>'
       +   '<div style="margin-left:auto;"><div style="font-size:11px;font-weight:600;color:#10444e;">Service Agreement Estimate</div></div>'
@@ -557,33 +537,14 @@
       + '</body></html>';
   }
 
-  // PRINT — prints current page directly, but always in customer view.
-  // Regardless of whether the rep is currently on the User View or Customer
-  // View tab, this temporarily forces customer-mode styling for the print
-  // itself so rep-only (sensitive) info never accidentally goes to print.
+  // PRINT — prints current page directly
   document.getElementById('btnPrint').addEventListener('click', function(){
-    const wasCustomer = document.body.classList.contains('customer-mode');
-    if(!wasCustomer) document.body.classList.add('customer-mode');
-    let restored = false;
-    function restore(){
-      if(restored) return;
-      restored = true;
-      if(!wasCustomer) document.body.classList.remove('customer-mode');
-      window.removeEventListener('afterprint', restore);
-    }
-    window.addEventListener('afterprint', restore);
     window.print();
-    // Fallback in case 'afterprint' doesn't fire in some browsers/print flows
-    setTimeout(restore, 3000);
   });
 
-  // PDF — opens a new tab with clean print layout and triggers print dialog.
-  // Always builds the customer-facing version, regardless of which tab
-  // (User View or Customer View) the rep currently has open, so sensitive
-  // rep-only info (hours/yr, hourly rates, formulas) can never be
-  // accidentally printed or PDF'd to a customer.
+  // PDF — opens a new tab with clean print layout and triggers print dialog
   document.getElementById('btnPrintPDF').addEventListener('click', function(){
-    const isCustomer = true;
+    const isCustomer = document.body.classList.contains('customer-mode');
     const html = buildPrintHTML(isCustomer);
     const win = window.open('', '_blank');
     if(!win){ alert('Please allow pop-ups for this page to use the PDF export.'); return; }
