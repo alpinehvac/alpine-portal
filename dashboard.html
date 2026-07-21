@@ -93,6 +93,7 @@ const TOOL_META = {
   "pl-calculator":     { icon: "📊", desc: "Model P&L outcomes and compensation scenarios." },
   "team-hub":          { icon: "🧭", desc: "Recruiting, onboarding, and team management in one place." },
   "service-agreement": { icon: "🧮", desc: "Calculate man-hours and pricing for service agreements." },
+  "sales-strategy":    { icon: "🎯", desc: "A living playbook for uncovering value and closing sales." },
   "lead-sheets":       { icon: "📋", desc: "Track and manage inbound sales leads.", external: "https://netorg13787440-my.sharepoint.com/:x:/g/personal/natalie_townsend_alpinehvac_ca/IQDFyXX0JO36RaKmRK5rUj8TATpMgjfqE_WIuufYkn7YIIw?e=cX7qOq" },
   "call-log":          { icon: "📞", desc: "Log on-call coverage and incoming customer calls.", external: "https://docs.google.com/spreadsheets/d/1IaDmMURNjVWhIQZ0eVhDRFjUFVhevVXNHTJ0-BW3ZvM/edit?usp=sharing" },
 };
@@ -100,7 +101,7 @@ const TOOL_META = {
 // Owner "tool belt" categories. Adjust freely as tools are added/moved —
 // a tool can appear in more than one category if it's relevant to both.
 const TOOL_CATEGORIES = {
-  sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "lead-sheets"] },
+  sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "sales-strategy", "lead-sheets"] },
   operations: { label: "Operations", icon: "🛠️", desc: "Scheduling, dispatch, and day-to-day ops tools.",  tools: ["team-hub", "call-log"] },
   financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["pl-calculator"] },
 };
