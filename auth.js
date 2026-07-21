@@ -5,7 +5,7 @@ const AP_USERS = {
   "jake.gilmore":    { password: "Alpine2025!", name: "Jake Gilmore",     roles: ["super_admin", "sales"] },
   "mike.launder":    { password: "Alpine2025!", name: "Mike Launder",     roles: ["super_admin", "sales"] },
   "clarissa.launder":{ password: "Alpine2025!", name: "Clarissa Launder", roles: ["super_admin", "support"] },
-  "cole.hamilton":   { password: "Alpine2025!", name: "Cole Hamilton",    roles: ["sales"] },
+  "cole.hamilton":   { password: "Alpine2025!", name: "Cole Hamilton",    roles: ["super_admin", "sales", "ops"] },
   "natalie.townsend":{ password: "Alpine2025!", name: "Natalie Townsend", roles: ["sales"] },
   "grace.santos":    { password: "Alpine2025!", name: "Grace Santos",     roles: ["super_admin", "support"] },
   "steven.coles":    { password: "Alpine2025!", name: "Steven Coles",    roles: ["ops"] },
