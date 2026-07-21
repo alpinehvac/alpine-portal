@@ -468,11 +468,20 @@
         <div class="section-label">Acceptance</div>
         <div style="font-size:10.5px;color:#555;margin-bottom:16px;">By signing below, the client agrees to the terms outlined in this proposal, including the Terms &amp; Disclaimers above.</div>
         <div style="margin-bottom:22px;">
-          <div style="font-size:11.5px;color:#333;">Selected Package:&nbsp;&nbsp;☐ Minimum&nbsp;&nbsp;&nbsp;☐ Core&nbsp;&nbsp;&nbsp;☐ Premium</div>
-          <div style="display:flex;gap:40px;font-size:10px;color:#666;margin-top:4px;">
-            <div>Minimum: $${fmtCurrency(total * 150 * bufferMult * 1.13)} / yr after tax</div>
-            <div>Core: $${fmtCurrency(total * 300 * bufferMult * 1.13)} / yr after tax</div>
-            <div>Premium: $${fmtCurrency(total * 900 * bufferMult * 1.13)} / yr after tax</div>
+          <div style="font-size:11.5px;color:#333;margin-bottom:6px;">Selected Package:</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <div style="font-size:11.5px;color:#333;">☐ Minimum</div>
+              <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(total * 150 * bufferMult * 1.13)} / yr after tax (HST 13%)</div>
+            </div>
+            <div>
+              <div style="font-size:11.5px;color:#333;">☐ Core</div>
+              <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(total * 300 * bufferMult * 1.13)} / yr after tax (HST 13%)</div>
+            </div>
+            <div>
+              <div style="font-size:11.5px;color:#333;">☐ Premium</div>
+              <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(total * 900 * bufferMult * 1.13)} / yr after tax (HST 13%)</div>
+            </div>
           </div>
         </div>
         <div style="display:flex;gap:40px;margin-bottom:34px;font-size:11.5px;color:#333;">
