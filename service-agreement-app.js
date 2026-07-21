@@ -122,7 +122,7 @@
     { label: '24/7 On-Call Services', min: true, core: true, premium: true },
     { label: 'Multi-Trade Service Access', min: true, core: true, premium: true },
     { label: 'Monthly Check-In Meetings (if desired)', min: false, core: true, premium: true },
-    { label: 'Bulk Discounts', min: false, core: true, premium: true },
+    { label: 'Filters and Labour Included', min: false, core: true, premium: true },
     { label: 'Building Automation Monitoring with Automatic Dispatching', min: false, core: true, premium: true },
     { label: 'Building Automation Operation', min: false, core: false, premium: true },
     { label: 'Cost Pricing on Replacements', min: false, core: false, premium: true }
@@ -409,7 +409,7 @@
       const rateRow    = isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:2px;">$${t.rate} / hr</div>`;
       const formulaRow = isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">${fmt(total)} hrs × $${t.rate}${bufferOn ? ' + 5% buffer' : ''}</div>`;
       const annualLine = (!isCustomer || showAnnual)
-        ? `<div style="font-size:10.5px;color:#666;margin-top:2px;">$${fmtCurrency(annualAmt)} / yr</div>`
+        ? `<div style="font-size:10.5px;color:#666;margin-top:2px;">$${fmtCurrency(annualAmt)} / yr + Applicable Taxes</div>`
         : '';
       return `
         <div style="border:1px solid #c9b8d4;border-top:4px solid ${t.color};border-radius:4px;padding:14px;display:flex;flex-direction:column;">
@@ -467,8 +467,13 @@
       <div style="margin-top:24px;break-inside:avoid;page-break-inside:avoid;">
         <div class="section-label">Acceptance</div>
         <div style="font-size:10.5px;color:#555;margin-bottom:16px;">By signing below, the client agrees to the terms outlined in this proposal, including the Terms &amp; Disclaimers above.</div>
-        <div style="display:flex;gap:40px;margin-bottom:22px;font-size:11.5px;color:#333;">
-          <div>Selected Package:&nbsp;&nbsp;☐ Minimum&nbsp;&nbsp;&nbsp;☐ Core&nbsp;&nbsp;&nbsp;☐ Premium</div>
+        <div style="margin-bottom:22px;">
+          <div style="font-size:11.5px;color:#333;">Selected Package:&nbsp;&nbsp;☐ Minimum&nbsp;&nbsp;&nbsp;☐ Core&nbsp;&nbsp;&nbsp;☐ Premium</div>
+          <div style="display:flex;gap:40px;font-size:10px;color:#666;margin-top:4px;">
+            <div>Minimum: $${fmtCurrency(total * 150 * bufferMult * 1.13)} / yr after tax</div>
+            <div>Core: $${fmtCurrency(total * 300 * bufferMult * 1.13)} / yr after tax</div>
+            <div>Premium: $${fmtCurrency(total * 900 * bufferMult * 1.13)} / yr after tax</div>
+          </div>
         </div>
         <div style="display:flex;gap:40px;margin-bottom:34px;font-size:11.5px;color:#333;">
           <div>Selected Billing:&nbsp;&nbsp;☐ Monthly&nbsp;&nbsp;&nbsp;☐ Quarterly&nbsp;&nbsp;&nbsp;☐ Annually</div>
