@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Case Studies — Alpine HVAC</title>
+<style>
+  :root{
+    --teal: #1A6B6B;
+    --teal-dark: #123F3F;
+    --purple: #9B8EC4;
+    --purple-dark: #6b5d94;
+    --black: #111110;
+    --white: #FFFFFF;
+    --paper: #FBFAF8;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    color: var(--black);
+  }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 20px 60px 20px;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    background: var(--black);
+    color: var(--white);
+    padding: 22px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    position: relative;
+    margin-bottom: 36px;
+  }
+  .header::after{
+    content: "";
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--teal) 0%, var(--teal) 60%, var(--purple) 60%, var(--purple) 100%);
+  }
+  .brand-mark { display: flex; align-items: center; gap: 10px; }
+  .brand-mark svg { width: 30px; height: 30px; flex-shrink: 0; }
+  .brand-name {
+    font-family: 'Palatino Linotype', 'Book Antiqua', serif;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-size: 15px;
+    text-transform: uppercase;
+  }
+  .brand-tagline {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #cfcac2;
+    margin-top: 2px;
+  }
+  .title-block { text-align: right; }
+  .title-block h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+  .title-block .sub {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5px;
+    color: var(--purple);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* ===== Cards ===== */
+  .card {
+    border: 1px solid #e0dcd3;
+    background: #FAF9F6;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+
+  .card-summary {
+    display: flex;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card-summary:hover .card-body { background: #F5F3EE; }
+
+  .card-tag { width: 6px; flex-shrink: 0; }
+  .card-tag.teal { background: var(--teal); }
+  .card-tag.purple { background: var(--purple); }
+
+  .card-body {
+    flex: 1;
+    padding: 18px 22px;
+    transition: background 0.15s ease;
+  }
+
+  .card-top-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .card-name-wrap { display: flex; align-items: center; gap: 10px; }
+  .card-name {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--black);
+  }
+  .card-theme {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .card-theme.teal { color: var(--teal); }
+  .card-theme.purple { color: var(--purple-dark); }
+
+  .card-text {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: #2b2a28;
+  }
+  .card-text .result { color: var(--black); font-weight: 700; }
+
+  .chevron {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid #c9c4b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 18px 20px 0 0;
+    transition: transform 0.25s ease, border-color 0.2s ease;
+  }
+  .chevron svg { width: 10px; height: 10px; }
+  .card.open .chevron { transform: rotate(180deg); border-color: var(--teal); }
+
+  .card-full {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    background: #F4F6F5;
+    border-top: 1px solid transparent;
+  }
+  .card.open .card-full {
+    border-top: 1px solid #e0dcd3;
+  }
+  .card-full-inner {
+    padding: 20px 22px 22px 28px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #33322f;
+  }
+  .card-full-inner .label {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--teal-dark);
+    margin-bottom: 6px;
+  }
+
+  /* Footer */
+  .footer {
+    background: var(--teal-dark);
+    color: #d9e6e4;
+    padding: 14px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    margin-top: 30px;
+  }
+  .footer .strong { color: var(--white); font-weight: 700; }
+
+  @media (max-width: 560px) {
+    .title-block { text-align: left; }
+    .header { flex-direction: column; align-items: flex-start; }
+    .card-top-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="brand-mark">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="50,10 90,85 65,85 50,55 35,85 10,85" fill="#FFFFFF"/>
+        <polygon points="50,10 68,45 50,55 32,45" fill="#9B8EC4"/>
+      </svg>
+      <div>
+        <div class="brand-name">Alpine</div>
+        <div class="brand-tagline">Hydronics &middot; Controls &middot; Building Systems</div>
+      </div>
+    </div>
+    <div class="title-block">
+      <h1>Case Studies</h1>
+      <div class="sub">Real value delivered to Alpine service agreement customers</div>
+    </div>
+  </div>
+
+  <div id="cards"></div>
+
+  <div class="footer">
+    <div><span class="strong">Alpine HVAC Service Inc.</span> — Commercial, Industrial &amp; Institutional</div>
+    <div>alpinehvac.ca &nbsp;|&nbsp; TSSA Reg. FS-R-51098</div>
+  </div>
+
+</div>
+
+<script>
+const caseStudies = [
+  {
+    tag: "teal",
+    name: "Turtle Jack's",
+    theme: "Speed &middot; Cost Avoidance",
+    summary: '5 of 6 rooftop units down on a stat holiday — on the brink of closing, ~$10,000/day at risk. <span class="result">Alpine on site in 90 min, 4 of 6 RTUs fixed within 2 hours — doors stayed open, zero revenue lost.</span> One bad day could have cost more than 2&ndash;4 years of an Alpine agreement ($2,250&ndash;$4,500/yr).',
+    full: `Turtle Jack's called Alpine on a stat holiday with 5 of their 6 rooftop units down. They were on the brink of shutting their doors for the day, which would have cost them roughly $10,000 in lost revenue.
+    <br><br>
+    Alpine responded and arrived on site within 90 minutes, fixing 4 of the 6 RTUs within 2 hours of arrival — allowing Turtle Jack's to open and avoid losing any revenue that day.
+    <br><br>
+    For reference, a minimum service agreement would have cost Turtle Jack's $2,250 per year, and Alpine's core offer would have cost $4,500 per year. What they stood to lose in a single day could have purchased 2 to 4 years of a partnership with Alpine — not to mention the operational headaches it saved them.`
+  },
+  {
+    tag: "purple",
+    name: "Markland Property Management",
+    theme: "Trust &middot; Predictability",
+    summary: 'Previously used a large corporate mechanical/BAS provider — premium billing, skipped equipment, heavy admin burden. <span class="result">3+ years with Alpine: predictable monthly costs, major issues flagged well in advance.</span> Retention driver: trust — they no longer have to police their own trade contractor.',
+    full: `Markland Property Management previously worked with a large corporate mechanical/BAS company that took advantage of their high volume of assets and their inability to monitor whether equipment was actually being serviced regularly. They discovered that company was charging premium service rates while not even touching certain pieces of equipment. That, combined with the administrative headaches of dealing with a large corporation, led them to seek other alternatives.
+    <br><br>
+    Alpine came onto the scene, and after 1 year of service, Markland emphasized how important trust and rapport are to their business — the resources it would take to monitor a trade partner and confirm they were getting value for their spend would be enormous. They need trades they trust to have their best interest in mind, and they found that with Alpine.
+    <br><br>
+    That trust has freed up their mental bandwidth: Alpine has made their monthly expenses predictable and consistent, with any major costs or disruptions flagged well in advance and prepared for accordingly. Trust was the biggest factor here — the team Alpine has built, and the systems for reporting and making complex issues digestible, have been Alpine's edge in retaining this customer for over 3 years and counting.`
+  },
+  {
+    tag: "teal",
+    name: "Berg Equipment Tractor Dealership",
+    theme: "Clarity &middot; CLEAR Reports",
+    summary: 'No visibility from the incumbent contractor; unresolved diagnosis issues going into renewal. <span class="result">CLEAR Reports + Customer Portal + quarterly minimum won the signature.</span> Week 1: spring maintenance visit uncovered major issues ahead of cooling season — repairs approved on the spot.',
+    full: `The facility manager at Berg Equipment Tractor Dealership had very little clarity on the condition of his equipment, which had been serviced since new by the company that originally installed it under a general contractor. He had a few lingering issues and wasn't fully satisfied with some of their diagnoses. When it came time for renewal, he sought other options.
+    <br><br>
+    His biggest pain points: he never knew when the contractor was coming — or if they were coming at all — and he wanted visibility without having to personally facilitate basic maintenance visits. Alpine explained our process, including CLEAR Reports and a Customer Portal hosting all maintenance and service schedules, invoices, and job reports, plus a minimum quarterly rotation. He liked the approach and signed the minimum package.
+    <br><br>
+    Within a week of signing, Alpine arrived with the full team and completed his spring maintenance, identifying several major issues ahead of the upcoming cooling season. Despite his disappointment that his suspicions about the previous contractor were confirmed, he approved the repairs and expressed real gratitude for Alpine's team and systems. Alpine is looking forward to a long partnership with this facility.`
+  },
+  {
+    tag: "purple",
+    name: "Net Access Data Centre",
+    theme: "Emergency Response",
+    summary: "After-hours: entire building's cooling failed across multiple data centre floors. <span class=\"result\">On site in 30 min, cooling restored within the hour — rack damage minimized.</span> Followed up with a monitoring/emergency-procedure proposal. Alpine is now their first call.",
+    full: `Net Access Data Centre is one of Alpine's most critical accounts — a building with multiple floors of data centres cooled by a mix of methods, including Liebert units and in-rack cooling.
+    <br><br>
+    Alpine responded to an after-hours call reporting that the entire building's cooling system was down, with critical server rooms heating up fast. Alpine was on site within 30 minutes and had cooling restored to the data centres within an hour of the call coming in, minimizing damage to the rack systems.
+    <br><br>
+    Afterward, Alpine proposed a more accurate monitoring system and emergency procedure — giving the customer earlier warning and clear steps to react properly if the same scenario happens again. Alpine is now their first call.`
+  },
+  {
+    tag: "teal",
+    name: "YMCA Niagara",
+    theme: "Education Wins Trust",
+    summary: 'Lost the RTU upgrade bid to the incumbent — facility manager felt "in the dark" for years. <span class="result">He called Alpine (not his own contractor) for help with a TSSA boiler audit.</span> A clear, condensed report put Alpine in line to become the primary contractor at renewal.',
+    full: `Alpine was brought in as a second price on a large rooftop unit upgrade serving the gym and pool areas at YMCA Niagara. While on site for the RFQ, Alpine explained our process, emphasizing our specialty in servicing facilities like this one, including their existing building automation system.
+    <br><br>
+    The facility manager shared that his long-tenured contractor had left him feeling in the dark — he didn't need to understand the complex HVAC systems, but he needed enough clarity to do his job properly, and he wasn't getting it. We explained that Alpine's process is built around giving operators the clarity to make informed decisions.
+    <br><br>
+    Alpine didn't win the RTU bid — but the facility manager later called Alpine, not his existing contractor, for help with an upcoming TSSA audit on his steam boilers. He wasn't sure what needed to be done, but he wanted Alpine's help. Alpine came in strong on the first visit with a comprehensive investigation and a CLEAR report covering all of his heating systems — flagging major and minor concerns and giving him the clarity to make informed decisions, along with a report he could give directly to his insurance provider for the TSSA issue.
+    <br><br>
+    The facility manager was grateful for the clear, condensed information throughout the process. At renewal, Alpine is likely to become his new trade contractor — earned through the trust, value, speed, and education Alpine provided.`
+  }
+];
+
+const container = document.getElementById('cards');
+
+caseStudies.forEach((cs, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-summary" data-index="${i}">
+      <div class="card-tag ${cs.tag}"></div>
+      <div class="card-body">
+        <div class="card-top-row">
+          <div class="card-name-wrap">
+            <span class="card-name">${cs.name}</span>
+          </div>
+          <span class="card-theme ${cs.tag}">${cs.theme}</span>
+        </div>
+        <div class="card-text">${cs.summary}</div>
+      </div>
+      <div class="chevron">
+        <svg viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1L6 6L11 1" stroke="#555" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-full">
+      <div class="card-full-inner">
+        <div class="label">Full Story</div>
+        ${cs.full}
+      </div>
+    </div>
+  `;
+  container.appendChild(card);
+
+  const summary = card.querySelector('.card-summary');
+  const full = card.querySelector('.card-full');
+  const inner = card.querySelector('.card-full-inner');
+
+  summary.addEventListener('click', () => {
+    const isOpen = card.classList.contains('open');
+    if (isOpen) {
+      full.style.maxHeight = null;
+      card.classList.remove('open');
+    } else {
+      card.classList.add('open');
+      full.style.maxHeight = inner.scrollHeight + 40 + 'px';
+    }
+  });
+});
+</script>
+
+</body>
+</html>
