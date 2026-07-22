@@ -316,7 +316,6 @@
   });
   tabCheatSheet.addEventListener('click', function(){
     if(document.body.classList.contains('customer-mode')) return;
-    renderCheatSheet();
     tabCheatSheet.classList.add('active');
     tabEstimator.classList.remove('active');
     estimatorPanelEl.querySelector('#estimatorView').style.display = 'none';
