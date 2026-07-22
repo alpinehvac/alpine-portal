@@ -155,6 +155,34 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 .cf-next-steps{list-style:none;display:flex;flex-direction:column;gap:.6rem;margin-top:.75rem}
 .cf-next-steps li{display:flex;gap:.7rem;font-size:.86rem;line-height:1.6;color:rgba(255,255,255,0.8)}
 .cf-next-steps .cf-num{flex-shrink:0;width:20px;height:20px;border-radius:4px;background:var(--teal-dark);color:var(--teal-light);font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+/* ── VALUE EQUATION ── */
+.ve-head{text-align:center;margin-bottom:2.5rem}
+.ve-head h2{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.ve-head p{font-size:.85rem;color:rgba(255,255,255,0.5);margin-top:.5rem;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.7}
+
+.ve-equation{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:3rem 2rem;display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:2rem}
+.ve-numerator,.ve-denominator{font-family:'Oswald',sans-serif;font-weight:700;text-align:center;letter-spacing:.01em;line-height:1.5}
+.ve-numerator{font-size:1.15rem;color:var(--white);padding-bottom:1rem}
+.ve-denominator{font-size:1.15rem;color:rgba(255,255,255,0.55);padding-top:1rem}
+.ve-numerator .ve-term,.ve-denominator .ve-term{color:var(--teal-light)}
+.ve-denominator .ve-term{color:var(--purple-light)}
+.ve-times{color:rgba(255,255,255,0.3);font-weight:400;margin:0 .5rem}
+.ve-bar{width:100%;max-width:560px;height:2px;background:var(--teal)}
+
+.ve-terms{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.ve-term-card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem}
+.ve-term-card.num{border-left:2px solid var(--teal)}
+.ve-term-card.den{border-left:2px solid var(--purple)}
+.ve-term-name{font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.35rem}
+.ve-term-card.num .ve-term-name{color:var(--teal-light)}
+.ve-term-card.den .ve-term-name{color:var(--purple-light)}
+.ve-term-desc{font-size:.82rem;line-height:1.55;color:rgba(255,255,255,0.65)}
+
+@media (max-width:600px){
+  .ve-terms{grid-template-columns:1fr}
+  .ve-numerator,.ve-denominator{font-size:1rem}
+}
 </style>
 </head>
 <body>
@@ -183,6 +211,7 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
     <button class="ss-tab-btn active" data-tab="playbook" onclick="ssShowTab('playbook', event)">Playbook</button>
     <button class="ss-tab-btn" data-tab="persuasion" onclick="ssShowTab('persuasion', event)">Persuasion Equation</button>
     <button class="ss-tab-btn" data-tab="closer" onclick="ssShowTab('closer', event)">Closer Framework</button>
+    <button class="ss-tab-btn" data-tab="value" onclick="ssShowTab('value', event)">Value Equation</button>
   </div>
 
   <div class="ss-tab-panel active" id="ss-panel-playbook">
@@ -343,6 +372,42 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
         </ol>
       </div>
 
+    </div>
+  </div>
+
+  <div class="ss-tab-panel" id="ss-panel-value">
+    <div class="ve-head">
+      <h2>The Value Equation</h2>
+      <p>What makes an offer feel valuable. Push the top up and the bottom down — that's the job on every sales call.</p>
+    </div>
+
+    <div class="ve-equation">
+      <div class="ve-numerator">
+        <span class="ve-term">Dream Outcome</span><span class="ve-times">&times;</span><span class="ve-term">Perceived Likelihood of Achievement</span>
+      </div>
+      <div class="ve-bar"></div>
+      <div class="ve-denominator">
+        <span class="ve-term">Time Delay</span><span class="ve-times">&times;</span><span class="ve-term">Effort &amp; Sacrifice</span>
+      </div>
+    </div>
+
+    <div class="ve-terms">
+      <div class="ve-term-card num">
+        <div class="ve-term-name">Dream Outcome</div>
+        <div class="ve-term-desc">The result the customer actually wants — not the service itself.</div>
+      </div>
+      <div class="ve-term-card num">
+        <div class="ve-term-name">Perceived Likelihood of Achievement</div>
+        <div class="ve-term-desc">How confident they are that we can actually deliver it.</div>
+      </div>
+      <div class="ve-term-card den">
+        <div class="ve-term-name">Time Delay</div>
+        <div class="ve-term-desc">How long it takes them to see results — shorter feels more valuable.</div>
+      </div>
+      <div class="ve-term-card den">
+        <div class="ve-term-name">Effort &amp; Sacrifice</div>
+        <div class="ve-term-desc">How much work or friction it takes on their end — less feels more valuable.</div>
+      </div>
     </div>
   </div>
 </div>
