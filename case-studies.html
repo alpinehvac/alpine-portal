@@ -201,6 +201,129 @@
   }
   .footer .strong { color: var(--white); font-weight: 700; }
 
+  /* ===== By The Numbers ===== */
+  .section-heading {
+    margin: 8px 0 14px 0;
+  }
+  .section-heading h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--black);
+  }
+  .section-heading .sub {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    color: #6b6a66;
+  }
+
+  .stat-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .stat-card {
+    flex: 1 1 calc(50% - 7px);
+    min-width: 260px;
+    border: 1px solid #e0dcd3;
+    background: #FAF9F6;
+    overflow: hidden;
+  }
+  .stat-summary {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    user-select: none;
+    padding: 18px 18px 16px 18px;
+  }
+  .stat-summary:hover { background: #F5F3EE; }
+  .stat-tag { width: 5px; align-self: stretch; flex-shrink: 0; margin-right: 14px; }
+  .stat-tag.teal { background: var(--teal); }
+  .stat-tag.purple { background: var(--purple); }
+
+  .stat-main { flex: 1; }
+  .stat-number {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--black);
+    margin-bottom: 6px;
+  }
+  .stat-label {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: #33322f;
+  }
+  .stat-chevron {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid #c9c4b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    margin-top: 2px;
+    transition: transform 0.25s ease, border-color 0.2s ease;
+  }
+  .stat-chevron svg { width: 9px; height: 9px; }
+  .stat-card.open .stat-chevron { transform: rotate(180deg); border-color: var(--teal); }
+
+  .stat-full {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    background: #F4F6F5;
+    border-top: 1px solid transparent;
+  }
+  .stat-card.open .stat-full { border-top: 1px solid #e0dcd3; }
+  .stat-full-inner {
+    padding: 16px 18px 18px 18px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #33322f;
+  }
+  .stat-full-inner .eq {
+    font-family: 'Courier New', monospace;
+    font-size: 11.5px;
+    background: #EDEBE5;
+    border: 1px solid #ddd8cc;
+    padding: 8px 10px;
+    margin: 4px 0 10px 0;
+    color: var(--teal-dark);
+  }
+  .stat-full-inner table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 10px 0;
+    font-size: 11.5px;
+  }
+  .stat-full-inner th, .stat-full-inner td {
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 1px solid #e0dcd3;
+  }
+  .stat-full-inner th {
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--teal-dark);
+  }
+  .stat-full-inner .source {
+    font-size: 10.5px;
+    color: #83807a;
+    font-style: italic;
+    margin-top: 6px;
+  }
+
+  @media (max-width: 560px) {
+    .stat-card { flex: 1 1 100%; }
+  }
+
   .back-link {
     display: inline-flex;
     align-items: center;
@@ -245,6 +368,18 @@
     </div>
   </div>
 
+  <div class="section-heading">
+    <h2>By The Numbers</h2>
+    <div class="sub">The math behind the partnership — click any stat for the full breakdown</div>
+  </div>
+
+  <div id="stats" class="stat-grid"></div>
+
+  <div class="section-heading">
+    <h2>Customer Stories</h2>
+    <div class="sub">Real accounts, real outcomes</div>
+  </div>
+
   <div id="cards"></div>
 
   <div class="footer">
@@ -255,6 +390,114 @@
 </div>
 
 <script>
+const stats = [
+  {
+    tag: "teal",
+    number: "2\u20134 yrs",
+    label: "of an Alpine service agreement is what one bad day of downtime can cost a business",
+    full: `<div class="eq">Value at Risk = Lost Revenue \u00f7 Annual Agreement Cost</div>
+    Turtle Jack's faced closing for a full day on a stat holiday with 5 of 6 rooftop units down &mdash; roughly $10,000 in revenue at risk.
+    <table>
+      <tr><th>Agreement tier</th><th>Annual cost</th><th>Years covered by 1 bad day</th></tr>
+      <tr><td>Minimum</td><td>$2,250/yr</td><td>~4.4 years</td></tr>
+      <tr><td>Core</td><td>$4,500/yr</td><td>~2.2 years</td></tr>
+    </table>
+    Alpine arrived in 90 minutes and had 4 of 6 units running within 2 hours &mdash; the doors stayed open and zero revenue was lost.
+    <div class="source">Source: Turtle Jack's case study, see Customer Stories below.</div>`
+  },
+  {
+    tag: "purple",
+    number: "29%",
+    label: "average energy reduction from a properly implemented building automation system",
+    full: `A 2017 study modeled 34 building control measures across 14 commercial building types nationally.
+    <table>
+      <tr><th>Building type</th><th>Avg. energy savings</th></tr>
+      <tr><td>All commercial buildings (avg.)</td><td>29%</td></tr>
+      <tr><td>Secondary schools &amp; standalone retail</td><td>40%+</td></tr>
+    </table>
+    <div class="eq">Annual Energy Savings ($) = Current Energy Spend &times; 0.29 (avg.)</div>
+    <div class="source">Source: N. Fernandez, S. Katipamula, W. Wang, Y. Xie, M. Zhao, "Impacts of Commercial Building Controls on Energy Savings and Peak Load Reduction," PNNL-25985, prepared for the U.S. Department of Energy, 2017.</div>`
+  },
+  {
+    tag: "teal",
+    number: "up to 66%",
+    label: "less than regional after-hours market rates when you're on a core agreement",
+    full: `Independent GTA/Niagara-area contractors typically bill $185&ndash;$245/hr for standard calls, and $285&ndash;$385/hr after-hours.
+    <table>
+      <tr><th></th><th>Standard</th><th>After-hours</th></tr>
+      <tr><td>Regional market</td><td>$185&ndash;$245/hr</td><td>$285&ndash;$385/hr</td></tr>
+      <tr><td>Alpine retail (no agreement)</td><td>$200/hr</td><td>$300/hr</td></tr>
+      <tr><td>Alpine minimum agreement</td><td>$150/hr</td><td>$225/hr</td></tr>
+      <tr><td>Alpine core/premium agreement</td><td>$130/hr</td><td>No after-hours rate change</td></tr>
+    </table>
+    <div class="eq">Savings % = (Market Rate &minus; Alpine Rate) \u00f7 Market Rate</div>
+    Core agreement customers pay a flat $130/hr regardless of when the call comes in &mdash; 30&ndash;47% below standard market rates, and up to 66% below regional after-hours rates.
+    <div class="source">Source: EcoFrost Heating, GTA commercial HVAC pricing guide, 2026.</div>`
+  },
+  {
+    tag: "purple",
+    number: "$12,500+",
+    label: "per hour in protected revenue from a single fast response, depending on facility size",
+    full: `<div class="eq">Value of Speed = Revenue-at-Risk per Hour &times; Hours of Downtime Avoided</div>
+    <table>
+      <tr><th>Facility type</th><th>Daily revenue exposure</th><th>&asymp; Hourly exposure</th></tr>
+      <tr><td>Small restaurant/retail</td><td>$5,000&ndash;$10,000</td><td>$625&ndash;$1,250/hr</td></tr>
+      <tr><td>Mid-size commercial</td><td>$15,000&ndash;$40,000</td><td>$1,875&ndash;$5,000/hr</td></tr>
+      <tr><td>Large-scale / critical facility</td><td>$50,000&ndash;$100,000+</td><td>$6,250&ndash;$12,500+/hr</td></tr>
+    </table>
+    Example: a facility with $5,000/hr exposure that gets Alpine's ~90-min response instead of a typical 4-hour industry response avoids ~2.5 hours of downtime &mdash; worth about $12,500 in protected revenue from speed alone.
+    <div class="eq">Value of Clarity = Facility Manager's Hourly Rate &times; Hours/Month Saved &times; 12</div>
+    <table>
+      <tr><th>Role level</th><th>Fully-loaded rate</th></tr>
+      <tr><td>Junior/assistant coordinator</td><td>~$30&ndash;40/hr</td></tr>
+      <tr><td>Mid-level facility/property manager</td><td>~$45&ndash;60/hr</td></tr>
+      <tr><td>Senior/portfolio manager</td><td>~$65&ndash;90/hr</td></tr>
+    </table>
+    Example: a mid-level manager at $50/hr who reclaims 2 hrs/month from not chasing status updates or invoices saves ~$1,200/yr &mdash; closer to $3,000+/yr for a senior manager at 3+ hrs/month.
+    <div class="source">Revenue and time figures are planning estimates for conversation use, not published third-party data &mdash; adjust to the prospect's actual numbers where known.</div>`
+  }
+];
+
+const statsContainer = document.getElementById('stats');
+
+stats.forEach((s) => {
+  const card = document.createElement('div');
+  card.className = 'stat-card';
+  card.innerHTML = `
+    <div class="stat-summary">
+      <div class="stat-tag ${s.tag}"></div>
+      <div class="stat-main">
+        <div class="stat-number">${s.number}</div>
+        <div class="stat-label">${s.label}</div>
+      </div>
+      <div class="stat-chevron">
+        <svg viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1L6 6L11 1" stroke="#555" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="stat-full">
+      <div class="stat-full-inner">${s.full}</div>
+    </div>
+  `;
+  statsContainer.appendChild(card);
+
+  const summary = card.querySelector('.stat-summary');
+  const full = card.querySelector('.stat-full');
+  const inner = card.querySelector('.stat-full-inner');
+
+  summary.addEventListener('click', () => {
+    const isOpen = card.classList.contains('open');
+    if (isOpen) {
+      full.style.maxHeight = null;
+      card.classList.remove('open');
+    } else {
+      card.classList.add('open');
+      full.style.maxHeight = inner.scrollHeight + 40 + 'px';
+    }
+  });
+});
+
 const caseStudies = [
   {
     tag: "teal",
