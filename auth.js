@@ -22,6 +22,7 @@ const AP_TOOLS = {
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },
   "sales-strategy":     { label: "Sales Strategy",                roles: ["sales"] },
+  "case-studies":       { label: "Case Studies",                  roles: ["sales"] },
   "lead-sheets":        { label: "Lead Sheets",                   roles: ["sales"] },
   "call-log":           { label: "Alpine Call Log / On-Call",     roles: ["ops"] },
 };
