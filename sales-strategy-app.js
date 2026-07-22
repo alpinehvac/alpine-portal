@@ -223,3 +223,12 @@ function ssDeleteBullet(si, bi) {
 }
 
 ssRender();
+
+// ── TAB SWITCHING (Playbook / Persuasion Equation) ──
+function ssShowTab(name, evt) {
+  document.querySelectorAll(".ss-tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".ss-tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("ss-panel-" + name).classList.add("active");
+  const btn = (evt && evt.currentTarget) || document.querySelector(`.ss-tab-btn[data-tab="${name}"]`);
+  if (btn) btn.classList.add("active");
+}
