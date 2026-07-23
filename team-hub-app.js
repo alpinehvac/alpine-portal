@@ -840,10 +840,11 @@ function bcTab(id) {
 
 /* ── QUESTIONS (BAS) ── */
 const BC_DEFAULT_Q1 = [
-  {text:'Tell me about yourself and how you got into building automation / controls work.', note:'Listen for genuine interest vs. it being an accident.'},
-  {text:'What BAS platforms have you worked with — Niagara, Distech, Automated Logic, KMC, Honeywell, etc.?', note:'Specificity is the signal. Vague answers mean limited real hands-on time.'},
-  {text:'Walk me through a system you commissioned or troubleshot from start to finish.', note:'Do they own the story, or is someone else clearly doing the real work?'},
-  {text:'What are you looking for in your next role?', note:'Growth and skill-building vs. just a paycheck.'},
+  {text:'Tell me about yourself and how you got into building automation / controls work.', note:'Listen for genuine interest vs. it being an accident. You\'re just listening for their story here, not evaluating technical content.'},
+  {text:'Walk me through a typical day or week in your current or most recent role — what does that actually look like?', note:'Specificity is the signal, not technical accuracy. A candidate who describes real, concrete work stands out from one who stays vague or generic.'},
+  {text:'Tell me about a project or job you\'re especially proud of. Walk me through it start to finish.', note:'Do they own the story and go deep, or is someone else clearly doing the real work? You\'re listening for ownership and detail, not whether the technical fix was "correct."'},
+  {text:'Tell me about a time something didn\'t go the way you expected on a job. What happened, and how did you handle it?', note:'Listen for accountability and a clear-headed process, not the specific technical solution — you don\'t need BAS knowledge to judge how someone reacts to a curveball.'},
+  {text:'What are you looking for in your next role, and what made you start looking?', note:'Growth and skill-building vs. just a paycheck or an unhappy exit — either is fine to hear, just listen for which it is.'},
   {text:'What questions do you have for me?', note:'Thoughtful questions indicate genuine interest. Silence is a flag.'}
 ];
 const BC_DEFAULT_Q2 = [
