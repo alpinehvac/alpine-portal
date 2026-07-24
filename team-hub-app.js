@@ -1,3 +1,30 @@
+// ── AI EVAL RESULT RENDERING (shared across Sales/Tech/BAS recruiting) ──
+// Used both right after a live evaluation and to redraw a previously-saved
+// evaluation when a candidate file is reopened (by anyone, on any device).
+function apRenderAIEvalHTML(result, acceptFnName) {
+  const traitsHtml = (result.traits || []).map(t => {
+    const checkClass = t.observed ? 'yes' : 'no';
+    const checkMark  = t.observed ? '✓' : '–';
+    return `<div class="sr-ai-trait-row">
+      <div class="sr-ai-trait-check ${checkClass}">${checkMark}</div>
+      <div>
+        <div class="sr-ai-trait-name">${t.val}</div>
+        <div class="sr-ai-trait-note">${t.rationale}</div>
+      </div>
+      <div></div>
+    </div>`;
+  }).join('');
+  const observedVals = (result.traits || []).filter(t => t.observed).map(t => t.val);
+  const count = observedVals.length;
+  return `
+    <div class="sr-ai-result-header">
+      <div class="sr-ai-result-title">✦ AI Evaluation — ${count} of 6 traits observed</div>
+      <button class="sr-ai-accept-btn" onclick="${acceptFnName}(${JSON.stringify(observedVals).replace(/"/g,'&quot;')})">Apply to Profile</button>
+    </div>
+    <div class="sr-ai-result-body">${traitsHtml}</div>
+    ${result.overall ? `<div class="sr-ai-overall">${result.overall}</div>` : ''}`;
+}
+
 // ── DATA MANAGER ──
 const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_bas_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_bc_q1','alpine_bc_q2','alpine_bc_q3','alpine_onboarding_v2'];
 
@@ -339,6 +366,18 @@ function srOpenFile(id) {
     const iv = interviews[i] || {};
     flds.forEach((fid, j) => { const el = document.getElementById(fid); if (el) el.value = iv[keys[j]] || ''; });
   });
+  [0,1,2].forEach(n => {
+    const resultEl = document.getElementById('sr-ai-result-'+n);
+    if (!resultEl) return;
+    const saved = (c.aiEvalResults||{})[n];
+    if (saved) {
+      resultEl.innerHTML = apRenderAIEvalHTML(saved, 'srAcceptAIEval');
+      resultEl.style.display = 'block';
+    } else {
+      resultEl.innerHTML = '';
+      resultEl.style.display = 'none';
+    }
+  });
   srSubtab(0);
   document.getElementById('sr-cand-list-view').style.display = 'none';
   document.getElementById('sr-cand-file-view').classList.add('open');
@@ -427,7 +466,7 @@ Respond ONLY with a valid JSON object. No markdown, no preamble, no backticks. F
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -436,31 +475,17 @@ Respond ONLY with a valid JSON object. No markdown, no preamble, no backticks. F
     const clean = text.replace(/```json|```/g,'').trim();
     const result = JSON.parse(clean);
 
-    // Render result panel
-    const traitsHtml = result.traits.map(t => {
-      const checkClass = t.observed ? 'yes' : 'no';
-      const checkMark  = t.observed ? '✓' : '–';
-      return `<div class="sr-ai-trait-row">
-        <div class="sr-ai-trait-check ${checkClass}">${checkMark}</div>
-        <div>
-          <div class="sr-ai-trait-name">${t.val}</div>
-          <div class="sr-ai-trait-note">${t.rationale}</div>
-        </div>
-        <div></div>
-      </div>`;
-    }).join('');
-
-    const observedVals = result.traits.filter(t=>t.observed).map(t=>t.val);
-    const count = observedVals.length;
-
-    resultEl.innerHTML = `
-      <div class="sr-ai-result-header">
-        <div class="sr-ai-result-title">✦ AI Evaluation — ${count} of 6 traits observed</div>
-        <button class="sr-ai-accept-btn" onclick="srAcceptAIEval(${JSON.stringify(observedVals).replace(/"/g,'&quot;')})">Apply to Profile</button>
-      </div>
-      <div class="sr-ai-result-body">${traitsHtml}</div>
-      ${result.overall ? `<div class="sr-ai-overall">${result.overall}</div>` : ''}`;
+    resultEl.innerHTML = apRenderAIEvalHTML(result, 'srAcceptAIEval');
     resultEl.style.display = 'block';
+
+    // Persist the full evaluation (rationale + overall), not just the trait
+    // checklist, so it syncs to Firestore and is visible to everyone —
+    // including on reload — not just whoever ran it in this browser.
+    if (c) {
+      c.aiEvalResults = c.aiEvalResults || {};
+      c.aiEvalResults[n] = { traits: result.traits, overall: result.overall || '', ranAt: Date.now() };
+      srSaveCands(srCands);
+    }
   } catch(e) {
     resultEl.innerHTML = `<div class="sr-ai-result-body" style="color:rgba(220,100,100,0.8);font-size:.8rem;padding:.75rem">Evaluation failed. Check your connection and try again. (${e.message})</div>`;
     resultEl.style.display = 'block';
@@ -673,6 +698,18 @@ function tcOpenFile(id) {
     const iv = interviews[i] || {};
     flds.forEach((fid, j) => { const el = document.getElementById(fid); if (el) el.value = iv[keys[j]] || ''; });
   });
+  [0,1,2].forEach(n => {
+    const resultEl = document.getElementById('tc-ai-result-'+n);
+    if (!resultEl) return;
+    const saved = (c.aiEvalResults||{})[n];
+    if (saved) {
+      resultEl.innerHTML = apRenderAIEvalHTML(saved, 'tcAcceptAIEval');
+      resultEl.style.display = 'block';
+    } else {
+      resultEl.innerHTML = '';
+      resultEl.style.display = 'none';
+    }
+  });
   tcSubtab(0);
   document.getElementById('tc-cand-list-view').style.display = 'none';
   document.getElementById('tc-cand-file-view').classList.add('open');
@@ -761,7 +798,7 @@ Respond ONLY with a valid JSON object. No markdown, no preamble, no backticks. F
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -770,30 +807,14 @@ Respond ONLY with a valid JSON object. No markdown, no preamble, no backticks. F
     const clean = text.replace(/```json|```/g,'').trim();
     const result = JSON.parse(clean);
 
-    const traitsHtml = result.traits.map(t => {
-      const checkClass = t.observed ? 'yes' : 'no';
-      const checkMark  = t.observed ? '✓' : '–';
-      return `<div class="sr-ai-trait-row">
-        <div class="sr-ai-trait-check ${checkClass}">${checkMark}</div>
-        <div>
-          <div class="sr-ai-trait-name">${t.val}</div>
-          <div class="sr-ai-trait-note">${t.rationale}</div>
-        </div>
-        <div></div>
-      </div>`;
-    }).join('');
-
-    const observedVals = result.traits.filter(t=>t.observed).map(t=>t.val);
-    const count = observedVals.length;
-
-    resultEl.innerHTML = `
-      <div class="sr-ai-result-header">
-        <div class="sr-ai-result-title">✦ AI Evaluation — ${count} of 6 traits observed</div>
-        <button class="sr-ai-accept-btn" onclick="tcAcceptAIEval(${JSON.stringify(observedVals).replace(/"/g,'&quot;')})">Apply to Profile</button>
-      </div>
-      <div class="sr-ai-result-body">${traitsHtml}</div>
-      ${result.overall ? `<div class="sr-ai-overall">${result.overall}</div>` : ''}`;
+    resultEl.innerHTML = apRenderAIEvalHTML(result, 'tcAcceptAIEval');
     resultEl.style.display = 'block';
+
+    if (c) {
+      c.aiEvalResults = c.aiEvalResults || {};
+      c.aiEvalResults[n] = { traits: result.traits, overall: result.overall || '', ranAt: Date.now() };
+      tcSaveCands(tcCands);
+    }
   } catch(e) {
     resultEl.innerHTML = `<div class="sr-ai-result-body" style="color:rgba(220,100,100,0.8);font-size:.8rem;padding:.75rem">Evaluation failed. Check your connection and try again. (${e.message})</div>`;
     resultEl.style.display = 'block';
@@ -1069,6 +1090,18 @@ function bcOpenFile(id) {
     const iv = interviews[i] || {};
     flds.forEach((fid, j) => { const el = document.getElementById(fid); if (el) el.value = iv[keys[j]] || ''; });
   });
+  [0,1,2].forEach(n => {
+    const resultEl = document.getElementById('bc-ai-result-'+n);
+    if (!resultEl) return;
+    const saved = (c.aiEvalResults||{})[n];
+    if (saved) {
+      resultEl.innerHTML = apRenderAIEvalHTML(saved, 'bcAcceptAIEval');
+      resultEl.style.display = 'block';
+    } else {
+      resultEl.innerHTML = '';
+      resultEl.style.display = 'none';
+    }
+  });
   bcSubtab(0);
   document.getElementById('bc-cand-list-view').style.display = 'none';
   document.getElementById('bc-cand-file-view').classList.add('open');
@@ -1157,7 +1190,7 @@ Respond ONLY with a valid JSON object. No markdown, no preamble, no backticks. F
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -1166,30 +1199,14 @@ Respond ONLY with a valid JSON object. No markdown, no preamble, no backticks. F
     const clean = text.replace(/```json|```/g,'').trim();
     const result = JSON.parse(clean);
 
-    const traitsHtml = result.traits.map(t => {
-      const checkClass = t.observed ? 'yes' : 'no';
-      const checkMark  = t.observed ? '✓' : '–';
-      return `<div class="sr-ai-trait-row">
-        <div class="sr-ai-trait-check ${checkClass}">${checkMark}</div>
-        <div>
-          <div class="sr-ai-trait-name">${t.val}</div>
-          <div class="sr-ai-trait-note">${t.rationale}</div>
-        </div>
-        <div></div>
-      </div>`;
-    }).join('');
-
-    const observedVals = result.traits.filter(t=>t.observed).map(t=>t.val);
-    const count = observedVals.length;
-
-    resultEl.innerHTML = `
-      <div class="sr-ai-result-header">
-        <div class="sr-ai-result-title">✦ AI Evaluation — ${count} of 6 traits observed</div>
-        <button class="sr-ai-accept-btn" onclick="bcAcceptAIEval(${JSON.stringify(observedVals).replace(/"/g,'&quot;')})">Apply to Profile</button>
-      </div>
-      <div class="sr-ai-result-body">${traitsHtml}</div>
-      ${result.overall ? `<div class="sr-ai-overall">${result.overall}</div>` : ''}`;
+    resultEl.innerHTML = apRenderAIEvalHTML(result, 'bcAcceptAIEval');
     resultEl.style.display = 'block';
+
+    if (c) {
+      c.aiEvalResults = c.aiEvalResults || {};
+      c.aiEvalResults[n] = { traits: result.traits, overall: result.overall || '', ranAt: Date.now() };
+      bcSaveCands(bcCands);
+    }
   } catch(e) {
     resultEl.innerHTML = `<div class="sr-ai-result-body" style="color:rgba(220,100,100,0.8);font-size:.8rem;padding:.75rem">Evaluation failed. Check your connection and try again. (${e.message})</div>`;
     resultEl.style.display = 'block';
