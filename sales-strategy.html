@@ -183,6 +183,67 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
   .ve-terms{grid-template-columns:1fr}
   .ve-numerator,.ve-denominator{font-size:1rem}
 }
+
+/* ── RATE SHEET ── */
+.rs-head{text-align:center;margin-bottom:2rem}
+.rs-head h2{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.rs-head p{font-size:.85rem;color:rgba(255,255,255,0.5);margin-top:.5rem;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.7}
+
+.rs-subhead{font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);margin:2rem 0 .9rem}
+.rs-subhead:first-of-type{margin-top:0}
+
+.rs-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.5rem}
+.rs-card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem 1.75rem;display:flex;flex-direction:column;gap:.4rem}
+.rs-card.highlight{border-color:rgba(28,107,110,0.5);background:rgba(28,107,110,0.08)}
+.rs-card.funnel{border-color:rgba(155,142,196,0.35);background:rgba(155,142,196,0.06)}
+.rs-card-label{font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--teal-light)}
+.rs-card.funnel .rs-card-label{color:var(--purple-light)}
+.rs-card-price{font-family:'Oswald',sans-serif;font-size:1.65rem;font-weight:700;color:var(--white);line-height:1.1}
+.rs-card-price span{font-size:.85rem;font-weight:500;color:rgba(255,255,255,0.45);text-transform:none;letter-spacing:0}
+.rs-card-sub{font-size:.8rem;color:rgba(255,255,255,0.55);line-height:1.55}
+.rs-savings{align-self:flex-start;font-family:'Oswald',sans-serif;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--teal-light);background:rgba(28,107,110,0.15);border-radius:999px;padding:.32rem .75rem;margin-top:.2rem}
+
+.rs-theory{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.75rem 2rem;margin-top:2rem}
+.rs-theory h3{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--white);margin-bottom:.9rem}
+.rs-theory p{font-size:.875rem;line-height:1.75;color:rgba(255,255,255,0.7);margin-bottom:.85rem}
+.rs-theory p:last-child{margin-bottom:0}
+.rs-theory b{color:var(--white);font-weight:600}
+
+.rs-funnel-steps{display:flex;align-items:center;gap:.6rem;margin:1.1rem 0;flex-wrap:wrap}
+.rs-funnel-step{font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,0.8);background:var(--charcoal);border:1px solid var(--border);border-radius:999px;padding:.5rem 1rem}
+.rs-funnel-arrow{color:var(--teal-light);font-size:.9rem;flex-shrink:0}
+
+@media (max-width:680px){
+  .rs-grid{grid-template-columns:1fr}
+}
+
+/* ── REPORT / PORTAL EXAMPLES ── */
+.rp-head{text-align:center;margin-bottom:2rem}
+.rp-head h2{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.rp-head p{font-size:.85rem;color:rgba(255,255,255,0.5);margin-top:.5rem;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.7}
+
+.rp-section{margin-bottom:2.5rem}
+.rp-section:last-child{margin-bottom:0}
+.rp-section-head{margin-bottom:1rem}
+.rp-section-head h3{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--white)}
+.rp-section-head p{font-size:.82rem;color:rgba(255,255,255,0.5);margin-top:.3rem;line-height:1.6}
+
+.rp-gallery{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.rp-shot{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.rp-shot img{width:100%;display:block;cursor:zoom-in}
+.rp-shot-cap{padding:.7rem 1rem;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,0.55);border-top:1px solid var(--border)}
+
+.rp-full{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.rp-full img{width:100%;display:block;cursor:zoom-in}
+.rp-full .rp-shot-cap{border-top:1px solid var(--border)}
+
+.rp-lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:2rem;cursor:zoom-out}
+.rp-lightbox.show{display:flex}
+.rp-lightbox img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+
+@media (max-width:680px){
+  .rp-gallery{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -212,6 +273,8 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
     <button class="ss-tab-btn" data-tab="persuasion" onclick="ssShowTab('persuasion', event)">Persuasion Equation</button>
     <button class="ss-tab-btn" data-tab="closer" onclick="ssShowTab('closer', event)">Closer Framework</button>
     <button class="ss-tab-btn" data-tab="value" onclick="ssShowTab('value', event)">Value Equation</button>
+    <button class="ss-tab-btn" data-tab="rates" onclick="ssShowTab('rates', event)">Rate Sheet</button>
+    <button class="ss-tab-btn" data-tab="reports" onclick="ssShowTab('reports', event)">Report / Portal Examples</button>
   </div>
 
   <div class="ss-tab-panel active" id="ss-panel-playbook">
@@ -410,6 +473,115 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
       </div>
     </div>
   </div>
+
+  <div class="ss-tab-panel" id="ss-panel-rates">
+    <div class="rs-head">
+      <h2>Rate Sheet</h2>
+      <p>Our pricing is built to make the service agreement the obviously better deal — every non-contract rate exists to make the contract rate look like relief, not a sales pitch.</p>
+    </div>
+
+    <div class="rs-subhead">Hourly Rates</div>
+    <div class="rs-grid">
+      <div class="rs-card">
+        <div class="rs-card-label">Non-Contract Rate</div>
+        <div class="rs-card-price">$200<span>/hour</span></div>
+        <div class="rs-card-sub">7:00am – 5:00pm. No agreement in place.</div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-card-label">Non-Contract After-Hours Rate</div>
+        <div class="rs-card-price">$300<span>/hour + HST</span></div>
+        <div class="rs-card-sub">5:00pm – 7:00am. No agreement in place.</div>
+      </div>
+      <div class="rs-card highlight">
+        <div class="rs-card-label">Contract Service Rate (Minimum Package)</div>
+        <div class="rs-card-price">$150<span>/hour + HST</span></div>
+        <div class="rs-card-sub">Applies to work outside the Minimum package's covered scope.</div>
+        <span class="rs-savings">25% below non-contract day rate</span>
+      </div>
+      <div class="rs-card highlight">
+        <div class="rs-card-label">Core / Premium Service Rate</div>
+        <div class="rs-card-price">$100<span>/hour</span></div>
+        <div class="rs-card-sub">No additional hours charged — emergency service hours are included in the package. This figure is a comparable number only, set against what a non-contract call at that same hour would otherwise cost.</div>
+        <span class="rs-savings">~50–67% below non-contract rates</span>
+      </div>
+    </div>
+    <p class="rs-card-sub" style="margin:.75rem 0 0;">Savings note: Core/Premium's $100/hr comparable is ~50% below the $200/hr non-contract day rate, and ~67% below the $300/hr non-contract after-hours rate — since emergency hours carry no upcharge under the package.</p>
+
+    <div class="rs-subhead">Funnel Offers (Non-Contract Entry Points)</div>
+    <div class="rs-grid">
+      <div class="rs-card funnel">
+        <div class="rs-card-label">Building Assessment + Consultation</div>
+        <div class="rs-card-price">$299<span>+ HST</span></div>
+        <div class="rs-card-sub">Low-commitment entry point for prospects not ready for a service call. Positions Alpine and opens the door to a service agreement conversation.</div>
+      </div>
+      <div class="rs-card funnel">
+        <div class="rs-card-label">First-Response Flat Rate</div>
+        <div class="rs-card-price">$599<span>+ HST</span></div>
+        <div class="rs-card-sub">One-time offer for a new customer's first service call. After the visit, the customer is offered a service agreement.</div>
+      </div>
+    </div>
+
+    <div class="rs-theory">
+      <h3>Why It's Structured This Way</h3>
+      <p>Our business model is built around incentivizing customers to commit to long-term service agreements. Predictable, scheduled visits let Alpine operate more efficiently — and that efficiency is what allows us to pass lower effective rates back to agreement customers instead of pricing every visit at a reactive, one-off rate.</p>
+      <p>The <b>Building Assessment + Consultation</b> and <b>First-Response Flat Rate</b> are both funnel offers, not standalone products. Each is meant to point down the funnel toward a signed service agreement:</p>
+      <div class="rs-funnel-steps">
+        <span class="rs-funnel-step">Assessment / First-Response</span>
+        <span class="rs-funnel-arrow">&rarr;</span>
+        <span class="rs-funnel-step">Service Agreement Offered</span>
+        <span class="rs-funnel-arrow">&rarr;</span>
+        <span class="rs-funnel-step">Signed &amp; Prioritized</span>
+      </div>
+      <p>If a customer declines the service agreement after a First-Response visit, non-contract rates apply to any future calls, and those calls are <b>not</b> placed in priority sequence. This keeps the incentive structure intact — the agreement is the only path to both lower rates and priority scheduling.</p>
+    </div>
+  </div>
+
+  <div class="ss-tab-panel" id="ss-panel-reports">
+    <div class="rp-head">
+      <h2>Report / Portal Examples</h2>
+      <p>Show these on the call — customers buy the visibility as much as the maintenance itself. Click any image to view it full-size.</p>
+    </div>
+
+    <div class="rp-section">
+      <div class="rp-section-head">
+        <h3>Customer Portal Example</h3>
+        <p>What a signed customer sees when they log in — every job, asset, and maintenance visit in one place.</p>
+      </div>
+      <div class="rp-gallery">
+        <div class="rp-shot">
+          <img src="images/portal-login.png" alt="Customer portal login screen" onclick="rpOpenLightbox(this.src)">
+          <div class="rp-shot-cap">Login</div>
+        </div>
+        <div class="rp-shot">
+          <img src="images/portal-dashboard.png" alt="Customer portal dashboard" onclick="rpOpenLightbox(this.src)">
+          <div class="rp-shot-cap">Dashboard</div>
+        </div>
+        <div class="rp-shot">
+          <img src="images/portal-maintenance.png" alt="Customer portal maintenance tab" onclick="rpOpenLightbox(this.src)">
+          <div class="rp-shot-cap">Maintenance</div>
+        </div>
+        <div class="rp-shot">
+          <img src="images/portal-assets.png" alt="Customer portal properties and assets tab" onclick="rpOpenLightbox(this.src)">
+          <div class="rp-shot-cap">Properties &amp; Assets</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rp-section">
+      <div class="rp-section-head">
+        <h3>CLEAR Report Example</h3>
+        <p>Sample CLEAR report output — asset-by-asset condition, expected remaining life, and technician notes, color-coded by status.</p>
+      </div>
+      <div class="rp-full">
+        <img src="images/clear-report-example.png" alt="CLEAR report example" onclick="rpOpenLightbox(this.src)">
+        <div class="rp-shot-cap">Berg Equipment — CLEAR Report</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rp-lightbox" id="rp-lightbox" onclick="rpCloseLightbox()">
+  <img id="rp-lightbox-img" src="" alt="">
 </div>
 
 <div class="saved-flag" id="ss-saved-flag">Saved</div>
@@ -419,6 +591,14 @@ window.AP_SYNC_COLLECTION = "sales_strategy_data";
 window.AP_APP_SCRIPT = "sales-strategy-app.js";
 const __session = apGetSession();
 document.getElementById("nav-user-name").textContent = __session ? __session.name : "";
+
+function rpOpenLightbox(src) {
+  document.getElementById("rp-lightbox-img").src = src;
+  document.getElementById("rp-lightbox").classList.add("show");
+}
+function rpCloseLightbox() {
+  document.getElementById("rp-lightbox").classList.remove("show");
+}
 </script>
 <script type="module" src="cloud-sync.js"></script>
 </body>
