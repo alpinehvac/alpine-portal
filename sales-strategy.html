@@ -216,34 +216,6 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 @media (max-width:680px){
   .rs-grid{grid-template-columns:1fr}
 }
-
-/* ── REPORT / PORTAL EXAMPLES ── */
-.rp-head{text-align:center;margin-bottom:2rem}
-.rp-head h2{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
-.rp-head p{font-size:.85rem;color:rgba(255,255,255,0.5);margin-top:.5rem;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.7}
-
-.rp-section{margin-bottom:2.5rem}
-.rp-section:last-child{margin-bottom:0}
-.rp-section-head{margin-bottom:1rem}
-.rp-section-head h3{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--white)}
-.rp-section-head p{font-size:.82rem;color:rgba(255,255,255,0.5);margin-top:.3rem;line-height:1.6}
-
-.rp-gallery{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.rp-shot{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
-.rp-shot img{width:100%;display:block;cursor:zoom-in}
-.rp-shot-cap{padding:.7rem 1rem;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,0.55);border-top:1px solid var(--border)}
-
-.rp-full{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
-.rp-full img{width:100%;display:block;cursor:zoom-in}
-.rp-full .rp-shot-cap{border-top:1px solid var(--border)}
-
-.rp-lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:2rem;cursor:zoom-out}
-.rp-lightbox.show{display:flex}
-.rp-lightbox img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-
-@media (max-width:680px){
-  .rp-gallery{grid-template-columns:1fr}
-}
 </style>
 </head>
 <body>
@@ -274,7 +246,6 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
     <button class="ss-tab-btn" data-tab="closer" onclick="ssShowTab('closer', event)">Closer Framework</button>
     <button class="ss-tab-btn" data-tab="value" onclick="ssShowTab('value', event)">Value Equation</button>
     <button class="ss-tab-btn" data-tab="rates" onclick="ssShowTab('rates', event)">Rate Sheet</button>
-    <button class="ss-tab-btn" data-tab="reports" onclick="ssShowTab('reports', event)">Report / Portal Examples</button>
   </div>
 
   <div class="ss-tab-panel active" id="ss-panel-playbook">
@@ -535,53 +506,6 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
       <p>If a customer declines the service agreement after a First-Response visit, non-contract rates apply to any future calls, and those calls are <b>not</b> placed in priority sequence. This keeps the incentive structure intact — the agreement is the only path to both lower rates and priority scheduling.</p>
     </div>
   </div>
-
-  <div class="ss-tab-panel" id="ss-panel-reports">
-    <div class="rp-head">
-      <h2>Report / Portal Examples</h2>
-      <p>Show these on the call — customers buy the visibility as much as the maintenance itself. Click any image to view it full-size.</p>
-    </div>
-
-    <div class="rp-section">
-      <div class="rp-section-head">
-        <h3>Customer Portal Example</h3>
-        <p>What a signed customer sees when they log in — every job, asset, and maintenance visit in one place.</p>
-      </div>
-      <div class="rp-gallery">
-        <div class="rp-shot">
-          <img src="images/portal-login.png" alt="Customer portal login screen" onclick="rpOpenLightbox(this.src)">
-          <div class="rp-shot-cap">Login</div>
-        </div>
-        <div class="rp-shot">
-          <img src="images/portal-dashboard.png" alt="Customer portal dashboard" onclick="rpOpenLightbox(this.src)">
-          <div class="rp-shot-cap">Dashboard</div>
-        </div>
-        <div class="rp-shot">
-          <img src="images/portal-maintenance.png" alt="Customer portal maintenance tab" onclick="rpOpenLightbox(this.src)">
-          <div class="rp-shot-cap">Maintenance</div>
-        </div>
-        <div class="rp-shot">
-          <img src="images/portal-assets.png" alt="Customer portal properties and assets tab" onclick="rpOpenLightbox(this.src)">
-          <div class="rp-shot-cap">Properties &amp; Assets</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="rp-section">
-      <div class="rp-section-head">
-        <h3>CLEAR Report Example</h3>
-        <p>Sample CLEAR report output — asset-by-asset condition, expected remaining life, and technician notes, color-coded by status.</p>
-      </div>
-      <div class="rp-full">
-        <img src="images/clear-report-example.png" alt="CLEAR report example" onclick="rpOpenLightbox(this.src)">
-        <div class="rp-shot-cap">Berg Equipment — CLEAR Report</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="rp-lightbox" id="rp-lightbox" onclick="rpCloseLightbox()">
-  <img id="rp-lightbox-img" src="" alt="">
 </div>
 
 <div class="saved-flag" id="ss-saved-flag">Saved</div>
@@ -591,14 +515,6 @@ window.AP_SYNC_COLLECTION = "sales_strategy_data";
 window.AP_APP_SCRIPT = "sales-strategy-app.js";
 const __session = apGetSession();
 document.getElementById("nav-user-name").textContent = __session ? __session.name : "";
-
-function rpOpenLightbox(src) {
-  document.getElementById("rp-lightbox-img").src = src;
-  document.getElementById("rp-lightbox").classList.add("show");
-}
-function rpCloseLightbox() {
-  document.getElementById("rp-lightbox").classList.remove("show");
-}
 </script>
 <script type="module" src="cloud-sync.js"></script>
 </body>

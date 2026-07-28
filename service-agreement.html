@@ -643,6 +643,58 @@
     margin-bottom:3px;
   }
 
+  /* ── Report / Portal examples ──────────────────────────────────────── */
+  .rp-desc{
+    font-family:'Inter', sans-serif;
+    font-size:12.5px;
+    color:var(--stone);
+    line-height:1.6;
+    margin:-8px 0 16px;
+  }
+  .rp-gallery{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  @media(max-width:680px){ .rp-gallery{ grid-template-columns:1fr; } }
+  .rp-shot{
+    background:#fff;
+    border:1px solid var(--mist);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 2px 8px rgba(28,45,63,0.06);
+  }
+  .rp-shot img{ width:100%; display:block; cursor:zoom-in; }
+  .rp-shot-cap{
+    padding:8px 12px;
+    font-family:'Oswald', sans-serif;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.4px;
+    text-transform:uppercase;
+    color:var(--stone);
+    border-top:1px solid var(--mist);
+  }
+  .rp-full{
+    background:#fff;
+    border:1px solid var(--mist);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 2px 8px rgba(28,45,63,0.06);
+  }
+  .rp-full img{ width:100%; display:block; cursor:zoom-in; }
+  .rp-lightbox{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(10,30,35,0.85);
+    z-index:1000;
+    align-items:center; justify-content:center;
+    padding:24px;
+    cursor:zoom-out;
+  }
+  .rp-lightbox.show{ display:flex; }
+  .rp-lightbox img{ max-width:100%; max-height:100%; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+
   /* ── Feature comparison rows ───────────────────────────────────────── */
   .tier-features li{ color:var(--slate-mid); }
   .tier-features li.feat-yes{ font-weight:700; }
@@ -761,8 +813,9 @@
 </div>
 
 <div class="section-tabs">
-  <button class="tab-btn active" id="tabEstimator" type="button">Estimator</button>
+  <button class="tab-btn active" id="tabEstimator" type="button">Service Agreement Calculator</button>
   <button class="tab-btn rep-only" id="tabCheatSheet" type="button">Equipment Guide</button>
+  <button class="tab-btn rep-only" id="tabReports" type="button">Report / Portal Examples</button>
 </div>
 
 <div id="estimatorView">
@@ -1063,6 +1116,44 @@
     </div>
     <iframe src="equipment-guide.pdf" title="Equipment Identification Guide" style="width:100%; height:82vh; border:1px solid var(--mist); border-radius:8px; background:#fff;"></iframe>
   </div>
+</div>
+
+<div id="reportsView" style="display:none">
+  <div class="panel">
+    <h2>Customer Portal Example</h2>
+    <p class="rp-desc">What a signed customer sees when they log in — every job, asset, and maintenance visit in one place. Click any image to view it full-size.</p>
+    <div class="rp-gallery">
+      <div class="rp-shot">
+        <img src="images/portal-login.png" alt="Customer portal login screen" onclick="rpOpenLightbox(this.src)">
+        <div class="rp-shot-cap">Login</div>
+      </div>
+      <div class="rp-shot">
+        <img src="images/portal-dashboard.png" alt="Customer portal dashboard" onclick="rpOpenLightbox(this.src)">
+        <div class="rp-shot-cap">Dashboard</div>
+      </div>
+      <div class="rp-shot">
+        <img src="images/portal-maintenance.png" alt="Customer portal maintenance tab" onclick="rpOpenLightbox(this.src)">
+        <div class="rp-shot-cap">Maintenance</div>
+      </div>
+      <div class="rp-shot">
+        <img src="images/portal-assets.png" alt="Customer portal properties and assets tab" onclick="rpOpenLightbox(this.src)">
+        <div class="rp-shot-cap">Properties &amp; Assets</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>CLEAR Report Example</h2>
+    <p class="rp-desc">Sample CLEAR report output — asset-by-asset condition, expected remaining life, and technician notes, color-coded by status.</p>
+    <div class="rp-full">
+      <img src="images/clear-report-example.png" alt="CLEAR report example" onclick="rpOpenLightbox(this.src)">
+      <div class="rp-shot-cap">Berg Equipment — CLEAR Report</div>
+    </div>
+  </div>
+</div>
+
+<div class="rp-lightbox" id="rp-lightbox" onclick="rpCloseLightbox()">
+  <img id="rp-lightbox-img" src="" alt="">
 </div>
 
 </div>

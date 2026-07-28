@@ -305,22 +305,24 @@
 
   const tabEstimator = document.getElementById('tabEstimator');
   const tabCheatSheet = document.getElementById('tabCheatSheet');
+  const tabReports = document.getElementById('tabReports');
   const estimatorPanelEl = document.getElementById('estimatorPanel');
   const cheatSheetViewEl = document.getElementById('cheatSheetView');
+  const reportsViewEl = document.getElementById('reportsView');
 
-  tabEstimator.addEventListener('click', function(){
-    tabEstimator.classList.add('active');
-    tabCheatSheet.classList.remove('active');
-    estimatorPanelEl.querySelector('#estimatorView').style.display = 'block';
-    cheatSheetViewEl.style.display = 'none';
-  });
-  tabCheatSheet.addEventListener('click', function(){
-    if(document.body.classList.contains('customer-mode')) return;
-    tabCheatSheet.classList.add('active');
-    tabEstimator.classList.remove('active');
-    estimatorPanelEl.querySelector('#estimatorView').style.display = 'none';
-    cheatSheetViewEl.style.display = 'block';
-  });
+  function saShowTab(which){
+    if(document.body.classList.contains('customer-mode') && which !== 'estimator') return;
+    tabEstimator.classList.toggle('active', which === 'estimator');
+    tabCheatSheet.classList.toggle('active', which === 'cheatsheet');
+    tabReports.classList.toggle('active', which === 'reports');
+    estimatorPanelEl.querySelector('#estimatorView').style.display = which === 'estimator' ? 'block' : 'none';
+    cheatSheetViewEl.style.display = which === 'cheatsheet' ? 'block' : 'none';
+    reportsViewEl.style.display = which === 'reports' ? 'block' : 'none';
+  }
+
+  tabEstimator.addEventListener('click', function(){ saShowTab('estimator'); });
+  tabCheatSheet.addEventListener('click', function(){ saShowTab('cheatsheet'); });
+  tabReports.addEventListener('click', function(){ saShowTab('reports'); });
 
   render();
 
@@ -685,4 +687,12 @@ function saOpenModal(){
 }
 function saCloseModal(){
   document.getElementById('saModal').style.display = 'none';
+}
+
+function rpOpenLightbox(src){
+  document.getElementById('rp-lightbox-img').src = src;
+  document.getElementById('rp-lightbox').classList.add('show');
+}
+function rpCloseLightbox(){
+  document.getElementById('rp-lightbox').classList.remove('show');
 }
