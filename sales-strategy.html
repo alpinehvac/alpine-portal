@@ -216,6 +216,46 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 @media (max-width:680px){
   .rs-grid{grid-template-columns:1fr}
 }
+
+/* ── LEAD FLOW (Service Call → Close) ── */
+.lf-head{text-align:center;margin-bottom:2rem}
+.lf-head h2{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.lf-head p{font-size:.85rem;color:rgba(255,255,255,0.5);margin-top:.5rem;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.7}
+
+.lf-flag{display:inline-flex;align-items:center;gap:8px;font-family:'Oswald',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-light);background:rgba(28,107,110,0.1);border:1px solid rgba(28,107,110,0.35);border-radius:999px;padding:.45rem .9rem;margin:0 auto 2rem;display:flex;width:fit-content}
+.lf-flag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal-light)}
+
+.lf-track{position:relative;display:flex;flex-direction:column;gap:0}
+.lf-node{position:relative;display:flex;gap:1.25rem;padding-bottom:1.75rem}
+.lf-node:last-child{padding-bottom:0}
+.lf-rail{position:relative;display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:42px}
+.lf-dot{width:42px;height:42px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:1.05rem;flex-shrink:0;z-index:2}
+.lf-node.sub .lf-dot{background:var(--charcoal);border:1px solid var(--teal);color:var(--teal-light);width:34px;height:34px;font-size:.85rem}
+.lf-node.handoff .lf-dot{background:var(--purple)}
+.lf-line{flex:1;width:2px;background:linear-gradient(var(--teal),rgba(28,107,110,0.25));margin-top:4px;min-height:12px}
+.lf-node:last-child .lf-line{display:none}
+.lf-node.sub .lf-line{background:rgba(28,107,110,0.25)}
+
+.lf-card{flex:1;background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.35rem;margin-top:2px}
+.lf-node.sub .lf-card{background:transparent;border:1px dashed rgba(28,107,110,0.3);padding:.75rem 1.1rem}
+.lf-node.handoff .lf-card{border-color:rgba(155,142,196,0.4);background:rgba(155,142,196,0.06)}
+.lf-card-title{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;letter-spacing:.02em;color:var(--white);margin-bottom:.4rem}
+.lf-node.sub .lf-card-title{font-size:.82rem;color:var(--teal-light)}
+.lf-card-body{font-size:.85rem;line-height:1.65;color:rgba(255,255,255,0.7)}
+.lf-card-body b{color:var(--white);font-weight:600}
+.lf-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
+.lf-tag{font-family:'Oswald',sans-serif;font-size:.65rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,0.6);background:var(--charcoal);border:1px solid var(--border);border-radius:999px;padding:.3rem .7rem}
+
+.lf-sub-group{margin-left:0;margin-top:.85rem;padding-left:0;display:flex;flex-direction:column;border-left:2px solid rgba(28,107,110,0.25);margin-left:21px;padding-left:1.25rem}
+.lf-sub-group .lf-node{padding-bottom:1rem}
+
+.lf-callout{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem 1.75rem;margin-top:2rem}
+.lf-callout h3{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--white);margin-bottom:.75rem}
+.lf-callout p{font-size:.875rem;line-height:1.75;color:rgba(255,255,255,0.7)}
+
+@media (max-width:600px){
+  .lf-sub-group{margin-left:12px;padding-left:.9rem}
+}
 </style>
 </head>
 <body>
@@ -246,6 +286,7 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
     <button class="ss-tab-btn" data-tab="closer" onclick="ssShowTab('closer', event)">Closer Framework</button>
     <button class="ss-tab-btn" data-tab="value" onclick="ssShowTab('value', event)">Value Equation</button>
     <button class="ss-tab-btn" data-tab="rates" onclick="ssShowTab('rates', event)">Rate Sheet</button>
+    <button class="ss-tab-btn" data-tab="leadflow" onclick="ssShowTab('leadflow', event)">Service Request Lead Flow</button>
   </div>
 
   <div class="ss-tab-panel active" id="ss-panel-playbook">
@@ -504,6 +545,83 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
         <span class="rs-funnel-step">Signed &amp; Prioritized</span>
       </div>
       <p>If a customer declines the service agreement after a First-Response visit, non-contract rates apply to any future calls, and those calls are <b>not</b> placed in priority sequence. This keeps the incentive structure intact — the agreement is the only path to both lower rates and priority scheduling.</p>
+    </div>
+  </div>
+
+  <div class="ss-tab-panel" id="ss-panel-leadflow">
+    <div class="lf-head">
+      <h2>Service Request Lead Flow</h2>
+      <p>Confirmed Jul 2026 (Jake &amp; Mike) for leads that start as an inbound service call rather than a scheduled sales conversation. Early feedback from the marketplace on this flow has been positive.</p>
+    </div>
+    <div class="lf-flag">Cold Contact &rarr; Signed Service Agreement</div>
+
+    <div class="lf-track">
+
+      <div class="lf-node">
+        <div class="lf-rail"><div class="lf-dot">1</div><div class="lf-line"></div></div>
+        <div class="lf-card">
+          <div class="lf-card-title">Prospect Calls Requesting Service</div>
+          <div class="lf-card-body">A new contact reaches out cold, requesting a service call — not yet a sales conversation.</div>
+        </div>
+      </div>
+
+      <div class="lf-node">
+        <div class="lf-rail"><div class="lf-dot">2</div><div class="lf-line"></div></div>
+        <div class="lf-card">
+          <div class="lf-card-title">Jake Qualifies &amp; Confirms</div>
+          <div class="lf-card-body">Gathers all customer contact info, confirms they're the <b>decision maker</b>, and pre-qualifies the site and scope of work. Forwards to <b>Grace</b> to create the job &amp; visit in BuildOps. Confirms with the customer that it's a <b>$599 diag + service fee</b> covering everything except parts. If the customer agrees, a recap email with all gathered info goes out to <b>Grace, Mike, and Nat</b>.</div>
+          <div class="lf-tags">
+            <span class="lf-tag">BuildOps Job Created</span>
+            <span class="lf-tag">$599 Diag + Service</span>
+            <span class="lf-tag">Recap Email → Grace / Mike / Nat</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="lf-node">
+        <div class="lf-rail"><div class="lf-dot">3</div><div class="lf-line"></div></div>
+        <div class="lf-card">
+          <div class="lf-card-title">Jake Checks Mike's Availability</div>
+          <div class="lf-card-body">In a perfect world, <b>Mike attends the same day</b> — the fastest response leaves the strongest first impression.</div>
+        </div>
+      </div>
+
+      <div class="lf-node">
+        <div class="lf-rail"><div class="lf-dot">4</div><div class="lf-line"></div></div>
+        <div class="lf-card">
+          <div class="lf-card-title">Mike Goes to Site</div>
+          <div class="lf-card-body">One visit, three jobs to get done while he's there.</div>
+
+          <div class="lf-sub-group">
+            <div class="lf-node sub">
+              <div class="lf-rail"><div class="lf-dot">a</div><div class="lf-line"></div></div>
+              <div class="lf-card"><div class="lf-card-title">Knocks Their Socks Off</div><div class="lf-card-body">First impression sets the tone for everything that follows.</div></div>
+            </div>
+            <div class="lf-node sub">
+              <div class="lf-rail"><div class="lf-dot">b</div><div class="lf-line"></div></div>
+              <div class="lf-card"><div class="lf-card-title">Gathers Site Equipment</div><div class="lf-card-body">Catalogs all equipment on site where possible, for the service agreement and future reference.</div></div>
+            </div>
+            <div class="lf-node sub">
+              <div class="lf-rail"><div class="lf-dot">c</div></div>
+              <div class="lf-card"><div class="lf-card-title">Drafts the Service Agreement</div><div class="lf-card-body">Builds and saves the draft SA in the calculator.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lf-node handoff">
+        <div class="lf-rail"><div class="lf-dot">5</div></div>
+        <div class="lf-card">
+          <div class="lf-card-title">Handed Off to Natalie</div>
+          <div class="lf-card-body">Nat uses the <b>$599 invoice as leverage</b> to close the service agreement.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="lf-callout">
+      <h3>Why This Matters</h3>
+      <p>This gives us a repeatable motion for the leads that don't come in through the usual sales channel — a cold service call becomes a qualified, same-day site visit, and the diag fee itself becomes the closing lever instead of a sunk cost. Flag anything with Jake if a step needs tweaking as we run more of these.</p>
     </div>
   </div>
 </div>
