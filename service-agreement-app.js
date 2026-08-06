@@ -288,7 +288,7 @@
         ? `<img src="${meta.photo}" alt="${escapeHtml(name)}" loading="lazy" style="width:100%;height:100%;object-fit:contain;border-radius:50%;" onerror="this.parentElement.innerHTML=${JSON.stringify(iconMarkup)};">`
         : iconMarkup;
       const criticalBlock = meta.critical
-        ? `<div class="cheat-critical"><span class="cheat-critical-label">Critical components (excluded from Minimum/Core):</span> ${escapeHtml(meta.critical)}</div>`
+        ? `<div class="cheat-critical"><span class="cheat-critical-label">Critical components (excluded from Base/Core):</span> ${escapeHtml(meta.critical)}</div>`
         : '';
       html += `
         <div class="cheat-card">
@@ -362,7 +362,7 @@
         <li><strong>Preventative Maintenance:</strong> Client agrees to allow scheduled maintenance visits at the agreed frequency. Missed or delayed visits due to restricted access or client scheduling may impact performance outcomes and coverage guarantees.</li>
         <li><strong>Emergency &amp; After-Hours Service:</strong> 24/7 on-call service is included; response times are target-based, not guaranteed, and calls outside normal business hours may be prioritized based on severity and system impact.</li>
         <li><strong>Building Automation Systems:</strong> Where BAS monitoring or operation is included, system access, network connectivity, and permissions must be provided by the client. Alpine is not responsible for failures caused by IT/network outages, third-party software issues, or manufacturer limitations.</li>
-        <li><strong>Consumables &amp; Materials:</strong> Minimum — all consumables billed separately. Core — discounted markup applied. Premium — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
+        <li><strong>Consumables &amp; Materials:</strong> Base — all consumables billed separately. Core — discounted markup applied. Premium — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
         <li><strong>Client Responsibilities:</strong> Client agrees to provide safe and timely access, maintain appropriate operating conditions, notify Alpine of issues promptly, and ensure utilities are operational. Unsafe conditions may result in suspension of service until corrected.</li>
         <li><strong>Payment Terms:</strong> Invoices are due within 15 days. Late payments may result in suspension of service, removal of coverage benefits, and interest charges of 2% per month.</li>
         <li><strong>Trial Period:</strong> Client will not be charged if unsatisfied after the initial service visit, provided concerns are communicated within 5 business days.</li>
@@ -399,7 +399,7 @@
     const total = lines.reduce((s,l) => s + l.qty * l.hrs, 0);
 
     const tiers = [
-      { name:'Minimum', rate:150, color:'#1f7a5c', tagline:'Trouble Free Maintenance. Guaranteed', key:'min' },
+      { name:'Base', rate:150, color:'#1f7a5c', tagline:'Trouble Free Maintenance. Guaranteed', key:'min' },
       { name:'Core',    rate:300, color:'#b83227', tagline:'Consistent Results at a Predictable Cost', key:'core' },
       { name:'Premium', rate:900, color:'#b8962e', tagline:'All-In Coverage & Peace of Mind', key:'premium' }
     ];
@@ -472,7 +472,7 @@
           <div style="font-size:11.5px;color:#333;margin-bottom:6px;">Selected Package:</div>
           <div style="display:flex;flex-direction:column;gap:10px;">
             <div>
-              <div style="font-size:11.5px;color:#333;">☐ Minimum</div>
+              <div style="font-size:11.5px;color:#333;">☐ Base</div>
               <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(total * 150 * bufferMult * 1.13)} / yr after tax (HST 13%)</div>
             </div>
             <div>
