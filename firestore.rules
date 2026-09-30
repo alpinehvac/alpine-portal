@@ -26,6 +26,22 @@ service cloud.firestore {
       ];
     }
 
+    function isOps() {
+      return signedIn() && email() in [
+        'cole.hamilton@alpinehvac.ca',
+        'steven.coles@alpinehvac.ca',
+        'nick.drost@alpinehvac.ca',
+        'tyson.marcoux@alpinehvac.ca',
+        'brandon.launder@alpinehvac.ca',
+        'matt.martin@alpinehvac.ca'
+      ];
+    }
+
+    // Site Reports (maintenance checklists, customer summaries): sales + ops
+    match /site_reports_data/{doc} {
+      allow read, write: if isSales() || isOps();
+    }
+
     // Service Agreement Tracker: sales only
     match /service_agreements_data/{doc} {
       allow read, write: if isSales();

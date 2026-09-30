@@ -28,6 +28,7 @@ const AP_TOOLS = {
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },
   "service-agreements": { label: "Service Agreement Tracker",     roles: ["sales"], strict: true }, // sales role required, no super_admin bypass
+  "site-reports":       { label: "Site Reports",                  roles: ["sales", "ops"], strict: true }, // quarterly maintenance progress + customer summaries
   "sales-strategy":     { label: "Sales Strategy",                roles: ["sales"] },
   "case-studies":       { label: "Case Studies",                  roles: ["sales"] },
   "lead-sheets":        { label: "Lead Sheets",                   roles: ["sales"] },
