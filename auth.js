@@ -16,12 +16,13 @@ const AP_USERS = {
   "matt.martin":     { password: "Alpine2025!", name: "Matt Martin",    roles: ["ops"] },
 };
 
-// Which roles can see which tool. "super_admin" always bypasses this and sees everything.
+// Which roles can see which tool. "super_admin" bypasses this and sees everything,
+// except tools marked strict: true, which require one of the listed roles.
 const AP_TOOLS = {
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },
-  "service-agreements": { label: "Service Agreement Tracker",     roles: ["sales", "support"] },
+  "service-agreements": { label: "Service Agreement Tracker",     roles: ["sales"], strict: true }, // sales role required, no super_admin bypass
   "sales-strategy":     { label: "Sales Strategy",                roles: ["sales"] },
   "case-studies":       { label: "Case Studies",                  roles: ["sales"] },
   "lead-sheets":        { label: "Lead Sheets",                   roles: ["sales"] },
@@ -52,8 +53,9 @@ function apLogout() {
 
 function apHasAccess(session, toolId) {
   if (!session) return false;
-  if (session.roles.includes("super_admin")) return true;
   const tool = AP_TOOLS[toolId];
+  if (tool && tool.strict) return tool.roles.some(r => session.roles.includes(r));
+  if (session.roles.includes("super_admin")) return true;
   if (!tool) return false;
   return tool.roles.some(r => session.roles.includes(r));
 }
