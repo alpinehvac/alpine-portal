@@ -61,6 +61,14 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 .cat-desc{font-size:.825rem;color:rgba(255,255,255,0.45);line-height:1.6}
 .back-link{display:inline-flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-light);text-decoration:none;margin-bottom:1.5rem}
 .back-link:hover{color:var(--white)}
+
+.renew-strip{display:none;align-items:center;gap:1.25rem;flex-wrap:wrap;background:var(--off-black);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:var(--radius);padding:.9rem 1.25rem;margin-bottom:2rem;text-decoration:none;color:var(--white);font-size:.85rem}
+.renew-strip.alert{border-left-color:#E0705F}
+.renew-strip:hover{border-color:rgba(28,107,110,0.5)}
+.renew-strip b{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;margin-right:4px}
+.renew-strip .rs-title{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal-light)}
+.renew-strip .rs-od b{color:#E0705F}
+.renew-strip .rs-go{margin-left:auto;font-size:.78rem;color:rgba(255,255,255,0.45)}
 </style>
 </head>
 <body>
@@ -84,6 +92,7 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
   <div id="back-link-wrap"></div>
   <h1 id="page-h1">Your Tools</h1>
   <p class="sub" id="page-sub">Select a tool below. You'll only see what's relevant to your role.</p>
+  <a class="renew-strip" id="renew-strip" href="service-agreements.html"></a>
   <div class="cat-grid" id="cat-grid" style="display:none"></div>
   <div class="grid" id="tool-grid"></div>
 </div>
@@ -93,6 +102,7 @@ const TOOL_META = {
   "pl-calculator":     { icon: "📊", desc: "Model P&L outcomes and compensation scenarios." },
   "team-hub":          { icon: "🧭", desc: "Recruiting, onboarding, and team management in one place." },
   "service-agreement": { icon: "🧮", desc: "Calculate man-hours and pricing for service agreements." },
+  "service-agreements":{ icon: "📑", desc: "Active agreements, renewal pipeline, and win-back outreach to past customers." },
   "sales-strategy":    { icon: "🎯", desc: "A living playbook for uncovering value and closing sales." },
   "case-studies":      { icon: "📖", desc: "Real customer wins to reference during sales conversations." },
   "lead-sheets":       { icon: "📋", desc: "Track and manage inbound sales leads.", external: "https://netorg13787440-my.sharepoint.com/:x:/g/personal/natalie_townsend_alpinehvac_ca/IQDFyXX0JO36RaKmRK5rUj8TATpMgjfqE_WIuufYkn7YIIw?e=cX7qOq" },
@@ -102,7 +112,7 @@ const TOOL_META = {
 // Owner "tool belt" categories. Adjust freely as tools are added/moved —
 // a tool can appear in more than one category if it's relevant to both.
 const TOOL_CATEGORIES = {
-  sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "sales-strategy", "case-studies", "lead-sheets"] },
+  sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "service-agreements", "sales-strategy", "case-studies", "lead-sheets"] },
   operations: { label: "Operations", icon: "🛠️", desc: "Scheduling, dispatch, and day-to-day ops tools.",  tools: ["team-hub", "call-log"] },
   financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["pl-calculator"] },
 };
@@ -199,6 +209,44 @@ if (isPureSales) {
   h1.textContent = "Your Tools";
   sub.textContent = "Select a tool below. You'll only see what's relevant to your role.";
   renderToolGrid(visible, "No tools are assigned to your account yet. Contact your administrator.");
+}
+
+// ── Service agreement renewal indicator ──
+// Only loads agreement data for roles that can open the tracker.
+function renderRenewStrip() {
+  const pd = s => { if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null; const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const ruleEnd = s => { const d = pd(s); return d ? new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1) : null; };
+  const t = new Date(); const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  let overdue = 0, d30 = 0, d90 = 0, quotes = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k.startsWith("sa_agr_")) continue;
+    let a; try { a = JSON.parse(localStorage.getItem(k)); } catch (e) { continue; }
+    if (!a || a.deleted) continue;
+    if (a.status === "Draft") { quotes++; continue; }
+    if (a.status !== "Active") continue;
+    const end = pd(a.endDate) || ruleEnd(a.startDate);
+    if (!end) continue;
+    const days = Math.round((end - today) / 86400000);
+    if (days < 0) overdue++; else if (days <= 30) d30++; else if (days <= 90) d90++;
+  }
+  const strip = document.getElementById("renew-strip");
+  strip.innerHTML =
+    '<span class="rs-title">Agreement renewals</span>' +
+    '<span class="rs-od"><b>' + overdue + '</b>overdue</span>' +
+    '<span><b>' + d30 + '</b>within 30 days</span>' +
+    '<span><b>' + d90 + '</b>within 31–90 days</span>' +
+    '<span><b>' + quotes + '</b>open quotes</span>' +
+    '<span class="rs-go">Open tracker</span>';
+  strip.classList.toggle("alert", overdue > 0);
+  strip.style.display = "flex";
+}
+if (apHasAccess(session, "service-agreements")) {
+  window.addEventListener("ap-cloud-ready", renderRenewStrip);
+  window.AP_SYNC_COLLECTION = "service_agreements_data";
+  const cs = document.createElement("script");
+  cs.type = "module"; cs.src = "cloud-sync.js";
+  document.body.appendChild(cs);
 }
 </script>
 </body>

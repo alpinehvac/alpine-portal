@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Service Agreement Tracker</title>
+<script src="auth.js"></script>
+<script>apGuard("service-agreements");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1C6B6E;--teal-light:#2A8A8E;--teal-dark:#0F4547;
+  --purple:#9B8EC4;--purple-light:#B8AEDC;
+  --black:#111110;--off-black:#1A1A18;--charcoal:#2A2A28;--mid:#3A3A37;
+  --grey:#6B6B67;--light-grey:#9A9A95;--white:#FFFFFF;
+  --red:#E0705F;--amber:#D9A441;--green:#5FB38A;
+  --border:rgba(255,255,255,0.08);--radius:8px;--radius-lg:14px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:15px;line-height:1.55;overflow-x:hidden}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--off-black)}
+::-webkit-scrollbar-thumb{background:var(--teal)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--teal-light);outline-offset:2px}
+
+/* ── TAB BAR (matches Team Hub) ── */
+.tab-bar{position:sticky;top:0;z-index:300;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35);display:flex;align-items:stretch}
+.tab-logo{display:flex;align-items:center;gap:10px;padding:0 1.5rem;border-right:1px solid rgba(255,255,255,0.07);flex-shrink:0}
+.tab-logo-text{font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;line-height:1}
+.tab-logo-text small{display:block;font-size:8px;font-weight:400;letter-spacing:.16em;color:var(--teal-light);margin-top:2px}
+.tabs{display:flex;flex:1;overflow-x:auto}
+.tab-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);background:none;border:none;border-bottom:2px solid transparent;padding:0 1.75rem;height:56px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.tab-btn:hover{color:rgba(255,255,255,0.75)}
+.tab-btn.active{color:var(--white);border-bottom-color:var(--teal)}
+.tab-count{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;letter-spacing:0;background:rgba(224,112,95,0.18);color:var(--red);border-radius:99px;padding:1px 7px}
+.bar-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:none;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:4px;padding:0 14px;margin:auto .5rem auto 0;height:34px;cursor:pointer;white-space:nowrap;text-decoration:none;display:flex;align-items:center;flex-shrink:0}
+.bar-btn:last-child{margin-right:1rem}
+.bar-btn:hover{border-color:rgba(28,107,110,0.6);color:var(--teal-light)}
+
+.panel{display:none}
+.panel.active{display:block}
+.wrap{max-width:1280px;margin:0 auto;padding:2.5rem 2rem 5rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:700;text-transform:uppercase;line-height:1.1;margin-bottom:.35rem}
+.sub{font-size:.875rem;color:rgba(255,255,255,0.45);margin-bottom:2rem;max-width:70ch}
+h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:baseline;gap:.75rem}
+h2 .h2-note{font-family:'Inter',sans-serif;font-size:.78rem;font-weight:400;letter-spacing:0;text-transform:none;color:rgba(255,255,255,0.38)}
+.section{margin-top:2.75rem}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}
+
+/* ── KPI STRIP ── */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--off-black);overflow:hidden}
+.kpi{padding:1.1rem 1.35rem;border-right:1px solid var(--border)}
+.kpi:last-child{border-right:none}
+.kpi-label{font-size:.75rem;color:rgba(255,255,255,0.45)}
+.kpi-val{font-family:'Oswald',sans-serif;font-size:1.65rem;font-weight:600;line-height:1.25;font-variant-numeric:tabular-nums}
+.kpi-foot{font-size:.72rem;color:rgba(255,255,255,0.35)}
+.kpi.alert .kpi-val{color:var(--red)}
+.kpi.warn .kpi-val{color:var(--amber)}
+
+/* ── TABLES ── */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--off-black)}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+th{font-weight:500;font-size:.72rem;color:rgba(255,255,255,0.4);text-align:left;padding:.7rem .85rem;border-bottom:1px solid var(--border);white-space:nowrap;background:rgba(255,255,255,0.015)}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+td{padding:.65rem .85rem;border-bottom:1px solid rgba(255,255,255,0.05);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover td{background:rgba(28,107,110,0.07)}
+td .id{font-family:'Oswald',sans-serif;font-weight:500;letter-spacing:.03em;color:var(--teal-light)}
+td .muted,.muted{color:rgba(255,255,255,0.38)}
+td .rule{font-size:.68rem;color:var(--purple-light);margin-left:4px;border:1px solid rgba(155,142,196,0.35);border-radius:3px;padding:0 4px;white-space:nowrap}
+#reg-body td:nth-child(2){min-width:230px}
+#reg-body td:nth-child(3){min-width:130px}
+.empty-row td{text-align:center;color:rgba(255,255,255,0.35);padding:1.75rem}
+.nowrap{white-space:nowrap}
+
+/* ── BADGES ── */
+.badge{display:inline-block;font-size:.7rem;font-weight:600;border-radius:99px;padding:2px 9px;white-space:nowrap;line-height:1.5}
+.b-overdue{background:rgba(224,112,95,0.18);color:var(--red)}
+.b-30{background:rgba(224,112,95,0.12);color:#EDA093}
+.b-60{background:rgba(217,164,65,0.15);color:var(--amber)}
+.b-90{background:rgba(155,142,196,0.16);color:var(--purple-light)}
+.b-ok{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45)}
+.b-draft{background:rgba(217,164,65,0.15);color:var(--amber)}
+.b-ended{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)}
+.flag{color:var(--amber);font-size:.8rem;margin-left:4px;cursor:help}
+
+/* status pills for outreach */
+.st-Due{color:var(--purple-light)}
+.st-Contacted{color:#8FC6C8}
+.st-Quoted{color:var(--amber)}
+.st-Booked{color:var(--green)}
+.st-No-Interest{color:rgba(255,255,255,0.35)}
+
+/* ── CONTROLS ── */
+.controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.inp,.sel{background:var(--charcoal);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:.45rem .7rem;font-size:.82rem;min-width:0}
+.inp:focus,.sel:focus{border-color:var(--teal-light);outline:none}
+.sel.mini{padding:.3rem .45rem;font-size:.78rem}
+.inp.mini{padding:.3rem .45rem;font-size:.78rem;width:70px}
+.btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:5px;padding:.5rem 1rem;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:none;color:rgba(255,255,255,0.7);white-space:nowrap}
+.btn:hover{border-color:rgba(255,255,255,0.35);color:var(--white)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:var(--white)}
+.btn.primary:hover{background:var(--teal-light);border-color:var(--teal-light)}
+.btn.danger{border-color:rgba(224,112,95,0.4);color:var(--red)}
+.btn.danger:hover{background:rgba(224,112,95,0.12)}
+.btn.sm{padding:.3rem .65rem;font-size:10px}
+.chip{font-size:.78rem;border:1px solid rgba(255,255,255,0.12);border-radius:99px;padding:.3rem .8rem;cursor:pointer;background:none;color:rgba(255,255,255,0.55);white-space:nowrap}
+.chip b{font-weight:600;margin-left:4px;color:var(--white)}
+.chip.on{border-color:var(--teal-light);background:rgba(28,107,110,0.2);color:var(--white)}
+
+/* maintenance progress */
+.prog{display:flex;align-items:center;gap:8px;min-width:120px}
+.prog-track{flex:1;height:5px;border-radius:99px;background:rgba(255,255,255,0.08);overflow:hidden;display:flex}
+.prog-done{background:var(--teal-light)}
+.prog-skip{background:rgba(155,142,196,0.55)}
+.prog-late{background:var(--red)}
+.prog-txt{font-size:.72rem;color:rgba(255,255,255,0.45);white-space:nowrap}
+
+/* ── CAMPAIGN BANNER ── */
+.campaign{display:grid;grid-template-columns:1.2fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.campaign > div{background:var(--off-black);padding:1.25rem 1.5rem}
+.camp-name{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+.camp-meta{font-size:.8rem;color:rgba(255,255,255,0.45);margin-top:.2rem}
+.cal{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:.6rem}
+.cal-m{font-size:.66rem;text-align:center;padding:5px 0;border-radius:4px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.3)}
+.cal-m.win{background:rgba(28,107,110,0.3);color:var(--white)}
+.cal-m.cur{outline:1px solid var(--purple-light)}
+
+/* ── NOTICE ── */
+.notice{border:1px solid rgba(217,164,65,0.3);background:rgba(217,164,65,0.06);border-radius:var(--radius);padding:.75rem 1rem;font-size:.8rem;color:rgba(255,255,255,0.7);margin-bottom:1.5rem}
+
+/* ── DRAWER ── */
+.scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:600}
+.scrim.open{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--off-black);border-left:1px solid rgba(28,107,110,0.4);z-index:601;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.drawer-top{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
+.drawer-title{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:600;text-transform:uppercase;line-height:1.2}
+.drawer-body{flex:1;overflow-y:auto;padding:1.25rem 1.5rem 2rem}
+.drawer-foot{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:.6rem;justify-content:flex-end;flex-wrap:wrap}
+.fs{border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:1rem}
+.fs-legend{font-size:.75rem;font-weight:600;color:var(--teal-light);margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center}
+.fs-legend span{font-weight:400;color:rgba(255,255,255,0.35)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld.full{grid-column:1/-1}
+.fld label{font-size:.72rem;color:rgba(255,255,255,0.45)}
+.fld .inp,.fld .sel{width:100%}
+textarea.inp{resize:vertical;min-height:70px}
+.flag-box{border-left:3px solid var(--amber);background:rgba(217,164,65,0.07);padding:.6rem .8rem;font-size:.8rem;border-radius:0 6px 6px 0;margin-bottom:1rem;color:rgba(255,255,255,0.8)}
+.hist{font-size:.78rem;color:rgba(255,255,255,0.5);list-style:none;display:flex;flex-direction:column;gap:.35rem}
+.hist b{color:rgba(255,255,255,0.75);font-weight:500}
+.x-btn{background:none;border:none;color:rgba(255,255,255,0.4);font-size:1.4rem;line-height:1;cursor:pointer}
+.x-btn:hover{color:var(--white)}
+
+/* ── MODAL ── */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:700;align-items:center;justify-content:center;padding:1rem}
+.modal.open{display:flex}
+.modal-box{background:var(--off-black);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-lg);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:1.5rem 1.75rem}
+.modal-box h3{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem}
+.modal-box p{font-size:.83rem;color:rgba(255,255,255,0.55);margin-bottom:1rem}
+.modal-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.25rem}
+
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--charcoal);border:1px solid rgba(28,107,110,0.6);border-radius:8px;padding:.7rem 1.1rem;font-size:.83rem;z-index:800;transition:all .25s;pointer-events:none;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%)}
+
+details.ended summary{cursor:pointer;font-size:.82rem;color:rgba(255,255,255,0.45);margin-bottom:.75rem}
+
+@media (max-width:760px){
+  .tab-logo{display:none}
+  .wrap{padding:1.75rem 1rem 4rem}
+  .campaign{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr}
+  .tab-btn{padding:0 1rem}
+}
+@media (prefers-reduced-motion:reduce){.drawer,.toast{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <div class="tab-logo">
+    <svg width="32" height="30" viewBox="0 0 40 38" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <polygon points="20,3 34,25 6,25" fill="rgba(28,107,110,0.18)" stroke="#2A8A8E" stroke-width="1.4" stroke-linejoin="round"/>
+      <polygon points="29,11 39,27 19,27" fill="rgba(155,142,196,0.1)" stroke="rgba(155,142,196,0.5)" stroke-width="1" stroke-linejoin="round"/>
+      <polygon points="11,11 1,27 21,27" fill="rgba(200,216,224,0.07)" stroke="rgba(200,216,224,0.25)" stroke-width="1" stroke-linejoin="round"/>
+      <line x1="2" y1="30" x2="38" y2="30" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+    </svg>
+    <div class="tab-logo-text">Alpine HVAC<small>Agreement Tracker</small></div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="active">Active Agreements <span class="tab-count" id="tc-active" hidden></span></button>
+    <button class="tab-btn" data-tab="unactive">Unactive Accounts <span class="tab-count" id="tc-unactive" hidden></span></button>
+  </div>
+  <a class="bar-btn" href="dashboard.html">🏠 Dashboard</a>
+  <button class="bar-btn" data-action="open-data">⇅ Data</button>
+</div>
+
+<!-- ═══════════ ACTIVE AGREEMENTS ═══════════ -->
+<section class="panel active" id="panel-active">
+  <div class="wrap">
+    <h1>Service Agreements</h1>
+    <p class="sub" id="sync-line">Loading…</p>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Renewal pipeline <span class="h2-note">Overdue and ending within 90 days</span></h2>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Agreement</th><th>Customer</th><th>End date</th><th>Status</th><th class="num">ACV</th>
+            <th>Renewal stage</th><th>Owner</th><th class="num">Increase</th><th></th>
+          </tr></thead>
+          <tbody id="pipeline-body"></tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:.78rem;margin-top:.5rem" id="pipeline-next"></p>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Register <span class="h2-note" id="reg-count"></span></h2>
+        <div class="controls">
+          <input class="inp" id="reg-search" type="search" placeholder="Search agreement or customer" aria-label="Search agreements">
+          <select class="sel" id="reg-type" aria-label="Filter by type">
+            <option value="">All types</option><option>Recurring</option><option>Non-Billable</option><option value="__blank">Type not set</option>
+          </select>
+          <select class="sel" id="reg-flag" aria-label="Filter by data flag">
+            <option value="">All records</option><option value="flagged">Flagged for review</option>
+          </select>
+          <button class="btn primary" data-action="new-agreement">Add agreement</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Name</th><th>Customer</th><th>Type</th><th>Billing</th><th>Start</th><th>End</th>
+            <th class="num">ACV</th><th>Sold by</th><th>PM</th><th>Maintenance</th><th>Renewal</th>
+          </tr></thead>
+          <tbody id="reg-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Open quotes <span class="h2-note">Draft agreements in BuildOps, aged from quote date</span></h2>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Name</th><th>Customer</th><th>Quoted</th><th class="num">Days open</th><th class="num">Quoted ACV</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="draft-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <details class="ended">
+        <summary id="ended-summary">Ended agreements</summary>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Customer</th><th>Ended</th><th class="num">Last ACV</th><th>Reason</th></tr></thead>
+            <tbody id="ended-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ UNACTIVE ACCOUNTS ═══════════ -->
+<section class="panel" id="panel-unactive">
+  <div class="wrap">
+    <h1>Unactive Accounts</h1>
+    <p class="sub">Past customers with no active agreement. Each campaign window resets every account to Due. Offer an agreement or one-time service to keep them with Alpine.</p>
+
+    <div class="campaign" id="campaign"></div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="controls" id="status-chips"></div>
+        <div class="controls">
+          <input class="inp" id="acct-search" type="search" placeholder="Search accounts" aria-label="Search accounts">
+          <button class="btn" data-action="open-campaigns">Campaign windows</button>
+          <button class="btn primary" data-action="new-account">Add account</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Account</th><th>Contact</th><th>Last service</th><th>Source</th><th>This campaign</th><th>Last touch</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="acct-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ DRAWER ═══════════ -->
+<div class="scrim" id="scrim" data-action="close-drawer"></div>
+<aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-labelledby="drawer-title">
+  <div class="drawer-top">
+    <div>
+      <div class="muted" style="font-size:.78rem" id="drawer-kicker"></div>
+      <div class="drawer-title" id="drawer-title"></div>
+    </div>
+    <button class="x-btn" data-action="close-drawer" aria-label="Close">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-foot" id="drawer-foot"></div>
+</aside>
+
+<!-- ═══════════ MODAL ═══════════ -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  window.AP_SYNC_COLLECTION = "service_agreements_data";
+  window.AP_APP_SCRIPT = "service-agreements-app.js";
+</script>
+<script type="module" src="cloud-sync.js"></script>
+</body>
+</html>

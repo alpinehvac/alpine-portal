@@ -73,7 +73,11 @@ Storage.prototype.removeItem = function (key) {
 // ── Boot sequence: hydrate first, then load the tool's real app script ──
 (async function boot() {
   await apCloudHydrate();
-  const s = document.createElement("script");
-  s.src = window.AP_APP_SCRIPT;
-  document.body.appendChild(s);
+  window.AP_CLOUD_READY = true;
+  window.dispatchEvent(new Event("ap-cloud-ready"));
+  if (window.AP_APP_SCRIPT) {
+    const s = document.createElement("script");
+    s.src = window.AP_APP_SCRIPT;
+    document.body.appendChild(s);
+  }
 })();
