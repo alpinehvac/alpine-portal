@@ -56,33 +56,65 @@ input::placeholder{color:var(--grey)}
   <h1>Sign In</h1>
   <p class="subtitle">Access restricted to authorized team members.</p>
   <div class="error" id="err">Incorrect username or password. Please try again.</div>
-  <label for="username">Username</label>
-  <input type="text" id="username" placeholder="firstname.lastname" autocomplete="username" autocapitalize="none">
+  <label for="username">Work email</label>
+  <input type="email" id="username" placeholder="firstname.lastname@alpinehvac.ca" autocomplete="username" autocapitalize="none">
   <label for="password">Password</label>
   <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
-  <button class="btn" onclick="doLogin()">Sign In</button>
-  <p class="footer-note">Contact your administrator to reset credentials.</p>
+  <button class="btn" id="signin-btn" onclick="doLogin()">Sign In</button>
+  <p class="footer-note"><a href="#" id="reset-link" style="color:inherit;text-decoration:underline">Set or reset my password</a></p>
+  <p class="footer-note" id="info" style="display:none"></p>
 </div>
 <script src="auth.js"></script>
-<script>
-if (apGetSession()) window.location.href = "dashboard.html";
-document.getElementById("password").addEventListener("keydown", e => { if(e.key==="Enter") doLogin(); });
-document.getElementById("username").addEventListener("keydown", e => { if(e.key==="Enter") document.getElementById("password").focus(); });
-function doLogin() {
-  const u = document.getElementById("username").value;
-  const p = document.getElementById("password").value;
-  const err = document.getElementById("err");
-  err.style.display = "none";
-  const session = apLogin(u, p);
-  if (!session) {
-    err.style.display = "block";
-    document.getElementById("password").value = "";
-    document.getElementById("password").focus();
-    return;
-  }
-  sessionStorage.removeItem("ap_redirect");
-  window.location.href = "dashboard.html";
+<script type="module">
+import { auth, currentUser, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "./ap-firebase.js";
+
+const $ = id => document.getElementById(id);
+function showErr(msg) { const e = $("err"); e.textContent = msg; e.style.display = "block"; $("info").style.display = "none"; }
+function showInfo(msg) { const i = $("info"); i.textContent = msg; i.style.display = "block"; $("err").style.display = "none"; }
+
+// Already signed in on this device: skip the form.
+const existing = await currentUser();
+if (existing) {
+  if (apSessionFromEmail(existing.email)) window.location.href = "dashboard.html";
+  else await signOut(auth);
 }
+
+$("password").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+$("username").addEventListener("keydown", e => { if (e.key === "Enter") $("password").focus(); });
+
+window.doLogin = async function () {
+  const email = $("username").value.trim().toLowerCase();
+  const pass = $("password").value;
+  if (!email || !pass) { showErr("Enter your work email and password."); return; }
+  $("signin-btn").disabled = true;
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    if (!apSessionFromEmail(cred.user.email)) {
+      await signOut(auth);
+      showErr("This email doesn't have portal access. Contact Jake.");
+      return;
+    }
+    sessionStorage.removeItem("ap_redirect");
+    window.location.href = "dashboard.html";
+  } catch (e) {
+    const code = (e && e.code) || "";
+    if (code === "auth/too-many-requests") showErr("Too many attempts. Wait a few minutes or reset your password.");
+    else if (code === "auth/network-request-failed") showErr("Can't reach the sign-in service. Check your connection.");
+    else showErr("Email or password is incorrect. First time signing in? Use Set or reset my password.");
+    $("password").value = "";
+    $("password").focus();
+  } finally {
+    $("signin-btn").disabled = false;
+  }
+};
+
+$("reset-link").addEventListener("click", async e => {
+  e.preventDefault();
+  const email = $("username").value.trim().toLowerCase();
+  if (!email) { showErr("Enter your work email above, then click Set or reset my password."); $("username").focus(); return; }
+  try { await sendPasswordResetEmail(auth, email); } catch (err) { /* same message either way */ }
+  showInfo("If " + email + " has a portal account, a link to set your password is on its way. Check junk mail if it isn't in your inbox within a few minutes.");
+});
 </script>
 </body>
 </html>

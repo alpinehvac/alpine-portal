@@ -16,23 +16,15 @@
 //   window.AP_SYNC_COLLECTION = "team_hub_data";   // Firestore collection name
 //   window.AP_APP_SCRIPT       = "team-hub-app.js"; // the tool's real logic
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+//
+// Requires a Firebase sign-in: if none is found, the tab session is cleared
+// and the user is sent back to the login page before any data is read.
+
 import {
-  getFirestore, collection, getDocs, doc, setDoc, deleteDoc
+  collection, getDocs, doc, setDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { db, currentUser } from "./ap-firebase.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBkkJDjV1g4omNpKoHVln5xADKLmVBEYZs",
-  authDomain: "alpine-hvac-portal.firebaseapp.com",
-  projectId: "alpine-hvac-portal",
-  storageBucket: "alpine-hvac-portal.firebasestorage.app",
-  messagingSenderId: "320109813387",
-  appId: "1:320109813387:web:1100ee2f9e5a445c5f3e8e",
-  measurementId: "G-P28EXYRS57"
-};
-
-const fbApp = initializeApp(firebaseConfig);
-const db = getFirestore(fbApp);
 const COLLECTION = window.AP_SYNC_COLLECTION || "alpine_default_sync";
 
 // ── Hydrate: pull every doc in this tool's collection into localStorage ──
@@ -72,6 +64,12 @@ Storage.prototype.removeItem = function (key) {
 
 // ── Boot sequence: hydrate first, then load the tool's real app script ──
 (async function boot() {
+  const user = await currentUser();
+  if (!user || typeof apSessionFromEmail !== "function" || !apSessionFromEmail(user.email)) {
+    sessionStorage.removeItem("ap_session");
+    window.location.href = "index.html";
+    return;
+  }
   await apCloudHydrate();
   window.AP_CLOUD_READY = true;
   window.dispatchEvent(new Event("ap-cloud-ready"));

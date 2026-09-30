@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Who's who (keep in sync with AP_USERS in auth.js) ──
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+    function email() {
+      return request.auth.token.email.lower();
+    }
+    function isSales() {
+      return signedIn() && email() in [
+        'jake.gilmore@alpinehvac.ca',
+        'mike.launder@alpinehvac.ca',
+        'cole.hamilton@alpinehvac.ca',
+        'natalie.townsend@alpinehvac.ca'
+      ];
+    }
+    function isAdmin() {
+      return signedIn() && email() in [
+        'jake.gilmore@alpinehvac.ca',
+        'mike.launder@alpinehvac.ca',
+        'clarissa.launder@alpinehvac.ca',
+        'cole.hamilton@alpinehvac.ca'
+      ];
+    }
+
+    // Service Agreement Tracker: sales only
+    match /service_agreements_data/{doc} {
+      allow read, write: if isSales();
+    }
+
+    // Service Agreement Calculator: sales + super admins
+    match /service_agreement_data/{doc} {
+      allow read, write: if isSales() || isAdmin();
+    }
+
+    // Sales Strategy: sales + super admins
+    match /sales_strategy_data/{doc} {
+      allow read, write: if isSales() || isAdmin();
+    }
+
+    // Team Hub (recruiting, reviews): super admins only
+    match /team_hub_data/{doc} {
+      allow read, write: if isAdmin();
+    }
+
+    // Everything else is denied by default.
+  }
+}
