@@ -9,9 +9,9 @@
 // Firestore rules.
 
 const AP_USERS = {
-  "jake.gilmore@alpinehvac.ca":     { name: "Jake Gilmore",     roles: ["super_admin", "sales"] },
-  "mike.launder@alpinehvac.ca":     { name: "Mike Launder",     roles: ["super_admin", "sales"] },
-  "clarissa.launder@alpinehvac.ca": { name: "Clarissa Launder", roles: ["super_admin", "support"] },
+  "jake.gilmore@alpinehvac.ca":     { name: "Jake Gilmore",     roles: ["super_admin", "sales", "finance"] },
+  "mike.launder@alpinehvac.ca":     { name: "Mike Launder",     roles: ["super_admin", "sales", "finance"] },
+  "clarissa.launder@alpinehvac.ca": { name: "Clarissa Launder", roles: ["super_admin", "support", "finance"] },
   "cole.hamilton@alpinehvac.ca":    { name: "Cole Hamilton",    roles: ["super_admin", "sales", "ops"] },
   "natalie.townsend@alpinehvac.ca": { name: "Natalie Townsend", roles: ["sales"] },
   "steven.coles@alpinehvac.ca":     { name: "Steven Coles",     roles: ["ops"] },
@@ -24,6 +24,7 @@ const AP_USERS = {
 // Which roles can see which tool. "super_admin" bypasses this and sees everything,
 // except tools marked strict: true, which require one of the listed roles.
 const AP_TOOLS = {
+  "cash-dashboard":     { label: "Cash Position",                 roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },

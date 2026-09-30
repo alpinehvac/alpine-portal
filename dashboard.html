@@ -99,6 +99,7 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 
 <script>
 const TOOL_META = {
+  "cash-dashboard":    { icon: "💵", desc: "13-week cash forecast, jobs left to bill, and break-even targets." },
   "pl-calculator":     { icon: "📊", desc: "Model P&L outcomes and compensation scenarios." },
   "team-hub":          { icon: "🧭", desc: "Recruiting, onboarding, and team management in one place." },
   "service-agreement": { icon: "🧮", desc: "Calculate man-hours and pricing for service agreements." },
@@ -115,7 +116,7 @@ const TOOL_META = {
 const TOOL_CATEGORIES = {
   sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "service-agreements", "site-reports", "sales-strategy", "case-studies", "lead-sheets"] },
   operations: { label: "Operations", icon: "🛠️", desc: "Scheduling, dispatch, and day-to-day ops tools.",  tools: ["site-reports", "team-hub", "call-log"] },
-  financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["pl-calculator"] },
+  financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["cash-dashboard", "pl-calculator"] },
 };
 
 const session = apGetSession();

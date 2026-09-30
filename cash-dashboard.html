@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Cash Position</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("cash-dashboard");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ALPINE CASH DASHBOARD — portal version. Contains NO financial data: numbers load from Firestore (cash_dashboard/latest) after sign-in; access limited to the finance role (Jake, Mike, Clarissa) by auth.js and firestore.rules. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1C6B6E;--teal-light:#2A8A8E;--teal-dark:#0F4547;
+  --purple:#9B8EC4;
+  --black:#111110;--off-black:#1A1A18;--charcoal:#2A2A28;
+  --grey:#6B6B67;--light-grey:#9A9A95;--white:#FFFFFF;
+  --amber:#E2A845;--red:#E0705E;--green:#5FB89A;
+  --border:rgba(255,255,255,0.08);--radius:8px;--radius-lg:14px;
+}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:15px;line-height:1.5}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--teal-light);outline-offset:2px}
+
+nav{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35)}
+.nav-inner{max-width:1160px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.logo-icon{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-wordmark{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;line-height:1}
+.nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;color:var(--teal-light);margin-top:2px}
+.back-link{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,0.55);text-decoration:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px 14px}
+.back-link:hover{color:var(--white);border-color:rgba(255,255,255,0.35)}
+
+.wrap{max-width:1160px;margin:0 auto;padding:2rem 2rem 5rem}
+.sample-banner{background:rgba(226,168,69,0.1);border:1px solid rgba(226,168,69,0.35);color:#F0C77A;border-radius:var(--radius);padding:.7rem 1rem;font-size:.85rem;margin-bottom:2rem}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1.75rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.4rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+.asof{font-size:.85rem;color:var(--light-grey)}
+.asof b{color:var(--white);font-weight:500}
+
+.verdict{border-left:6px solid var(--green);padding:.4rem 0 .4rem 1.4rem;margin-bottom:2.25rem}
+.verdict.warn{border-color:var(--amber)}
+.verdict.alert{border-color:var(--red)}
+.verdict-line{font-family:'Oswald',sans-serif;font-size:clamp(1.5rem,3.4vw,2.25rem);font-weight:600;line-height:1.15;max-width:30ch}
+.verdict-sub{margin-top:.6rem;color:rgba(255,255,255,0.72);max-width:75ch}
+
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:2.5rem}
+.metric{padding:1.1rem 1rem 1.2rem;border-right:1px solid var(--border)}
+.metric:last-child{border-right:none}
+.m-label{font-size:.8rem;color:var(--light-grey);margin-bottom:.35rem;min-height:2.4em}
+.m-value{font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:500;line-height:1.1}
+.m-sub{font-size:.78rem;color:var(--light-grey);margin-top:.25rem}
+.m-trend{font-size:.78rem;margin-top:.4rem;color:var(--light-grey)}
+.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--light-grey)}.watch{color:var(--amber)}
+
+section{margin-bottom:2.75rem}
+h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.35rem}
+.h2-note{font-size:.85rem;color:var(--light-grey);margin-bottom:1rem;max-width:78ch}
+
+.chart-box{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1rem .75rem}
+.chart-scroll{overflow-x:auto}
+.chart-box svg{display:block;width:100%;min-width:700px;height:auto}
+.legend{display:flex;gap:1.25rem;flex-wrap:wrap;font-size:.8rem;color:var(--light-grey);padding:.5rem .5rem 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.chart-tip{position:fixed;pointer-events:none;background:var(--charcoal);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:.55rem .7rem;font-size:.8rem;line-height:1.45;display:none;z-index:200;max-width:250px}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.panel{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.4rem}
+.ratio{font-family:'Oswald',sans-serif;font-size:2.4rem;font-weight:500;line-height:1}
+.ratio-sub{font-size:.85rem;color:var(--light-grey);margin:.4rem 0 1.25rem}
+.phases{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.phase{padding:.6rem .4rem;text-align:center;font-size:.78rem;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--light-grey)}
+.phase small{display:block;font-size:.7rem;opacity:.75;margin-top:2px}
+.phase.on{color:var(--black);font-weight:600}
+.phase.on.p0{background:var(--green)}.phase.on.p1{background:var(--amber)}.phase.on.p2{background:#E68A4E}.phase.on.p3{background:var(--red)}
+.risk-list{list-style:none;counter-reset:r}
+.risk-list li{counter-increment:r;display:grid;grid-template-columns:1.6rem 1fr auto;gap:.5rem;padding:.7rem 0;border-bottom:1px solid var(--border);align-items:baseline}
+.risk-list li:last-child{border-bottom:none}
+.risk-list li::before{content:counter(r) ".";color:var(--light-grey);font-size:.85rem}
+.risk-name{font-weight:500}
+.risk-meta{font-size:.8rem;color:var(--light-grey)}
+.risk-amt{font-family:'Oswald',sans-serif;font-size:1.1rem;text-align:right}
+.risk-days{font-size:.78rem;text-align:right}
+
+/* Monthly health */
+.health{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}
+.h-card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.3rem;display:flex;flex-direction:column;gap:.3rem}
+.h-card.wide{grid-column:span 2}
+.h-card.full{grid-column:1 / -1}
+.h-label{font-size:.85rem;color:var(--light-grey)}
+.h-value{font-family:'Oswald',sans-serif;font-size:1.9rem;font-weight:500;line-height:1.1}
+.h-foot{font-size:.8rem;color:var(--light-grey)}
+.h-status{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.bars{display:grid;gap:.65rem;margin-top:.4rem}
+.bar-row{display:grid;grid-template-columns:9.5rem 1fr 3.5rem;gap:.75rem;align-items:center;font-size:.85rem}
+.bar-track{position:relative;height:10px;background:rgba(255,255,255,0.06);border-radius:5px}
+.bar-band{position:absolute;top:-3px;bottom:-3px;background:rgba(255,255,255,0.08);border-left:1px solid rgba(255,255,255,0.25);border-right:1px solid rgba(255,255,255,0.25)}
+.bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.bar-val{text-align:right;font-variant-numeric:tabular-nums}
+.crew{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.6rem;padding-top:.8rem;border-top:1px solid var(--border)}
+.crew label{font-size:.8rem;color:var(--light-grey);display:flex;flex-direction:column;gap:.3rem}
+.crew input{width:6.5rem;background:var(--black);border:1px solid rgba(255,255,255,0.18);border-radius:6px;color:var(--white);font:inherit;font-size:.95rem;padding:.4rem .6rem}
+.crew input:focus{border-color:var(--teal-light);outline:none}
+.saved{font-size:.75rem;color:var(--green);align-self:flex-end;padding-bottom:.45rem;opacity:0;transition:opacity .3s}
+.saved.show{opacity:1}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg)}
+table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px}
+th{font-weight:500;color:var(--light-grey);text-align:right;padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--off-black)}
+th:first-child,td:first-child{text-align:left}
+td{padding:.7rem 1rem;text-align:right;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+tr.week{cursor:pointer}
+tr.week:hover td{background:rgba(255,255,255,0.025)}
+tr.week td:first-child::before{content:'+';display:inline-block;width:1rem;color:var(--light-grey)}
+tr.week.open td:first-child::before{content:'–'}
+tr.breach td{color:#F2A395}
+tr.detail{display:none}
+tr.detail.open{display:table-row}
+tr.detail td{background:rgba(255,255,255,0.02);text-align:left;padding:.9rem 1rem 1.1rem 2rem}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:2rem;font-size:.84rem}
+.split h4{font-weight:500;margin-bottom:.35rem;color:var(--light-grey)}
+.split div div{display:flex;justify-content:space-between;padding:2px 0}
+.driver{margin-top:.6rem;font-size:.84rem;color:rgba(255,255,255,0.75)}
+.flag{font-size:.75rem;padding:2px 7px;border-radius:10px;margin-left:6px}
+.flag.red{background:rgba(224,112,94,0.18);color:#F2A395}
+.flag.amber{background:rgba(226,168,69,0.16);color:#F0C77A}
+
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.check{display:flex;gap:.6rem;align-items:baseline;padding:.35rem 0;font-size:.9rem}
+.ok{color:var(--green)}.bad{color:var(--red)}
+.assume{list-style:decimal;padding-left:1.2rem;font-size:.88rem;color:rgba(255,255,255,0.8)}
+.assume li{padding:.25rem 0}
+
+@media (max-width:1000px){
+  .metrics{grid-template-columns:repeat(3,1fr)}
+  .metric{border-bottom:1px solid var(--border)}
+  .metric:nth-child(3n){border-right:none}
+  .health{grid-template-columns:1fr 1fr}
+}
+@media (max-width:700px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .metric:nth-child(3n){border-right:1px solid var(--border)}
+  .metric:nth-child(2n){border-right:none}
+  .two,.checks,.health{grid-template-columns:1fr}
+  .h-card.wide,.h-card.full{grid-column:auto}
+}
+@media (max-width:560px){
+  .wrap{padding:1.5rem 1rem 4rem}
+  .nav-inner{padding:0 1rem}
+  .split{grid-template-columns:1fr;gap:1rem}
+  .bar-row{grid-template-columns:7rem 1fr 3rem}
+}
+</style>
+<style>
+.live-banner{background:rgba(42,138,142,0.1);border:1px solid rgba(42,138,142,0.4);color:#9FD3D5;border-radius:8px;padding:.7rem 1rem;font-size:.85rem;margin-bottom:2rem}
+.acct{width:100%;border-collapse:collapse;font-size:.88rem;min-width:0}
+.acct td,.acct th{padding:.45rem 0;border-bottom:1px solid var(--border);background:none;text-align:right}
+.acct td:first-child,.acct th:first-child{text-align:left}
+.acct tr.sub td{color:var(--light-grey);font-size:.82rem}
+.acct tr.total td{font-weight:600;border-bottom:none;padding-top:.7rem}
+.acct h5{font-weight:500;color:var(--light-grey);font-size:.8rem;margin:1rem 0 .2rem;text-transform:uppercase;letter-spacing:.05em}
+.kv{display:flex;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.88rem;gap:1rem}
+.kv:last-child{border-bottom:none}
+.kv span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini-bars{display:flex;align-items:flex-end;gap:4px;height:70px;margin:.8rem 0 .3rem}
+.mini-bars div{flex:1;background:rgba(42,138,142,0.55);border-radius:2px 2px 0 0;min-height:2px}
+.mini-bars div.last4{background:#2A8A8E}
+.pend{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:10px;background:rgba(226,168,69,0.16);color:#F0C77A;margin-left:.4rem;vertical-align:2px}
+.jobs td{font-size:.84rem}
+.warnbox{border:1px solid rgba(224,112,94,0.4);background:rgba(224,112,94,0.08);border-radius:8px;padding:.8rem 1rem;font-size:.86rem;margin-top:1rem;color:#F4B5A9}
+.levers{list-style:decimal;padding-left:1.2rem;font-size:.88rem;color:rgba(255,255,255,0.85);margin-top:.6rem}
+.levers li{padding:.2rem 0}
+</style>
+</head>
+<body>
+<nav><div class="nav-inner">
+  <a class="nav-logo" href="dashboard.html"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 15 L16 11 L21 20 Z"/></svg></div>
+  <div class="nav-wordmark">Alpine HVAC<small>Internal Portal</small></div></a>
+  <a class="back-link" href="dashboard.html?cat=financials">&larr; Financials</a>
+</div></nav>
+
+<main class="wrap">
+  <div class="live-banner" id="banner"></div>
+  <div class="head"><h1>Cash Position</h1><div class="asof" id="asof"></div></div>
+
+  <div class="verdict" id="verdict"><div class="verdict-line" id="verdict-line"></div><div class="verdict-sub" id="verdict-sub"></div></div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <section>
+    <h2>Next 13 weeks</h2>
+    <p class="h2-note" id="chart-note"></p>
+    <div class="chart-box">
+      <div class="chart-scroll"><svg id="chart" viewBox="0 0 1000 470" role="img" aria-label="13-week cash forecast"></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--teal-light)"></i>Closing cash (committed)</span>
+        <span><i style="background:#9FD3D5;height:3px;vertical-align:3px"></i>With expected service work</span>
+        <span><i style="background:#FFFFFF;border-radius:50%"></i>Actual (logged daily)</span>
+        <span><i style="background:var(--amber);height:3px;vertical-align:3px"></i>Target (8 wks burn)</span>
+        <span><i style="background:var(--red);height:3px;vertical-align:3px"></i>Floor (4 wks burn)</span>
+        <span><i style="background:#B06AD9;height:3px;vertical-align:3px"></i>Credit line fully drawn</span>
+        <span><i style="background:rgba(42,138,142,0.55)"></i>Cash in</span>
+        <span><i style="background:rgba(155,142,196,0.6)"></i>Cash out</span>
+      </div>
+    </div>
+    <div id="levers"></div>
+  </section>
+
+  <section class="two">
+    <div class="panel"><h2>Cash by account</h2><p class="h2-note">RBC balances. Only operating cash counts toward the floor.</p><div id="accounts"></div></div>
+    <div class="panel"><h2>Receivables</h2><p class="h2-note" id="ar-note"></p><div id="ar"></div></div>
+  </section>
+
+  <section class="two">
+    <div class="panel"><h2>Coming up to bill</h2><p class="h2-note">Work done or scheduled that isn't cash yet.</p><div id="tobill"></div></div>
+    <div class="panel"><h2>Payables due</h2><p class="h2-note" id="ap-note"></p><div id="ap"></div></div>
+  </section>
+
+  <section class="two">
+    <div class="panel">
+      <h2>Collections vs average</h2>
+      <p class="h2-note">Actual payments received, last 13 weeks. Last 4 weeks highlighted.</p>
+      <div class="ratio" id="ratio"></div><div class="ratio-sub" id="ratio-sub"></div>
+      <div class="mini-bars" id="collbars"></div>
+      <div class="phases" id="phases" style="margin-top:1rem"></div>
+    </div>
+    <div class="panel"><h2>Owner allocations</h2><p class="h2-note">Queued for dividends. Visible, not counted as operating cash.</p><div id="owner"></div></div>
+  </section>
+
+  <section class="two">
+    <div class="panel"><h2>What's in core burn</h2><p class="h2-note">Actual QuickBooks costs, Jul–Sep 2026 monthly average. Sets the floor and target.</p><div id="burnbox"></div></div>
+    <div class="panel"><h2>Loans</h2><p class="h2-note">Payments found in QuickBooks, included in core burn.</p><div id="loans"></div></div>
+  </section>
+
+  <section>
+    <h2>Weekly revenue targets by sector</h2>
+    <p class="h2-note">Weekly invoicing before HST. Contracts held at today's level; the other sectors scale in their current mix. "Margin kept" is revenue after materials and subcontractors. Field labour is treated as a fixed cost because techs are paid either way.</p>
+    <div class="table-wrap"><table id="targets"></table></div>
+  </section>
+
+  <section>
+    <h2>Scenarios</h2>
+    <p class="h2-note" id="scen-note">Closing operating cash by week ($K), committed money only unless noted.</p>
+    <div class="table-wrap"><table id="scen"></table></div>
+  </section>
+
+  <section>
+    <h2>Week by week</h2>
+    <p class="h2-note">Select a week to see where the cash comes from and goes.</p>
+    <div class="table-wrap"><table id="weeks-table"></table></div>
+  </section>
+
+  <section>
+    <h2>Jobs: left to bill</h2>
+    <p class="h2-note">Quoted amounts, PO, budgeted hours and quoted margin from BuildOps job files; billed-to-date from QuickBooks invoices matched by PO (Sep 30). Including HST.</p>
+    <div class="table-wrap"><table class="jobs" id="jobs"></table></div>
+  </section>
+
+  <section>
+    <h2 id="health-title">Business health</h2>
+    <p class="h2-note" id="health-note"></p>
+    <div class="health" id="health"></div>
+  </section>
+
+  <section>
+    <h2>Data checks</h2>
+    <p class="h2-note">Checks against QuickBooks and RBC. Anything marked ✕ needs a look before relying on that part.</p>
+    <div class="checks">
+      <div class="panel" id="checks"></div>
+      <div class="panel"><h4 style="font-weight:500;margin-bottom:.5rem">Assumptions this run</h4><ol class="assume" id="assumptions"></ol></div>
+    </div>
+  </section>
+
+  <section id="update-section" style="display:none" hidden>
+    <h2>Update data</h2>
+    <p class="h2-note">Paste the data file from the daily refresh and save. Saves to Firestore for Jake, Mike and Clarissa only; a dated copy is kept in history.</p>
+    <div class="panel">
+      <textarea id="upd-json" rows="6" style="width:100%;background:var(--black);color:var(--white);border:1px solid rgba(255,255,255,0.18);border-radius:6px;padding:.6rem;font:12px/1.4 ui-monospace,monospace" placeholder='{"asOf": "...", "weeks": [...], ...}'></textarea>
+      <div style="display:flex;gap:1rem;align-items:center;margin-top:.8rem">
+        <button id="upd-save" class="back-link" style="cursor:pointer;background:var(--teal);color:#fff;border-color:var(--teal)">Save data</button>
+        <span id="upd-msg" style="font-size:.85rem;color:var(--light-grey)"></span>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="chart-tip" id="tip"></div>
+
+<script>
+const DATA = {"asOf": "2026-09-29", "sources": "QuickBooks via Windsor (Sep 29) \u00b7 RBC balances (Sep 28) \u00b7 BuildOps quotes and job files (Sep 30)", "accounts": {"operating": [["Income (4498)", 3576.0], ["Alpine Profit (2013)", 103203.85]], "earmarked": [["HST (3953)", 29020.62, "HST owed", 38005.06], ["WSIB/Payroll Tax (3946)", 7.54, "Source deductions + WSIB owed", 24980.22]], "owner": [["Mike Profit", 2076.23], ["Jake Profit", 1135.7], ["Jake Donations", 132.75], ["Jake HoldCo", 45.96], ["Mike HoldCo", 0]], "cards": 38490.73, "cardLimit": 150000, "loc": 10000, "locLimit": 150000}, "burn": 25400, "ar": {"total": 181552.11, "postdated": 129542.6, "over60": 21394.32, "daysToPay": 23.8, "payments": 531, "risk": [["WSCC 459 (1000 Creekside)", "20261200", 21061.32, 76, "Normally pays in 13 days"], ["O.N. Site Construction", "20261208", 7499.46, 50, "Due Sep 9"], ["Niagara Plastic Surgery Centre", "20261231", 7043.36, 26, "Normally pays in 6 days"], ["Christ Community Church", "20261234", 6845.29, 26, "Due Oct 3"], ["Horizon Mechanical", "P00441", 333.0, 336, "11 months old"]], "top": [["Hunter Vine (1 Hunter RTU final 50%)", 66105.0, "Oct 1"], ["Finer Space (contract)", 32532.93, "Oct 1"], ["David H. Blanchard (contract)", 28635.72, "Oct 1"], ["WSCC 459 (1000 Creekside)", 21061.32, "Jul 15"]]}, "toBill": {"partsCost": 11423.4, "partsCount": 18, "partsDate": "2026-10-14", "markupMargin": 0.35, "missed": [["2026-07-00707", 272.05, "Aug 1"], ["00748-BAS", 1125.11, "Sep 1"]], "placeholders": 3, "contractsMonthly": 61168.65}, "ap": {"total": 235756.77, "byWeek": [64630, 115048, 20451, 7801, 27827], "topPOs": [["00661", "1 Hunter RTU (15-ton RTU, crane, electrical)", 91828], ["00741", "ACP HVAC Supply", 24860], ["00673", "Canada Controls + parts", 23296], ["00751", "Ductwork, dampers, air balancing", 15549], ["00742", "3050 Harvester RTUs", 12313]], "poCoverage": 0.84}, "collections": [13728, 19754, 41190, 143638, 77878, 36886, 36530, 46035, 70770, 47020, 27111, 142981, 38703], "phaseTriggers": {"tighten": 0.9, "reduce": 0.8, "protect": 0.7}, "health": {"period": "Jan\u2013Sep 2026", "income": 1747506, "cogs": 1474394, "net": -142780, "sepNet": -106191, "sepCogs": 275019, "currentRatio": 0.93, "contractsPreTax": 54131, "overheadMonthly": 50233, "largestShare": 0.37, "largestName": "Hunter Vine (Oct 1 invoice)", "remainingProjectHours": 1289, "contractLabour": 36400}, "checks": [[true, "Bank balances taken from RBC. QuickBooks' live accounts match except Income (QuickBooks $876 lower) and Jake Profit (QuickBooks $475 lower)."], [false, "Open invoices total $181,552 but the A/R account shows $188,363. $6,811 is unexplained (likely unapplied credits or journal entries)."], [true, "Open bills total $235,757, within $2,249 of the A/P account ($233,508)."], [false, "RBC shows $10,000 drawn on the operating line; QuickBooks shows $0. Two RBC loans ($24.0K proceeds, Aug 19) are recorded."], [true, "Parts estimates: asterisked estimates (already sent) excluded; 18 unsent included."], [false, "3050 Harvester (PO 00742): BuildOps shows $55.8K billed, QuickBooks only $11.0K. About $44.8K of invoices were created in BuildOps but never reached QuickBooks."], [false, "21 King Chiller Mechanical (Besseling Q20261077, $36.5K) is 'Expired' in BuildOps with no job. It's still included in the forecast."], [true, "Left to bill on quoted jobs uses QuickBooks invoices matched by PO in the invoice memo."]], "assumptions": ["Base is committed money only: open invoices, monthly contracts, parts estimates already created, and quoted jobs. No new service calls or T&M, and no parts purchased for them.", "Upside line (dashed): adds expected service/T&M/parts work at the last 13 weeks' average ($16,888/week invoiced, collected 24 days later) less parts bought for it (~$9,000/week from November). Net ~$7,900/week.", "Supplier bills are paid on their QuickBooks due dates.", "Operating cash = RBC Income + Alpine Profit. Tax accounts and owner allocations are shown separately and not counted.", "Core burn $25,400/week = actual QuickBooks costs, Jul\u2013Sep average: field labour $62.4K/mo, office payroll $13.1K, fixed overhead $13.9K, vehicles $7.2K, shop/truck supplies $5.3K, loan payments $2.8K, other $5.3K. The floor and target are based on this.", "Also paid out every week but not in the floor: discretionary spending $3,800/week (marketing, travel, training, meals) and owner draws $2,300/week (dividends $6,150/month plus owner building materials $3,806/month, Jul\u2013Sep average).", "Credit cards paid in full Oct 15. CRA source deductions ($20.0K) Oct 15, WSIB ($5.0K) Oct 30.", "HST filed quarterly: $38.0K due Oct 31, paid from the HST account; only the $9.0K shortfall comes from operating cash. HST collected Oct\u2013Dec is due Jan 31, after this window, and is included in the cash shown.", "Open invoices collected at each customer's actual average days-to-pay (531 payments, 12 months; company average 24 days). Invoices already past that are spread evenly over weeks 1\u20133.", "Finer Space and Blanchard contracts ($61.2K/month) billed on the 1st, collected in 20\u201322 days.", "Jobs: quoted amounts from BuildOps; billed-to-date from QuickBooks invoices matched by the PO number in the invoice memo (quoted amounts include HST). Remaining billings follow thirds (1/3 start, 1/3 equipment delivery, 1/3 completion) where nothing is billed yet; partly billed jobs bill the rest at completion. QuickBooks is the source of truth for billing progress; BuildOps visits and budgeted hours set timing. Collected at each customer's usual days-to-pay.", "21 Hunter Chilled Water: deposit at start (Nov 8), equipment third Nov 22, final third invoiced mid-February at completion. Materials: two thirds ($135.2K) due Dec 31, one third ($67.6K) due at completion in mid-February; both after this window."], "burnDetail": {"must": [["Field labour (tech wages, CPP/EI, benefits)", 62382], ["Office & admin payroll", 13065], ["Fixed overhead (rent, insurance, phone, software, professional fees, bank)", 13923], ["Vehicles (fuel, repairs, insurance, tolls, lease)", 7229], ["Shop, truck supplies & uniforms", 5341], ["Loan payments (6 loans)", 2833], ["Other operating expenses", 5284]], "disc": [["Marketing & advertising", 6543], ["Travel", 5794], ["Training", 2476], ["Meals & tips", 1672]], "draws": 9956}, "loans": [["Transit Loan (2020 Ford)", "Leons Fine Cars", 381.21, "monthly, 26th", 5653.35], ["Tractor Loan (2023 Kubota)", "Kubota Canada", 475.15, "monthly, 26th", 16396.2], ["Transit Loan (2023 Ford Transit)", "", 340.29, "every 2 weeks", 36350.88], ["JD Tractor Loan", "Premier Equipment", 768.22, "monthly, 10th", 38410.8], ["RBC Loan (002)", "RBC", 184.17, "monthly, 21st", 9190.83], ["RBC Loan (003)", "RBC", 287.3, "monthly, 21st", 14337.7]], "scen": [["Committed only (base)", [27, -84, -178, -156, -36, 0, 38, 65, 67, 178, 170, 256, 286]], ["+ Levers: Masters to Oct 31, 21 Hunter deposit Oct 14, cards at month-end", [27, -1, -61, -38, -36, 117, 155, 183, 185, 178, 171, 256, 286]], ["+ Cuts: GetMagic, Raol and Nick from Oct 26", [27, -84, -175, -153, -29, 10, 55, 87, 93, 207, 207, 297, 330]], ["+ Levers and cuts", [27, -1, -58, -35, -29, 128, 173, 204, 210, 207, 207, 297, 330]], ["Base + expected service work (upside, not in base)", [27, -84, -178, -156, -19, 24, 70, 106, 116, 234, 235, 328, 366]]], "targets": {"rows": [["Contracts", 12582, 0.97, 12582, 12582, 12582, 12582], ["BAS", 1696, 0.72, 1655, 1954, 2297, 2781], ["Projects", 21825, 0.48, 21297, 25142, 29555, 35772], ["T&M / service / parts", 13994, 0.36, 13655, 16121, 18950, 22937]], "totals": [50096, 49189, 55799, 63384, 74072], "fixedPL": 28550, "fixedCash": 31502}, "actuals": [{"date": "2026-09-28", "cash": 106779.85}], "levers": {"title": "Levers that close the October gap (largest first)", "items": ["Ask Masters to move the 1 Hunter RTU equipment bill ($82,760, due Oct 11) to Oct 31, after the Hunter Vine final payment lands.", "Invoice the 21 Hunter Chilled Water deposit ($117,388) on Oct 14 instead of at start.", "Pay the credit card statement minimum Oct 15 and the balance at month-end.", "Get the ~$44.8K of 3050 Harvester invoices created in BuildOps into QuickBooks and sent to McNab.", "Invoice 21 King Chiller BAS now: $51.0K billable.", "Collect WSCC 459 invoice 20261200 ($21,061, 76 days; normally pays in 13)."]}, "squeezeNote": "Mostly 1 Hunter RTU equipment (Masters, $82.8K due Oct 11), landing before its $66.1K final billing is collected at month-end.", "scenNote": "Closing operating cash by week ($K), committed money only unless noted. Cuts save $4,642/week: two field salaries from Oct 26 ($4,022/week incl. employer CPP/EI) plus GetMagic ($2,720 every 4 weeks from Oct 12). Cuts don't model lost project capacity or termination pay.", "weeks": [{"start": "2026-09-28", "driver": "", "in": {"ar": 16216, "contracts": 0, "projects": 0}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 64630, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-10-05", "driver": "", "in": {"ar": 19621, "contracts": 0, "projects": 16380}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 115048, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-10-12", "driver": "Credit cards paid in full ($38.5K); CRA source deductions ($20.0K)", "in": {"ar": 16173, "contracts": 0, "projects": 0}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 20451, "cards": 38491, "cra": 20004, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-10-19", "driver": "", "in": {"ar": 553, "contracts": 61169, "projects": 0}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 7801, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-10-26", "driver": "1 Hunter RTU final 50% ($66.1K) collected; 3050 Harvester RTUs (McNab) invoices created in BuildOps, not yet in QuickBooks collected ($44.8K); 3050 Harvester RTUs (McNab) removal/reinstall completion collected ($29.5K); 21 King Chiller - BAS (Besseling) deposit balance + equipment third collected ($51.0K); HST due Oct 31: $38.0K owed, HST account holds $29.0K; $9.0K shortfall from operating", "in": {"ar": 67821, "contracts": 0, "projects": 125361}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 27827, "cards": 0, "cra": 4977, "hst": 8984, "materials": 0, "other": 0}}, {"start": "2026-11-02", "driver": "", "in": {"ar": 0, "contracts": 0, "projects": 66656}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-11-09", "driver": "October parts estimates billed Oct 14 (cost $11,423 at 35% margin, incl. HST); BMO Buildout BAS (O.N. Site) remaining two thirds collected ($22.5K); 21 King Chiller - BAS (Besseling) final third collected ($27.2K)", "in": {"ar": 19859, "contracts": 0, "projects": 49747}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-11-16", "driver": "", "in": {"ar": 0, "contracts": 32533, "projects": 26695}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-11-23", "driver": "", "in": {"ar": 0, "contracts": 28636, "projects": 22595}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 17999, "other": 0}}, {"start": "2026-11-30", "driver": "21 Hunter Chilled Water (Blanchard) deposit collected ($117.4K)", "in": {"ar": 0, "contracts": 0, "projects": 152698}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 10662, "other": 0}}, {"start": "2026-12-07", "driver": "", "in": {"ar": 0, "contracts": 0, "projects": 24310}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-12-14", "driver": "21 Hunter Chilled Water (Blanchard) equipment third collected ($117.4K)", "in": {"ar": 0, "contracts": 0, "projects": 117388}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}, {"start": "2026-12-21", "driver": "", "in": {"ar": 0, "contracts": 61169, "projects": 0}, "out": {"burn": 25400, "disc": 3804, "draws": 2298, "ap": 0, "cards": 0, "cra": 0, "hst": 0, "materials": 0, "other": 0}}], "upside": [26864, -83685, -177959, -155541, -18761, 24281, 70273, 105887, 115505, 233927, 234623, 328397, 365952], "jobs": [{"name": "NPSC ERV / Procedure Rooms", "job": "JO20261181", "po": "P00751", "quoted": 49140, "billed": 32760, "left": 16380, "hrs": 88, "margin": 55, "next": "2026-10-01", "last": "2026-10-01"}, {"name": "BMO Buildout BAS (O.N. Site)", "job": "JO20261168", "po": "P00715", "quoted": 29998, "billed": 7499, "left": 22499, "hrs": 80, "margin": 49, "next": "2026-10-01", "last": "2026-10-01"}, {"name": "3050 Harvester RTUs (McNab)", "job": "JO20261173", "po": "P00742", "quoted": 114838, "billed": 11012, "left": 103826, "hrs": 140, "margin": 34, "next": "2026-10-07", "last": "2026-12-14"}, {"name": "47 James RTU Removal (Finer Space)", "job": "JO20261162", "po": "P00724", "quoted": 29138, "billed": 11418, "left": 17720, "hrs": 80, "margin": 39, "next": "2026-10-07", "last": "2026-10-07"}, {"name": "21 King Chiller - BAS (Besseling)", "job": "JO20261185", "po": "00755", "quoted": 81745, "billed": 3448, "left": 78297, "hrs": 320, "margin": 42, "next": "2026-10-07", "last": "2026-10-21"}, {"name": "Sid Grabell Generator Gas Line Stn 5", "job": "JO20261174", "po": "00744", "quoted": 16338, "billed": 4902, "left": 11436, "hrs": 32, "margin": 54, "next": "2026-10-07", "last": "2026-10-07"}, {"name": "Sid Grabell Gas Line - Niagara Parks", "job": "JO20261176", "po": "TM00747", "quoted": 15811, "billed": 0, "left": 15811, "hrs": 24, "margin": 35, "next": "2026-10-07", "last": "2026-10-07"}, {"name": "NBGI - 49 Dunbar", "job": "JO20261127", "po": "P00636", "quoted": 52965, "billed": 0, "left": 52965, "hrs": 116, "margin": 49, "next": "2026-10-23", "last": "2026-11-06"}, {"name": "21 King Chiller - Mechanical (Besseling Q20261077, quote expired)", "job": "\u2014", "po": "\u2014", "quoted": 36464, "billed": 0, "left": 36464, "hrs": null, "margin": null, "next": "2026-10-30", "last": "2026-11-13"}, {"name": "21 Hunter Chilled Water (Blanchard)", "job": "JO20261184", "po": "P00754", "quoted": 352164, "billed": 0, "left": 352164, "hrs": 496, "margin": 31, "next": "2026-11-08", "last": "2027-02-15"}, {"name": "39 Second Ave Simcoe - Unit Heaters (Markland)", "job": "JO20261171", "po": "P00741", "quoted": 63784, "billed": 31892, "left": 31892, "hrs": 80, "margin": 36, "next": "2026-12-12", "last": "2026-12-12"}, {"name": "NBG 43876 Flanagan - HVAC Upgrade", "job": "JO20261177", "po": "TM00746", "quoted": 27120, "billed": 0, "left": 27120, "hrs": 56, "margin": 29, "next": "2026-10-07", "last": "2026-10-21"}, {"name": "Small completed jobs not yet invoiced (3)", "job": "J1121/1149/1161", "po": "\u2014", "quoted": 3609, "billed": 0, "left": 3609, "hrs": null, "margin": null, "next": "2026-10-07", "last": "2026-10-07"}, {"name": "Wainfleet Fire duct silencer + Niagara Falls propane", "job": "JO20261186/1188", "po": "00770/00781", "quoted": 10440, "billed": 0, "left": 10440, "hrs": null, "margin": null, "next": "2026-10-30", "last": "2026-10-30"}]};
+
+const CREW_KEY="ap_cash_crew", CREW_DEFAULT={techs:6,hoursPerWeek:40};
+function loadCrew(){try{const v=JSON.parse(localStorage.getItem(CREW_KEY));if(v&&v.techs>0&&v.hoursPerWeek>0)return v;}catch(e){}return {...CREW_DEFAULT};}
+function saveCrew(c){try{localStorage.setItem(CREW_KEY,JSON.stringify(c));return true;}catch(e){return false;}}
+let crew=loadCrew();
+
+const fmt=n=>(n<0?"−$":"$")+Math.abs(Math.round(n)).toLocaleString("en-CA");
+const fmtK=n=>Math.round(n)===0?"$0":(n<0?"−$":"$")+(Math.abs(n)/1000).toFixed(Math.abs(n)>=100000?0:1)+"K";
+const pct=(n,dp=0)=>n.toFixed(dp)+"%";
+const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
+const d=s=>new Date(s+"T12:00:00");
+const dShort=s=>d(s).toLocaleDateString("en-CA",{month:"short",day:"numeric"});
+const dLong=s=>d(s).toLocaleDateString("en-CA",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dot=l=>`<span class="h-status" style="background:var(--${l})"></span>`;
+const kv=(a,b,cls="")=>`<div class="kv ${cls}"><span>${a}</span><span>${b}</span></div>`;
+
+function render(){
+  const A=DATA.accounts, burn=DATA.burn, floor=4*burn, target=8*burn;
+  const opCash=A.operating.reduce((s,a)=>s+a[1],0);
+  const locAvail=A.locLimit-A.loc;
+  let bal=opCash;
+  const weeks=DATA.weeks.map((w,i)=>{const cin=sum(w.in),cout=sum(w.out),open=bal;bal=open+cin-cout;
+    return {...w,i,open,cin,cout,close:bal,belowFloor:bal<floor,belowTarget:bal<target,beyondLoc:bal<-locAvail};});
+  const low=weeks.reduce((a,b)=>b.close<a.close?b:a);
+  const neg=weeks.filter(w=>w.close<0), beyond=weeks.filter(w=>w.beyondLoc);
+
+  document.getElementById("banner").textContent="Live data. "+DATA.sources;
+  document.getElementById("asof").innerHTML=`As of <b>${dLong(DATA.asOf)}</b>`;
+
+  // Verdict
+  const v=document.getElementById("verdict");
+  let line,sub;
+  if(beyond.length){v.className="verdict alert";
+    line=`Forecast needs ${fmt(-low.close-locAvail)} more than the credit line in the week of ${dShort(low.start)}.`;
+    sub=`Operating cash goes negative the week of ${dShort(neg[0].start)} and bottoms at ${fmt(low.close)}. The line has ${fmt(locAvail)} available. Supplier bills due in the next 3 weeks: ${fmt(DATA.ap.byWeek.slice(0,3).reduce((a,b)=>a+b,0))}. ${DATA.squeezeNote||''}`;}
+  else if(neg.length){v.className="verdict alert";
+    line=`Operating cash goes negative in ${neg.length} of 13 weeks; the credit line covers it.`;
+    sub=`Low ${fmt(low.close)} in the week of ${dShort(low.start)}, within the ${fmt(locAvail)} available.`;}
+  else if(weeks.some(w=>w.belowFloor)){v.className="verdict warn";line="Cash stays positive but drops below the 4-week floor.";sub=`Low ${fmt(low.close)} week of ${dShort(low.start)}.`;}
+  else {v.className="verdict";line="Cash stays above the floor for all 13 weeks.";sub=`Low ${fmt(low.close)} week of ${dShort(low.start)}.`;}
+  document.getElementById("verdict-line").textContent=line;
+  document.getElementById("verdict-sub").textContent=sub;
+
+  const R=DATA.ar, burnWks=opCash/burn, ap3=DATA.ap.byWeek.slice(0,3).reduce((a,b)=>a+b,0);
+  const metrics=[
+    ["Operating cash",fmtK(opCash),`+ ${fmtK(locAvail)} credit line available`],
+    ["Weeks of core burn covered",burnWks.toFixed(1)+" wks",`<span class="${burnWks<4?"down":burnWks<8?"watch":"up"}">Floor 4, target 8</span>`],
+    ["Supplier bills due next 3 weeks",fmtK(ap3),`${fmtK(DATA.ap.total)} total payables`],
+    ["Receivables",fmtK(R.total),`${fmtK(R.postdated)} dated Oct 1`],
+    ["Avg days to get paid",R.daysToPay.toFixed(0)+" days",`<span class="up">Target 30–45</span> · ${R.payments} payments, 12 mo`],
+    ["Receivables over 60 days",fmtK(R.over60),`<span class="${R.over60/R.total>0.15?"down":R.over60/R.total>0.10?"watch":"up"}">${pct(R.over60/R.total*100)} of total · target under 10–15%</span>`],
+  ];
+  document.getElementById("metrics").innerHTML=metrics.map(m=>`<div class="metric"><div class="m-label">${m[0]}</div><div class="m-value">${m[1]}</div><div class="m-sub">${m[2]}</div><div class="m-trend"><span class="flat">Trend starts next week</span></div></div>`).join("");
+
+  document.getElementById("chart-note").textContent=`Closing operating cash each week from committed money only (solid line); the dashed line adds expected service/T&M work net of parts. Floor ${fmt(floor)} (4 weeks of core burn), target ${fmt(target)} (8 weeks). Core burn ${fmt(burn)}/week (actual Jul–Sep costs). Below $0 is drawn on the credit line; the purple line is where the ${fmt(locAvail)} available runs out. Hover or tap a week.`;
+  drawChart(weeks,floor,target,-locAvail);
+
+  if(DATA.levers&&DATA.levers.items&&DATA.levers.items.length){
+    document.getElementById("levers").innerHTML=`<div class="warnbox"><b>${esc(DATA.levers.title||"Levers")}</b><ol class="levers">${DATA.levers.items.map(x=>`<li>${esc(x)}</li>`).join("")}</ol></div>`;
+  }
+
+  // Accounts
+  const earm=A.earmarked;
+  let h=`<table class="acct"><tbody>`;
+  h+=`<tr><td colspan="2"><h5>Operating</h5></td></tr>`+A.operating.map(a=>`<tr><td>${a[0]}</td><td>${fmt(a[1])}</td></tr>`).join("")+`<tr class="total"><td>Operating cash</td><td>${fmt(opCash)}</td></tr>`;
+  h+=`<tr><td colspan="2"><h5>Earmarked for taxes</h5></td></tr>`+earm.map(a=>{const gap=a[1]-a[3];return `<tr><td>${a[0]}</td><td>${fmt(a[1])}</td></tr><tr class="sub"><td>${a[2]}: ${fmt(a[3])}</td><td class="${gap<0?"down":"up"}">${gap<0?"short "+fmt(-gap):"covered"}</td></tr>`;}).join("");
+  h+=`<tr><td colspan="2"><h5>Credit</h5></td></tr><tr><td>Operating line (${fmt(A.loc)} drawn)</td><td>${fmt(A.locLimit-A.loc)} available</td></tr><tr><td>Credit cards (${fmt(A.cards)} owing)</td><td>${fmt(A.cardLimit-A.cards)} available</td></tr>`;
+  h+=`</tbody></table>`;
+  document.getElementById("accounts").innerHTML=h;
+  const ownerTot=A.owner.reduce((s,a)=>s+a[1],0);
+  document.getElementById("owner").innerHTML=A.owner.map(a=>kv(a[0],fmt(a[1]))).join("")+kv("<b>Total</b>","<b>"+fmt(ownerTot)+"</b>");
+
+  // AR
+  document.getElementById("ar-note").textContent=`${fmt(R.total)} open. ${fmt(R.postdated)} is future-dated and not due yet.`;
+  document.getElementById("ar").innerHTML=`<h4 style="font-weight:500;color:var(--light-grey);font-size:.82rem;margin-bottom:.3rem">Largest</h4>`+R.top.map(t=>kv(esc(t[0])+` <span style="color:var(--light-grey)">· ${t[2]}</span>`,fmt(t[1]))).join("")+
+   `<h4 style="font-weight:500;color:var(--light-grey);font-size:.82rem;margin:1rem 0 .3rem">At risk (later than the customer's normal pattern)</h4><ol class="risk-list">`+R.risk.map(r=>`<li><div><div class="risk-name">${esc(r[0])}</div><div class="risk-meta">${esc(r[1])} · ${esc(r[4])}</div></div><div><div class="risk-amt">${fmt(r[2])}</div><div class="risk-days ${r[3]>=60?"down":""}">${r[3]} days</div></div></li>`).join("")+`</ol>`;
+
+  // To bill
+  const T=DATA.toBill, partsBilled=T.partsCost/(1-T.markupMargin);
+  const leftAll=DATA.jobs.reduce((s,j)=>s+Math.max(0,j.left),0), notStarted=DATA.jobs.filter(j=>j.billed===0).reduce((s,j)=>s+j.left,0);
+  document.getElementById("tobill").innerHTML=
+    kv(`Parts estimates, bill ${dShort(T.partsDate)} (${T.partsCount} unsent, at cost ${fmt(T.partsCost)})`,`~${fmt(partsBilled)}`)+
+    kv(`Monthly contracts, 1st of each month`,fmt(T.contractsMonthly))+
+    kv(`Quoted jobs, left to bill (incl. HST)`,fmt(leftAll))+
+    kv(`…of which jobs not billed at all yet`,fmt(notStarted))+
+    `<div class="h-foot" style="margin-top:.6rem">Parts billed value assumes a ${pct(T.markupMargin*100)} margin on cost; estimates are recorded at cost. Job values from BuildOps, including HST.</div>`+
+    `<div class="h-foot" style="margin-top:.4rem;color:#F0C77A">Check with Clarissa: ${T.missed.map(m=>`${m[0]} (${fmt(m[1])}, ${m[2]})`).join(" and ")} have no asterisk but are older than one billing cycle.</div>`;
+
+  // AP
+  const P=DATA.ap;
+  document.getElementById("ap-note").textContent=`${fmt(P.total)} open. ${pct(P.poCoverage*100)} of 2026 bill dollars carry a PO number.`;
+  document.getElementById("ap").innerHTML=`<h4 style="font-weight:500;color:var(--light-grey);font-size:.82rem;margin-bottom:.3rem">Due by week</h4>`+
+    P.byWeek.map((a,i)=>kv("Week of "+dShort(DATA.weeks[i].start),fmt(a))).join("")+
+    `<h4 style="font-weight:500;color:var(--light-grey);font-size:.82rem;margin:1rem 0 .3rem">Largest open POs</h4>`+
+    P.topPOs.map(p=>kv(`<b>${p[0]}</b> ${esc(p[1])}`,fmt(p[2]))).join("");
+
+  // Collections
+  const c=DATA.collections, c4=c.slice(-4).reduce((a,b)=>a+b,0)/4, c13=c.reduce((a,b)=>a+b,0)/13, ratio=c4/c13, t=DATA.phaseTriggers;
+  const pi=ratio<t.protect?3:ratio<t.reduce?2:ratio<t.tighten?1:0, mx=Math.max(...c);
+  document.getElementById("ratio").textContent=Math.round(ratio*100)+"%";
+  document.getElementById("ratio-sub").textContent=`${fmt(c4)}/wk over the last 4 weeks vs ${fmt(c13)}/wk over 13.`;
+  document.getElementById("collbars").innerHTML=c.map((v,i)=>`<div class="${i>=9?"last4":""}" style="height:${v/mx*100}%" title="${fmt(v)}"></div>`).join("");
+  document.getElementById("phases").innerHTML=[["Normal",`≥ ${t.tighten*100}%`],["Tighten",`< ${t.tighten*100}%`],["Reduce",`< ${t.reduce*100}%`],["Protect core",`< ${t.protect*100}%`]].map((p,i)=>`<div class="phase p${i} ${i===pi?"on":""}">${p[0]}<small>${p[1]}</small></div>`).join("");
+
+  // Weeks table
+  const inL={ar:"Existing receivables",contracts:"Monthly contracts",service:"Service / T&M / parts",projects:"Project billings"};
+  const outL={burn:"Core burn (payroll, overhead, vehicles, loans)",disc:"Discretionary (marketing, travel, training)",draws:"Owner dividends",svcmat:"Parts for service work",ap:"Supplier bills (QuickBooks)",cards:"Credit cards",cra:"CRA / WSIB remittance",hst:"HST shortfall",materials:"Project materials (not-started jobs)"};
+  const rows=weeks.map(w=>{
+    const ir=Object.entries(w.in).filter(([,x])=>x).map(([k,x])=>`<div><span>${inL[k]}</span><span>${fmt(x)}</span></div>`).join("")||"<div>None expected</div>";
+    const or=Object.entries(w.out).filter(([,x])=>x).map(([k,x])=>`<div><span>${outL[k]}</span><span>${fmt(x)}</span></div>`).join("");
+    const flag=w.beyondLoc?'<span class="flag red">beyond credit line</span>':w.close<0?'<span class="flag red">on credit line</span>':w.belowFloor?'<span class="flag red">below floor</span>':w.belowTarget?'<span class="flag amber">below target</span>':"";
+    return `<tr class="week ${w.close<0?"breach":""}" data-i="${w.i}" tabindex="0"><td>${dShort(w.start)}${flag}</td><td>${fmt(w.cin)}</td><td>${fmt(w.cout)}</td><td>${fmt(w.cin-w.cout)}</td><td>${fmt(w.close)}</td></tr>
+    <tr class="detail" id="detail-${w.i}"><td colspan="5"><div class="split"><div><h4>Cash in</h4>${ir}</div><div><h4>Cash out</h4>${or}</div></div>${w.driver?`<div class="driver">${esc(w.driver)}</div>`:""}</td></tr>`;}).join("");
+  const tb=document.getElementById("weeks-table");
+  tb.innerHTML=`<thead><tr><th>Week of</th><th>Cash in</th><th>Cash out</th><th>Net</th><th>Closing cash</th></tr></thead><tbody>${rows}</tbody>`;
+  tb.querySelectorAll("tr.week").forEach(tr=>{const tg=()=>{const o=tr.classList.toggle("open");document.getElementById("detail-"+tr.dataset.i).classList.toggle("open",o);};tr.addEventListener("click",tg);tr.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tg();}});});
+
+  // Jobs
+  const JB=DATA.jobs.filter(j=>j.left>0).sort((a,b)=>b.left-a.left);
+  document.getElementById("jobs").innerHTML=`<thead><tr><th>Job</th><th>BuildOps # / PO</th><th>Quoted</th><th>Billed</th><th>Left to bill</th><th>Budget hrs</th><th>Quoted margin</th><th>Next billing</th><th>Last billing</th></tr></thead><tbody>`+
+    JB.map(j=>`<tr><td>${esc(j.name)}</td><td>${esc(j.job)}<br><span style="color:var(--light-grey)">${esc(j.po||"—")}</span></td><td>${fmt(j.quoted)}</td><td>${fmt(j.billed)}</td><td>${fmt(j.left)}</td><td>${j.hrs??"—"}</td><td>${j.margin!=null?j.margin+"%":"—"}</td><td>${dShort(j.next)}</td><td>${dShort(j.last)}</td></tr>`).join("")+
+    `<tr><td><b>Total</b></td><td></td><td><b>${fmt(JB.reduce((s,j)=>s+j.quoted,0))}</b></td><td><b>${fmt(JB.reduce((s,j)=>s+j.billed,0))}</b></td><td><b>${fmt(JB.reduce((s,j)=>s+j.left,0))}</b></td><td></td><td></td><td></td><td></td></tr></tbody>`;
+
+  const B=DATA.burnDetail, mustT=B.must.reduce((s,x)=>s+x[1],0), discT=B.disc.reduce((s,x)=>s+x[1],0);
+  document.getElementById("burnbox").innerHTML=`<h4 style="font-weight:500;color:var(--light-grey);font-size:.82rem;margin-bottom:.3rem">Must-pay (core burn)</h4>`+B.must.map(x=>kv(esc(x[0]),fmt(x[1])+"/mo")).join("")+kv("<b>Core burn</b>",`<b>${fmt(mustT)}/mo · ${fmt(mustT/4.333)}/wk</b>`)+
+   `<h4 style="font-weight:500;color:var(--light-grey);font-size:.82rem;margin:1rem 0 .3rem">Discretionary (in the forecast, not the floor)</h4>`+B.disc.map(x=>kv(esc(x[0]),fmt(x[1])+"/mo")).join("")+kv("<b>Discretionary</b>",`<b>${fmt(discT)}/mo</b>`)+kv("Owner dividends",fmt(B.draws)+"/mo")+
+   `<div class="h-foot" style="margin-top:.6rem">Excludes job materials and subcontractors, which follow the jobs and are forecast from payables and the pipeline.</div>`;
+  const lm=l=>l[3].includes("2 weeks")?l[2]*26/12:l[2];
+  document.getElementById("loans").innerHTML=DATA.loans.map(l=>kv(`${esc(l[0])}<br><span style="color:var(--light-grey);font-size:.8rem">${fmt(l[2])} ${l[3]} · balance ${fmt(l[4])}</span>`,fmt(lm(l))+"/mo")).join("")+kv("<b>Total</b>","<b>"+fmt(DATA.loans.reduce((s,l)=>s+lm(l),0))+"/mo</b>");
+  const sc=DATA.scen||[], wk=DATA.weeks.map(w=>dShort(w.start)); if(DATA.scenNote) document.getElementById("scen-note").textContent=DATA.scenNote;
+  document.getElementById("scen").innerHTML=`<thead><tr><th>Scenario</th><th>Low</th>${wk.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>`+sc.map(s=>`<tr><td>${esc(s[0])}</td><td class="${Math.min(...s[1])<-140?"down":Math.min(...s[1])<0?"watch":"up"}"><b>${Math.min(...s[1])}</b></td>${s[1].map(v=>`<td class="${v<-140?"down":v<0?"watch":""}">${v}</td>`).join("")}</tr>`).join("")+`</tbody>`;
+  const TG=DATA.targets;
+  document.getElementById("targets").innerHTML=`<thead><tr><th>Sector</th><th>Last 13 wks (avg/wk)</th><th>Margin kept per $1</th><th>Break-even</th><th>Cash break-even</th><th>10% profit</th><th>15% profit</th></tr></thead><tbody>`+
+    TG.rows.map(r=>`<tr><td>${r[0]}</td><td>${fmt(r[1])}</td><td>${Math.round(r[2]*100)}¢</td><td>${fmt(r[3])}</td><td>${fmt(r[4])}</td><td>${fmt(r[5])}</td><td>${fmt(r[6])}</td></tr>`).join("")+
+    `<tr><td><b>Total per week</b></td><td><b>${fmt(TG.totals[0])}</b></td><td></td><td><b>${fmt(TG.totals[1])}</b></td><td><b>${fmt(TG.totals[2])}</b></td><td><b>${fmt(TG.totals[3])}</b></td><td><b>${fmt(TG.totals[4])}</b></td></tr>
+     <tr><td>Per month</td><td>${fmt(TG.totals[0]*4.333)}</td><td></td><td>${fmt(TG.totals[1]*4.333)}</td><td>${fmt(TG.totals[2]*4.333)}</td><td>${fmt(TG.totals[3]*4.333)}</td><td>${fmt(TG.totals[4]*4.333)}</td></tr></tbody>`;
+  renderHealth();
+
+  document.getElementById("checks").innerHTML=DATA.checks.map(c=>`<div class="check"><span class="${c[0]?"ok":"bad"}">${c[0]?"✓":"✕"}</span><span>${esc(c[1])}</span></div>`).join("");
+  document.getElementById("assumptions").innerHTML=DATA.assumptions.map(a=>`<li>${esc(a)}</li>`).join("");
+}
+
+function renderHealth(){
+  const H=DATA.health;
+  document.getElementById("health-title").textContent="Business health: "+H.period;
+  document.getElementById("health-note").textContent="From QuickBooks. September costs include materials for jobs invoiced Oct 1, so September understates margin; the year-to-date figures still warrant a look with your accountant.";
+  const nm=H.net/H.income*100, gm=(H.income-H.cogs)/H.income*100, cov=H.contractsPreTax/H.overheadMonthly*100, covNet=(H.contractsPreTax-H.contractLabour)/H.overheadMonthly*100;
+  const cap=crew.techs*crew.hoursPerWeek, backlog=H.remainingProjectHours/cap;
+  const lvl=(v,g,w,hi=true)=>hi?(v>=g?"green":v>=w?"amber":"red"):(v<=g?"green":v<=w?"amber":"red");
+  document.getElementById("health").innerHTML=`
+   <div class="h-card"><div class="h-label">${dot(lvl(H.currentRatio,1.5,1.2))}Current ratio</div><div class="h-value">${H.currentRatio.toFixed(2)}</div><div class="h-foot">Using RBC balances and open invoices/bills. Healthy 1.5–2.0; under 1.2 is tight.</div></div>
+   <div class="h-card"><div class="h-label">${dot(lvl(nm,10,5))}Net profit margin</div><div class="h-value">${pct(nm,1)}</div><div class="h-foot">${fmt(H.net)} on ${fmt(H.income)} income. September alone: ${fmt(H.sepNet)}.</div></div>
+   <div class="h-card"><div class="h-label">${dot(lvl(gm,35,25))}Gross margin (all streams)</div><div class="h-value">${pct(gm,1)}</div><div class="h-foot">Cost of sales ${fmt(H.cogs)}. Split by stream needs QuickBooks classes or the BuildOps export.</div></div>
+   <div class="h-card"><div class="h-label">${dot(lvl(covNet,60,40))}Contract margin covering overhead</div><div class="h-value">${pct(covNet)}</div><div class="h-foot">Contracts ${fmt(H.contractsPreTax)}/mo less ~${fmt(H.contractLabour)} labour for 3 contract techs = ${fmt(H.contractsPreTax-H.contractLabour)}, against ${fmt(H.overheadMonthly)}/mo operating expenses. Labour estimated until BuildOps hours are connected.</div></div>
+   <div class="h-card"><div class="h-label">${dot(lvl(H.largestShare*100,10,15,false))}Largest customer share of receivables</div><div class="h-value">${pct(H.largestShare*100)}</div><div class="h-foot">${esc(H.largestName)}. Flag above 15%.</div></div>
+   <div class="h-card"><div class="h-label">Tech billable efficiency <span class="pend">BuildOps pending</span></div><div class="h-value">—</div><div class="h-foot">Needs billed hours from BuildOps visits.</div></div>
+   <div class="h-card full"><div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+     <div><div class="h-label">Project backlog</div><div class="h-value">${backlog.toFixed(1)} wks</div><div class="h-foot">${H.remainingProjectHours.toLocaleString("en-CA")} hours left on approved jobs, at full-crew capacity (${cap} hrs/wk). At 3 techs on projects: ${(H.remainingProjectHours/120).toFixed(1)} wks.</div></div>
+     <div><div class="h-label">Crew capacity</div><div class="h-value">${cap} hrs/wk</div><div class="h-foot">Used for backlog and, once BuildOps is connected, billable efficiency.</div></div></div>
+     <div class="crew"><label>Field techs<input type="number" id="crew-techs" min="1" step="1" value="${crew.techs}"></label><label>Hours per tech per week<input type="number" id="crew-hours" min="1" step="1" value="${crew.hoursPerWeek}"></label><span class="saved" id="crew-saved">Saved</span></div></div>`;
+  const on=()=>{const t=parseInt(document.getElementById("crew-techs").value,10),hh=parseFloat(document.getElementById("crew-hours").value);if(!(t>0)||!(hh>0))return;crew={techs:t,hoursPerWeek:hh};const ok=saveCrew(crew);renderHealth();const s=document.getElementById("crew-saved");s.textContent=ok?"Saved":"Couldn't save in this browser";s.classList.add("show");setTimeout(()=>s.classList.remove("show"),1500);};
+  document.getElementById("crew-techs").addEventListener("change",on);document.getElementById("crew-hours").addEventListener("change",on);
+}
+
+function drawChart(weeks,floor,target,locLine){
+  const svg=document.getElementById("chart"),tip=document.getElementById("tip");
+  const W=1000,L=70,R=20,top1=20,h1=280,top2=340,h2=100,n=weeks.length,step=(W-L-R)/n,x=i=>L+step*(i+.5);
+  const maxC=Math.max(target,...weeks.map(w=>w.close),...(DATA.upside||[]),weeks[0].open)*1.08, minC=Math.min(locLine,...weeks.map(w=>w.close))*1.08;
+  const y1=v=>top1+h1-(v-minC)/(maxC-minC)*h1, maxF=Math.max(...weeks.map(w=>Math.max(w.cin,w.cout)))*1.1, mid2=top2+h2/2, y2=v=>v/maxF*(h2/2);
+  let g="";
+  for(let k=0;k<=5;k++){const v=minC+(maxC-minC)*k/5,yy=y1(v);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="rgba(255,255,255,0.06)"/><text x="${L-10}" y="${yy+4}" fill="#9A9A95" font-size="12" text-anchor="end" font-family="Inter">${fmtK(v)}</text>`;}
+  g+=`<rect x="${L}" y="${y1(0)}" width="${W-L-R}" height="${y1(locLine)-y1(0)}" fill="rgba(224,112,94,0.10)"/>`;
+  g+=`<rect x="${L}" y="${y1(locLine)}" width="${W-L-R}" height="${top1+h1-y1(locLine)}" fill="rgba(176,106,217,0.12)"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y1(0)}" y2="${y1(0)}" stroke="rgba(255,255,255,0.35)"/>`;
+  [[target,"#E2A845","Target "+fmtK(target)],[floor,"#E0705E","Floor "+fmtK(floor)],[locLine,"#B06AD9","Credit line used up "+fmtK(locLine)]].forEach(([v,c,t])=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y1(v)}" y2="${y1(v)}" stroke="${c}" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(v)-7}" fill="${c}" font-size="12" text-anchor="end" font-family="Inter">${t}</text>`;});
+  const pts=weeks.map(w=>[x(w.i),y1(w.close)]),all=[[L,y1(weeks[0].open)],...pts],path=all.map(p=>p.join(",")).join(" L");
+  if(DATA.upside){const up=[[L,y1(weeks[0].open)],...DATA.upside.map((v,i)=>[x(i),y1(v)])];g+=`<path d="M${up.map(p=>p.join(",")).join(" L")}" fill="none" stroke="#9FD3D5" stroke-width="2" stroke-dasharray="4 4"/>`;}
+  g+=`<path d="M${path}" fill="none" stroke="#2A8A8E" stroke-width="3" stroke-linejoin="round"/>`;
+  weeks.forEach(w=>{const col=w.beyondLoc?"#B06AD9":w.close<0||w.belowFloor?"#E0705E":w.belowTarget?"#E2A845":"#2A8A8E";g+=`<circle cx="${x(w.i)}" cy="${y1(w.close)}" r="${w.close<0?6:4}" fill="${col}" stroke="#1A1A18" stroke-width="2"/>`;});
+  const low=weeks.reduce((a,b)=>b.close<a.close?b:a);
+  g+=`<text x="${x(low.i)}" y="${y1(low.close)+24}" fill="#FFFFFF" font-size="13" text-anchor="middle" font-family="Oswald" font-weight="500">Low ${fmtK(low.close)}</text>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${mid2}" y2="${mid2}" stroke="rgba(255,255,255,0.15)"/><text x="${L-10}" y="${top2+10}" fill="#9A9A95" font-size="11" text-anchor="end" font-family="Inter">In</text><text x="${L-10}" y="${top2+h2}" fill="#9A9A95" font-size="11" text-anchor="end" font-family="Inter">Out</text>`;
+  const bw=step*.5;
+  weeks.forEach(w=>{g+=`<rect x="${x(w.i)-bw/2}" y="${mid2-y2(w.cin)}" width="${bw}" height="${y2(w.cin)}" fill="rgba(42,138,142,0.55)" rx="2"/><rect x="${x(w.i)-bw/2}" y="${mid2}" width="${bw}" height="${y2(w.cout)}" fill="rgba(155,142,196,0.6)" rx="2"/><text x="${x(w.i)}" y="${top2+h2+22}" fill="#9A9A95" font-size="11" text-anchor="middle" font-family="Inter">${dShort(w.start)}</text>`;});
+  weeks.forEach(w=>{g+=`<rect class="hit" data-i="${w.i}" x="${x(w.i)-step/2}" y="${top1}" width="${step}" height="${top2+h2-top1}" fill="transparent"/>`;});
+  (DATA.actuals||[]).forEach((a,k,arr)=>{const di=(new Date(a.date+"T12:00:00")-new Date(weeks[0].start+"T12:00:00"))/864e5; const ax=L+step*(di/7); g+=`<circle cx="${ax}" cy="${y1(a.cash)}" r="5" fill="#FFFFFF" stroke="#1A1A18" stroke-width="2"><title>Actual ${a.date}: ${fmt(a.cash)}</title></circle>`; if(k>0){const p=arr[k-1],pi=(new Date(p.date+"T12:00:00")-new Date(weeks[0].start+"T12:00:00"))/864e5; g+=`<line x1="${L+step*(pi/7)}" y1="${y1(p.cash)}" x2="${ax}" y2="${y1(a.cash)}" stroke="#FFFFFF" stroke-width="2"/>`;}});
+  svg.innerHTML=g;
+  svg.querySelectorAll(".hit").forEach(r=>{const w=weeks[+r.dataset.i];const show=e=>{tip.innerHTML=`<b>Week of ${dShort(w.start)}</b><br>In ${fmt(w.cin)}<br>Out ${fmt(w.cout)}<br>Closing ${fmt(w.close)}`+(w.driver?`<br><span style="color:#9A9A95">${esc(w.driver)}</span>`:"");tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
+}
+render();
+</script>
+
+
+</body></html>

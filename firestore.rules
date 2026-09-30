@@ -26,6 +26,14 @@ service cloud.firestore {
       ];
     }
 
+    function isFinance() {
+      return signedIn() && email() in [
+        'jake.gilmore@alpinehvac.ca',
+        'mike.launder@alpinehvac.ca',
+        'clarissa.launder@alpinehvac.ca'
+      ];
+    }
+
     function isOps() {
       return signedIn() && email() in [
         'cole.hamilton@alpinehvac.ca',
@@ -60,6 +68,14 @@ service cloud.firestore {
     // Team Hub (recruiting, reviews): super admins only
     match /team_hub_data/{doc} {
       allow read, write: if isAdmin();
+    }
+
+    // Cash Position dashboard: Jake, Mike, Clarissa only
+    match /cash_dashboard/{doc} {
+      allow read, write: if isFinance();
+    }
+    match /cash_dashboard_history/{doc} {
+      allow read, write: if isFinance();
     }
 
     // Everything else is denied by default.
