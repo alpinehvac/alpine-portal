@@ -37,7 +37,7 @@ const BUILDOPS_IDS = {
 const DONE_RE = /complete|converted|closed|finished|invoiced/i;
 const STAGES = ['Not Started', 'Proposal Sent', 'Renewed', 'Lost'];
 const OUTREACH = ['Due', 'Contacted', 'Quoted', 'Booked', 'No Interest'];
-const MAINT_STATUS = ['Scheduled', 'Completed', 'Skipped'];
+const MAINT_STATUS = ['Scheduled', 'Unscheduled', 'Complete', 'Skipped', 'Canceled'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -219,8 +219,8 @@ function maintStats(a) {
     s.budget += num(r.budgetHrs) || 0;
     const due = parseD(r.due);
     if (due && due <= TODAY) s.dueToDate++;
-    if (r.status === 'Completed') s.done++;
-    else if (r.status === 'Skipped') s.skipped++;
+    if (/complete/i.test(r.status || '')) s.done++;
+    else if (/skip|cancel/i.test(r.status || '')) s.skipped++;
     else if (due && due < TODAY) s.late++;
   });
   return s;
@@ -628,7 +628,7 @@ function renderMaintEditor() {
     wrap.innerHTML = '<div class="tbl-wrap" style="border-radius:6px"><table><thead><tr><th>Due</th><th>Status</th><th class="num">Budget hrs</th><th class="num">Visits</th><th></th></tr></thead><tbody>' +
       drawerMaint.map((r, i) => '<tr>' +
         '<td><input class="inp mini" style="width:140px" type="date" data-maint="' + i + '" data-mf="due" value="' + esc(r.due || '') + '"></td>' +
-        '<td><select class="sel mini" data-maint="' + i + '" data-mf="status">' + MAINT_STATUS.map(s => '<option' + (s === r.status ? ' selected' : '') + '>' + s + '</option>').join('') + '</select></td>' +
+        '<td><select class="sel mini" data-maint="' + i + '" data-mf="status">' + MAINT_STATUS.concat(r.status && !MAINT_STATUS.includes(r.status) ? [r.status] : []).map(s => '<option' + (s === r.status ? ' selected' : '') + '>' + s + '</option>').join('') + '</select></td>' +
         '<td class="num"><input class="inp mini" type="number" step="0.5" data-maint="' + i + '" data-mf="budgetHrs" value="' + esc(r.budgetHrs ?? '') + '"></td>' +
         '<td class="num"><input class="inp mini" type="number" step="1" data-maint="' + i + '" data-mf="visits" value="' + esc(r.visits ?? '') + '"></td>' +
         '<td><button class="x-btn" style="font-size:1.1rem" data-action="maint-del" data-i="' + i + '" aria-label="Remove visit">×</button></td></tr>').join('') +
@@ -651,8 +651,8 @@ function collectAgrForm() {
   document.querySelectorAll('#drawer-body [data-field]').forEach(el => { out[el.dataset.field] = el.value.trim(); });
   out.acv = out.acv === '' ? null : num(out.acv);
   out.priceIncrease = out.priceIncrease === '' ? null : num(out.priceIncrease);
-  out.maint = drawerMaint.filter(r => r.due || r.budgetHrs || r.visits).map(r => ({
-    due: r.due || '', status: r.status || 'Scheduled', budgetHrs: num(r.budgetHrs), visits: num(r.visits)
+  out.maint = drawerMaint.filter(r => r.due || r.budgetHrs || r.visits || r.id).map(r => ({
+    ...r, due: r.due || '', status: r.status || 'Scheduled', budgetHrs: num(r.budgetHrs), visits: num(r.visits)
   })).sort((x, y) => (x.due || '').localeCompare(y.due || ''));
   return out;
 }
@@ -916,7 +916,7 @@ document.addEventListener('click', e => {
   const act = el.dataset.action, id = el.dataset.id;
   if (act === 'bo-link') return; // plain link to BuildOps; don't open the drawer
   switch (act) {
-    case 'open-agr': openAgreement(id); break;
+    case 'open-agr': location.href = 'agreement.html?id=' + encodeURIComponent(id); break;
     case 'new-agreement': openAgreement('', true); break;
     case 'save-agr': saveAgreementFromDrawer(); break;
     case 'mark-renewed': markRenewed(ui.drawerId); break;
@@ -988,5 +988,8 @@ seedIfNeeded();
 migrateBuildopsIds();
 render();
 if (location.hash === '#unactive') switchTab('unactive');
+// agreement.html links here with #edit=SA1023 to edit dates/ACV or renew/mark lost
+const editMatch = location.hash.match(/^#edit=(SA\d+)$/i);
+if (editMatch && findAgr(editMatch[1].toUpperCase())) { openAgreement(editMatch[1].toUpperCase()); history.replaceState(null, '', location.pathname); }
 
 })();

@@ -84,6 +84,8 @@ function sumStats(list) {
   return s;
 }
 function pct(p) { return Math.round(p * 100) + '%'; }
+// Checklist finished in the portal but the maintenance item is still open in BuildOps.
+function needsCloseOut(it) { const s = itemStats(it); return s.required > 0 && s.done >= s.required && !/^complete/i.test(it.status || ''); }
 
 // ── selection ────────────────────────────────────────────────────────
 function customers() {
@@ -152,6 +154,7 @@ function renderInternal() {
   const chDone = chiller.filter(c => DONE_RE.test(c.status || '')).length;
   const chLate = chiller.filter(c => !DONE_RE.test(c.status || '') && parseD(c.due) && parseD(c.due) < TODAY).length;
   const call = getCall();
+  const closeOuts = maint.filter(needsCloseOut).length;
 
   let h = '<h1>' + esc(name) + '</h1>' +
     '<p class="sub">' + qLabel(ui.quarter) + ' (' + Q_MONTHS[+ui.quarter.slice(-1) - 1] + ') · ' +
@@ -162,7 +165,7 @@ function renderInternal() {
     '<div><div class="k-label">Maintenance complete</div><div class="k-val">' + pct(s.pct) + '</div>' +
       '<div class="bigbar">' + bar(s) + '</div><div class="k-foot" style="margin-top:.35rem">' + s.done + ' of ' + s.required + ' tasks' + (s.na ? ' · ' + s.na + ' N/A' : '') + '</div></div>' +
     '<div><div class="k-label">Tasks remaining</div><div class="k-val">' + Math.max(0, s.required - s.done - s.issue) + '</div><div class="k-foot">across ' + maint.length + ' maintenance items</div></div>' +
-    '<div><div class="k-label">Flagged issues</div><div class="k-val" style="color:' + (s.issue ? 'var(--red)' : 'inherit') + '">' + s.issue + '</div><div class="k-foot">for the customer call</div></div>' +
+    '<div><div class="k-label">Flagged issues</div><div class="k-val" style="color:' + (s.issue ? 'var(--red)' : 'inherit') + '">' + s.issue + '</div><div class="k-foot">for the customer call' + (closeOuts ? ' · <span style="color:var(--amber)">' + closeOuts + ' to close out in BuildOps</span>' : '') + '</div></div>' +
     '<div><div class="k-label">Chiller logs</div><div class="k-val">' + chDone + '/' + chiller.length + '</div><div class="k-foot">' + (chLate ? '<span style="color:var(--red)">' + chLate + ' past due</span>' : 'none past due') + ' · ' + hrs.toFixed(1) + ' budget hrs</div></div>' +
     '</div>';
 
@@ -235,7 +238,7 @@ function itemHTML(it) {
   }
   return '<div class="item' + (open ? ' open' : '') + '">' +
     '<div class="item-head" data-act="toggle" data-id="' + esc(it.id) + '">' +
-      '<div><div class="item-title">' + esc(it.property || it.id) + dueFlag + (s.issue ? ' <span class="badge b-red">' + s.issue + ' issue' + (s.issue > 1 ? 's' : '') + '</span>' : '') + '</div>' +
+      '<div><div class="item-title">' + esc(it.property || it.id) + dueFlag + (s.issue ? ' <span class="badge b-red">' + s.issue + ' issue' + (s.issue > 1 ? 's' : '') + '</span>' : '') + (needsCloseOut(it) ? ' <span class="badge b-amber" title="Every task is done here but BuildOps still shows this item open">Close out in BuildOps</span>' : '') + '</div>' +
       '<div class="item-meta">' + esc(it.id) + ' · ' + esc(it.status || '—') + (it.budgetHrs ? ' · ' + esc(it.budgetHrs) + ' budget hrs' : '') + (it.reviewedAt ? ' · reviewed ' + esc(fmtD(it.reviewedAt)) : '') + '</div></div>' +
       '<div class="hide-sm"><div class="minibar">' + bar(s) + '</div></div>' +
       '<div class="hide-sm item-meta" style="text-align:right">' + s.done + ' of ' + s.required + ' tasks</div>' +
@@ -447,5 +450,8 @@ $('btn-data').addEventListener('click', openData);
 $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
+const qp = new URLSearchParams(location.search);
+if (qp.get('c')) ui.customer = qp.get('c');
+if (qp.get('q')) ui.quarter = qp.get('q');
 render();
 })();
