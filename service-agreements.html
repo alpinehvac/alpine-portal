@@ -168,6 +168,26 @@ textarea.inp{resize:vertical;min-height:70px}
 .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--charcoal);border:1px solid rgba(28,107,110,0.6);border-radius:8px;padding:.7rem 1.1rem;font-size:.83rem;z-index:800;transition:all .25s;pointer-events:none;max-width:90vw}
 .toast.show{opacity:1;transform:translateX(-50%)}
 
+/* BuildOps links + work completed */
+.bo-link{color:var(--teal-light);text-decoration:none;font-size:.78rem}
+.bo-link:hover{color:var(--white);text-decoration:underline}
+.qgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.qcell{background:var(--off-black);padding:.6rem .7rem}
+.qcell.future{opacity:.4}
+.qcell.current{box-shadow:inset 0 2px 0 var(--purple-light)}
+.qcell.ytd{background:rgba(28,107,110,0.14)}
+.q-label{font-size:.7rem;color:rgba(255,255,255,0.45);margin-bottom:.2rem}
+.q-num{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;line-height:1.3}
+.q-num span{font-family:'Inter',sans-serif;font-size:.66rem;font-weight:400;color:rgba(255,255,255,0.45);margin-left:5px}
+.q-head{font-size:.75rem;font-weight:600;color:var(--teal-light);margin:1rem 0 .4rem}
+.job{border-top:1px solid rgba(255,255,255,0.06);padding:.55rem 0}
+.job-top{font-size:.8rem;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.job-top a.id{color:var(--teal-light);font-family:'Oswald',sans-serif;text-decoration:none}
+.job-top a.id:hover{text-decoration:underline}
+.job-title{font-size:.82rem;margin-top:.2rem}
+.visits{list-style:none;font-size:.76rem;color:rgba(255,255,255,0.65);margin-top:.25rem;display:flex;flex-direction:column;gap:.15rem}
+.visits b{color:rgba(255,255,255,0.85);font-weight:500}
+@media (max-width:760px){.qgrid{grid-template-columns:repeat(2,1fr)}}
 details.ended summary{cursor:pointer;font-size:.82rem;color:rgba(255,255,255,0.45);margin-bottom:.75rem}
 
 @media (max-width:760px){
@@ -242,7 +262,7 @@ details.ended summary{cursor:pointer;font-size:.82rem;color:rgba(255,255,255,0.4
         <table>
           <thead><tr>
             <th>#</th><th>Name</th><th>Customer</th><th>Type</th><th>Billing</th><th>Start</th><th>End</th>
-            <th class="num">ACV</th><th>Sold by</th><th>PM</th><th>Maintenance</th><th>Renewal</th>
+            <th class="num">ACV</th><th>Sold by</th><th>PM</th><th>Maintenance</th><th>Work YTD</th><th>Renewal</th>
           </tr></thead>
           <tbody id="reg-body"></tbody>
         </table>

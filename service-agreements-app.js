@@ -19,7 +19,22 @@ const session = (typeof apGetSession === 'function' && apGetSession()) || { name
 const TODAY = startOfDay(new Date());
 
 // Fields owned by BuildOps. Imports overwrite these; portal-only fields are never touched.
-const BUILDOPS_FIELDS = ['name', 'customer', 'type', 'billing', 'startDate', 'endDate', 'acv', 'soldBy', 'pm', 'status', 'draftDate', 'maint'];
+const BUILDOPS_FIELDS = ['name', 'customer', 'type', 'billing', 'startDate', 'endDate', 'acv', 'soldBy', 'pm', 'status', 'draftDate', 'maint', 'buildopsId', 'work'];
+const BUILDOPS_BASE = 'https://live.buildops.com';
+// BuildOps record IDs, captured Sep 30 2026 (applied once to existing records).
+const BUILDOPS_IDS = {
+  SA1030: '8435fca6-890d-493b-ac2d-2c1e30592b7d', SA1029: '72657c7d-84ae-4645-a5e3-d1bfb56427c3',
+  SA1028: 'c9eaa918-37b9-460b-a27d-721be247131e', SA1027: '77b0a687-d749-430a-898a-81ccc2da7e34',
+  SA1026: '13371c9b-4b60-494d-b7e8-0ff2cdcec61b', SA1025: 'af608e20-1e97-45b1-a91d-06c60d1cf78a',
+  SA1024: '4ef79a95-e05f-4ce0-996a-799a88a5199f', SA1023: '1e663e1d-c306-4d81-8832-6ddbaf638981',
+  SA1022: '57237755-9a75-4df6-9ea3-408287a4eb4a', SA1021: 'b0ec30a3-e94c-4c81-8992-45f2716d6d02',
+  SA1020: '603aded9-7779-41a4-a20a-fb54ef17b4e5', SA1019: '439db2c3-9e49-4731-b10d-21ab9d5ba197',
+  SA1018: 'a6cf9827-dc53-4e2e-b728-0025056ca136', SA1017: '3cfc9984-0bf4-4857-a3cf-f9f41470e507',
+  SA1016: 'de4a137b-ebaf-4334-9d14-33f8a722f8ab', SA1010: 'd09dee80-2637-4a5f-84f9-05e2ea7d09df',
+  SA1009: '8f81b204-1be6-4e57-9bb7-fb073a187709', SA1008: 'a6e91aa5-45ff-4bd9-8dc6-73eac589ebf6'
+};
+// Visit statuses that count as work done.
+const DONE_RE = /complete|converted|closed|finished|invoiced/i;
 const STAGES = ['Not Started', 'Proposal Sent', 'Renewed', 'Lost'];
 const OUTREACH = ['Due', 'Contacted', 'Quoted', 'Booked', 'No Interest'];
 const MAINT_STATUS = ['Scheduled', 'Completed', 'Skipped'];
@@ -141,7 +156,7 @@ function logHist(r, text) { (r.history = r.history || []).unshift({ at: isoD(new
 function blankAgreement(id) {
   return {
     id, name: '', customer: '', type: '', billing: '', startDate: '', endDate: '', acv: null,
-    soldBy: '', pm: '', status: 'Active', draftDate: '', maint: [],
+    soldBy: '', pm: '', status: 'Active', draftDate: '', maint: [], buildopsId: '', work: null,
     renewalStage: 'Not Started', renewalOwner: '', priceIncrease: null, notes: '', flag: '',
     history: [], deleted: false
   };
@@ -170,6 +185,15 @@ function seedIfNeeded() {
   });
   if (!localStorage.getItem(KEY.settings)) localStorage.setItem(KEY.settings, JSON.stringify(DEFAULT_SETTINGS));
   localStorage.setItem(KEY.seeded, new Date().toISOString());
+}
+
+function migrateBuildopsIds() {
+  if (localStorage.getItem('sa_migrated_v2')) return;
+  Object.keys(BUILDOPS_IDS).forEach(id => {
+    const a = readJSON(KEY.agr + id);
+    if (a && !a.deleted && !a.buildopsId) { a.buildopsId = BUILDOPS_IDS[id]; saveAgr(a); }
+  });
+  localStorage.setItem('sa_migrated_v2', new Date().toISOString());
 }
 
 function loadAll() {
@@ -208,6 +232,93 @@ function progHTML(a) {
   return '<div class="prog" title="' + s.done + ' completed, ' + s.skipped + ' skipped, ' + s.late + ' past due of ' + s.total + ' scheduled">' +
     '<div class="prog-track"><div class="prog-done" style="width:' + pct(s.done) + '"></div><div class="prog-skip" style="width:' + pct(s.skipped) + '"></div><div class="prog-late" style="width:' + pct(s.late) + '"></div></div>' +
     '<span class="prog-txt">' + s.done + '/' + s.total + (s.late ? ' · <span style="color:var(--red)">' + s.late + ' late</span>' : '') + '</span></div>';
+}
+
+// ── WORK COMPLETED (from BuildOps jobs & visits) ─────────────────────
+// a.work = { syncedAt, jobs: [{ id, url, kind: 'Maintenance'|'Service', type, title,
+//            status, created, due, visits: [{ date, status, tech, others, desc, assets }] }] }
+// Dollar balances and property instructions are deliberately never stored.
+function boAgreementUrl(a) { return a.buildopsId ? BUILDOPS_BASE + '/serviceAgreement/view/' + a.buildopsId : ''; }
+function boJobUrl(j) { return j.url ? (/^https?:/.test(j.url) ? j.url : BUILDOPS_BASE + j.url) : ''; }
+function quarterIdx(d) { return Math.floor(d.getMonth() / 3); }
+
+function workSummary(a, year) {
+  const qs = [0, 1, 2, 3].map(() => ({ maint: 0, svcJobs: new Set(), svcVisits: 0, jobs: new Set() }));
+  const jobs = (a.work && a.work.jobs) || [];
+  jobs.forEach(j => {
+    const isMaint = j.kind === 'Maintenance';
+    const visits = (j.visits || []).filter(v => { const d = parseD(v.date); return d && d.getFullYear() === year; });
+    visits.forEach(v => {
+      const qi = quarterIdx(parseD(v.date));
+      qs[qi].jobs.add(j);
+      if (isMaint) { if (DONE_RE.test(v.status || '')) qs[qi].maint++; }
+      else { qs[qi].svcVisits++; qs[qi].svcJobs.add(j.id); }
+    });
+    if (!visits.length) {
+      const ref = parseD(isMaint ? (j.due || j.created) : j.created);
+      if (ref && ref.getFullYear() === year) {
+        const qi = quarterIdx(ref);
+        if (isMaint && DONE_RE.test(j.status || '')) { qs[qi].maint++; qs[qi].jobs.add(j); }
+        else if (!isMaint) { qs[qi].svcJobs.add(j.id); qs[qi].jobs.add(j); }
+      }
+    }
+  });
+  const ytd = { maint: 0, svcJobs: new Set(), svcVisits: 0 };
+  qs.forEach(q => { ytd.maint += q.maint; ytd.svcVisits += q.svcVisits; q.svcJobs.forEach(x => ytd.svcJobs.add(x)); });
+  return { qs, ytd, hasData: !!(a.work && a.work.jobs) };
+}
+
+function workYears(a) {
+  const ys = new Set([TODAY.getFullYear()]);
+  ((a.work && a.work.jobs) || []).forEach(j => (j.visits || []).forEach(v => { const d = parseD(v.date); if (d) ys.add(d.getFullYear()); }));
+  return [...ys].sort((x, y) => y - x);
+}
+
+function svcYtdCell(a) {
+  if (!a.work || !a.work.jobs) return '<span class="muted" style="font-size:.75rem">Not pulled</span>';
+  const s = workSummary(a, TODAY.getFullYear());
+  return '<span class="nowrap" style="font-size:.78rem">' + s.ytd.maint + ' maint · ' + s.ytd.svcJobs.size + ' svc</span>';
+}
+
+function renderWork(a, year) {
+  const wrap = document.getElementById('work-wrap');
+  if (!wrap) return;
+  if (!a.work || !a.work.jobs) {
+    wrap.innerHTML = '<p class="muted" style="font-size:.8rem">No work pulled from BuildOps yet. It loads with the weekly BuildOps refresh.</p>';
+    return;
+  }
+  const s = workSummary(a, year);
+  const curQ = year === TODAY.getFullYear() ? quarterIdx(TODAY) : (year < TODAY.getFullYear() ? 3 : -1);
+  const cell = (label, maint, svc, visits, cls) =>
+    '<div class="qcell ' + cls + '"><div class="q-label">' + label + '</div>' +
+    '<div class="q-num">' + maint + '<span>maint visits</span></div>' +
+    '<div class="q-num">' + svc + '<span>service calls' + (visits ? ' · ' + visits + ' visits' : '') + '</span></div></div>';
+  let html = '<div class="qgrid">' +
+    s.qs.map((q, i) => cell('Q' + (i + 1), q.maint, q.svcJobs.size, q.svcVisits, i > curQ ? 'future' : (i === curQ && year === TODAY.getFullYear() ? 'current' : ''))).join('') +
+    cell(year === TODAY.getFullYear() ? 'YTD' : year + ' total', s.ytd.maint, s.ytd.svcJobs.size, s.ytd.svcVisits, 'ytd') + '</div>';
+
+  const quartersDesc = [3, 2, 1, 0].filter(i => s.qs[i].jobs.size);
+  if (!quartersDesc.length) {
+    html += '<p class="muted" style="font-size:.8rem;margin-top:.75rem">No completed maintenance or service calls in ' + year + '.</p>';
+  }
+  quartersDesc.forEach(i => {
+    const jobs = [...s.qs[i].jobs].sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'Service' ? -1 : 1));
+    html += '<div class="q-head">Q' + (i + 1) + ' ' + year + '</div>' + jobs.map(j => {
+      const vis = (j.visits || []).filter(v => { const d = parseD(v.date); return d && d.getFullYear() === year && quarterIdx(d) === i; })
+        .sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+      const url = boJobUrl(j);
+      return '<div class="job">' +
+        '<div class="job-top"><span class="badge ' + (j.kind === 'Maintenance' ? 'b-90' : 'b-60') + '">' + esc(j.kind) + '</span> ' +
+        (url ? '<a class="id" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(j.id) + '</a>' : '<span class="id">' + esc(j.id) + '</span>') +
+        ' <span class="muted">' + esc(j.type || '') + (j.status ? ' · ' + esc(j.status) : '') + '</span></div>' +
+        (j.title ? '<div class="job-title">' + esc(j.title) + '</div>' : '') +
+        (vis.length ? '<ul class="visits">' + vis.map(v => '<li><b>' + esc(fmtD(v.date)) + '</b> ' +
+          esc([v.tech, v.others].filter(Boolean).join(' + ')) + (v.desc ? ' · ' + esc(v.desc) : '') + (v.assets ? ' <span class="muted">(' + esc(v.assets) + ')</span>' : '') +
+          (v.status && !DONE_RE.test(v.status) ? ' <span class="muted">[' + esc(v.status) + ']</span>' : '') + '</li>').join('') + '</ul>' : '') +
+        '</div>';
+    }).join('');
+  });
+  wrap.innerHTML = html;
 }
 
 // ── CAMPAIGNS ────────────────────────────────────────────────────────
@@ -327,10 +438,10 @@ function renderRegister() {
   });
   document.getElementById('reg-count').textContent = rows.length + ' of ' + active().length + ' active';
   const body = document.getElementById('reg-body');
-  if (!rows.length) { body.innerHTML = '<tr class="empty-row"><td colspan="12">No agreements match these filters.</td></tr>'; return; }
+  if (!rows.length) { body.innerHTML = '<tr class="empty-row"><td colspan="13">No agreements match these filters.</td></tr>'; return; }
   body.innerHTML = rows.map(a =>
     '<tr class="clickable" data-action="open-agr" data-id="' + esc(a.id) + '">' +
-    '<td><span class="id">' + esc(a.id) + '</span></td>' +
+    '<td class="nowrap"><span class="id">' + esc(a.id) + '</span>' + (a.buildopsId ? ' <a class="bo-link" href="' + esc(boAgreementUrl(a)) + '" target="_blank" rel="noopener" title="Open in BuildOps" data-action="bo-link">↗</a>' : '') + '</td>' +
     '<td>' + esc(a.name) + (a.flag ? '<span class="flag" title="' + esc(a.flag) + '">⚑</span>' : '') + '</td>' +
     '<td>' + esc(a.customer || '—') + '</td>' +
     '<td>' + (a.type ? esc(a.type) : '<span class="muted">—</span>') + '</td>' +
@@ -341,6 +452,7 @@ function renderRegister() {
     '<td>' + (a.soldBy ? esc(a.soldBy) : '<span class="muted">—</span>') + '</td>' +
     '<td>' + (a.pm ? esc(a.pm) : '<span class="muted">—</span>') + '</td>' +
     '<td>' + progHTML(a) + '</td>' +
+    '<td>' + svcYtdCell(a) + '</td>' +
     '<td>' + renewalBadge(a) + '</td>' +
     '</tr>').join('');
 }
@@ -453,6 +565,10 @@ function openAgreement(id, isNew) {
   drawerMaint = JSON.parse(JSON.stringify(a.maint || []));
   document.getElementById('drawer-kicker').innerHTML = isNew ? 'New agreement' : esc(a.id) + ' · ' + (a.status === 'Active' ? renewalBadge(a) : '<span class="badge ' + (a.status === 'Draft' ? 'b-draft' : 'b-ended') + '">' + esc(a.status) + '</span>');
   document.getElementById('drawer-title').textContent = isNew ? 'Add agreement' : a.name;
+  if (!isNew && a.buildopsId) {
+    document.getElementById('drawer-kicker').insertAdjacentHTML('beforeend',
+      ' · <a class="bo-link" href="' + esc(boAgreementUrl(a)) + '" target="_blank" rel="noopener">Open in BuildOps ↗</a>');
+  }
 
   const ruleNote = a.startDate && !a.endDate ? 'Blank = rule applies: ' + fmtD(ruleEnd(a.startDate)) : 'Leave blank to apply start + 1 year − 1 day';
   document.getElementById('drawer-body').innerHTML =
@@ -480,6 +596,10 @@ function openAgreement(id, isNew) {
       fld('Notes', 'notes', a.notes, { textarea: true, full: true }) +
       fld('Data flag', 'flag', a.flag, { full: true, ph: 'Leave blank when reconciled' }) +
     '</div></div>' +
+    (isNew ? '' : '<div class="fs"><div class="fs-legend">Work completed <span>' +
+      (a.work && a.work.syncedAt ? 'Pulled from BuildOps ' + esc(fmtD(a.work.syncedAt)) : 'From BuildOps') +
+      ' <select class="sel mini" id="work-year" aria-label="Year">' + workYears(a).map(y => '<option>' + y + '</option>').join('') + '</select></span></div>' +
+      '<div id="work-wrap"></div></div>') +
     '<div class="fs"><div class="fs-legend">Maintenance schedule <span id="maint-sum"></span></div><div id="maint-wrap"></div>' +
       '<button class="btn sm" style="margin-top:.6rem" data-action="maint-add">Add visit</button></div>' +
     (a.history && a.history.length ? '<div class="fs"><div class="fs-legend">History</div><ul class="hist">' +
@@ -487,6 +607,7 @@ function openAgreement(id, isNew) {
 
   renderMaintEditor();
   updateProposed();
+  if (!isNew) renderWork(a, TODAY.getFullYear());
 
   const foot = [];
   if (!isNew) foot.push('<button class="btn danger" data-action="delete-agr" style="margin-right:auto">Delete</button>');
@@ -793,6 +914,7 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const act = el.dataset.action, id = el.dataset.id;
+  if (act === 'bo-link') return; // plain link to BuildOps; don't open the drawer
   switch (act) {
     case 'open-agr': openAgreement(id); break;
     case 'new-agreement': openAgreement('', true); break;
@@ -830,6 +952,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.dataset.maint !== undefined) { drawerMaint[+el.dataset.maint][el.dataset.mf] = el.value; renderMaintEditor(); return; }
+  if (el.id === 'work-year') { const a = findAgr(ui.drawerId); if (a) renderWork(a, parseInt(el.value, 10)); return; }
   const act = el.dataset.action, id = el.dataset.id;
   if (act === 'set-stage') {
     const a = findAgr(id);
@@ -862,6 +985,7 @@ document.addEventListener('keydown', e => {
 
 // ── BOOT ─────────────────────────────────────────────────────────────
 seedIfNeeded();
+migrateBuildopsIds();
 render();
 if (location.hash === '#unactive') switchTab('unactive');
 
