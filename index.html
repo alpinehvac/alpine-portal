@@ -80,9 +80,8 @@ function doLogin() {
     document.getElementById("password").focus();
     return;
   }
-  const redirect = sessionStorage.getItem("ap_redirect");
   sessionStorage.removeItem("ap_redirect");
-  window.location.href = redirect || "dashboard.html";
+  window.location.href = "dashboard.html";
 }
 </script>
 </body>

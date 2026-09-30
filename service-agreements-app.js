@@ -248,9 +248,14 @@ function render() {
 }
 
 function renderSyncLine() {
+  const last = parseD(settings.lastSync);
+  const age = last ? diffDays(TODAY, last) : null;
+  const stale = age === null || age > 8;
   document.getElementById('sync-line').innerHTML =
-    'BuildOps is the source of truth for agreement data. Last BuildOps refresh: <b>' + esc(fmtD(settings.lastSync)) +
-    '</b>. Renewal stage, owner, increase and notes live here only.';
+    'BuildOps is the source of truth for agreement data. Last BuildOps refresh: <b' + (stale ? ' style="color:var(--amber)"' : '') + '>' +
+    esc(fmtD(settings.lastSync)) + (age !== null ? ' (' + age + (age === 1 ? ' day' : ' days') + ' ago)' : '') + '</b>' +
+    (stale ? '. <span style="color:var(--amber)">Overdue for the weekly refresh; dates, ACV and maintenance may be out of date.</span>' : '') +
+    ' Renewal stage, owner, increase and notes live here only.';
 }
 
 function active() { return agreements.filter(a => a.status === 'Active'); }

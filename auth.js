@@ -64,7 +64,6 @@ function apHasAccess(session, toolId) {
 function apGuard(toolId) {
   const session = apGetSession();
   if (!session) {
-    sessionStorage.setItem("ap_redirect", window.location.pathname.split("/").pop());
     window.location.href = "index.html";
     return;
   }
