@@ -108,6 +108,16 @@ function render() {
     '</div>';
   if (a.flag) h += '<div class="flag-box"><b>Review:</b> ' + esc(a.flag) + '</div>';
 
+  // sites for this agreement
+  const sites = [];
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('st_site_')) { const st = readJSON(k); if (st && (st.sas || []).includes(a.id)) sites.push(st); } }
+  if (sites.length) {
+    h += '<div class="section"><div class="section-head"><h2>Sites <span class="note">Activity by bucket and CLEAR report per address</span></h2></div><div class="tbl-wrap"><table><tbody>' +
+      sites.sort((x, y) => (x.name || '').localeCompare(y.name || '')).map(st => '<tr><td><b>' + esc(st.name) + '</b><div class="muted" style="font-size:.74rem">' + esc(st.address || '') + '</div></td>' +
+        '<td style="white-space:nowrap;text-align:right"><a class="btn" href="site.html?p=' + encodeURIComponent(st.id) + '">Activity</a> <a class="btn" href="site.html?p=' + encodeURIComponent(st.id) + '&view=clear">CLEAR report</a></td></tr>').join('') +
+      '</tbody></table></div></div>';
+  }
+
   // quarter grid
   h += '<div class="section"><div class="section-head"><h2>Work by quarter <span class="note">Maintenance from BuildOps, checklist % from Site Reports</span></h2>' +
     '<select class="sel" id="year">' + [...years].sort((x, y) => y - x).map(y => '<option' + (y === year ? ' selected' : '') + '>' + y + '</option>').join('') + '</select></div>';

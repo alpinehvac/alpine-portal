@@ -62,6 +62,27 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 .back-link{display:inline-flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-light);text-decoration:none;margin-bottom:1.5rem}
 .back-link:hover{color:var(--white)}
 
+.agr-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1.5rem}
+.agr-kpi{background:var(--off-black);padding:1rem 1.2rem}
+.agr-kpi b{display:block;font-family:'Oswald',sans-serif;font-size:1.7rem;font-weight:600;line-height:1.2}
+.agr-kpi span{font-size:.76rem;color:rgba(255,255,255,0.45)}
+.agr-kpi.alert b{color:#E0705F}
+.agr-list{border:1px solid var(--border);border-radius:var(--radius);background:var(--off-black);overflow:hidden;margin-bottom:1.5rem}
+.agr-row{display:grid;grid-template-columns:90px 1fr 140px 150px;gap:1rem;align-items:center;padding:.75rem 1.1rem;border-bottom:1px solid rgba(255,255,255,0.05);text-decoration:none;color:var(--white);font-size:.88rem}
+.agr-row:last-child{border-bottom:none}
+.agr-row:hover{background:rgba(28,107,110,0.08)}
+.agr-row .id{font-family:'Oswald',sans-serif;color:var(--teal-light)}
+.agr-row .muted{color:rgba(255,255,255,0.42);font-size:.8rem}
+.agr-badge{justify-self:start;font-size:.72rem;font-weight:600;border-radius:99px;padding:2px 9px;white-space:nowrap}
+.agr-badge.od{background:rgba(224,112,95,0.18);color:#E0705F}
+.agr-badge.d30{background:rgba(224,112,95,0.12);color:#EDA093}
+.agr-badge.d60{background:rgba(217,164,65,0.15);color:#D9A441}
+.agr-badge.d90{background:rgba(155,142,196,0.16);color:#B8AEDC}
+.agr-badge.q{background:rgba(217,164,65,0.15);color:#D9A441}
+.agr-h{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin:0 0 .6rem}
+.agr-empty{padding:1.25rem;color:rgba(255,255,255,0.45);font-size:.86rem}
+.agr-open{display:inline-block;margin-top:.25rem}
+@media (max-width:700px){.agr-kpis{grid-template-columns:1fr 1fr}.agr-row{grid-template-columns:70px 1fr;}.agr-row .hide-sm{display:none}}
 .renew-strip{display:none;align-items:center;gap:1.25rem;flex-wrap:wrap;background:var(--off-black);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:var(--radius);padding:.9rem 1.25rem;margin-bottom:2rem;text-decoration:none;color:var(--white);font-size:.85rem}
 .renew-strip.alert{border-left-color:#E0705F}
 .renew-strip:hover{border-color:rgba(28,107,110,0.5)}
@@ -92,7 +113,7 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
   <div id="back-link-wrap"></div>
   <h1 id="page-h1">Your Tools</h1>
   <p class="sub" id="page-sub">Select a tool below. You'll only see what's relevant to your role.</p>
-  <a class="renew-strip" id="renew-strip" href="service-agreements.html"></a>
+  <div id="agr-panel" style="display:none"></div>
   <div class="cat-grid" id="cat-grid" style="display:none"></div>
   <div class="grid" id="tool-grid"></div>
 </div>
@@ -118,7 +139,10 @@ const TOOL_CATEGORIES = {
   sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "service-agreements", "site-reports", "sales-strategy", "case-studies", "lead-sheets"] },
   operations: { label: "Operations", icon: "🛠️", desc: "Scheduling, dispatch, and day-to-day ops tools.",  tools: ["site-reports", "team-hub", "call-log"] },
   financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["cash-dashboard", "job-profit", "pl-calculator"] },
+  // Special tab: renewal alerts. Shown only to people with tracker access (sales).
+  agreements: { label: "Agreements", icon: "📑", desc: "Renewals due or overdue, and open agreement quotes.", tools: [], special: "agreements" },
 };
+const canSeeAgreements = () => apHasAccess(session, "service-agreements");
 
 const session = apGetSession();
 document.getElementById("nav-user-name").textContent = session.name;
@@ -171,6 +195,7 @@ function renderCategoryGrid() {
   catGrid.innerHTML = "";
   Object.keys(TOOL_CATEGORIES).forEach(key => {
     const c = TOOL_CATEGORIES[key];
+    if (c.special === "agreements" && !canSeeAgreements()) return;
     const a = document.createElement("a");
     a.className = "cat-card";
     a.href = "dashboard.html?cat=" + key;
@@ -185,13 +210,33 @@ function renderCategoryGrid() {
 
 const visible = apVisibleTools();
 
-if (isPureSales) {
+if (cat === "agreements" && canSeeAgreements()) {
+  eyebrow.textContent = "Dashboard · Agreements";
+  h1.textContent = "Agreements";
+  sub.textContent = "Renewals that need attention and open quotes. Click any agreement to open it.";
+  backWrap.innerHTML = '<a class="back-link" href="dashboard.html">&larr; ' + (isOwner ? "All Categories" : "Your Tools") + '</a>';
+  catGrid.style.display = "none";
+  toolGrid.style.display = "none";
+  document.getElementById("agr-panel").style.display = "";
+  document.getElementById("agr-panel").innerHTML = '<p class="agr-empty">Loading agreements…</p>';
+  window.addEventListener("ap-cloud-ready", renderAgreementsTab);
+  window.AP_SYNC_COLLECTION = "service_agreements_data";
+  const cs = document.createElement("script");
+  cs.type = "module"; cs.src = "cloud-sync.js";
+  document.body.appendChild(cs);
+} else if (isPureSales) {
   // Sales team members skip the category picker entirely and land straight
   // on their tools.
   eyebrow.textContent = "Dashboard";
   h1.textContent = "Your Tools";
   sub.textContent = "Select a tool below.";
   renderToolGrid(visible, "No tools are assigned to your account yet. Contact your administrator.");
+  if (canSeeAgreements() && document.getElementById("tool-grid")) {
+    const a = document.createElement("a");
+    a.className = "card"; a.href = "dashboard.html?cat=agreements";
+    a.innerHTML = '<div class="card-icon">📑</div><div class="card-title">Agreements</div><div class="card-desc">Renewals due or overdue, and open agreement quotes.</div>';
+    document.getElementById("tool-grid").prepend(a);
+  }
 } else if (isOwner && !cat) {
   // Owners land on the 3-category homepage first.
   eyebrow.textContent = "Dashboard";
@@ -214,42 +259,47 @@ if (isPureSales) {
   renderToolGrid(visible, "No tools are assigned to your account yet. Contact your administrator.");
 }
 
-// ── Service agreement renewal indicator ──
-// Only loads agreement data for roles that can open the tracker.
-function renderRenewStrip() {
+// ── Agreements tab: renewal alerts (replaces the old banner) ──
+function renderAgreementsTab() {
+  const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pd = s => { if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null; const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
   const ruleEnd = s => { const d = pd(s); return d ? new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1) : null; };
+  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmt = d => d ? M[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() : "—";
+  const money = n => n ? "$" + Number(n).toLocaleString("en-CA", { maximumFractionDigits: 0 }) : "—";
   const t = new Date(); const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-  let overdue = 0, d30 = 0, d90 = 0, quotes = 0;
+  const due = [], quotes = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (!k.startsWith("sa_agr_")) continue;
     let a; try { a = JSON.parse(localStorage.getItem(k)); } catch (e) { continue; }
     if (!a || a.deleted) continue;
-    if (a.status === "Draft") { quotes++; continue; }
+    if (a.status === "Draft") { const q = pd(a.draftDate); quotes.push({ a, days: q ? Math.round((today - q) / 86400000) : null }); continue; }
     if (a.status !== "Active") continue;
     const end = pd(a.endDate) || ruleEnd(a.startDate);
     if (!end) continue;
     const days = Math.round((end - today) / 86400000);
-    if (days < 0) overdue++; else if (days <= 30) d30++; else if (days <= 90) d90++;
+    if (days <= 90 || (a.renewalStage && a.renewalStage !== "Not Started")) due.push({ a, end, days });
   }
-  const strip = document.getElementById("renew-strip");
-  strip.innerHTML =
-    '<span class="rs-title">Agreement renewals</span>' +
-    '<span class="rs-od"><b>' + overdue + '</b>overdue</span>' +
-    '<span><b>' + d30 + '</b>within 30 days</span>' +
-    '<span><b>' + d90 + '</b>within 31–90 days</span>' +
-    '<span><b>' + quotes + '</b>open quotes</span>' +
-    '<span class="rs-go">Open tracker</span>';
-  strip.classList.toggle("alert", overdue > 0);
-  strip.style.display = "flex";
-}
-if (apHasAccess(session, "service-agreements")) {
-  window.addEventListener("ap-cloud-ready", renderRenewStrip);
-  window.AP_SYNC_COLLECTION = "service_agreements_data";
-  const cs = document.createElement("script");
-  cs.type = "module"; cs.src = "cloud-sync.js";
-  document.body.appendChild(cs);
+  due.sort((x, y) => x.days - y.days);
+  quotes.sort((x, y) => (y.days || 0) - (x.days || 0));
+  const od = due.filter(x => x.days < 0), d30 = due.filter(x => x.days >= 0 && x.days <= 30), d90 = due.filter(x => x.days > 30 && x.days <= 90);
+  const acv = list => money(list.reduce((s, x) => s + (Number(x.a.acv) || 0), 0));
+  const badge = d => d < 0 ? '<span class="agr-badge od">Overdue ' + (-d) + 'd</span>' : d <= 30 ? '<span class="agr-badge d30">' + d + ' days</span>' : d <= 60 ? '<span class="agr-badge d60">' + d + ' days</span>' : '<span class="agr-badge d90">' + d + ' days</span>';
+  let h = '<div class="agr-kpis">' +
+    '<div class="agr-kpi' + (od.length ? ' alert' : '') + '"><b>' + od.length + '</b><span>overdue · ' + acv(od) + ' ACV</span></div>' +
+    '<div class="agr-kpi"><b>' + d30.length + '</b><span>within 30 days · ' + acv(d30) + '</span></div>' +
+    '<div class="agr-kpi"><b>' + d90.length + '</b><span>within 31–90 days · ' + acv(d90) + '</span></div>' +
+    '<div class="agr-kpi"><b>' + quotes.length + '</b><span>open quotes</span></div></div>';
+  h += '<div class="agr-h">Renewals needing attention</div><div class="agr-list">' + (due.length ? due.map(x =>
+    '<a class="agr-row" href="agreement.html?id=' + encodeURIComponent(x.a.id) + '"><span class="id">' + esc(x.a.id) + '</span>' +
+    '<span>' + esc(x.a.name) + '<br><span class="muted">' + esc(String(x.a.customer || "").replace(/^\*+/, "")) + (x.a.renewalStage && x.a.renewalStage !== "Not Started" ? " · " + esc(x.a.renewalStage) : "") + (x.a.renewalOwner ? " · " + esc(x.a.renewalOwner) : "") + '</span></span>' +
+    '<span class="muted hide-sm">Ends ' + fmt(x.end) + '<br>' + money(x.a.acv) + ' ACV</span>' + badge(x.days) + '</a>').join("") : '<p class="agr-empty">Nothing due in the next 90 days.</p>') + '</div>';
+  h += '<div class="agr-h">Open quotes</div><div class="agr-list">' + (quotes.length ? quotes.map(x =>
+    '<a class="agr-row" href="agreement.html?id=' + encodeURIComponent(x.a.id) + '"><span class="id">' + esc(x.a.id) + '</span><span>' + esc(x.a.name) + '</span>' +
+    '<span class="muted hide-sm">' + (x.days != null ? x.days + ' days open' : '') + '</span><span class="agr-badge q">Quote</span></a>').join("") : '<p class="agr-empty">No open quotes.</p>') + '</div>';
+  h += '<a class="back-link agr-open" href="service-agreements.html">Open the full agreement tracker &rarr;</a>';
+  document.getElementById("agr-panel").innerHTML = h;
 }
 </script>
 </body>

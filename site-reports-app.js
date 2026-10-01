@@ -169,6 +169,7 @@ function renderInternal() {
     '<div><div class="k-label">Chiller logs</div><div class="k-val">' + chDone + '/' + chiller.length + '</div><div class="k-foot">' + (chLate ? '<span style="color:var(--red)">' + chLate + ' past due</span>' : 'none past due') + ' · ' + hrs.toFixed(1) + ' budget hrs</div></div>' +
     '</div>';
 
+  h += sitesHTML(maint);
   h += '<h2>Maintenance checklist</h2>';
   if (!maint.length) h += '<div class="empty">No maintenance items for ' + qLabel(ui.quarter) + '.</div>';
   maint.forEach(it => { h += itemHTML(it); });
@@ -194,6 +195,34 @@ function renderInternal() {
     '</div>';
 
   $('main').innerHTML = h;
+}
+
+// Sites (BuildOps properties) for this customer, with links to each site's activity + CLEAR report.
+function sitesHTML(maint) {
+  const sas = new Set(items.filter(it => custKey(it.customer) === ui.customer).map(it => it.sa));
+  const sites = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k.startsWith('st_site_')) continue;
+    const s = readJSON(k); if (s && (s.sas || []).some(x => sas.has(x))) sites.push(s);
+  }
+  if (!sites.length) return '';
+  sites.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  return '<h2>Sites <span class="muted" style="font-family:Inter;font-size:.76rem;text-transform:none;letter-spacing:0;font-weight:400">Activity by bucket and the CLEAR report for each address</span></h2>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Site</th><th>Visits this quarter</th><th>CLEAR report</th><th></th></tr></thead><tbody>' +
+    sites.map(s => {
+      const vq = (s.visits || []).filter(v => inQuarter(v.date, ui.quarter));
+      const c = readJSON('st_clear_' + s.id + '_' + ui.quarter);
+      const cnt = col => c ? c.rows.filter(r => r.include && r.condition === col).length : 0;
+      const status = !c ? '<span class="badge b-grey">Not started</span>' :
+        '<span class="badge b-red">' + cnt('red') + '</span> <span class="badge b-amber">' + cnt('yellow') + '</span> <span class="badge b-teal">' + cnt('green') + '</span> ' +
+        (c.reviewed ? '<span class="badge b-teal">Reviewed ' + esc(fmtD(c.reviewed.at)) + '</span>' : c.sent ? '<span class="badge b-amber">Sent ' + esc(fmtD(c.sent.at)) + '</span>' : '<span class="badge b-grey">Not sent</span>');
+      const by = b => vq.filter(v => v.bucket === b).length;
+      return '<tr><td><b>' + esc(s.name) + '</b><div class="muted" style="font-size:.74rem">' + esc(s.address || '') + '</div></td>' +
+        '<td style="font-size:.8rem">' + by('Maintenance') + ' maintenance · ' + by('Service') + ' service · ' + by('Jobs & projects') + ' jobs/projects</td>' +
+        '<td>' + status + '</td><td style="white-space:nowrap"><a class="btn sm" href="site.html?p=' + encodeURIComponent(s.id) + '&q=' + ui.quarter + '">Activity</a> ' +
+        '<a class="btn sm" href="site.html?p=' + encodeURIComponent(s.id) + '&q=' + ui.quarter + '&view=clear">CLEAR</a></td></tr>';
+    }).join('') + '</tbody></table></div>';
 }
 
 function bar(s) {
