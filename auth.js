@@ -24,7 +24,8 @@ const AP_USERS = {
 // Which roles can see which tool. "super_admin" bypasses this and sees everything,
 // except tools marked strict: true, which require one of the listed roles.
 const AP_TOOLS = {
-  "cash-dashboard":     { label: "Cash Position",                 roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
+  "cash-dashboard":     { label: "Financial Position",            roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
+  "job-profit":         { label: "Job Profit",                    roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alpine HVAC — Cash Position</title>
+<title>Alpine HVAC — Financial Position</title>
 <script src="auth.js"></script>
 <script>if (typeof apGuard === "function") apGuard("cash-dashboard");</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,8 +185,13 @@ tr.detail td{background:rgba(255,255,255,0.02);text-align:left;padding:.9rem 1re
 
 <main class="wrap">
   <div class="live-banner" id="banner"></div>
-  <div class="head"><h1>Cash Position</h1><div class="asof" id="asof"></div></div>
-  <div class="asof" id="updated" style="margin:-1rem 0 1.75rem;line-height:1.7"></div>
+  <div class="head"><h1>Financial Position</h1><div class="asof" id="asof"></div></div>
+  <div class="asof" id="updated" style="margin:-1rem 0 1.25rem;line-height:1.7"></div>
+  <div class="phases" id="main-tabs" style="grid-template-columns:repeat(2,minmax(0,220px));margin-bottom:2rem">
+    <button class="phase on p0" data-t="cash" style="border:none;cursor:pointer;font:inherit;font-size:.9rem;padding:.7rem">Cash Position</button>
+    <button class="phase" data-t="profit" style="border:none;cursor:pointer;font:inherit;font-size:.9rem;padding:.7rem">Profit Position</button>
+  </div>
+  <div id="tab-cash"></div><div id="tab-profit" style="display:none"></div>
 
   <div class="verdict" id="verdict"><div class="verdict-line" id="verdict-line"></div><div class="verdict-sub" id="verdict-sub"></div></div>
 
@@ -244,6 +249,22 @@ tr.detail td{background:rgba(255,255,255,0.02);text-align:left;padding:.9rem 1re
     <div class="panel"><h2>What's in core burn</h2><p class="h2-note">Actual QuickBooks costs, Jul–Sep 2026 monthly average. Sets the floor and target.</p><div id="burnbox"></div></div>
     <div class="panel"><h2>Loans</h2><p class="h2-note">Payments found in QuickBooks, included in core burn.</p><div id="loans"></div></div>
   </section>
+
+  <section id="profit-section" style="display:none">
+    <h2>Profit: last 13 weeks and next 13 weeks</h2>
+    <p class="h2-note">Profit counts revenue as work is done (percent complete), not when it's billed or collected. Before HST.</p>
+    <div class="health" id="profit-cards" style="margin-bottom:1.25rem"></div>
+    <div class="chart-box"><div class="chart-scroll"><svg id="profit-chart" viewBox="0 0 1000 320" role="img" aria-label="Weekly profit"></svg></div>
+      <div class="legend"><span><i style="background:rgba(255,255,255,0.45)"></i>Actual (QuickBooks, monthly spread weekly)</span><span><i style="background:#5FB89A"></i>Projected profit</span><span><i style="background:#E0705E"></i>Projected loss</span></div></div>
+    <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Profit as billed vs as earned</h4>
+    <div class="table-wrap"><table id="pvb"></table></div>
+    <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Largest earned-but-not-billed jobs</h4>
+    <div class="panel" id="top-ub"></div>
+    <p style="margin-top:1rem"><a class="back-link" href="job-profit.html" style="display:inline-block">Open Job Profit for every job's breakdown &rarr;</a></p>
+    <ol class="assume" id="profit-notes" style="margin-top:1rem"></ol>
+  </section>
+
+
 
   <section>
     <h2>Weekly revenue targets by sector</h2>
@@ -447,6 +468,28 @@ function render(){
     TG.rows.map(r=>`<tr><td>${r[0]}</td><td>${fmt(r[1])}</td><td>${Math.round(r[2]*100)}¢</td><td>${fmt(r[3])}</td><td>${fmt(r[4])}</td><td>${fmt(r[5])}</td><td>${fmt(r[6])}</td></tr>`).join("")+
     `<tr><td><b>Total per week</b></td><td><b>${fmt(TG.totals[0])}</b></td><td></td><td><b>${fmt(TG.totals[1])}</b></td><td><b>${fmt(TG.totals[2])}</b></td><td><b>${fmt(TG.totals[3])}</b></td><td><b>${fmt(TG.totals[4])}</b></td></tr>
      <tr><td>Per month</td><td>${fmt(TG.totals[0]*4.333)}</td><td></td><td>${fmt(TG.totals[1]*4.333)}</td><td>${fmt(TG.totals[2]*4.333)}</td><td>${fmt(TG.totals[3]*4.333)}</td><td>${fmt(TG.totals[4]*4.333)}</td></tr></tbody>`;
+  if(DATA.profit){
+    const P=DATA.profit, Q=P.pastQuarter||{}, fr=P.future.reduce((a,b)=>a+b.revenue,0), fp=P.future.reduce((a,b)=>a+b.profit,0);
+    const ub=P.wip.reduce((a,b)=>a+Math.max(0,b.underBilled),0);
+    document.getElementById("profit-section").style.display="";
+    document.getElementById("profit-cards").innerHTML=`
+      <div class="h-card"><div class="h-label">${esc(Q.label||"Last 13 weeks")} (QuickBooks, as billed)</div><div class="h-value">${fmt(Q.adjustedNet)}</div><div class="h-foot">${pct(Q.adjustedNet/Q.revenue*100,1)} on ${fmt(Q.revenue)} revenue, after removing ${fmt(Q.ownerItems)} of owner items.</div></div>
+      <div class="h-card"><div class="h-label">Earned but not yet billed (today)</div><div class="h-value">${fmt(ub)}</div><div class="h-foot">Work done on open jobs that hasn't been invoiced. Most was earned last quarter, so last quarter's true profit is higher than QuickBooks shows.</div></div>
+      <div class="h-card"><div class="h-label">Next 13 weeks (projected)</div><div class="h-value ${fp<0?"down":""}">${fmt(fp)}</div><div class="h-foot">${pct(fp/fr*100,1)} on ${fmt(fr)} earned revenue, if jobs finish on schedule.</div></div>`;
+    const all=[...P.past.map(x=>({...x,a:1})),...P.future.map(x=>({...x,a:0}))], svg=document.getElementById("profit-chart");
+    const W=1000,L=70,R=20,T=20,H=250,n=all.length,st=(W-L-R)/n,x=i=>L+st*(i+.5), mx=Math.max(...all.map(v=>Math.abs(v.profit)))*1.15, y=v=>T+H/2-v/mx*(H/2);
+    let g="";[-1,-.5,0,.5,1].forEach(f=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y(f*mx)}" y2="${y(f*mx)}" stroke="rgba(255,255,255,${f===0?0.35:0.06})"/><text x="${L-10}" y="${y(f*mx)+4}" fill="#9A9A95" font-size="12" text-anchor="end" font-family="Inter">${fmtK(f*mx)}</text>`;});
+    g+=`<line x1="${x(P.past.length)-st/2}" x2="${x(P.past.length)-st/2}" y1="${T}" y2="${T+H}" stroke="rgba(255,255,255,0.3)" stroke-dasharray="3 4"/><text x="${x(P.past.length)-st/2+6}" y="${T+12}" fill="#9A9A95" font-size="11" font-family="Inter">Today</text>`;
+    all.forEach((v,i)=>{const c=v.a?"rgba(255,255,255,0.45)":(v.profit<0?"#E0705E":"#5FB89A");const y0=y(0),y1_=y(v.profit);g+=`<rect x="${x(i)-st*.3}" y="${Math.min(y0,y1_)}" width="${st*.6}" height="${Math.abs(y1_-y0)}" fill="${c}" rx="2"><title>Week of ${v.week}: profit ${fmt(v.profit)}, revenue ${fmt(v.revenue)}</title></rect>`; if(i%3===0) g+=`<text x="${x(i)}" y="${T+H+22}" fill="#9A9A95" font-size="11" text-anchor="middle" font-family="Inter">${dShort(v.week)}</text>`;});
+    svg.innerHTML=g;
+    document.getElementById("top-ub").innerHTML=[...P.wip].sort((a,b)=>b.underBilled-a.underBilled).slice(0,3).map((w,i)=>kv(`${i+1}. ${esc(w.name)}${w.scopeChanging?' <span class="flag amber">scope changing</span>':''}`,fmt(w.underBilled))).join("");
+    document.getElementById("profit-notes").innerHTML=(P.notes||[]).map(t=>`<li>${esc(t)}</li>`).join("");
+    const fb=P.future.reduce((a,b)=>a+(b.billedProfit||0),0), jE=P.future.reduce((a,b)=>a+(b.jobsEarned||0),0), jB=P.future.reduce((a,b)=>a+(b.jobsBilled||0),0);
+    const pastEarned=Q.adjustedNet+(Q.earnedNotBilled||0);
+    document.getElementById("pvb").innerHTML=`<thead><tr><th>Period</th><th>As billed (QuickBooks basis)</th><th>As earned (percent complete)</th><th>Why they differ</th></tr></thead><tbody>
+      <tr><td>${esc(Q.label||"Last 13 weeks")}</td><td>${fmt(Q.adjustedNet)}</td><td>~${fmt(pastEarned)}</td><td style="text-align:left">${fmt(Q.earnedNotBilled)} of work done but not billed by quarter-end. Estimate assumes little was unbilled at the start of the quarter.</td></tr>
+      <tr><td>Next 13 weeks (projected)</td><td>${fmt(fb)}</td><td>${fmt(fp)}</td><td style="text-align:left">Job billings ${fmt(jB)} vs work done ${fmt(jE)}: catching up on unbilled work, plus deposits and equipment billings (mainly 21 Hunter) billed ahead of the work.</td></tr></tbody>`;
+  }
   renderHealth();
 
   document.getElementById("checks").innerHTML=DATA.checks.map(c=>`<div class="check"><span class="${c[0]?"ok":"bad"}">${c[0]?"✓":"✕"}</span><span>${esc(c[1])}</span></div>`).join("");
@@ -522,7 +565,16 @@ function drawChart(weeks,floor,target,locLine){
   svg.innerHTML=g;
   svg.querySelectorAll(".hit").forEach(r=>{const w=weeks[+r.dataset.i];const show=e=>{tip.innerHTML=`<b>Week of ${dShort(w.start)}</b><br>In ${fmt(w.cin)}<br>Out ${fmt(w.cout)}<br>Closing ${fmt(w.close)}`+(w.driver?`<br><span style="color:#9A9A95">${esc(w.driver)}</span>`:"");tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
 }
-window.apCashStart = d => { DATA = d; render(); };
+window.apCashStart = d => { DATA = d; render(); apTabs(); };
+function apTabs(){
+  const main=document.querySelector("main"), tc=document.getElementById("tab-cash"), tp=document.getElementById("tab-profit");
+  if(tc.childElementCount) return;
+  const prof=[document.getElementById("profit-section"), document.getElementById("targets")?.closest("section"), document.getElementById("health")?.closest("section")].filter(Boolean);
+  [...main.children].forEach(el=>{ if(["banner","sample-banner","updated","main-tabs","tab-cash","tab-profit","update-section"].includes(el.id)||el.classList.contains("head")||el.classList.contains("live-banner")||el.classList.contains("sample-banner")) return; (prof.includes(el)?tp:tc).appendChild(el); });
+  prof.forEach(el=>tp.appendChild(el));
+  const upd=document.getElementById("update-section"); if(upd) main.appendChild(upd);
+  document.querySelectorAll("#main-tabs .phase").forEach(b=>b.onclick=()=>{document.querySelectorAll("#main-tabs .phase").forEach(x=>x.classList.remove("on","p0"));b.classList.add("on","p0");tc.style.display=b.dataset.t==="cash"?"":"none";tp.style.display=b.dataset.t==="profit"?"":"none";});
+}
 </script>
 
 <script type="module">
