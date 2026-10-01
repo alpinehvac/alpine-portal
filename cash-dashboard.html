@@ -75,6 +75,7 @@ h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spac
 .phase{padding:.6rem .4rem;text-align:center;font-size:.78rem;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--light-grey)}
 .phase small{display:block;font-size:.7rem;opacity:.75;margin-top:2px}
 .phase.on{color:var(--black);font-weight:600}
+#view-toggle .phase{border:none;cursor:pointer;font:inherit;font-size:.78rem;padding:.45rem .8rem}
 .phase.on.p0{background:var(--green)}.phase.on.p1{background:var(--amber)}.phase.on.p2{background:#E68A4E}.phase.on.p3{background:var(--red)}
 .risk-list{list-style:none;counter-reset:r}
 .risk-list li{counter-increment:r;display:grid;grid-template-columns:1.6rem 1fr auto;gap:.5rem;padding:.7rem 0;border-bottom:1px solid var(--border);align-items:baseline}
@@ -192,7 +193,15 @@ tr.detail td{background:rgba(255,255,255,0.02);text-align:left;padding:.9rem 1re
   <div class="metrics" id="metrics"></div>
 
   <section>
-    <h2>Next 13 weeks</h2>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap">
+      <h2 id="chart-title">Next 13 weeks</h2>
+      <div class="phases" id="view-toggle" style="grid-template-columns:repeat(4,auto);margin-bottom:.4rem">
+        <button class="phase on p0" data-v="f">Next 13 weeks</button>
+        <button class="phase" data-v="13">Last 3 months</button>
+        <button class="phase" data-v="26">Last 6 months</button>
+        <button class="phase" data-v="52">Last 12 months</button>
+      </div>
+    </div>
     <p class="h2-note" id="chart-note"></p>
     <div class="chart-box">
       <div class="chart-scroll"><svg id="chart" viewBox="0 0 1000 470" role="img" aria-label="13-week cash forecast"></svg></div>
@@ -350,7 +359,14 @@ function render(){
   document.getElementById("metrics").innerHTML=metrics.map(m=>`<div class="metric"><div class="m-label">${m[0]}</div><div class="m-value">${m[1]}</div><div class="m-sub">${m[2]}</div><div class="m-trend"><span class="flat">Trend starts next week</span></div></div>`).join("");
 
   document.getElementById("chart-note").textContent=`Closing operating cash each week from committed money only (solid line); the dashed line adds expected service/T&M work net of parts. Floor ${fmt(floor)} (4 weeks of core burn), target ${fmt(target)} (8 weeks). Core burn ${fmt(burn)}/week (actual Jul–Sep costs). Below $0 is drawn on the credit line; the purple line is where the ${fmt(locAvail)} available runs out. Hover or tap a week.`;
+  const fNote=document.getElementById("chart-note").textContent;
   drawChart(weeks,floor,target,-locAvail);
+  document.querySelectorAll("#view-toggle .phase").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("#view-toggle .phase").forEach(x=>x.classList.remove("on","p0")); b.classList.add("on","p0");
+    const v=b.dataset.v, legend=document.querySelector(".chart-box .legend");
+    if(v==="f"){document.getElementById("chart-title").textContent="Next 13 weeks";document.getElementById("chart-note").textContent=fNote;legend.style.display="";drawChart(weeks,floor,target,-locAvail);}
+    else{const n=+v;document.getElementById("chart-title").textContent=n===52?"Last 12 months":n===26?"Last 6 months":"Last 3 months";legend.style.display="none";drawHistory(n,floor,-locAvail);}
+  });
 
   if(DATA.levers&&DATA.levers.items&&DATA.levers.items.length){
     document.getElementById("levers").innerHTML=`<div class="warnbox"><b>${esc(DATA.levers.title||"Levers")}</b><ol class="levers">${DATA.levers.items.map(x=>`<li>${esc(x)}</li>`).join("")}</ol></div>`;
@@ -457,6 +473,28 @@ function renderHealth(){
      <div class="crew"><label>Field techs<input type="number" id="crew-techs" min="1" step="1" value="${crew.techs}"></label><label>Hours per tech per week<input type="number" id="crew-hours" min="1" step="1" value="${crew.hoursPerWeek}"></label><span class="saved" id="crew-saved">Saved</span></div></div>`;
   const on=()=>{const t=parseInt(document.getElementById("crew-techs").value,10),hh=parseFloat(document.getElementById("crew-hours").value);if(!(t>0)||!(hh>0))return;crew={techs:t,hoursPerWeek:hh};const ok=saveCrew(crew);renderHealth();const s=document.getElementById("crew-saved");s.textContent=ok?"Saved":"Couldn't save in this browser";s.classList.add("show");setTimeout(()=>s.classList.remove("show"),1500);};
   document.getElementById("crew-techs").addEventListener("change",on);document.getElementById("crew-hours").addEventListener("change",on);
+}
+
+function drawHistory(n,floor,locLine){
+  const H=DATA.history; const svg=document.getElementById("chart"),tip=document.getElementById("tip");
+  if(!H){svg.innerHTML=`<text x="500" y="200" fill="#9A9A95" font-size="14" text-anchor="middle" font-family="Inter">No history saved yet.</text>`;return;}
+  const k=Math.max(0,H.weeks.length-n), wk=H.weeks.slice(k), cl=H.close.slice(k), ci=H.cin.slice(k), co=H.cout.slice(k);
+  document.getElementById("chart-note").textContent=`Actual operating cash at the end of each week. ${H.basis} Average weekly cash in ${fmt(ci.reduce((a,b)=>a+b,0)/ci.length)}, out ${fmt(co.reduce((a,b)=>a+b,0)/co.length)}. Lowest ${fmt(Math.min(...cl))}, highest ${fmt(Math.max(...cl))}.`;
+  const W=1000,L=70,R=20,top1=20,h1=280,top2=340,h2=100,m=wk.length,step=(W-L-R)/m,x=i=>L+step*(i+.5);
+  const maxC=Math.max(floor,...cl)*1.08, minC=Math.min(0,...cl)*1.15-1;
+  const y1=v=>top1+h1-(v-minC)/(maxC-minC)*h1, maxF=Math.max(...ci,...co)*1.1, mid2=top2+h2/2, y2=v=>v/maxF*(h2/2);
+  let g="";
+  for(let j=0;j<=5;j++){const v=minC+(maxC-minC)*j/5,yy=y1(v);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="rgba(255,255,255,0.06)"/><text x="${L-10}" y="${yy+4}" fill="#9A9A95" font-size="12" text-anchor="end" font-family="Inter">${fmtK(v)}</text>`;}
+  if(minC<0) g+=`<line x1="${L}" x2="${W-R}" y1="${y1(0)}" y2="${y1(0)}" stroke="rgba(255,255,255,0.35)"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y1(floor)}" y2="${y1(floor)}" stroke="#E0705E" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(floor)-7}" fill="#E0705E" font-size="12" text-anchor="end" font-family="Inter">Today's floor ${fmtK(floor)}</text>`;
+  const pts=cl.map((v,i)=>[x(i),y1(v)]);
+  g+=`<path d="M${pts.map(p=>p.join(",")).join(" L")} L${pts[m-1][0]},${top1+h1} L${pts[0][0]},${top1+h1} Z" fill="rgba(255,255,255,0.06)"/><path d="M${pts.map(p=>p.join(",")).join(" L")}" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/>`;
+  const bw=Math.max(2,step*.55), every=Math.ceil(m/13);
+  wk.forEach((w,i)=>{g+=`<rect x="${x(i)-bw/2}" y="${mid2-y2(ci[i])}" width="${bw}" height="${y2(ci[i])}" fill="rgba(42,138,142,0.55)" rx="1"/><rect x="${x(i)-bw/2}" y="${mid2}" width="${bw}" height="${y2(co[i])}" fill="rgba(155,142,196,0.6)" rx="1"/>`; if(i%every===0) g+=`<text x="${x(i)}" y="${top2+h2+22}" fill="#9A9A95" font-size="11" text-anchor="middle" font-family="Inter">${dShort(w)}</text>`;});
+  g+=`<line x1="${L}" x2="${W-R}" y1="${mid2}" y2="${mid2}" stroke="rgba(255,255,255,0.15)"/><text x="${L-10}" y="${top2+10}" fill="#9A9A95" font-size="11" text-anchor="end" font-family="Inter">In</text><text x="${L-10}" y="${top2+h2}" fill="#9A9A95" font-size="11" text-anchor="end" font-family="Inter">Out</text>`;
+  wk.forEach((w,i)=>{g+=`<rect class="hit" data-i="${i}" x="${x(i)-step/2}" y="${top1}" width="${step}" height="${top2+h2-top1}" fill="transparent"/>`;});
+  svg.innerHTML=g;
+  svg.querySelectorAll(".hit").forEach(r=>{const i=+r.dataset.i;const show=e=>{tip.innerHTML=`<b>Week of ${dShort(wk[i])}</b><br>Closing ${fmt(cl[i])}<br>In ${fmt(ci[i])}<br>Out ${fmt(co[i])}`;tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
 }
 
 function drawChart(weeks,floor,target,locLine){
