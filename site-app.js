@@ -164,8 +164,9 @@ function activityHTML(s) {
   const buckets = { Maintenance: [], Service: [], 'Jobs & projects': [] };
   const byJob = new Map();
   vis.forEach(v => {
-    const k = v.bucket + '|' + v.job;
-    if (!byJob.has(k)) byJob.set(k, { bucket: v.bucket, job: v.job, url: v.url, title: v.title, jobType: v.jobType, status: v.jobStatus, visits: [] });
+    const onMaint = v.loggedOnMaintenance && v.bucket !== 'Maintenance';
+    const k = v.bucket + '|' + v.job + (onMaint ? '|' + v.date + '|' + v.desc : '');
+    if (!byJob.has(k)) byJob.set(k, { bucket: v.bucket, job: v.job, url: v.url, title: onMaint ? v.desc : v.title, jobType: onMaint ? 'Logged on maintenance record ' + v.job : v.jobType, status: onMaint ? '' : v.jobStatus, visits: [] });
     byJob.get(k).visits.push(v);
   });
   byJob.forEach(j => { j.visits.sort((a, b) => (a.date || '').localeCompare(b.date || '')); (buckets[j.bucket] || buckets.Service).push(j); });

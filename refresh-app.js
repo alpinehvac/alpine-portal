@@ -29,6 +29,7 @@ out.innerHTML =
   '<div class="row"><span>Sites</span><b>' + (P.sites || []).length + '</b></div>' +
   '<div class="row"><span>Visits (all sites)</span><b>' + (P.sites || []).reduce((t, s) => t + (s.visits || []).length, 0) + '</b></div>' +
   '<div class="row"><span>Maintenance items</span><b>' + (P.siteItems || []).length + '</b></div>' +
+  ((P.missing || []).length ? '<p class="warn" style="margin-top:.8rem">Could not load from BuildOps (' + P.missing.length + '): ' + esc(P.missing.slice(0, 20).join(', ')) + (P.missing.length > 20 ? '…' : '') + '. Everything else is complete; run the refresh again later to fill these in.</p>' : '<p class="ok" style="margin-top:.8rem">Every agreement, site and record loaded.</p>') +
   '<div style="margin-top:1rem"><button class="btn" id="apply">Apply refresh</button></div><div class="log" id="log" style="margin-top:1rem"></div>';
 
 document.getElementById('apply').addEventListener('click', () => {
