@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alpine HVAC — Team Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="auth.js"></script>
 <script>apGuard("team-hub");</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,6 +58,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 .tab-btn.active{color:var(--white);border-bottom-color:var(--teal)}
 
 /* ── TAB PANELS ── */
+.subtab-bar{position:sticky;top:99px;z-index:290;background:var(--off-black);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;overflow-x:auto;padding:0 1rem}
+.subtab-btn{font-family:'Oswald',sans-serif;font-size:10.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.38);background:none;border:none;border-bottom:2px solid transparent;padding:0 1.1rem;height:40px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:color .2s,border-color .2s}
+.subtab-btn:hover{color:rgba(255,255,255,0.75)}
+.subtab-btn.active{color:var(--teal-light);border-bottom-color:var(--teal-light)}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
@@ -211,7 +216,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 <!-- ── ROLE TAB BAR ── -->
 <div class="role-bar">
   <span class="role-bar-label">View as</span>
-  <button class="role-tab-btn" data-role="sales" onclick="setRole('sales')">Sales</button>
   <button class="role-tab-btn" data-role="operations" onclick="setRole('operations')">Operations</button>
   <button class="role-tab-btn" data-role="admin" onclick="setRole('admin')">Admin</button>
   <button class="role-tab-btn active" data-role="owners" onclick="setRole('owners')">Owners</button>
@@ -230,17 +234,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
     <div class="tab-logo-text">Alpine HVAC<small>Team Hub</small></div>
   </div>
   <div class="tabs" id="mainTabs">
-    <button class="tab-btn active" data-roles="admin owners" onclick="showTab('recruiting')">Tech Recruiting</button>
-    <button class="tab-btn" data-roles="admin owners" onclick="showTab('bas-recruiting')">BAS Recruiting</button>
-    <button class="tab-btn" data-roles="admin owners" onclick="showTab('sales-recruiting')">Sales Recruiting</button>
-    <button class="tab-btn" data-roles="admin owners" onclick="showTab('support-recruiting')">Support Recruiting</button>
-    <button class="tab-btn" data-roles="admin owners" onclick="showTab('reviews')">Quarterly Team Reviews</button>
-    <button class="tab-btn" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
-    <button class="tab-btn" data-roles="operations admin owners" onclick="showTab('onboarding')">Onboarding</button>
-    <a class="tab-btn" data-roles="sales owners" href="service-agreement.html">Service Agreements</a>
+    <button class="tab-btn grp-btn active" data-group="recruiting" onclick="showGroup('recruiting')">Recruiting</button>
+    <button class="tab-btn grp-btn" data-group="onboarding" onclick="showGroup('onboarding')">Onboarding</button>
+    <button class="tab-btn grp-btn" data-group="team" data-owner-only="1" onclick="showGroup('team')">Team Files</button>
   </div>
   <a class="tab-data-btn" href="dashboard.html" title="Back to dashboard" style="text-decoration:none;display:flex;align-items:center">🏠 Dashboard</a>
   <button class="tab-data-btn" onclick="openDataManager()" title="Export or import saved data">⇅ Data</button>
+</div>
+
+<!-- ── SUB TAB BAR (tabs inside the selected group) ── -->
+<div class="subtab-bar" id="subTabs">
+  <button class="subtab-btn active" data-group="recruiting" data-roles="admin owners" onclick="showTab('recruiting')">Tech Recruiting</button>
+  <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('bas-recruiting')">BAS Recruiting</button>
+  <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('sales-recruiting')">Sales Recruiting</button>
+  <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('support-recruiting')">Support Recruiting</button>
+  <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('onboarding')">New Hire Onboarding</button>
+  <button class="subtab-btn" data-group="onboarding" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
+  <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('team')">Team Members</button>
+  <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('reviews')">Quarterly Reviews</button>
 </div>
 
 <style>
@@ -1981,6 +1992,206 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 </div>
 </div><!-- end panel-support-recruiting -->
 
+<!-- ── TAB: TEAM FILES › TEAM MEMBERS (owners only) ── -->
+<div id="panel-team" class="tab-panel">
+<style>
+.tf-wrap{max-width:1080px;margin:0 auto;padding:3rem 2rem 6rem}
+.tf-banner{display:none;background:rgba(200,60,60,0.1);border:1px solid rgba(200,60,60,0.3);color:#e9a0a0;border-radius:var(--radius);padding:.875rem 1.125rem;font-size:.8125rem;line-height:1.6;margin-bottom:1.5rem}
+.tf-banner.show{display:block}
+.tf-sync-meta{font-size:.75rem;color:rgba(255,255,255,0.4);text-align:right;line-height:1.6}
+.tf-sync-meta b{color:var(--teal-light);font-weight:600}
+.tf-head-actions{display:flex;align-items:flex-end;gap:.75rem;flex-wrap:wrap}
+.tf-ghost-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:none;border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.6);padding:10px 18px;border-radius:4px;cursor:pointer;transition:all .2s;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.tf-ghost-btn:hover{border-color:rgba(28,107,110,0.6);color:var(--teal-light)}
+.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.875rem}
+.tf-card{background:var(--off-black);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1.25rem;cursor:pointer;transition:background .15s,border-color .15s;display:flex;flex-direction:column;gap:.875rem}
+.tf-card:hover{background:var(--charcoal);border-color:rgba(28,107,110,0.35)}
+.tf-card-top{display:flex;align-items:center;gap:.875rem}
+.tf-avatar{width:42px;height:42px;border-radius:50%;background:var(--teal-dark);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;color:var(--teal-light);flex-shrink:0}
+.tf-avatar.lg{width:64px;height:64px;font-size:22px}
+.tf-name{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;line-height:1.2}
+.tf-title{font-size:.75rem;color:var(--grey);margin-top:2px}
+.tf-card-stats{display:flex;justify-content:space-between;gap:.5rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:.75rem;font-size:.7rem;color:rgba(255,255,255,0.45)}
+.tf-card-stats b{display:block;font-family:'Oswald',sans-serif;font-size:.8125rem;font-weight:600;color:rgba(255,255,255,0.85);letter-spacing:.04em}
+.tf-pill{display:inline-block;font-family:'Oswald',sans-serif;font-size:.625rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:2px;background:rgba(28,107,110,0.15);color:var(--teal-light)}
+.tf-pill.warn{background:rgba(214,170,70,0.12);color:#d8b25a}
+.tf-pill.muted{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45)}
+.tf-section-label{font-family:'Oswald',sans-serif;font-size:.6875rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin:2.5rem 0 1rem}
+/* Profile */
+.tf-back{background:none;border:none;color:var(--teal-light);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;padding:0;margin-bottom:1.5rem}
+.tf-prof-head{display:flex;align-items:center;justify-content:space-between;gap:1.25rem;flex-wrap:wrap;margin-bottom:2rem}
+.tf-prof-id{display:flex;align-items:center;gap:1.25rem}
+.tf-prof-name{font-family:'Oswald',sans-serif;font-size:1.75rem;font-weight:700;text-transform:uppercase;line-height:1}
+.tf-prof-sub{font-size:.8125rem;color:rgba(255,255,255,0.45);margin-top:.4rem}
+.tf-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:1.25rem;align-items:start}
+.tf-box{background:var(--off-black);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1.375rem 1.5rem;margin-bottom:1.25rem}
+.tf-box-title{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.tf-box-title a,.tf-box-title button{font-family:'Inter',sans-serif;font-size:.7rem;letter-spacing:.02em;text-transform:none;color:var(--teal-light);background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
+.tf-kv{display:grid;grid-template-columns:110px 1fr;gap:.5rem .75rem;font-size:.8125rem}
+.tf-kv dt{color:var(--grey);font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding-top:2px}
+.tf-kv dd{color:rgba(255,255,255,0.85);word-break:break-word}
+.tf-kv input,.tf-kv textarea{width:100%;background:var(--charcoal);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:var(--white);font-family:'Inter',sans-serif;font-size:.8125rem;padding:.4rem .6rem;outline:none}
+.tf-kv input:focus,.tf-kv textarea:focus{border-color:var(--teal)}
+.tf-check{list-style:none;display:flex;flex-direction:column;gap:.5rem}
+.tf-check li{display:flex;align-items:center;gap:.625rem;font-size:.8125rem;color:rgba(255,255,255,0.75)}
+.tf-check .ok,.tf-check .no{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0}
+.tf-check .ok{background:rgba(28,107,110,0.25);color:var(--teal-light)}
+.tf-check .no{background:rgba(214,170,70,0.12);color:#d8b25a}
+.tf-docs{list-style:none;display:flex;flex-direction:column;gap:2px}
+.tf-docs a{display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.5rem .625rem;border-radius:4px;font-size:.8125rem;color:rgba(255,255,255,0.8);text-decoration:none;transition:background .15s}
+.tf-docs a:hover{background:var(--charcoal);color:var(--white)}
+.tf-docs .tf-doc-type{font-family:'Oswald',sans-serif;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--grey);flex-shrink:0}
+.tf-empty{font-size:.8125rem;color:rgba(255,255,255,0.3);padding:.5rem 0}
+.tf-rv-row{display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.75rem .875rem;border-radius:4px;background:var(--charcoal);margin-bottom:4px;cursor:pointer;transition:background .15s}
+.tf-rv-row:hover{background:#2a2a28}
+.tf-rv-q{font-family:'Oswald',sans-serif;font-size:.875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.tf-rv-meta{font-size:.7rem;color:var(--grey);margin-top:2px}
+.tf-rv-stars{font-size:.75rem;color:var(--teal-light);letter-spacing:1px}
+.tf-log{font-size:.75rem;color:rgba(255,255,255,0.45);line-height:1.8;margin-top:.75rem}
+/* Sync + questionnaire modals reuse .rv-modal */
+.tf-modal-p{font-size:.8375rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:1rem}
+.tf-status{font-size:.8rem;padding:.625rem .875rem;border-radius:4px;margin-top:.75rem;display:none;line-height:1.6}
+.tf-status.ok{display:block;background:rgba(28,107,110,0.15);color:var(--teal-light);border:1px solid rgba(28,107,110,0.3)}
+.tf-status.err{display:block;background:rgba(200,60,60,0.1);color:#e07070;border:1px solid rgba(200,60,60,0.25)}
+.qn-recips{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.375rem;margin-bottom:1.25rem}
+.qn-recip{display:flex;align-items:flex-start;gap:.5rem;background:var(--charcoal);border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:.5rem .625rem;font-size:.8rem;cursor:pointer}
+.qn-recip input{margin-top:3px;accent-color:var(--teal)}
+.qn-recip small{display:block;color:var(--grey);font-size:.68rem;word-break:break-all}
+.qn-recip.noemail small{color:#d8b25a}
+.qn-qs{counter-reset:q;list-style:none;display:flex;flex-direction:column;gap:.375rem;margin-bottom:1rem}
+.qn-qs li{counter-increment:q;font-size:.8125rem;color:rgba(255,255,255,0.7);display:flex;gap:.5rem}
+.qn-qs li::before{content:counter(q) '.';color:var(--teal-light);font-weight:600;min-width:1.25rem}
+.qn-footer-left{margin-right:auto;display:flex;gap:.5rem;flex-wrap:wrap}
+@media(max-width:820px){.tf-cols{grid-template-columns:1fr}.tf-wrap{padding:2rem 1rem 5rem}}
+</style>
+<div class="tf-wrap">
+  <div class="tf-banner" id="tf-banner"></div>
+
+  <!-- Directory -->
+  <div id="tf-directory">
+    <div class="rv-header">
+      <div class="rv-header-left">
+        <div class="rv-eyebrow">Team Files · Owners Only</div>
+        <h1 class="rv-page-title">Team Members</h1>
+        <p class="rv-page-sub">Profiles, HR file status, and quarterly reviews. Documents stay in SharePoint and open there.</p>
+      </div>
+      <div class="tf-head-actions">
+        <div class="tf-sync-meta" id="tf-sync-meta">Not synced yet</div>
+        <button class="tf-ghost-btn" onclick="tfOpenSync()">⟳ Sync Data</button>
+      </div>
+    </div>
+    <div class="tf-grid" id="tf-grid"></div>
+    <div id="tf-unmatched"></div>
+  </div>
+
+  <!-- Profile -->
+  <div id="tf-profile" style="display:none">
+    <button class="tf-back" onclick="tfBackToDirectory()">&larr; All Team Members</button>
+    <div class="tf-prof-head">
+      <div class="tf-prof-id">
+        <div class="tf-avatar lg" id="tf-p-avatar"></div>
+        <div>
+          <div class="tf-prof-name" id="tf-p-name"></div>
+          <div class="tf-prof-sub" id="tf-p-sub"></div>
+        </div>
+      </div>
+      <div class="tf-head-actions">
+        <a class="tf-ghost-btn" id="tf-p-folder" href="#" target="_blank" rel="noopener">📁 Open SharePoint Folder</a>
+        <button class="tf-ghost-btn" onclick="tfQuestionnaireFor(tfCurrentId)">✉ Send Questionnaire</button>
+        <button class="rv-new-btn" onclick="tfNewReviewFor(tfCurrentId)">+ New Review</button>
+      </div>
+    </div>
+    <div class="tf-cols">
+      <div>
+        <div class="tf-box">
+          <div class="tf-box-title">Profile <button id="tf-p-edit-btn" onclick="tfToggleEdit()">Edit</button></div>
+          <dl class="tf-kv" id="tf-p-details"></dl>
+        </div>
+        <div class="tf-box">
+          <div class="tf-box-title">HR File Checklist</div>
+          <ul class="tf-check" id="tf-p-check"></ul>
+        </div>
+        <div class="tf-box">
+          <div class="tf-box-title">Key Documents <span class="tf-pill muted" id="tf-p-count"></span></div>
+          <ul class="tf-docs" id="tf-p-docs"></ul>
+        </div>
+      </div>
+      <div>
+        <div class="tf-box">
+          <div class="tf-box-title">Quarterly Reviews</div>
+          <div id="tf-p-reviews"></div>
+          <div class="tf-log" id="tf-p-qnlog"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- end panel-team -->
+
+<!-- Team Files modals sit outside the panels so they open from any tab -->
+<!-- ── SYNC DATA MODAL ── -->
+<div id="tf-sync-modal" class="rv-modal">
+  <div class="rv-modal-box">
+    <div class="rv-modal-top">
+      <div class="rv-modal-top-title">Sync Team Files from SharePoint</div>
+      <button class="rv-modal-close" onclick="tfCloseSync()">✕</button>
+    </div>
+    <div class="rv-modal-body">
+      <p class="tf-modal-p">Claude refreshes this automatically every two weeks by reading <b>Admin-HR › Shared Documents › Employees</b> and pasting the result here. To update by hand, paste the sync file below and save. Profile details you edit in the portal are never overwritten.</p>
+      <textarea class="rv-textarea tall" id="tf-sync-input" placeholder='Paste the sync file (starts with {"type":"alpine-team-files-sync" …)' style="min-height:200px;font-family:monospace;font-size:.75rem"></textarea>
+      <div class="tf-status" id="tf-sync-status"></div>
+    </div>
+    <div class="rv-modal-footer">
+      <button class="rv-cancel-btn" onclick="tfCloseSync()">Cancel</button>
+      <button class="rv-save-btn" id="tf-sync-save" onclick="tfSaveSync()">Save Sync Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SEND QUESTIONNAIRE MODAL ── -->
+<div id="qn-modal" class="rv-modal">
+  <div class="rv-modal-box">
+    <div class="rv-modal-top">
+      <div class="rv-modal-top-title">Send Pre-Review Questionnaire</div>
+      <button class="rv-modal-close" onclick="qnClose()">✕</button>
+    </div>
+    <div class="rv-modal-body">
+      <p class="tf-modal-p">Each person gets a one-page PDF with their name, the review questions, and a core-values self-rating, emailed from your Outlook so they can think it through before you sit down.</p>
+      <div class="rv-field-row">
+        <div class="rv-field">
+          <label class="rv-label">Review Quarter</label>
+          <select class="rv-select" id="qn-quarter"></select>
+        </div>
+        <div class="rv-field">
+          <label class="rv-label">Review Meetings (shown on the PDF)</label>
+          <input class="rv-input" id="qn-when" type="text" placeholder="e.g. Week of October 13">
+        </div>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label">Email Message</label>
+        <textarea class="rv-textarea" id="qn-message"></textarea>
+      </div>
+      <div class="rv-form-section"><div class="rv-form-section-title">Recipients</div><div class="rv-form-section-sub">Owners are unchecked by default · add missing emails on the person's profile</div></div>
+      <div class="qn-recips" id="qn-recips"></div>
+      <div class="rv-form-section"><div class="rv-form-section-title">Questions on the PDF</div><div class="rv-form-section-sub">Pulled from your review template · <span class="rv-edit-qs-link" onclick="openQEditor()">Edit questions template ✎</span></div></div>
+      <ol class="qn-qs" id="qn-qs"></ol>
+      <div class="rv-form-section"><div class="rv-form-section-title">Delivery</div><div class="rv-form-section-sub">Power Automate flow URL (saved to the owners-only cloud store, never to GitHub)</div></div>
+      <div class="rv-field">
+        <input class="rv-input" id="qn-flow" type="url" placeholder="https://prod-00.canadacentral.logic.azure.com/workflows/…  (paste the flow's HTTP POST URL)">
+      </div>
+      <div class="tf-status" id="qn-status"></div>
+    </div>
+    <div class="rv-modal-footer">
+      <div class="qn-footer-left">
+        <button class="rv-cancel-btn" onclick="qnPreview()">Preview PDF</button>
+        <button class="rv-cancel-btn" onclick="qnManual()" title="No flow yet? Download a blank-name PDF and open an Outlook email to everyone (BCC)">Download + Email Manually</button>
+      </div>
+      <button class="rv-cancel-btn" onclick="qnClose()">Cancel</button>
+      <button class="rv-save-btn" id="qn-send-btn" onclick="qnSend()">Send Questionnaire</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── TAB: QUARTERLY TECH REVIEWS ── -->
 <div id="panel-reviews" class="tab-panel">
 <style>
@@ -2093,16 +2304,23 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
     <div class="rv-header-left">
       <div class="rv-eyebrow">Internal · Confidential</div>
       <h1 class="rv-page-title">Quarterly Team Reviews</h1>
-      <p class="rv-page-sub">One-on-one review notes, performance ratings, and action items — stored locally in this file.</p>
+      <p class="rv-page-sub">One-on-one review notes, performance ratings, and action items. Owners only. Each review also appears on that person's Team Members profile.</p>
     </div>
-    <button class="rv-new-btn" onclick="openNewReview()">+ New Review</button>
+    <div class="tf-head-actions">
+      <button class="tf-ghost-btn" onclick="qnOpen()">✉ Send Questionnaire</button>
+      <button class="rv-new-btn" onclick="openNewReview()">+ New Review</button>
+    </div>
   </div>
 
+  <div class="tf-log" id="rv-qn-log" style="margin:-1.25rem 0 1.5rem"></div>
   <div id="rv-list" class="rv-list">
     <div class="rv-list-empty"><span>📋</span>No reviews yet. Click "New Review" to add the first one.</div>
   </div>
 </div>
 
+</div><!-- end panel-reviews -->
+
+<!-- Review modals sit outside the panel so they open from Team Members profiles too -->
 <!-- ── NEW / EDIT MODAL ── -->
 <div id="rv-modal" class="rv-modal">
   <div class="rv-modal-box">
@@ -2115,8 +2333,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
       <!-- Header fields -->
       <div class="rv-field-row">
         <div class="rv-field">
-          <label class="rv-label">Technician Name</label>
-          <input class="rv-input" id="rv-tech" type="text" placeholder="e.g. Brandon">
+          <label class="rv-label">Team Member</label>
+          <input class="rv-input" id="rv-tech" type="text" list="tf-member-list" placeholder="Start typing a name…" autocomplete="off">
+          <datalist id="tf-member-list"></datalist>
         </div>
         <div class="rv-field">
           <label class="rv-label">Date</label>
@@ -2133,7 +2352,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
           </select>
         </div>
         <div class="rv-field">
-          <label class="rv-label">Apprenticeship Level</label>
+          <label class="rv-label">Level / Role</label>
           <select class="rv-select" id="rv-level">
             <option value="">Select level</option>
             <option>1st Year Apprentice</option>
@@ -2142,6 +2361,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
             <option>4th Year Apprentice</option>
             <option>5th Year Apprentice</option>
             <option>Journeyman</option>
+            <option>Licensed Technician</option>
+            <option>Office / Sales / Leadership</option>
           </select>
         </div>
       </div>
@@ -2258,7 +2479,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   </div>
 </div>
 
-</div><!-- end panel-reviews -->
+
 
 <style>
 /* ── QUESTION EDITOR MODAL ── */
@@ -2688,6 +2909,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 <script>
   window.AP_SYNC_COLLECTION = "team_hub_data";
+  // Team Files + quarterly reviews live in an owners-only collection
+  window.AP_SYNC_ROUTES = { "alpine_review": "team_files_data", "tf_": "team_files_data" };
   window.AP_APP_SCRIPT = "team-hub-app.js";
 </script>
 <script type="module" src="cloud-sync.js"></script>

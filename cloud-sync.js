@@ -23,7 +23,7 @@
 // and the user is sent back to the login page before any data is read.
 
 import {
-  collection, getDocs, doc, setDoc, deleteDoc
+  collection, getDocs, getDoc, doc, setDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import { db, currentUser } from "./ap-firebase.js";
 
@@ -47,6 +47,7 @@ async function apCloudHydrate() {
         }
       });
     } catch (e) {
+      (window.AP_SYNC_FAILED = window.AP_SYNC_FAILED || []).push(c);
       console.warn("Alpine cloud sync: could not reach Firestore collection " + c + ", continuing with local data only.", e);
     }
   }
@@ -70,6 +71,25 @@ Storage.prototype.removeItem = function (key) {
     deleteDoc(doc(db, collFor(key), key))
       .catch(e => console.warn("Alpine cloud sync: delete failed for key", key, e));
   }
+};
+
+// ── Safe move of one saved key between collections (used for one-time data migrations).
+// Copies, reads the copy back to confirm, and only then deletes the original.
+// Resolves "moved", "nothing" (no original) or "already" (copy exists); rejects on any failure,
+// leaving the original untouched.
+window.apCloudMove = async function (fromColl, toColl, key) {
+  const src = await getDoc(doc(db, fromColl, key));
+  const dst = await getDoc(doc(db, toColl, key));
+  if (dst.exists()) {
+    if (src.exists()) await deleteDoc(doc(db, fromColl, key));
+    return "already";
+  }
+  if (!src.exists()) return "nothing";
+  await setDoc(doc(db, toColl, key), src.data());
+  const check = await getDoc(doc(db, toColl, key));
+  if (!check.exists() || check.data().value !== src.data().value) throw new Error("copy check failed for " + key);
+  await deleteDoc(doc(db, fromColl, key));
+  return "moved";
 };
 
 // ── Boot sequence: hydrate first, then load the tool's real app script ──

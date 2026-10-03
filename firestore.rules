@@ -26,6 +26,14 @@ service cloud.firestore {
       ];
     }
 
+    // Owners only: Team Files (profiles, SharePoint index) + quarterly reviews
+    function isOwner() {
+      return signedIn() && email() in [
+        'jake.gilmore@alpinehvac.ca',
+        'mike.launder@alpinehvac.ca'
+      ];
+    }
+
     function isOps() {
       return signedIn() && email() in [
         'cole.hamilton@alpinehvac.ca',
@@ -65,6 +73,11 @@ service cloud.firestore {
     // Team Hub (recruiting, reviews): super admins only
     match /team_hub_data/{doc} {
       allow read, write: if isAdmin();
+    }
+
+    // Team Hub > Team Files + Quarterly Reviews: owners (Jake, Mike) only
+    match /team_files_data/{doc} {
+      allow read, write: if isOwner();
     }
 
     // Everything else is denied by default.

@@ -9,8 +9,8 @@
 // Firestore rules.
 
 const AP_USERS = {
-  "jake.gilmore@alpinehvac.ca":     { name: "Jake Gilmore",     roles: ["super_admin", "sales", "finance"] },
-  "mike.launder@alpinehvac.ca":     { name: "Mike Launder",     roles: ["super_admin", "sales", "finance"] },
+  "jake.gilmore@alpinehvac.ca":     { name: "Jake Gilmore",     roles: ["super_admin", "sales", "finance", "owner"] },
+  "mike.launder@alpinehvac.ca":     { name: "Mike Launder",     roles: ["super_admin", "sales", "finance", "owner"] },
   "clarissa.launder@alpinehvac.ca": { name: "Clarissa Launder", roles: ["super_admin", "support", "finance"] },
   "cole.hamilton@alpinehvac.ca":    { name: "Cole Hamilton",    roles: ["super_admin", "sales", "ops"] },
   "natalie.townsend@alpinehvac.ca": { name: "Natalie Townsend", roles: ["sales"] },
@@ -28,6 +28,7 @@ const AP_TOOLS = {
   "job-profit":         { label: "Job Profit",                    roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
+  "team-files":         { label: "Team Files",                    roles: ["owner"], strict: true }, // Team Hub > Team Files + quarterly reviews: Jake, Mike only
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },
   "service-agreements": { label: "Service Agreement Tracker",     roles: ["sales"], strict: true }, // sales role required, no super_admin bypass
   "site-reports":       { label: "Site Reports",                  roles: ["sales", "ops"], strict: true }, // quarterly maintenance progress + customer summaries
@@ -84,6 +85,12 @@ function apGuard(toolId) {
     window.location.href = "dashboard.html";
     return;
   }
+}
+
+// True when the signed-in user is an owner (Jake, Mike). Used to gate Team Files in Team Hub.
+function apIsOwner() {
+  const session = apGetSession();
+  return !!(session && session.roles.includes("owner"));
 }
 
 // Returns the list of tools the current session is allowed to see, for building the dashboard.

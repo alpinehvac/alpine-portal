@@ -1323,45 +1323,71 @@ srRecalc();
 // (script block boundary)
 
 
-// ── TAB SWITCHING ──
+// ── TAB SWITCHING (two levels: group tabs → sub-tabs) ──
+const TH_GROUP_KEY = 'alpine_teamhub_tab_v2';
+let thRole = 'owners';
+
+function thOwnerOk() { return typeof apIsOwner === 'function' && apIsOwner(); }
+
+function thSubVisible(btn) {
+  const roles = (btn.getAttribute('data-roles') || '').split(' ');
+  if (btn.getAttribute('data-group') === 'team' && !thOwnerOk()) return false;
+  return thRole === 'owners' || roles.indexOf(thRole) !== -1;
+}
+
 function showTab(name) {
+  const panel = document.getElementById('panel-' + name);
+  const btn = document.querySelector('#subTabs .subtab-btn[onclick="showTab(\'' + name + '\')"]');
+  if (!panel || !btn || !thSubVisible(btn)) return;
+  const group = btn.getAttribute('data-group');
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
+  panel.classList.add('active');
+  document.querySelectorAll('#mainTabs .grp-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-group') === group));
+  document.querySelectorAll('#subTabs .subtab-btn').forEach(b => {
+    b.classList.toggle('active', b === btn);
+    b.style.display = (b.getAttribute('data-group') === group && thSubVisible(b)) ? '' : 'none';
+  });
+  try { sessionStorage.setItem(TH_GROUP_KEY, name); } catch (e) {}
   // Re-render SR questions when sales tab opens so textarea autoGrow works correctly
   if (name === 'sales-recruiting') {
     srRenderQ('sr-q-list-1');
     srRenderQ('sr-q-list-2');
     srRenderQ('sr-q-list-3');
   }
+  if (name === 'team' && typeof tfRenderDirectory === 'function') tfRenderDirectory();
+  if (name === 'reviews' && typeof renderList === 'function') renderList();
+}
+
+function showGroup(group) {
+  const first = Array.from(document.querySelectorAll('#subTabs .subtab-btn'))
+    .find(b => b.getAttribute('data-group') === group && thSubVisible(b));
+  if (first) first.click();
 }
 
 // ── ROLE-BASED TAB FILTERING ──
 const ROLE_KEY = 'alpine_teamhub_role_v1';
 
 function applyRoleFilter(role) {
-  const tabs = document.querySelectorAll('#mainTabs .tab-btn');
-  let activeStillVisible = false;
-  let firstVisible = null;
-
-  tabs.forEach(btn => {
-    const roles = (btn.getAttribute('data-roles') || '').split(' ');
-    const visible = role === 'owners' || roles.indexOf(role) !== -1;
-    btn.style.display = visible ? '' : 'none';
-    if (visible && !firstVisible) firstVisible = btn;
-    if (visible && btn.classList.contains('active')) activeStillVisible = true;
+  thRole = role || 'owners';
+  // Group tabs: show only groups with at least one visible sub-tab
+  document.querySelectorAll('#mainTabs .grp-btn').forEach(g => {
+    const grp = g.getAttribute('data-group');
+    const any = Array.from(document.querySelectorAll('#subTabs .subtab-btn'))
+      .some(b => b.getAttribute('data-group') === grp && thSubVisible(b));
+    g.style.display = any ? '' : 'none';
   });
-
-  // If the currently active tab got hidden by this role filter, jump to the first visible
-  // in-page tab. Never auto-click link tabs (Service Agreements),
-  // since those navigate away or open external sites.
-  if (!activeStillVisible && firstVisible && firstVisible.tagName === 'BUTTON') {
-    firstVisible.click();
-  } else if (!activeStillVisible && firstVisible) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+  // Keep the current tab if still allowed, else open the first allowed one
+  const active = document.querySelector('#subTabs .subtab-btn.active');
+  let target = active && thSubVisible(active) ? active : null;
+  if (!target) {
+    let saved = null;
+    try { saved = sessionStorage.getItem(TH_GROUP_KEY); } catch (e) {}
+    const savedBtn = saved && document.querySelector('#subTabs .subtab-btn[onclick="showTab(\'' + saved + '\')"]');
+    target = savedBtn && thSubVisible(savedBtn) ? savedBtn
+      : Array.from(document.querySelectorAll('#subTabs .subtab-btn')).find(thSubVisible);
   }
+  if (target) target.click();
+  else document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
 
   document.querySelectorAll('.role-tab-btn').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-role') === role);
@@ -1373,11 +1399,7 @@ function setRole(role) {
   applyRoleFilter(role);
 }
 
-(function initRoleFilter() {
-  let savedRole = 'owners';
-  try { savedRole = localStorage.getItem(ROLE_KEY) || 'owners'; } catch (e) {}
-  applyRoleFilter(savedRole);
-})();
+// (role filter init moved to the end of this file so every tab's code is loaded first)
 
 // ── STORAGE KEYS ──
 const STORAGE_KEY = 'alpine_reviews_v1';
@@ -1509,6 +1531,7 @@ function saveQTemplate() {
   closeQEditor();
   // Re-render the form fields with new questions (clear answers)
   renderQuestionFields();
+  if (typeof qnRenderQs === 'function') qnRenderQs();
 }
 
 // ── MODAL ──
@@ -1549,6 +1572,7 @@ function saveReview() {
   const review = {
     id: editingId || Date.now(),
     tech,
+    memberId: (tfMatchMember(tech) || {}).id || null,
     date: document.getElementById('rv-date').value,
     quarter: document.getElementById('rv-quarter').value,
     level: document.getElementById('rv-level').value,
@@ -1567,6 +1591,7 @@ function saveReview() {
   saveReviews(reviews);
   closeModal();
   renderList();
+  tfAfterReviewChange();
 }
 
 // ── DELETE ──
@@ -1576,6 +1601,7 @@ function deleteReview(id, e) {
   const reviews = loadReviews().filter(r => r.id !== id);
   saveReviews(reviews);
   renderList();
+  tfAfterReviewChange();
 }
 
 // ── EDIT ──
@@ -2151,3 +2177,496 @@ function obDeleteHire(){
 
 // ── Init ──────────────────────────────────────────────────────────
 obRenderList();
+
+// ══════════════════════════════════════════════════════════════════
+// ── TEAM FILES (owners only): profiles, SharePoint index, reviews ──
+// Storage (Firestore team_files_data via AP_SYNC_ROUTES "tf_"):
+//   tf_sharepoint_v1  — sync file written every two weeks by Claude (SharePoint → portal)
+//   tf_profiles_v1    — profile details edited in the portal (never touched by the sync)
+//   tf_settings_v1    — { flowUrl } for the Send Questionnaire Power Automate flow
+//   tf_qn_log_v1      — questionnaire send history
+// ══════════════════════════════════════════════════════════════════
+const TF_SYNC_KEY = 'tf_sharepoint_v1';
+const TF_PROFILES_KEY = 'tf_profiles_v1';
+const TF_SETTINGS_KEY = 'tf_settings_v1';
+const TF_QNLOG_KEY = 'tf_qn_log_v1';
+const TF_SP_BASE = 'https://netorg13787440.sharepoint.com/sites/Admin-HR/Shared%20Documents/';
+
+// Current team. The sync only fills in SharePoint data for these people; new
+// SharePoint folders are listed as "not on roster" for an owner to review.
+const TF_ROSTER = [
+  { id:'jake-gilmore',     name:'Jake Gilmore',     title:'Co-Founder & CEO',             team:'Leadership', email:'jake.gilmore@alpinehvac.ca',     owner:true, aliases:['jake','jacob gilmore'] },
+  { id:'mike-launder',     name:'Mike Launder',     title:'Co-Owner',                     team:'Leadership', email:'mike.launder@alpinehvac.ca',     owner:true, aliases:['mike','michael launder'] },
+  { id:'clarissa-launder', name:'Clarissa Launder', title:'Office & Admin Support',       team:'Office',     email:'clarissa.launder@alpinehvac.ca', aliases:['clarissa'] },
+  { id:'cole-hamilton',    name:'Cole Hamilton',    title:'Estimator / Sales',            team:'Sales',      email:'cole.hamilton@alpinehvac.ca',    aliases:['cole'] },
+  { id:'natalie-townsend', name:'Natalie Townsend', title:'Business Development Rep',     team:'Sales',      email:'natalie.townsend@alpinehvac.ca', aliases:['natalie'] },
+  { id:'steven-coles',     name:'Steven Coles',     title:'Service Foreman',              team:'Field',      email:'steven.coles@alpinehvac.ca',     aliases:['steve','steven','steve coles'] },
+  { id:'nick-drost',       name:'Nick Drost',       title:'T&M / Projects Foreman',       team:'Field',      email:'nick.drost@alpinehvac.ca',       aliases:['nick'] },
+  { id:'tyson-marcoux',    name:'Tyson Marcoux',    title:'Projects Technician',          team:'Field',      email:'tyson.marcoux@alpinehvac.ca',    aliases:['tyson'] },
+  { id:'matt-martin',      name:'Matt Martin',      title:'Service Technician',           team:'Field',      email:'matt.martin@alpinehvac.ca',      aliases:['matt','matthew martin'] },
+  { id:'brandon-launder',  name:'Brandon Launder',  title:'BAS Apprentice / Technician',  team:'BAS',        email:'brandon.launder@alpinehvac.ca',  aliases:['brandon'] },
+  { id:'hardiksinh-raol',  name:'Hardiksinh Raol',  title:'BAS Programmer',               team:'BAS',        email:'',                               aliases:['raol','hardik','hardiksinh'] }
+];
+const TF_CHECKLIST = [
+  ['agreement','Employment agreement'],
+  ['kra','Key Result Areas (KRA)'],
+  ['hs','Health & Safety policy signed'],
+  ['wvh','Workplace Violence & Harassment policy signed'],
+  ['licence',"Driver's licence / abstract"],
+  ['resume','Resume on file']
+];
+
+let tfCurrentId = null;
+let tfEditing = false;
+
+function tfJSON(key, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+  catch (e) { return fallback; }
+}
+function tfEsc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function tfInitials(name) { return String(name||'?').split(/\s+/).map(w => w[0]||'').join('').toUpperCase().slice(0,2); }
+function tfSpUrl(path) { return TF_SP_BASE + String(path).split('/').map(encodeURIComponent).join('/'); }
+function tfFmtDate(iso, opts) {
+  if (!iso) return '';
+  const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
+  return isNaN(d) ? '' : d.toLocaleDateString('en-CA', opts || { month:'short', day:'numeric', year:'numeric' });
+}
+
+// Roster merged with portal edits + latest SharePoint sync
+function tfMembers() {
+  const profiles = tfJSON(TF_PROFILES_KEY, {});
+  const sync = tfJSON(TF_SYNC_KEY, null);
+  const spById = {};
+  if (sync && Array.isArray(sync.members)) sync.members.forEach(m => { spById[m.id] = m; });
+  return TF_ROSTER.map(r => Object.assign({}, r, profiles[r.id] || {}, { sp: spById[r.id] || null }));
+}
+function tfMemberById(id) { return tfMembers().find(m => m.id === id) || null; }
+
+// Match a review's free-text name to a roster member (handles "Brandon", "Steve", etc.)
+function tfMatchMember(name) {
+  const n = String(name || '').trim().toLowerCase();
+  if (!n) return null;
+  const ms = tfMembers();
+  return ms.find(m => m.name.toLowerCase() === n)
+      || ms.find(m => (m.aliases || []).includes(n))
+      || ms.find(m => m.name.toLowerCase().split(' ')[0] === n.split(' ')[0] && n.split(' ').length === 1)
+      || null;
+}
+function tfReviewsFor(id) {
+  return loadReviews().filter(r => r.memberId ? r.memberId === id : (tfMatchMember(r.tech) || {}).id === id)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
+function tfBanner() {
+  const el = document.getElementById('tf-banner');
+  if (!el) return;
+  const failed = (window.AP_SYNC_FAILED || []).includes('team_files_data');
+  el.classList.toggle('show', failed);
+  if (failed) el.innerHTML = '<b>Team Files cloud storage is not reachable.</b> Changes here are only saved in this browser. Publish the updated Firestore rules (team_files_data, owners only) in the Firebase console, then reload.';
+}
+
+function tfPopulateDatalist() {
+  const dl = document.getElementById('tf-member-list');
+  if (dl) dl.innerHTML = tfMembers().map(m => `<option value="${tfEsc(m.name)}">`).join('');
+}
+
+// ── Directory ──
+function tfRenderDirectory() {
+  tfBanner();
+  tfPopulateDatalist();
+  const sync = tfJSON(TF_SYNC_KEY, null);
+  const meta = document.getElementById('tf-sync-meta');
+  if (meta) meta.innerHTML = sync && sync.syncedAt
+    ? `SharePoint synced <b>${tfEsc(tfFmtDate(sync.syncedAt))}</b><br>Next automatic sync in ~2 weeks`
+    : 'Not synced yet. Click Sync Data to load SharePoint info';
+  const grid = document.getElementById('tf-grid');
+  if (!grid) return;
+  const order = ['Leadership','Office','Sales','Field','BAS'];
+  const ms = tfMembers().sort((a, b) => order.indexOf(a.team) - order.indexOf(b.team) || a.name.localeCompare(b.name));
+  grid.innerHTML = ms.map(m => {
+    const revs = tfReviewsFor(m.id);
+    const last = revs[0];
+    let hr = '<span class="tf-pill muted">No sync</span>';
+    if (m.owner) hr = '<span class="tf-pill muted">Owner</span>';
+    else if (m.sp && m.sp.checklist) {
+      const done = TF_CHECKLIST.filter(([k]) => m.sp.checklist[k]).length;
+      hr = `<span class="tf-pill ${done === TF_CHECKLIST.length ? '' : 'warn'}">HR ${done}/${TF_CHECKLIST.length}</span>`;
+    }
+    return `<div class="tf-card" onclick="tfOpenProfile('${m.id}')">
+      <div class="tf-card-top"><div class="tf-avatar">${tfInitials(m.name)}</div>
+        <div><div class="tf-name">${tfEsc(m.name)}</div><div class="tf-title">${tfEsc(m.title || '')}</div></div></div>
+      <div class="tf-card-stats">
+        <div><b>${tfEsc(m.team || '—')}</b>Team</div>
+        <div><b>${last ? tfEsc(last.quarter || tfFmtDate(last.date)) : '—'}</b>Last review</div>
+        <div style="text-align:right">${hr}</div>
+      </div></div>`;
+  }).join('');
+  const um = document.getElementById('tf-unmatched');
+  if (um) {
+    const list = sync && Array.isArray(sync.notOnRoster) ? sync.notOnRoster : [];
+    um.innerHTML = list.length ? `<div class="tf-section-label">SharePoint folders not on the roster (${list.length})</div>
+      <div class="tf-log">${list.map(f => `<a href="${tfSpUrl('Employees/' + f)}" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.55)">${tfEsc(f)}</a>`).join(' · ')}<br>
+      Former staff and admin folders are skipped. Ask Claude to add anyone new to the Team Files roster.</div>` : '';
+  }
+}
+
+// ── Profile ──
+function tfOpenProfile(id) {
+  const m = tfMemberById(id);
+  if (!m) return;
+  tfCurrentId = id; tfEditing = false;
+  document.getElementById('tf-directory').style.display = 'none';
+  document.getElementById('tf-profile').style.display = '';
+  tfRenderProfile();
+  window.scrollTo(0, 0);
+}
+function tfBackToDirectory() {
+  tfCurrentId = null;
+  document.getElementById('tf-profile').style.display = 'none';
+  document.getElementById('tf-directory').style.display = '';
+  tfRenderDirectory();
+}
+function tfRenderProfile() {
+  const m = tfMemberById(tfCurrentId);
+  if (!m) return;
+  tfBanner();
+  document.getElementById('tf-p-avatar').textContent = tfInitials(m.name);
+  document.getElementById('tf-p-name').textContent = m.name;
+  document.getElementById('tf-p-sub').textContent = [m.title, m.team].filter(Boolean).join(' · ');
+  const folder = document.getElementById('tf-p-folder');
+  if (m.sp && m.sp.folderPath) { folder.href = tfSpUrl(m.sp.folderPath); folder.style.display = ''; }
+  else folder.style.display = 'none';
+
+  // Details (view / edit)
+  const fields = [['title','Title'],['team','Team'],['email','Email'],['phone','Phone'],['startDate','Start date'],['notes','Notes']];
+  document.getElementById('tf-p-edit-btn').textContent = tfEditing ? 'Save' : 'Edit';
+  document.getElementById('tf-p-details').innerHTML = fields.map(([k, label]) => {
+    const v = m[k] || '';
+    if (tfEditing) {
+      const input = k === 'notes'
+        ? `<textarea id="tf-e-${k}" rows="3">${tfEsc(v)}</textarea>`
+        : `<input id="tf-e-${k}" type="${k === 'startDate' ? 'date' : k === 'email' ? 'email' : 'text'}" value="${tfEsc(v)}">`;
+      return `<dt>${label}</dt><dd>${input}</dd>`;
+    }
+    const shown = k === 'email' && v ? `<a href="mailto:${tfEsc(v)}" style="color:var(--teal-light)">${tfEsc(v)}</a>`
+      : k === 'startDate' ? tfEsc(tfFmtDate(v, { year:'numeric', month:'long', day:'numeric' }))
+      : tfEsc(v);
+    return `<dt>${label}</dt><dd>${shown || '<span style="color:rgba(255,255,255,0.25)">—</span>'}</dd>`;
+  }).join('');
+
+  // HR checklist
+  const ck = document.getElementById('tf-p-check');
+  if (m.owner) ck.innerHTML = '<li class="tf-empty">Owner. Employee HR checklist does not apply.</li>';
+  else if (!m.sp) ck.innerHTML = '<li class="tf-empty">No SharePoint data yet. Run a sync.</li>';
+  else ck.innerHTML = TF_CHECKLIST.map(([k, label]) => {
+    const ok = m.sp.checklist && m.sp.checklist[k];
+    return `<li><span class="${ok ? 'ok' : 'no'}">${ok ? '✓' : '!'}</span>${label}${ok ? '' : ' <span style="color:#d8b25a;font-size:.72rem">— not found in folder</span>'}</li>`;
+  }).join('');
+
+  // Key documents
+  const docs = (m.sp && m.sp.keyDocs) || [];
+  document.getElementById('tf-p-count').textContent = m.sp ? (m.sp.fileCount || 0) + ' files in folder' : '';
+  document.getElementById('tf-p-docs').innerHTML = docs.length
+    ? docs.map(d => `<li><a href="${tfSpUrl(m.sp.folderPath + '/' + d.name)}" target="_blank" rel="noopener"><span>${tfEsc(d.name)}</span><span class="tf-doc-type">${tfEsc(d.type)}</span></a></li>`).join('')
+      + '<li class="tf-empty" style="font-size:.72rem">Payroll, tax, banking and expense files stay in SharePoint and are not listed here.</li>'
+    : '<li class="tf-empty">No key documents found.</li>';
+
+  // Reviews
+  const revs = tfReviewsFor(m.id);
+  const stars = r => { const v = Object.values(r.ratings || {}).filter(Boolean); return v.length ? '★ ' + (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : ''; };
+  document.getElementById('tf-p-reviews').innerHTML = revs.length
+    ? revs.map(r => `<div class="tf-rv-row" onclick="viewReview(${r.id})">
+        <div><div class="tf-rv-q">${tfEsc(r.quarter || 'Review')}</div><div class="tf-rv-meta">${tfEsc(tfFmtDate(r.date))}${r.level ? ' · ' + tfEsc(r.level) : ''}</div></div>
+        <div style="display:flex;align-items:center;gap:.75rem"><span class="tf-rv-stars">${stars(r)}</span>
+        <button class="rv-card-btn" onclick="editReview(${r.id}, event)">Edit</button></div></div>`).join('')
+    : '<div class="tf-empty">No reviews yet. Use + New Review to start one.</div>';
+  const log = tfJSON(TF_QNLOG_KEY, []).filter(e => (e.recipients || []).includes(m.id));
+  document.getElementById('tf-p-qnlog').innerHTML = log.length
+    ? 'Questionnaires sent: ' + log.slice(0, 4).map(e => `${tfEsc(e.quarter)} (${tfEsc(tfFmtDate(e.sentAt))})`).join(' · ')
+    : '';
+}
+function tfToggleEdit() {
+  if (tfEditing) {
+    const profiles = tfJSON(TF_PROFILES_KEY, {});
+    const p = profiles[tfCurrentId] || {};
+    ['title','team','email','phone','startDate','notes'].forEach(k => {
+      const el = document.getElementById('tf-e-' + k);
+      if (el) p[k] = el.value.trim();
+    });
+    profiles[tfCurrentId] = p;
+    localStorage.setItem(TF_PROFILES_KEY, JSON.stringify(profiles));
+  }
+  tfEditing = !tfEditing;
+  tfRenderProfile();
+}
+function tfNewReviewFor(id) {
+  const m = tfMemberById(id);
+  openNewReview();
+  if (m) {
+    document.getElementById('rv-tech').value = m.name;
+    document.getElementById('rv-modal-title').textContent = 'New Quarterly Review — ' + m.name;
+  }
+}
+function tfAfterReviewChange() {
+  if (tfCurrentId && document.getElementById('tf-profile').style.display !== 'none') tfRenderProfile();
+}
+
+// ── Sync data (pasted by Claude's scheduled run, or by hand) ──
+function tfOpenSync() {
+  document.getElementById('tf-sync-input').value = '';
+  document.getElementById('tf-sync-status').className = 'tf-status';
+  document.getElementById('tf-sync-modal').classList.add('open');
+}
+function tfCloseSync() { document.getElementById('tf-sync-modal').classList.remove('open'); }
+function tfSaveSync() {
+  const st = document.getElementById('tf-sync-status');
+  let data;
+  try { data = JSON.parse(document.getElementById('tf-sync-input').value); }
+  catch (e) { st.className = 'tf-status err'; st.textContent = 'That is not valid JSON. Paste the whole sync file.'; return; }
+  if (!data || data.type !== 'alpine-team-files-sync' || !Array.isArray(data.members) || !data.syncedAt) {
+    st.className = 'tf-status err'; st.textContent = 'This does not look like a Team Files sync file (missing type, syncedAt or members).'; return;
+  }
+  const known = new Set(TF_ROSTER.map(r => r.id));
+  const unknown = data.members.filter(m => !known.has(m.id)).map(m => m.id);
+  localStorage.setItem(TF_SYNC_KEY, JSON.stringify(data));
+  st.className = 'tf-status ok';
+  st.textContent = `Saved. ${data.members.length} profiles synced as of ${tfFmtDate(data.syncedAt)}.` + (unknown.length ? ` Ignored (not on roster): ${unknown.join(', ')}.` : '');
+  tfRenderDirectory();
+  if (tfCurrentId) tfRenderProfile();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── SEND QUESTIONNAIRE: one-page PDF per person → Power Automate ──
+// ══════════════════════════════════════════════════════════════════
+const QN_VALUES = ['Character','Courage','Curiosity','Competence','Caring'];
+let qnOnly = null; // set when opened from one profile
+
+function qnQuarterOptions() {
+  const now = new Date();
+  const q = Math.floor(now.getMonth() / 3) + 1;
+  // Reviews early in a quarter cover the quarter that just ended
+  let pq = q - 1, py = now.getFullYear();
+  if (pq === 0) { pq = 4; py--; }
+  const opts = [];
+  for (let i = -1; i < 3; i++) {
+    let qq = pq + i, yy = py;
+    while (qq < 1) { qq += 4; yy--; }
+    while (qq > 4) { qq -= 4; yy++; }
+    opts.push('Q' + qq + ' ' + yy);
+  }
+  return { opts, def: 'Q' + pq + ' ' + py };
+}
+function qnOpen() { qnOnly = null; qnShow(); }
+function tfQuestionnaireFor(id) { qnOnly = id; qnShow(); }
+function qnShow() {
+  const { opts, def } = qnQuarterOptions();
+  const sel = document.getElementById('qn-quarter');
+  sel.innerHTML = opts.map(o => `<option${o === def ? ' selected' : ''}>${o}</option>`).join('');
+  const sender = (typeof apGetSession === 'function' && apGetSession()) ? apGetSession().name.split(' ')[0] : 'Jake';
+  document.getElementById('qn-message').value =
+    `Hi {first},\n\nOur quarterly review is coming up. Attached is a one-page questionnaire with the questions we'll talk through. Take 10 minutes before we meet to jot down your thoughts (bullet points are fine) and bring it with you.\n\nThis isn't a test. It's so we can spend our time on what matters to you.\n\nThanks,\n${sender}`;
+  const ms = tfMembers();
+  document.getElementById('qn-recips').innerHTML = ms.map(m => {
+    const checked = qnOnly ? m.id === qnOnly : (!m.owner && !!m.email);
+    return `<label class="qn-recip${m.email ? '' : ' noemail'}"><input type="checkbox" value="${m.id}" ${checked ? 'checked' : ''} ${m.email ? '' : 'disabled'}>
+      <span>${tfEsc(m.name)}<small>${m.email ? tfEsc(m.email) : 'No email: add it on their profile'}</small></span></label>`;
+  }).join('');
+  qnRenderQs();
+  document.getElementById('qn-flow').value = (tfJSON(TF_SETTINGS_KEY, {}) || {}).flowUrl || '';
+  document.getElementById('qn-status').className = 'tf-status';
+  document.getElementById('qn-send-btn').disabled = false;
+  document.getElementById('qn-modal').classList.add('open');
+}
+function qnRenderQs() {
+  const ol = document.getElementById('qn-qs');
+  if (ol) ol.innerHTML = loadQuestions().map(q => `<li>${tfEsc(q)}</li>`).join('');
+}
+function qnClose() { document.getElementById('qn-modal').classList.remove('open'); }
+function qnStatus(cls, html) { const s = document.getElementById('qn-status'); s.className = 'tf-status ' + cls; s.innerHTML = html; }
+function qnSelected() {
+  const ids = Array.from(document.querySelectorAll('#qn-recips input:checked')).map(i => i.value);
+  return tfMembers().filter(m => ids.includes(m.id));
+}
+
+// Builds the one-page questionnaire PDF; returns a jsPDF document
+function qnBuildPdf(member, quarter, when) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'pt', format: 'letter' });
+  const W = 612, H = 792, M = 46;
+  const teal = [28, 107, 110], ink = [30, 30, 28], grey = [110, 110, 104], rule = [205, 210, 210];
+  // Header band
+  pdf.setFillColor(...teal); pdf.rect(0, 0, W, 70, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(17); pdf.text('ALPINE HVAC', M, 32);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5); pdf.text('Quarterly Review: Pre-Meeting Questionnaire', M, 50);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text(quarter, W - M, 32, { align: 'right' });
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.text('Confidential', W - M, 50, { align: 'right' });
+  // Name / meeting line
+  let y = 98;
+  pdf.setTextColor(...grey); pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold');
+  pdf.text('NAME', M, y); pdf.text('REVIEW MEETING', W / 2 + 10, y);
+  y += 15;
+  pdf.setTextColor(...ink); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(12);
+  pdf.text(member ? member.name : '', M, y);
+  pdf.text(when || '', W / 2 + 10, y);
+  pdf.setDrawColor(...rule); pdf.setLineWidth(0.6);
+  pdf.line(M, y + 5, W / 2 - 10, y + 5); pdf.line(W / 2 + 10, y + 5, W - M, y + 5);
+  // Intro
+  y += 26;
+  pdf.setFontSize(9.5); pdf.setTextColor(...grey);
+  const intro = pdf.splitTextToSize('Take about 10 minutes before we meet to jot down your thoughts. Bullet points are fine. Bring this with you, printed or on your phone. It is a starting point for our conversation, not a test.', W - 2 * M);
+  pdf.text(intro, M, y); y += intro.length * 12 + 12;
+  // Questions: share the remaining height evenly, leaving room for the values block
+  const qs = loadQuestions();
+  const valuesBlock = 86, bottom = H - 40 - valuesBlock;
+  const per = Math.max(44, (bottom - y) / Math.max(qs.length, 1));
+  qs.forEach((q, i) => {
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(...teal);
+    pdf.text(String(i + 1) + '.', M, y);
+    pdf.setTextColor(...ink);
+    const lines = pdf.splitTextToSize(q, W - 2 * M - 18);
+    pdf.text(lines, M + 18, y);
+    const textH = lines.length * 12;
+    pdf.setDrawColor(...rule);
+    const lineCount = Math.max(1, Math.floor((per - textH - 6) / 17));
+    for (let l = 1; l <= lineCount; l++) pdf.line(M + 18, y + textH + l * 17 - 6, W - M, y + textH + l * 17 - 6);
+    y += per;
+  });
+  // Core values self-rating
+  y = H - 40 - valuesBlock + 14;
+  pdf.setDrawColor(...rule); pdf.line(M, y - 10, W - M, y - 10);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(...ink);
+  pdf.text('Rate yourself on our core values (circle 1 to 5)', M, y + 6);
+  const colW = (W - 2 * M) / QN_VALUES.length;
+  QN_VALUES.forEach((v, i) => {
+    const x = M + i * colW;
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...teal);
+    pdf.text(v.toUpperCase(), x, y + 28);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(...ink);
+    pdf.text('1   2   3   4   5', x, y + 46);
+  });
+  pdf.setFontSize(7.5); pdf.setTextColor(...grey);
+  pdf.text('Alpine HVAC Service Inc. · Internal and confidential', W / 2, H - 22, { align: 'center' });
+  return pdf;
+}
+function qnFileName(member, quarter) {
+  return ('Alpine Quarterly Review ' + quarter + (member ? ' - ' + member.name : '')).replace(/[^\w\- ]+/g, '') + '.pdf';
+}
+function qnCheckLib() {
+  if (window.jspdf && window.jspdf.jsPDF) return true;
+  qnStatus('err', 'The PDF library did not load. Check your internet connection and reload the page.');
+  return false;
+}
+function qnPreview() {
+  if (!qnCheckLib()) return;
+  const sel = qnSelected();
+  const quarter = document.getElementById('qn-quarter').value;
+  const pdf = qnBuildPdf(sel[0] || null, quarter, document.getElementById('qn-when').value.trim());
+  window.open(pdf.output('bloburl'), '_blank');
+}
+function qnManual() {
+  if (!qnCheckLib()) return;
+  const quarter = document.getElementById('qn-quarter').value;
+  const sel = qnSelected();
+  qnBuildPdf(null, quarter, document.getElementById('qn-when').value.trim()).save(qnFileName(null, quarter));
+  const body = document.getElementById('qn-message').value.replace(/\{first\}/g, 'team');
+  const bcc = sel.map(m => m.email).filter(Boolean).join(',');
+  window.location.href = 'mailto:?bcc=' + encodeURIComponent(bcc) + '&subject=' + encodeURIComponent('Quarterly Review (' + quarter + '): Questionnaire') + '&body=' + encodeURIComponent(body);
+  qnStatus('ok', 'PDF downloaded and an email to everyone selected (BCC) is opening. Attach the PDF and send.');
+  qnLog(quarter, sel, 'manual');
+}
+function qnLog(quarter, members, method) {
+  const log = tfJSON(TF_QNLOG_KEY, []);
+  log.unshift({ sentAt: new Date().toISOString(), quarter, method, recipients: members.map(m => m.id) });
+  localStorage.setItem(TF_QNLOG_KEY, JSON.stringify(log.slice(0, 50)));
+  qnRenderLog();
+  tfAfterReviewChange();
+}
+function qnRenderLog() {
+  const el = document.getElementById('rv-qn-log');
+  if (!el) return;
+  const log = tfJSON(TF_QNLOG_KEY, []);
+  el.innerHTML = log.length
+    ? 'Last questionnaire: ' + tfEsc(log[0].quarter) + ', sent ' + tfEsc(tfFmtDate(log[0].sentAt)) + ' to ' + log[0].recipients.length + ' people' + (log[0].method === 'manual' ? ' (manual email)' : '')
+    : '';
+}
+async function qnSend() {
+  if (!qnCheckLib()) return;
+  const flowUrl = document.getElementById('qn-flow').value.trim();
+  const sel = qnSelected();
+  const quarter = document.getElementById('qn-quarter').value;
+  const when = document.getElementById('qn-when').value.trim();
+  if (!sel.length) { qnStatus('err', 'Select at least one person.'); return; }
+  if (!/^https:\/\/[^\s]+$/.test(flowUrl)) {
+    qnStatus('err', 'Paste your Power Automate flow URL first (see the setup steps). No flow yet? Use <b>Download + Email Manually</b>.');
+    return;
+  }
+  const settings = tfJSON(TF_SETTINGS_KEY, {}) || {};
+  if (settings.flowUrl !== flowUrl) { settings.flowUrl = flowUrl; localStorage.setItem(TF_SETTINGS_KEY, JSON.stringify(settings)); }
+  if (!confirm(`Email the ${quarter} questionnaire to ${sel.length} ${sel.length === 1 ? 'person' : 'people'}?\n\n${sel.map(m => m.name).join(', ')}`)) return;
+  const btn = document.getElementById('qn-send-btn');
+  btn.disabled = true; qnStatus('ok', 'Building PDFs and sending…');
+  const msg = document.getElementById('qn-message').value;
+  const payload = {
+    source: 'alpine-portal-team-hub',
+    quarter,
+    sentBy: (apGetSession() || {}).email || '',
+    recipients: sel.map(m => {
+      const pdf = qnBuildPdf(m, quarter, when);
+      const first = m.name.split(' ')[0];
+      return {
+        name: m.name,
+        email: m.email,
+        subject: 'Quarterly Review (' + quarter + '): Questionnaire',
+        bodyHtml: tfEsc(msg.replace(/\{first\}/g, first)).replace(/\n/g, '<br>'),
+        fileName: qnFileName(m, quarter),
+        fileContentBase64: pdf.output('datauristring').split(',')[1]
+      };
+    })
+  };
+  try {
+    const res = await fetch(flowUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error('Flow responded ' + res.status);
+    qnStatus('ok', `Sent to ${sel.length} ${sel.length === 1 ? 'person' : 'people'}. Check your Outlook Sent Items to confirm.`);
+    qnLog(quarter, sel, 'flow');
+  } catch (e) {
+    qnStatus('err', 'The flow did not accept the request (' + tfEsc(e.message) + '). Check the URL and that the flow is turned on and set to "Anyone" can trigger. Nothing was logged as sent.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── One-time move of reviews into the owners-only collection ──
+async function tfMigrateReviews() {
+  if (!thOwnerOk() || typeof window.apCloudMove !== 'function') return;
+  if (localStorage.getItem('tf_migrated_v1')) return;
+  try {
+    for (const k of ['alpine_reviews_v1', 'alpine_review_questions_v1']) {
+      await window.apCloudMove('team_hub_data', 'team_files_data', k);
+    }
+    localStorage.setItem('tf_migrated_v1', new Date().toISOString());
+  } catch (e) {
+    console.warn('Team Files: review migration will retry next load (original data left in place).', e);
+  }
+}
+// Non-owners: clear any cached copy of reviews from this browser
+function tfPurgeForNonOwners() {
+  if (thOwnerOk()) return;
+  ['alpine_reviews_v1', 'alpine_review_questions_v1', TF_SYNC_KEY, TF_PROFILES_KEY, TF_SETTINGS_KEY, TF_QNLOG_KEY]
+    .forEach(k => { try { Storage.prototype.removeItem.call(localStorage, k); } catch (e) {} });
+}
+
+tfPurgeForNonOwners();
+tfMigrateReviews();
+tfPopulateDatalist();
+qnRenderLog();
+
+// ── Init role filter + tabs (last, so every tab's code above is ready) ──
+(function initRoleFilter() {
+  let savedRole = 'owners';
+  try { savedRole = localStorage.getItem(ROLE_KEY) || 'owners'; } catch (e) {}
+  if (savedRole === 'sales') savedRole = 'owners'; // Sales view removed from Team Hub
+  applyRoleFilter(savedRole);
+})();
