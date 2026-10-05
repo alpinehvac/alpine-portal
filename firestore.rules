@@ -75,6 +75,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Team Hub > Pre-Interview resume files (one doc per file): super admins only
+    match /team_hub_resumes/{doc} {
+      allow read, write: if isAdmin();
+    }
+
     // Team Hub > Team Files + Quarterly Reviews: owners (Jake, Mike) only
     match /team_files_data/{doc} {
       allow read, write: if isOwner();

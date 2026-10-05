@@ -552,6 +552,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 <div class="sr-panel" id="tc-cands">
   <div class="sr-wrap" style="padding-top:2rem">
     <div id="tc-cand-list-view">
+      <div class="pi-block" data-pi-role="tech"></div>
       <div class="sr-tracker-top">
         <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Candidate Pipeline</div>
         <button class="sr-add-btn" onclick="tcOpenModal()">+ Add Candidate</button>
@@ -1165,6 +1166,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 <div class="sr-panel" id="bc-cands">
   <div class="sr-wrap" style="padding-top:2rem">
     <div id="bc-cand-list-view">
+      <div class="pi-block" data-pi-role="bas"></div>
       <div class="sr-tracker-top">
         <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Candidate Pipeline</div>
         <button class="sr-add-btn" onclick="bcOpenModal()">+ Add Candidate</button>
@@ -1783,6 +1785,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   <!-- ── CANDIDATES ── -->
   <div class="sr-panel" id="sr-cands">
     <div id="sr-cand-list-view">
+      <div class="pi-block" data-pi-role="sales"></div>
       <div class="sr-tracker-top">
         <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Candidate Pipeline</div>
         <button class="sr-add-btn" onclick="srOpenModal()">+ Add Candidate</button>
@@ -1984,13 +1987,107 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
     <h1 class="qr-title">Support Recruiting</h1>
     <p class="qr-sub">Resources, candidate tracking, and interview tools for support staff hiring.</p>
   </div>
-  <div class="qr-placeholder">
-    <div class="qr-placeholder-icon">🤝</div>
-    <div class="qr-placeholder-title">Coming Soon</div>
-    <div class="qr-placeholder-text">Support recruiting content is being built out. Check back soon.</div>
-  </div>
+  <div class="pi-block" data-pi-role="support" style="margin-top:2rem"></div>
+  <div class="pi-note">Support interview guides and candidate pipeline are being built out.</div>
 </div>
 </div><!-- end panel-support-recruiting -->
+
+<!-- ── PRE-INTERVIEW: shared styles + modal (all recruiting tabs) ── -->
+<style>
+.pi-block{margin-bottom:2.25rem;padding-bottom:1.75rem;border-bottom:1px solid rgba(255,255,255,0.07)}
+.pi-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.4rem}
+.pi-title{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.pi-sub{font-size:.8rem;color:var(--grey);line-height:1.5;margin-bottom:1rem}
+.pi-row-resume{font-size:.7rem;color:var(--teal-light);margin-left:6px}
+.pi-st{font-size:.65rem;padding:2px 8px;border-radius:3px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.pi-st-new{background:rgba(55,138,221,0.15);color:#6BAEE8}
+.pi-st-reviewed{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.55)}
+.pi-st-contacted{background:rgba(28,107,110,0.2);color:var(--teal-light)}
+.pi-st-hold{background:rgba(239,159,39,0.15);color:#EF9F27}
+.pi-st-nofit{background:rgba(220,80,80,0.15);color:rgba(220,100,100,0.9)}
+.pi-st-moved{background:rgba(155,142,196,0.18);color:var(--purple-light)}
+.pi-toggle{background:none;border:none;color:var(--grey);font-size:.75rem;cursor:pointer;padding:6px 0;text-decoration:underline}
+.pi-toggle:hover{color:var(--white)}
+.pi-note{margin-top:1.5rem;font-size:.8rem;color:var(--grey);text-align:center;padding:1rem;border:1px dashed rgba(255,255,255,0.08);border-radius:var(--radius)}
+#pi-modal .sr-modal-box{max-width:620px}
+.pi-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 .9rem}
+@media(max-width:560px){.pi-grid{grid-template-columns:1fr}}
+.pi-resume-box{background:var(--charcoal);border:1px dashed rgba(255,255,255,0.14);border-radius:6px;padding:.75rem .9rem;font-size:.82rem;color:rgba(255,255,255,0.7)}
+.pi-resume-file{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:.6rem}
+.pi-resume-file strong{color:var(--white);font-weight:500;word-break:break-all}
+.pi-resume-box input[type=file]{font-size:.78rem;color:var(--grey);width:100%}
+.pi-hint{font-size:.7rem;color:var(--grey);margin-top:.4rem}
+.pi-comments{display:flex;flex-direction:column;gap:6px;margin-bottom:.6rem}
+.pi-comment{background:var(--charcoal);border-radius:6px;padding:.55rem .75rem;font-size:.82rem;line-height:1.5;color:rgba(255,255,255,0.8);white-space:pre-wrap}
+.pi-comment-meta{font-size:.68rem;color:var(--grey);margin-bottom:2px;display:flex;justify-content:space-between;gap:8px}
+.pi-comment-del{background:none;border:none;color:var(--grey);cursor:pointer;font-size:.75rem;padding:0}
+.pi-comment-del:hover{color:rgba(220,100,100,0.9)}
+.pi-comment-add{display:flex;gap:8px;align-items:flex-start}
+.pi-comment-add textarea{flex:1;min-height:56px!important}
+.pi-modal-btns{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:1.25rem}
+.pi-modal-btns .pi-left,.pi-modal-btns .pi-right{display:flex;gap:8px;flex-wrap:wrap}
+.pi-busy{opacity:.55;pointer-events:none}
+</style>
+
+<div class="sr-modal" id="pi-modal">
+  <div class="sr-modal-box" id="pi-modal-box">
+    <div class="sr-modal-title" id="pi-modal-title">Add Pre-Interview Applicant</div>
+    <div class="pi-grid">
+      <div class="sr-field"><label>Full Name</label><input type="text" id="pif-name" placeholder="e.g. Jordan Smith"></div>
+      <div class="sr-field"><label>Position Applied For</label><input type="text" id="pif-position" placeholder="e.g. Service Technician"></div>
+      <div class="sr-field"><label>Email</label><input type="email" id="pif-email" placeholder="name@email.com"></div>
+      <div class="sr-field"><label>Phone</label><input type="tel" id="pif-phone" placeholder="905-555-0123"></div>
+      <div class="sr-field"><label>Location</label><input type="text" id="pif-location" placeholder="City"></div>
+      <div class="sr-field"><label>Date Received</label><input type="date" id="pif-received"></div>
+      <div class="sr-field"><label>Source</label>
+        <select id="pif-source">
+          <option value="Website">Website</option>
+          <option value="Indeed">Indeed</option>
+          <option value="Referral">Referral</option>
+          <option value="LinkedIn">LinkedIn</option>
+          <option value="Walk-in / Phone">Walk-in / Phone</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="sr-field"><label>Status</label>
+        <select id="pif-status">
+          <option value="new">New</option>
+          <option value="reviewed">Reviewed</option>
+          <option value="contacted">Contacted</option>
+          <option value="hold">On Hold — Future Opening</option>
+          <option value="nofit">Not a Fit</option>
+          <option value="moved">Moved to Interviews</option>
+        </select>
+      </div>
+    </div>
+    <div class="sr-field"><label>Resume</label>
+      <div class="pi-resume-box">
+        <div class="pi-resume-file" id="pi-resume-current"></div>
+        <input type="file" id="pif-file" accept=".pdf,.doc,.docx,.rtf,.txt,image/*">
+        <div class="pi-hint">PDF, Word, text or image · max 700 KB. Larger file? Paste a SharePoint link below instead.</div>
+      </div>
+    </div>
+    <div class="sr-field"><label>Resume Link (optional)</label><input type="url" id="pif-link" placeholder="https://…sharepoint.com/…"></div>
+    <div class="sr-field"><label>Notes</label><textarea id="pif-notes" rows="4" placeholder="Background, certifications, availability, why they could fit a future opening…"></textarea></div>
+    <div class="sr-field"><label>Comments</label>
+      <div class="pi-comments" id="pi-comments"></div>
+      <div class="pi-comment-add">
+        <textarea class="sr-textarea" id="pif-comment" placeholder="Add a comment…"></textarea>
+        <button class="sr-btn-sm" onclick="piAddComment()">Add</button>
+      </div>
+    </div>
+    <div class="pi-modal-btns">
+      <div class="pi-left">
+        <button class="sr-btn-sm danger" id="pi-del-btn" onclick="piDelete()">Remove</button>
+        <button class="sr-btn-sm" id="pi-move-btn" onclick="piMoveToInterview()">→ Move to Interview 1</button>
+      </div>
+      <div class="pi-right">
+        <button class="sr-btn-cancel" onclick="piCloseModal()">Cancel</button>
+        <button class="sr-save-btn" id="pi-save-btn" onclick="piSave()">Save Applicant</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── TAB: TEAM FILES › TEAM MEMBERS (owners only) ── -->
 <div id="panel-team" class="tab-panel">

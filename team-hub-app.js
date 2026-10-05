@@ -26,7 +26,7 @@ function apRenderAIEvalHTML(result, acceptFnName) {
 }
 
 // ── DATA MANAGER ──
-const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_bas_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_bc_q1','alpine_bc_q2','alpine_bc_q3','alpine_onboarding_v2'];
+const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_bas_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_bc_q1','alpine_bc_q2','alpine_bc_q3','alpine_onboarding_v2','alpine_preint_v1'];
 
 function openDataManager() {
   document.getElementById('dm-import-field').value = '';
@@ -2670,3 +2670,250 @@ qnRenderLog();
   if (savedRole === 'sales') savedRole = 'owners'; // Sales view removed from Team Hub
   applyRoleFilter(savedRole);
 })();
+
+/* ── PRE-INTERVIEW APPLICANTS (Tech / BAS / Sales / Support) ──
+   Applicants who come in when a role isn't actively being hired for.
+   Records live in localStorage key 'alpine_preint_v1' (synced to team_hub_data).
+   Resume files are stored directly in Firestore collection 'team_hub_resumes'
+   (one doc per file) so they are NOT pulled into every page load or localStorage. */
+const PI_KEY = 'alpine_preint_v1';
+const PI_RESUME_COLL = 'team_hub_resumes';
+const PI_MAX_BYTES = 700 * 1024;
+const PI_ROLES = { tech:'Tech', bas:'BAS', sales:'Sales', support:'Support' };
+const PI_STATUS = {
+  new:{label:'New',cls:'pi-st-new'}, reviewed:{label:'Reviewed',cls:'pi-st-reviewed'},
+  contacted:{label:'Contacted',cls:'pi-st-contacted'}, hold:{label:'On Hold',cls:'pi-st-hold'},
+  nofit:{label:'Not a Fit',cls:'pi-st-nofit'}, moved:{label:'Moved to Interviews',cls:'pi-st-moved'}
+};
+const PI_ARCHIVED = ['nofit','moved'];
+let piShowArchived = {};
+let piRole = null, piEditingId = null, piDraftComments = [], piRemoveResume = false;
+
+function piLoad() {
+  try {
+    const v = JSON.parse(localStorage.getItem(PI_KEY));
+    const d = (v && typeof v === 'object') ? v : {};
+    Object.keys(PI_ROLES).forEach(r => { if (!Array.isArray(d[r])) d[r] = []; });
+    return d;
+  } catch(e) { const d = {}; Object.keys(PI_ROLES).forEach(r => d[r] = []); return d; }
+}
+function piSaveAll(d) { localStorage.setItem(PI_KEY, JSON.stringify(d)); }
+function piFmtDate(d) { return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}) : ''; }
+function piFmtSize(b) { return b > 1024*1024 ? (b/1024/1024).toFixed(1)+' MB' : Math.max(1, Math.round(b/1024))+' KB'; }
+function piWho() { try { const s = apGetSession(); return (s && s.name) || 'Unknown'; } catch(e) { return 'Unknown'; } }
+
+// Firestore helpers (same Firebase app/auth as cloud-sync.js via module cache)
+async function piFs() {
+  const fs = await import('https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js');
+  const { db } = await import('./ap-firebase.js');
+  return { fs, db };
+}
+function piReadB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1] || '');
+    r.onerror = () => rej(new Error('Could not read file'));
+    r.readAsDataURL(file);
+  });
+}
+async function piUploadResume(file) {
+  const id = 'res_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const data = await piReadB64(file);
+  const { fs, db } = await piFs();
+  await fs.setDoc(fs.doc(db, PI_RESUME_COLL, id), {
+    name: file.name, type: file.type || 'application/octet-stream', size: file.size,
+    data, uploadedBy: piWho(), uploadedAt: Date.now()
+  });
+  return { id, name: file.name, type: file.type || 'application/octet-stream', size: file.size };
+}
+async function piDeleteResume(id) {
+  if (!id) return;
+  try { const { fs, db } = await piFs(); await fs.deleteDoc(fs.doc(db, PI_RESUME_COLL, id)); }
+  catch(e) { console.warn('Pre-interview: resume delete failed', id, e); }
+}
+async function piOpenResume(id) {
+  const w = window.open('', '_blank');
+  try {
+    const { fs, db } = await piFs();
+    const snap = await fs.getDoc(fs.doc(db, PI_RESUME_COLL, id));
+    if (!snap.exists()) throw new Error('Resume file not found');
+    const r = snap.data();
+    const bin = atob(r.data); const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: r.type }));
+    const viewable = /pdf|image|text/.test(r.type);
+    if (w && viewable) { w.location.href = url; }
+    else {
+      if (w) w.close();
+      const a = document.createElement('a'); a.href = url; a.download = r.name || 'resume';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch(e) {
+    if (w) w.close();
+    alert('Could not open resume: ' + (e.code === 'permission-denied' ? 'access denied by Firestore rules.' : e.message));
+  }
+}
+
+// ── Render one Pre-Interview block per recruiting tab ──
+function piRender(role) {
+  const host = document.querySelector('.pi-block[data-pi-role="' + role + '"]');
+  if (!host) return;
+  const list = piLoad()[role].slice().sort((a, b) => (b.received || '').localeCompare(a.received || '') || b.id - a.id);
+  const active = list.filter(a => !PI_ARCHIVED.includes(a.status));
+  const archived = list.filter(a => PI_ARCHIVED.includes(a.status));
+  const shown = piShowArchived[role] ? list : active;
+  const rows = shown.map(a => {
+    const st = PI_STATUS[a.status] || PI_STATUS.new;
+    const initials = (a.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const meta = [a.position, a.source, piFmtDate(a.received)].filter(Boolean).map(srEsc).join(' · ');
+    const files = (a.resume ? '📄' : '') + (a.resumeLink ? '🔗' : '');
+    const nComments = (a.comments || []).length;
+    return `<div class="sr-cand-row" onclick="piOpenModal('${role}',${a.id})">
+      <div style="width:32px;height:32px;border-radius:50%;background:rgba(155,142,196,0.18);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:var(--purple-light);flex-shrink:0">${srEsc(initials)}</div>
+      <div style="flex:1;min-width:0"><div class="sr-cand-name">${srEsc(a.name)}${files ? `<span class="pi-row-resume">${files}</span>` : ''}</div><div class="sr-cand-meta">${meta}${nComments ? ' · ' + nComments + ' comment' + (nComments > 1 ? 's' : '') : ''}</div></div>
+      <div class="sr-badges"><span class="pi-st ${st.cls}">${st.label}</span></div>
+    </div>`;
+  }).join('');
+  host.innerHTML = `
+    <div class="pi-head">
+      <div class="pi-title">Pre-Interview</div>
+      <button class="sr-add-btn" onclick="piOpenModal('${role}')">+ Add Applicant</button>
+    </div>
+    <div class="pi-sub">Applicants on file for when a ${PI_ROLES[role]} position opens. Not yet in the interview process.</div>
+    ${rows || `<div class="sr-empty">No pre-interview applicants on file.</div>`}
+    ${archived.length ? `<button class="pi-toggle" onclick="piToggleArchived('${role}')">${piShowArchived[role] ? 'Hide' : 'Show'} archived (${archived.length}) — Not a Fit / Moved to Interviews</button>` : ''}`;
+}
+function piRenderAll() { Object.keys(PI_ROLES).forEach(piRender); }
+function piToggleArchived(role) { piShowArchived[role] = !piShowArchived[role]; piRender(role); }
+
+// ── Modal ──
+function piRenderResumeCurrent(rec) {
+  const box = document.getElementById('pi-resume-current');
+  const r = rec && rec.resume && !piRemoveResume ? rec.resume : null;
+  box.innerHTML = r
+    ? `📄 <strong>${srEsc(r.name)}</strong> <span style="color:var(--grey)">${piFmtSize(r.size)}</span>
+       <button class="sr-btn-sm" onclick="piOpenResume('${r.id}')">View</button>
+       <button class="sr-btn-sm danger" onclick="piMarkRemoveResume()">Remove</button>
+       <span style="font-size:.7rem;color:var(--grey);width:100%">Choose a new file below to replace it.</span>`
+    : (piRemoveResume ? '<span style="color:#EF9F27">Resume will be removed on save.</span>' : '<span style="color:var(--grey)">No resume attached.</span>');
+}
+function piMarkRemoveResume() { piRemoveResume = true; piRenderResumeCurrent(null); }
+function piRenderComments() {
+  document.getElementById('pi-comments').innerHTML = piDraftComments.map(c => `
+    <div class="pi-comment"><div class="pi-comment-meta"><span>${srEsc(c.by)} · ${new Date(c.at).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span>
+    <button class="pi-comment-del" title="Delete comment" onclick="piDelComment(${c.id})">✕</button></div>${srEsc(c.text)}</div>`).join('');
+}
+function piOpenModal(role, id) {
+  piRole = role; piEditingId = id || null; piRemoveResume = false;
+  const rec = id ? piLoad()[role].find(a => a.id === id) : null;
+  if (id && !rec) return;
+  const f = (k, v) => { document.getElementById('pif-' + k).value = v || ''; };
+  document.getElementById('pi-modal-title').textContent = (rec ? 'Edit' : 'Add') + ' Pre-Interview Applicant — ' + PI_ROLES[role];
+  f('name', rec && rec.name); f('position', rec && rec.position); f('email', rec && rec.email);
+  f('phone', rec && rec.phone); f('location', rec && rec.location);
+  f('received', rec ? rec.received : new Date().toLocaleDateString('en-CA'));
+  document.getElementById('pif-source').value = (rec && rec.source) || 'Website';
+  document.getElementById('pif-status').value = (rec && rec.status) || 'new';
+  f('link', rec && rec.resumeLink); f('notes', rec && rec.notes); f('comment', '');
+  document.getElementById('pif-file').value = '';
+  piDraftComments = rec ? (rec.comments || []).slice() : [];
+  piRenderResumeCurrent(rec); piRenderComments();
+  document.getElementById('pi-del-btn').style.display = rec ? '' : 'none';
+  document.getElementById('pi-move-btn').style.display = (rec && role !== 'support' && rec.status !== 'moved') ? '' : 'none';
+  document.getElementById('pi-modal').classList.add('open');
+}
+function piCloseModal() { document.getElementById('pi-modal').classList.remove('open'); }
+
+function piAddComment() {
+  const el = document.getElementById('pif-comment'); const text = el.value.trim();
+  if (!text) return;
+  piDraftComments.push({ id: Date.now(), by: piWho(), at: Date.now(), text });
+  el.value = ''; piRenderComments(); piPersistComments();
+}
+function piDelComment(cid) {
+  if (!confirm('Delete this comment?')) return;
+  piDraftComments = piDraftComments.filter(c => c.id !== cid); piRenderComments(); piPersistComments();
+}
+// Comments on an existing applicant save immediately; on a new applicant they save with "Save Applicant".
+function piPersistComments() {
+  if (!piEditingId) return;
+  const d = piLoad(); const rec = d[piRole].find(a => a.id === piEditingId);
+  if (!rec) return;
+  rec.comments = piDraftComments.slice(); piSaveAll(d); piRender(piRole);
+}
+
+async function piSave() {
+  const name = document.getElementById('pif-name').value.trim();
+  if (!name) { alert('Please enter a name.'); return; }
+  const file = document.getElementById('pif-file').files[0];
+  if (file && file.size > PI_MAX_BYTES) { alert('Resume is ' + piFmtSize(file.size) + ' — max is 700 KB. Compress the PDF or paste a SharePoint link instead.'); return; }
+  const box = document.getElementById('pi-modal-box'); const btn = document.getElementById('pi-save-btn');
+  box.classList.add('pi-busy'); btn.textContent = 'Saving…';
+  try {
+    const d = piLoad(); const list = d[piRole];
+    const prev = piEditingId ? list.find(a => a.id === piEditingId) : null;
+    let resume = prev && prev.resume ? prev.resume : null;
+    let oldResumeId = null;
+    if (piRemoveResume && resume) { oldResumeId = resume.id; resume = null; }
+    if (file) {
+      try {
+        const up = await piUploadResume(file);
+        if (resume) oldResumeId = resume.id;
+        resume = up;
+      } catch(e) {
+        const why = e && e.code === 'permission-denied' ? 'Firestore rules do not allow resume storage yet (team_hub_resumes).' : (e.message || e);
+        if (!confirm('Resume upload failed: ' + why + '\n\nSave the applicant without the new resume?')) return;
+      }
+    }
+    const rec = {
+      id: piEditingId || Date.now(), name,
+      position: document.getElementById('pif-position').value.trim(),
+      email: document.getElementById('pif-email').value.trim(),
+      phone: document.getElementById('pif-phone').value.trim(),
+      location: document.getElementById('pif-location').value.trim(),
+      received: document.getElementById('pif-received').value,
+      source: document.getElementById('pif-source').value,
+      status: document.getElementById('pif-status').value,
+      resumeLink: document.getElementById('pif-link').value.trim(),
+      notes: document.getElementById('pif-notes').value,
+      resume, comments: piDraftComments.slice(),
+      created: prev ? prev.created : Date.now(), createdBy: prev ? prev.createdBy : piWho(),
+      updated: Date.now(), movedAt: prev ? prev.movedAt || null : null
+    };
+    const pending = document.getElementById('pif-comment').value.trim();
+    if (pending) rec.comments.push({ id: Date.now() + 1, by: piWho(), at: Date.now(), text: pending });
+    if (prev) list[list.indexOf(prev)] = rec; else list.unshift(rec);
+    piSaveAll(d);
+    if (oldResumeId) piDeleteResume(oldResumeId);
+    piCloseModal(); piRender(piRole);
+  } finally {
+    box.classList.remove('pi-busy'); btn.textContent = 'Save Applicant';
+  }
+}
+
+function piDelete() {
+  if (!piEditingId || !confirm('Remove this applicant and their resume? This cannot be undone.')) return;
+  const d = piLoad(); const rec = d[piRole].find(a => a.id === piEditingId);
+  d[piRole] = d[piRole].filter(a => a.id !== piEditingId); piSaveAll(d);
+  if (rec && rec.resume) piDeleteResume(rec.resume.id);
+  piCloseModal(); piRender(piRole);
+}
+
+// Creates an Interview 1 candidate in that tab's pipeline; applicant is kept (archived) with resume + notes.
+function piMoveToInterview() {
+  const d = piLoad(); const rec = d[piRole].find(a => a.id === piEditingId);
+  if (!rec) return;
+  if (!confirm('Move ' + rec.name + ' into the ' + PI_ROLES[piRole] + ' interview pipeline (Interview 1)?\n\nThe pre-interview record, resume and notes stay on file under "archived".')) return;
+  const cand = { id: Date.now(), name: rec.name, date: '', stage: 'Interview 1', decision: 'pending', score: '',
+    posTraits: [], negTraits: [], evalTraits: [], interviews: [{}, {}, {}], preIntId: rec.id };
+  if (piRole === 'tech') { tcCands.unshift(cand); tcSaveCands(tcCands); tcRenderCands(); }
+  else if (piRole === 'bas') { bcCands.unshift(cand); bcSaveCands(bcCands); bcRenderCands(); }
+  else if (piRole === 'sales') { srCands.unshift(cand); srSaveCands(srCands); srRenderCands(); }
+  else return;
+  rec.status = 'moved'; rec.movedAt = Date.now(); rec.updated = Date.now();
+  rec.comments = (rec.comments || []).concat([{ id: Date.now() + 1, by: piWho(), at: Date.now(), text: 'Moved to Interview 1.' }]);
+  piSaveAll(d); piCloseModal(); piRender(piRole);
+}
+
+piRenderAll();
