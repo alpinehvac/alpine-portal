@@ -9,40 +9,41 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --teal:#1C6B6E;--teal-light:#2A8A8E;
-  --black:#111110;--off-black:#1A1A18;--charcoal:#2A2A28;
-  --grey:#6B6B67;--light-grey:#9A9A95;--white:#FFFFFF;
-  --border:rgba(255,255,255,0.08);
+  --teal:#27636C;--teal-light:#3D818A;
+  --black:#EAF2F3;--off-black:#FFFFFF;--charcoal:#E4F0F1;
+  --grey:#5A7A80;--light-grey:#5A7A80;--white:#10444E;
+  --border:rgba(16,68,78,0.12);
 }
 html,body{height:100%}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
 .bg-mtn{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
 .bg-mtn svg{position:absolute;bottom:0;width:100%;opacity:0.07}
 .glow{position:fixed;top:0;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(28,107,110,0.15) 0%,transparent 65%);pointer-events:none;z-index:0}
-.card{position:relative;z-index:1;background:var(--off-black);border:1px solid rgba(28,107,110,0.3);border-radius:16px;padding:2.5rem 2.5rem 2rem;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,0.5)}
+.card{position:relative;z-index:1;background:var(--off-black);border:1px solid rgba(28,107,110,0.3);border-radius:16px;padding:2.5rem 2.5rem 2rem;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(16,68,78,0.175)}
 .logo{display:flex;align-items:center;gap:14px;margin-bottom:2rem}
-.logo-icon{width:44px;height:44px;background:var(--teal);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon{width:44px;height:44px;background:var(--teal);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#FFFFFF}
 .logo-icon svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .logo-text{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--white);line-height:1}
 .logo-text small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;color:var(--teal-light);margin-top:3px}
 h1{font-family:'Oswald',sans-serif;font-size:1.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.35rem}
 .subtitle{font-size:13px;color:var(--light-grey);margin-bottom:2rem}
 label{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--light-grey);margin-bottom:6px}
-input[type=text],input[type=password]{width:100%;background:var(--charcoal);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:11px 14px;font-family:'Inter',sans-serif;font-size:15px;color:var(--white);outline:none;transition:border-color .2s;margin-bottom:1.25rem}
-input[type=text]:focus,input[type=password]:focus{border-color:var(--teal-light)}
+input[type=text],input[type=email],input[type=password]{width:100%;background:var(--charcoal);border:1px solid rgba(16,68,78,0.14);border-radius:8px;padding:11px 14px;font-family:'Inter',sans-serif;font-size:15px;color:var(--white);outline:none;transition:border-color .2s;margin-bottom:1.25rem}
+input[type=text]:focus,input[type=email]:focus,input[type=password]:focus{border-color:var(--teal-light)}
 input::placeholder{color:var(--grey)}
-.btn{width:100%;background:var(--teal);color:var(--white);font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border:none;border-radius:8px;padding:13px;cursor:pointer;transition:background .2s;margin-top:.5rem}
-.btn:hover{background:var(--teal-light)}
+.btn{width:100%;background:var(--teal);color:#FFFFFF;font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border:none;border-radius:8px;padding:13px;cursor:pointer;transition:background .2s;margin-top:.5rem}
+.btn:hover{background:var(--teal-light);color:#FFFFFF}
 .btn:active{transform:scale(0.99)}
 .error{background:rgba(226,75,74,0.15);border:1px solid rgba(226,75,74,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#f09595;margin-bottom:1rem;display:none}
 .footer-note{text-align:center;font-size:11px;color:var(--grey);margin-top:1.5rem}
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <div class="bg-mtn">
   <svg viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax slice">
-    <polygon points="0,300 200,80 400,220 600,20 800,180 1000,60 1200,200 1200,300" fill="#1C6B6E"/>
-    <polygon points="0,300 150,140 350,260 550,80 750,240 950,100 1200,260 1200,300" fill="#0F4547" opacity="0.6"/>
+    <polygon points="0,300 200,80 400,220 600,20 800,180 1000,60 1200,200 1200,300" fill="#27636C"/>
+    <polygon points="0,300 150,140 350,260 550,80 750,240 950,100 1200,260 1200,300" fill="#10444E" opacity="0.6"/>
   </svg>
 </div>
 <div class="glow"></div>

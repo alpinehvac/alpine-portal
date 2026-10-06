@@ -1244,7 +1244,7 @@ bcRenderCands();
 
 /* ── PERFORMANCE TIERS ── */
 const SR_TIER_DEFS = [
-  {id:'floor',label:'Minimum — keep your seat',title:'Floor',sub:'Year 1 ramp target',featured:false,badge:'background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)',contractRev:150000,cpm:'1–2',proposals:'3–4',meetings:'6–8',touches:'120–160'},
+  {id:'floor',label:'Minimum — keep your seat',title:'Floor',sub:'Year 1 ramp target',featured:false,badge:'background:rgba(16,68,78,0.098);color:rgba(16,68,78,0.65)',contractRev:150000,cpm:'1–2',proposals:'3–4',meetings:'6–8',touches:'120–160'},
   {id:'mid',label:'Strong performer',title:'Mid-Tier',sub:'Year 2–3 expectation',featured:true,badge:'background:rgba(55,138,221,0.15);color:#6BAEE8',contractRev:350000,cpm:'3–4',proposals:'8–10',meetings:'14–18',touches:'300–400'},
   {id:'elite',label:'Elite producer',title:'Maximum',sub:'Year 3+ high performer',featured:false,badge:'background:rgba(28,107,110,0.2);color:var(--teal-light)',contractRev:600000,cpm:'5–6',proposals:'14–18',meetings:'25–35',touches:'500–700'}
 ];
@@ -2342,7 +2342,7 @@ function tfRenderDirectory() {
   if (um) {
     const list = sync && Array.isArray(sync.notOnRoster) ? sync.notOnRoster : [];
     um.innerHTML = list.length ? `<div class="tf-section-label">SharePoint folders not on the roster (${list.length})</div>
-      <div class="tf-log">${list.map(f => `<a href="${tfSpUrl('Employees/' + f)}" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.55)">${tfEsc(f)}</a>`).join(' · ')}<br>
+      <div class="tf-log">${list.map(f => `<a href="${tfSpUrl('Employees/' + f)}" target="_blank" rel="noopener" style="color:rgba(16,68,78,0.715)">${tfEsc(f)}</a>`).join(' · ')}<br>
       Former staff and admin folders are skipped. Ask Claude to add anyone new to the Team Files roster.</div>` : '';
   }
 }
@@ -2388,7 +2388,7 @@ function tfRenderProfile() {
     const shown = k === 'email' && v ? `<a href="mailto:${tfEsc(v)}" style="color:var(--teal-light)">${tfEsc(v)}</a>`
       : k === 'startDate' ? tfEsc(tfFmtDate(v, { year:'numeric', month:'long', day:'numeric' }))
       : tfEsc(v);
-    return `<dt>${label}</dt><dd>${shown || '<span style="color:rgba(255,255,255,0.25)">—</span>'}</dd>`;
+    return `<dt>${label}</dt><dd>${shown || '<span style="color:rgba(16,68,78,0.35)">—</span>'}</dd>`;
   }).join('');
 
   // HR checklist

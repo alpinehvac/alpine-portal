@@ -1,0 +1,15 @@
+/* Alpine Portal — shared light theme (matches the Service Agreement Calculator).
+   Loaded last on every portal page. Each page's own colour tokens are set to the
+   light palette; this file adds the dark-teal header band and the pale mist page. */
+body{background:linear-gradient(180deg,#DDE8E9 0%,#EAF2F3 280px,#F4F9F9 100%) fixed !important;color:#10444E !important}
+nav{background:linear-gradient(120deg,#0A2A30 0%,#10444E 55%,#27636C 100%) !important;border-bottom:none !important;box-shadow:0 2px 14px rgba(16,68,78,.22)}
+nav,nav a,nav span,nav b,nav .nav-wordmark{color:#FFFFFF !important}
+nav .nav-wordmark small{color:#9FD3D5 !important}
+nav .back-link,nav .logout-btn,nav button{color:rgba(255,255,255,.85) !important;border-color:rgba(255,255,255,.3) !important;background:transparent !important}
+nav .back-link:hover,nav .logout-btn:hover,nav button:hover{color:#FFFFFF !important;border-color:rgba(255,255,255,.65) !important}
+nav .nav-user{color:rgba(255,255,255,.72) !important}
+nav .logo-icon{background:#3D818A !important}
+.panel,.card,.cat-card,.chart-box,.table-wrap,.board-wrap,.agr-list,.agr-kpis{box-shadow:0 1px 3px rgba(16,68,78,.06),0 4px 14px rgba(16,68,78,.05)}
+input,select,textarea{color-scheme:light}
+::-webkit-scrollbar-track{background:#EAF2F3 !important}
+::-webkit-scrollbar-thumb{background:#A0BBBF !important}

@@ -26,6 +26,7 @@ const AP_USERS = {
 const AP_TOOLS = {
   "cash-dashboard":     { label: "Financial Position",            roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
   "job-profit":         { label: "Job Profit",                    roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
+  "ops-dashboard":      { label: "Field Operations",              roles: ["owner"], strict: true },   // Jake, Mike only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "team-files":         { label: "Team Files",                    roles: ["owner"], strict: true }, // Team Hub > Team Files + quarterly reviews: Jake, Mike only

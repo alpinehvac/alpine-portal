@@ -67,6 +67,14 @@ service cloud.firestore {
       allow read, write: if isFinance();
     }
 
+    // Field Operations dashboard (daily BuildOps refresh): owners (Jake, Mike) only
+    match /ops_dashboard/{doc=**} {
+      allow read, write: if isOwner();
+    }
+    match /ops_dashboard_history/{doc=**} {
+      allow read, write: if isOwner();
+    }
+
     // Site Reports (maintenance checklists, customer summaries): sales + ops
     match /site_reports_data/{doc=**} {
       allow read, write: if isSales() || isOps();

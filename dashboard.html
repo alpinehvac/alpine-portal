@@ -14,83 +14,84 @@ if (!__session) window.location.href = "index.html";
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --teal:#1C6B6E;--teal-light:#2A8A8E;--teal-dark:#0F4547;
-  --black:#111110;--off-black:#1A1A18;--charcoal:#2A2A28;
-  --grey:#6B6B67;--light-grey:#9A9A95;--white:#FFFFFF;
-  --border:rgba(255,255,255,0.08);--radius:8px;--radius-lg:14px;
+  --teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;
+  --black:#EAF2F3;--off-black:#FFFFFF;--charcoal:#E4F0F1;
+  --grey:#5A7A80;--light-grey:#5A7A80;--white:#10444E;
+  --border:rgba(16,68,78,0.12);--radius:8px;--radius-lg:14px;
 }
 html,body{height:100%}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);min-height:100vh}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:var(--off-black)}
-::-webkit-scrollbar-thumb{background:var(--teal)}
+::-webkit-scrollbar-thumb{background:var(--teal);color:#FFFFFF}
 
 nav{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35)}
 .nav-inner{max-width:1040px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px}
 .nav-logo{display:flex;align-items:center;gap:12px}
-.logo-icon{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#FFFFFF}
 .logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .nav-wordmark{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--white);line-height:1}
 .nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;color:var(--teal-light);margin-top:2px}
 .nav-right{display:flex;align-items:center;gap:1.5rem}
 .nav-user{font-size:12px;color:var(--light-grey)}
 .nav-user b{color:var(--white);font-weight:600}
-.logout-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,0.5);background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px 16px;cursor:pointer;transition:all .2s}
-.logout-btn:hover{color:var(--white);border-color:rgba(255,255,255,0.35)}
+.logout-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(16,68,78,0.65);background:none;border:1px solid rgba(16,68,78,0.21);border-radius:6px;padding:8px 16px;cursor:pointer;transition:all .2s}
+.logout-btn:hover{color:var(--white);border-color:rgba(16,68,78,0.455)}
 
 .wrap{max-width:1040px;margin:0 auto;padding:3.5rem 2rem 5rem}
 .eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.75rem;display:flex;align-items:center;gap:10px}
-.eyebrow::before{content:'';width:22px;height:1px;background:var(--teal);flex-shrink:0}
+.eyebrow::before{content:'';width:22px;height:1px;background:var(--teal);flex-shrink:0;color:#FFFFFF}
 h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700;text-transform:uppercase;line-height:1.1;margin-bottom:.5rem}
-.sub{font-size:.9375rem;color:rgba(255,255,255,0.5);margin-bottom:3rem}
+.sub{font-size:.9375rem;color:rgba(16,68,78,0.65);margin-bottom:3rem}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem}
 .card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.75rem;text-decoration:none;color:var(--white);transition:border-color .2s,transform .2s;display:flex;flex-direction:column;gap:.75rem}
 .card:hover{border-color:rgba(28,107,110,0.5);transform:translateY(-2px)}
 .card-icon{width:40px;height:40px;background:rgba(28,107,110,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--teal-light)}
 .card-title{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
-.card-desc{font-size:.8125rem;color:rgba(255,255,255,0.45);line-height:1.6}
+.card-desc{font-size:.8125rem;color:rgba(16,68,78,0.585);line-height:1.6}
 
-.empty{background:var(--off-black);border:1px dashed rgba(255,255,255,0.1);border-radius:var(--radius-lg);padding:4rem 2rem;text-align:center;color:rgba(255,255,255,0.35);font-size:.9rem}
+.empty{background:var(--off-black);border:1px dashed rgba(16,68,78,0.14);border-radius:var(--radius-lg);padding:4rem 2rem;text-align:center;color:rgba(16,68,78,0.455);font-size:.9rem}
 
 .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem}
 .cat-card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2.25rem 1.75rem;text-decoration:none;color:var(--white);transition:border-color .2s,transform .2s;display:flex;flex-direction:column;align-items:flex-start;gap:.6rem;cursor:pointer}
 .cat-card:hover{border-color:rgba(28,107,110,0.5);transform:translateY(-2px)}
 .cat-icon{width:48px;height:48px;background:rgba(28,107,110,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--teal-light)}
 .cat-title{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
-.cat-desc{font-size:.825rem;color:rgba(255,255,255,0.45);line-height:1.6}
+.cat-desc{font-size:.825rem;color:rgba(16,68,78,0.585);line-height:1.6}
 .back-link{display:inline-flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-light);text-decoration:none;margin-bottom:1.5rem}
 .back-link:hover{color:var(--white)}
 
 .agr-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1.5rem}
 .agr-kpi{background:var(--off-black);padding:1rem 1.2rem}
 .agr-kpi b{display:block;font-family:'Oswald',sans-serif;font-size:1.7rem;font-weight:600;line-height:1.2}
-.agr-kpi span{font-size:.76rem;color:rgba(255,255,255,0.45)}
-.agr-kpi.alert b{color:#E0705F}
+.agr-kpi span{font-size:.76rem;color:rgba(16,68,78,0.585)}
+.agr-kpi.alert b{color:#B83227}
 .agr-list{border:1px solid var(--border);border-radius:var(--radius);background:var(--off-black);overflow:hidden;margin-bottom:1.5rem}
-.agr-row{display:grid;grid-template-columns:90px 1fr 140px 150px;gap:1rem;align-items:center;padding:.75rem 1.1rem;border-bottom:1px solid rgba(255,255,255,0.05);text-decoration:none;color:var(--white);font-size:.88rem}
+.agr-row{display:grid;grid-template-columns:90px 1fr 140px 150px;gap:1rem;align-items:center;padding:.75rem 1.1rem;border-bottom:1px solid rgba(16,68,78,0.07);text-decoration:none;color:var(--white);font-size:.88rem}
 .agr-row:last-child{border-bottom:none}
 .agr-row:hover{background:rgba(28,107,110,0.08)}
 .agr-row .id{font-family:'Oswald',sans-serif;color:var(--teal-light)}
-.agr-row .muted{color:rgba(255,255,255,0.42);font-size:.8rem}
+.agr-row .muted{color:rgba(16,68,78,0.546);font-size:.8rem}
 .agr-badge{justify-self:start;font-size:.72rem;font-weight:600;border-radius:99px;padding:2px 9px;white-space:nowrap}
-.agr-badge.od{background:rgba(224,112,95,0.18);color:#E0705F}
-.agr-badge.d30{background:rgba(224,112,95,0.12);color:#EDA093}
-.agr-badge.d60{background:rgba(217,164,65,0.15);color:#D9A441}
-.agr-badge.d90{background:rgba(155,142,196,0.16);color:#B8AEDC}
-.agr-badge.q{background:rgba(217,164,65,0.15);color:#D9A441}
+.agr-badge.od{background:rgba(224,112,95,0.18);color:#B83227}
+.agr-badge.d30{background:rgba(224,112,95,0.12);color:#C0503F}
+.agr-badge.d60{background:rgba(217,164,65,0.15);color:#A9821F}
+.agr-badge.d90{background:rgba(155,142,196,0.16);color:#6C5D8D}
+.agr-badge.q{background:rgba(217,164,65,0.15);color:#A9821F}
 .agr-h{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin:0 0 .6rem}
-.agr-empty{padding:1.25rem;color:rgba(255,255,255,0.45);font-size:.86rem}
+.agr-empty{padding:1.25rem;color:rgba(16,68,78,0.585);font-size:.86rem}
 .agr-open{display:inline-block;margin-top:.25rem}
 @media (max-width:700px){.agr-kpis{grid-template-columns:1fr 1fr}.agr-row{grid-template-columns:70px 1fr;}.agr-row .hide-sm{display:none}}
 .renew-strip{display:none;align-items:center;gap:1.25rem;flex-wrap:wrap;background:var(--off-black);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:var(--radius);padding:.9rem 1.25rem;margin-bottom:2rem;text-decoration:none;color:var(--white);font-size:.85rem}
-.renew-strip.alert{border-left-color:#E0705F}
+.renew-strip.alert{border-left-color:#B83227}
 .renew-strip:hover{border-color:rgba(28,107,110,0.5)}
 .renew-strip b{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;margin-right:4px}
 .renew-strip .rs-title{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal-light)}
-.renew-strip .rs-od b{color:#E0705F}
-.renew-strip .rs-go{margin-left:auto;font-size:.78rem;color:rgba(255,255,255,0.45)}
+.renew-strip .rs-od b{color:#B83227}
+.renew-strip .rs-go{margin-left:auto;font-size:.78rem;color:rgba(16,68,78,0.585)}
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <nav>
@@ -122,6 +123,8 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 const TOOL_META = {
   "cash-dashboard":    { icon: "💵", desc: "Cash and profit position: 13-week forecast, billed vs earned profit, break-even targets." },
   "job-profit":        { icon: "🔧", desc: "Profit by job: percent complete, earned vs billed, and quoted vs actual with labour and materials breakdowns." },
+  "ops-dashboard":     { icon: "🚐", desc: "Field operations: jobs in progress, upcoming and completed, dispatch board, PMs due, and what needs a look." },
+  "agreements":        { label: "Agreements", icon: "📑", desc: "Renewals due or overdue, and open agreement quotes.", href: "dashboard.html?cat=agreements" },
   "pl-calculator":     { icon: "📊", desc: "Model P&L outcomes and compensation scenarios." },
   "team-hub":          { icon: "🧭", desc: "Recruiting, onboarding, and team management in one place." },
   "service-agreement": { icon: "🧮", desc: "Calculate man-hours and pricing for service agreements." },
@@ -137,11 +140,11 @@ const TOOL_META = {
 // a tool can appear in more than one category if it's relevant to both.
 const TOOL_CATEGORIES = {
   sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "service-agreements", "site-reports", "sales-strategy", "case-studies", "lead-sheets"] },
-  operations: { label: "Operations", icon: "🛠️", desc: "Scheduling, dispatch, and day-to-day ops tools.",  tools: ["site-reports", "team-hub", "call-log"] },
+  operations: { label: "Operations", icon: "🛠️", desc: "Field operations, agreements, scheduling, and day-to-day ops tools.", tools: ["ops-dashboard", "agreements", "site-reports", "team-hub", "call-log"] },
   financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["cash-dashboard", "job-profit", "pl-calculator"] },
-  // Special tab: renewal alerts. Shown only to people with tracker access (sales).
-  agreements: { label: "Agreements", icon: "📑", desc: "Renewals due or overdue, and open agreement quotes.", tools: [], special: "agreements" },
 };
+// "agreements" is a pseudo-tool: the renewal-alerts view (dashboard.html?cat=agreements),
+// listed under Operations. Visible only to people with Service Agreement Tracker access.
 const canSeeAgreements = () => apHasAccess(session, "service-agreements");
 
 const session = apGetSession();
@@ -170,7 +173,7 @@ function renderToolGrid(toolIds, emptyMsg) {
   toolGrid.innerHTML = "";
   toolIds.forEach(id => {
     const meta = TOOL_META[id] || {};
-    const label = (window.AP_TOOLS && AP_TOOLS[id] && AP_TOOLS[id].label) || id;
+    const label = meta.label || (typeof AP_TOOLS !== "undefined" && AP_TOOLS[id] && AP_TOOLS[id].label) || id;
     const a = document.createElement("a");
     a.className = "card";
     if (meta.external) {
@@ -178,7 +181,7 @@ function renderToolGrid(toolIds, emptyMsg) {
       a.target = "_blank";
       a.rel = "noopener";
     } else {
-      a.href = id + ".html";
+      a.href = meta.href || (id + ".html");
     }
     a.innerHTML = `
       <div class="card-icon">${meta.icon || "🔧"}</div>
@@ -195,7 +198,6 @@ function renderCategoryGrid() {
   catGrid.innerHTML = "";
   Object.keys(TOOL_CATEGORIES).forEach(key => {
     const c = TOOL_CATEGORIES[key];
-    if (c.special === "agreements" && !canSeeAgreements()) return;
     const a = document.createElement("a");
     a.className = "cat-card";
     a.href = "dashboard.html?cat=" + key;
@@ -208,13 +210,13 @@ function renderCategoryGrid() {
   });
 }
 
-const visible = apVisibleTools();
+const visible = apVisibleTools().concat(canSeeAgreements() ? ["agreements"] : []);
 
 if (cat === "agreements" && canSeeAgreements()) {
-  eyebrow.textContent = "Dashboard · Agreements";
+  eyebrow.textContent = isOwner ? "Dashboard · Operations · Agreements" : "Dashboard · Agreements";
   h1.textContent = "Agreements";
   sub.textContent = "Renewals that need attention and open quotes. Click any agreement to open it.";
-  backWrap.innerHTML = '<a class="back-link" href="dashboard.html">&larr; ' + (isOwner ? "All Categories" : "Your Tools") + '</a>';
+  backWrap.innerHTML = isOwner ? '<a class="back-link" href="dashboard.html?cat=operations">&larr; Operations</a>' : '<a class="back-link" href="dashboard.html">&larr; Your Tools</a>';
   catGrid.style.display = "none";
   toolGrid.style.display = "none";
   document.getElementById("agr-panel").style.display = "";
@@ -230,13 +232,7 @@ if (cat === "agreements" && canSeeAgreements()) {
   eyebrow.textContent = "Dashboard";
   h1.textContent = "Your Tools";
   sub.textContent = "Select a tool below.";
-  renderToolGrid(visible, "No tools are assigned to your account yet. Contact your administrator.");
-  if (canSeeAgreements() && document.getElementById("tool-grid")) {
-    const a = document.createElement("a");
-    a.className = "card"; a.href = "dashboard.html?cat=agreements";
-    a.innerHTML = '<div class="card-icon">📑</div><div class="card-title">Agreements</div><div class="card-desc">Renewals due or overdue, and open agreement quotes.</div>';
-    document.getElementById("tool-grid").prepend(a);
-  }
+  renderToolGrid(visible.includes("agreements") ? ["agreements", ...visible.filter(id => id !== "agreements")] : visible, "No tools are assigned to your account yet. Contact your administrator.");
 } else if (isOwner && !cat) {
   // Owners land on the 3-category homepage first.
   eyebrow.textContent = "Dashboard";

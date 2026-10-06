@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Field Operations</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("ops-dashboard");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ALPINE FIELD OPERATIONS — portal version. Contains NO job data: everything loads from Firestore (ops_dashboard/latest) after sign-in; access limited to the owner role (Jake, Mike) by auth.js and firestore.rules. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;
+  --purple:#6C5D8D;
+  --black:#EAF2F3;--off-black:#FFFFFF;--charcoal:#E4F0F1;
+  --grey:#5A7A80;--light-grey:#5A7A80;--white:#10444E;
+  --amber:#A9821F;--red:#B83227;--green:#2E7D57;
+  --border:rgba(16,68,78,0.12);--radius:8px;--radius-lg:14px;
+}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:15px;line-height:1.5}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--teal-light);outline-offset:2px}
+nav{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35)}
+.nav-inner{max-width:1240px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.logo-icon{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#FFFFFF}
+.logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-wordmark{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;line-height:1}
+.nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;color:var(--teal-light);margin-top:2px}
+.back-link{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(16,68,78,0.715);text-decoration:none;border:1px solid rgba(16,68,78,0.21);border-radius:6px;padding:8px 14px;background:none;cursor:pointer}
+.back-link:hover{color:var(--white);border-color:rgba(16,68,78,0.455)}
+.wrap{max-width:1240px;margin:0 auto;padding:2rem 2rem 5rem}
+.banner{border-radius:var(--radius);padding:.7rem 1rem;font-size:.85rem;margin-bottom:1.5rem}
+.banner.live{background:rgba(42,138,142,0.1);border:1px solid rgba(42,138,142,0.4);color:#27636C}
+.banner.sample{background:rgba(226,168,69,0.1);border:1px solid rgba(226,168,69,0.35);color:#8A6A12}
+.banner.stale{background:rgba(224,112,94,0.08);border:1px solid rgba(224,112,94,0.4);color:#B83227}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.4rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+.asof{font-size:.85rem;color:var(--light-grey)}
+.asof b{color:var(--white);font-weight:500}
+.verdict{border-left:6px solid var(--green);padding:.4rem 0 .4rem 1.4rem;margin-bottom:2.25rem}
+.verdict.warn{border-color:var(--amber)}.verdict.alert{border-color:var(--red)}
+.verdict-line{font-family:'Oswald',sans-serif;font-size:clamp(1.4rem,3.2vw,2.1rem);font-weight:600;line-height:1.15;max-width:34ch}
+.verdict-sub{margin-top:.6rem;color:rgba(16,68,78,0.92);max-width:78ch}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:2.5rem}
+.metric{padding:1.1rem 1rem 1.2rem;border-right:1px solid var(--border);background:none;border-top:none;border-bottom:none;border-left:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.metric:last-child{border-right:none}
+.metric:hover{background:rgba(16,68,78,0.042)}
+.m-label{font-size:.8rem;color:var(--light-grey);margin-bottom:.35rem;min-height:2.4em}
+.m-value{font-family:'Oswald',sans-serif;font-size:1.7rem;font-weight:500;line-height:1.1}
+.m-sub{font-size:.78rem;color:var(--light-grey);margin-top:.25rem}
+.watch{color:var(--amber)}.bad{color:var(--red)}.good{color:var(--green)}.dim{color:var(--light-grey)}
+section{margin-bottom:2.75rem}
+h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.35rem}
+.h2-row{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.h2-note{font-size:.85rem;color:var(--light-grey);max-width:78ch}
+.panel{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.4rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.seg{display:inline-flex;background:rgba(16,68,78,0.056);border-radius:6px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{border:none;background:none;color:var(--light-grey);font:inherit;font-size:.82rem;padding:.4rem .8rem;border-radius:4px;cursor:pointer}
+.seg button.on{background:var(--teal);color:#fff}
+.seg button .n{opacity:.7;margin-left:.35rem;font-variant-numeric:tabular-nums}
+
+/* Attention list */
+.flags{list-style:none}
+.flags li{display:grid;grid-template-columns:7.5rem 1fr;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--border);font-size:.88rem}
+.flags li:last-child{border-bottom:none}
+.tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:10px;white-space:nowrap;align-self:start;text-align:center}
+.tag.red{background:rgba(224,112,94,0.16);color:#B83227}
+.tag.amber{background:rgba(226,168,69,0.16);color:#8A6A12}
+.tag.teal{background:rgba(42,138,142,0.2);color:#27636C}
+.tag.purple{background:rgba(155,142,196,0.18);color:#4E4268}
+.tag.grey{background:rgba(16,68,78,0.098);color:var(--light-grey)}
+.flags a{color:#27636C;text-decoration:none}.flags a:hover{text-decoration:underline}
+
+/* Dispatch board — the signature element */
+.board-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--off-black)}
+.board{display:grid;min-width:880px}
+.board .bh{padding:.7rem .8rem;font-size:.8rem;color:var(--light-grey);border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
+.board .bh b{display:block;color:var(--white);font-family:'Oswald',sans-serif;font-weight:500;font-size:1rem;letter-spacing:.02em}
+.board .bh.today{background:rgba(28,107,110,0.25)}
+.board .tech{padding:.75rem .8rem;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-size:.88rem}
+.board .tech small{display:block;color:var(--light-grey);font-size:.75rem}
+.board .cell{padding:.4rem;border-bottom:1px solid var(--border);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:4px;min-height:58px}
+.board .cell.today{background:rgba(28,107,110,0.08)}
+.board .cell.empty::after{content:'Open';font-size:.72rem;color:rgba(16,68,78,0.308);padding:.2rem .3rem}
+.chip{display:block;text-decoration:none;border-left:3px solid var(--teal-light);background:rgba(16,68,78,0.056);border-radius:3px;padding:.3rem .45rem;font-size:.76rem;line-height:1.3}
+.chip:hover{background:rgba(16,68,78,0.112)}
+.chip.Project{border-left-color:var(--purple)}
+.chip.Maintenance{border-left-color:var(--green)}
+.chip.done{opacity:.55}
+.chip b{font-weight:600}
+.chip span{display:block;color:var(--light-grey);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:15rem}
+.legend{display:flex;gap:1.25rem;flex-wrap:wrap;font-size:.8rem;color:var(--light-grey);margin-top:.7rem}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.load{font-variant-numeric:tabular-nums}
+
+/* Jobs table */
+.filters{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.9rem}
+.filters select,.filters input{background:var(--black);color:var(--white);border:1px solid rgba(16,68,78,0.252);border-radius:6px;padding:.45rem .6rem;font:inherit;font-size:.85rem}
+.filters input{min-width:14rem}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg)}
+table{width:100%;border-collapse:collapse;font-size:.85rem;min-width:900px}
+th{font-weight:500;color:var(--light-grey);text-align:left;padding:.7rem .8rem;border-bottom:1px solid var(--border);background:var(--off-black);white-space:nowrap}
+td{padding:.65rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td a{color:#27636C;text-decoration:none}td a:hover{text-decoration:underline}
+td small{display:block;color:var(--light-grey);font-size:.78rem}
+.hrs{display:flex;align-items:center;gap:.5rem;justify-content:flex-end}
+.hrs .bar{width:56px;height:6px;background:rgba(16,68,78,0.112);border-radius:3px;overflow:hidden}
+.hrs .bar i{display:block;height:100%;background:var(--teal-light);color:#FFFFFF}
+.hrs .bar i.over{background:var(--red);color:#FFFFFF}
+.empty-row{color:var(--light-grey);text-align:center;padding:1.5rem}
+
+/* Techs */
+.tload{display:grid;grid-template-columns:9rem 1fr 4.5rem;gap:.8rem;align-items:center;padding:.45rem 0;font-size:.86rem}
+.tload .track{height:10px;background:rgba(16,68,78,0.084);border-radius:5px;overflow:hidden;display:flex}
+.tload .track i{display:block;height:100%}
+
+/* Context */
+.ctx{list-style:none}
+.ctx li{padding:.6rem 0;border-bottom:1px solid var(--border);font-size:.86rem;display:grid;grid-template-columns:6.5rem 1fr;gap:.8rem}
+.ctx li:last-child{border-bottom:none}
+.ctx small{display:block;color:var(--light-grey)}
+.qs{padding-left:1.2rem;font-size:.9rem}
+.qs li{padding:.35rem 0}
+.checks li{list-style:none;padding:.35rem 0;font-size:.86rem}
+.checks li::before{content:'✓';color:var(--green);margin-right:.6rem}
+.checks li.no::before{content:'✕';color:var(--red)}
+textarea{width:100%;background:var(--black);color:var(--white);border:1px solid rgba(16,68,78,0.252);border-radius:6px;padding:.6rem;font:12px/1.4 ui-monospace,monospace}
+
+@media (max-width:1000px){
+  .metrics{grid-template-columns:repeat(3,1fr)}
+  .metric{border-bottom:1px solid var(--border)}
+  .metric:nth-child(3n){border-right:none}
+}
+@media (max-width:700px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .metric:nth-child(3n){border-right:1px solid var(--border)}
+  .metric:nth-child(2n){border-right:none}
+  .two{grid-template-columns:1fr}
+  .flags li,.ctx li{grid-template-columns:1fr;gap:.3rem}
+}
+@media (max-width:560px){
+  .wrap{padding:1.5rem 1rem 4rem}.nav-inner{padding:0 1rem}
+  .tload{grid-template-columns:6rem 1fr 3.5rem}
+}
+</style>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<nav><div class="nav-inner">
+  <a class="nav-logo" href="dashboard.html"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 15 L16 11 L21 20 Z"/></svg></div>
+  <div class="nav-wordmark">Alpine HVAC<small>Internal Portal</small></div></a>
+  <a class="back-link" href="dashboard.html?cat=operations">&larr; Operations</a>
+</div></nav>
+
+<main class="wrap">
+  <div id="banner"></div>
+  <div class="head"><h1>Field Operations</h1><div class="asof" id="asof"></div></div>
+  <div id="verdict"></div>
+  <div class="metrics" id="metrics"></div>
+
+  <section id="flags-section">
+    <div class="h2-row"><div><h2>Needs a look</h2><p class="h2-note">Jobs and visits that need a decision from the service lead. Most urgent first.</p></div></div>
+    <div class="panel"><ul class="flags" id="flags"></ul></div>
+  </section>
+
+  <section>
+    <div class="h2-row">
+      <div><h2>Dispatch board</h2><p class="h2-note">Scheduled visits by tech. Click a visit to open the job in BuildOps.</p></div>
+      <div class="seg" id="week-seg"><button data-w="-1">Last week</button><button data-w="0" class="on">This week</button><button data-w="1">Next week</button></div>
+    </div>
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <div class="legend"><span><i style="background:var(--teal-light);color:#FFFFFF"></i>Service</span><span><i style="background:var(--purple);color:#FFFFFF"></i>Project</span><span><i style="background:var(--green);color:#FFFFFF"></i>Maintenance</span><span style="opacity:.6">Faded = visit completed</span></div>
+  </section>
+
+  <section id="jobs-section">
+    <div class="h2-row">
+      <div><h2>Jobs</h2><p class="h2-note" id="jobs-note"></p></div>
+      <div class="seg" id="stage-seg"></div>
+    </div>
+    <div class="filters">
+      <input id="f-q" type="search" placeholder="Search job, customer, site" aria-label="Search jobs">
+      <select id="f-kind" aria-label="Job kind"><option value="">All kinds</option><option>Service</option><option>Project</option></select>
+      <select id="f-tech" aria-label="Tech"><option value="">All techs</option></select>
+    </div>
+    <div class="table-wrap"><table><thead id="jobs-head"></thead><tbody id="jobs-body"></tbody></table></div>
+  </section>
+
+  <section>
+    <div class="two">
+      <div>
+        <h2>Tech load this week</h2>
+        <p class="h2-note" style="margin-bottom:1rem">Scheduled visits per tech, Monday to Saturday, including visits where they assist.</p>
+        <div class="panel" id="tech-load"></div>
+      </div>
+      <div>
+        <h2>Maintenance due</h2>
+        <p class="h2-note" style="margin-bottom:1rem">Agreement PMs overdue or due in the next 30 days.</p>
+        <div class="panel" id="pm-panel"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="two">
+      <div>
+        <h2>Questions for this run</h2>
+        <p class="h2-note" style="margin-bottom:1rem">Answer these in the Claude chat. Answers are logged as business context and applied on the next refresh.</p>
+        <div class="panel"><ol class="qs" id="questions"></ol></div>
+      </div>
+      <div>
+        <h2>Business context in use</h2>
+        <p class="h2-note" style="margin-bottom:1rem">Changes you've told Claude about. Every refresh reads these first.</p>
+        <div class="panel"><ul class="ctx" id="context"></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Data checks</h2>
+    <p class="h2-note" style="margin-bottom:1rem">Anything marked ✕ needs a look before relying on that part of the page.</p>
+    <div class="panel"><ul class="checks" id="checks"></ul></div>
+  </section>
+
+  <section id="update-section" style="display:none">
+    <h2>Update data</h2>
+    <p class="h2-note" style="margin-bottom:1rem">Paste the data file from the daily refresh and save. Saves to Firestore for Jake and Mike only; a dated copy is kept in history.</p>
+    <div class="panel">
+      <textarea id="upd-json" rows="6" placeholder='{"asOf": "...", "jobs": [...], "visits": [...]}'></textarea>
+      <div style="display:flex;gap:1rem;align-items:center;margin-top:.8rem">
+        <button id="upd-save" class="back-link" style="background:var(--teal);color:#fff;border-color:var(--teal)">Save data</button>
+        <span id="upd-msg" style="font-size:.85rem;color:var(--light-grey)"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+let D = null, WEEK = 0, STAGE = "ongoing";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const parseD = s => { if (!s) return null; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; };
+const iso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const days = (a, b) => Math.round((b - a) / 86400000);
+const fmtD = s => { const d = parseD(s); return d ? d.toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "—"; };
+const money = n => n == null ? "—" : "$" + Math.round(n).toLocaleString("en-CA");
+const DONE_BILLING = /fully invoiced|no charge|closed/i;
+
+function today() { return parseD(D.asOf) || new Date(); }
+function monday(d) { const x = new Date(d); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); x.setHours(0,0,0,0); return x; }
+function jobById(id) { return (D.jobs || []).find(j => j.id === id); }
+function stageOf(j) {
+  if (j.stage) return j.stage;
+  if (/complete|invoiced|closed/i.test(j.status || "")) return "completed";
+  if ((j.visitsDone || 0) > 0 || /in progress|on hold|travel|working/i.test(j.status || "")) return "ongoing";
+  return "upcoming";
+}
+function jobLink(j, label) {
+  const t = esc(label || j.id);
+  return j && j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener">${t}</a>` : t;
+}
+
+/* ---------- derived lists ---------- */
+function derive() {
+  const t = today(), jobs = D.jobs || [], visits = D.visits || [];
+  const by = { ongoing: [], upcoming: [], completed: [] };
+  jobs.forEach(j => (by[stageOf(j)] || by.upcoming).push(j));
+  const wk0 = monday(t), wkEnd = addDays(wk0, 6);
+  const weekVisits = visits.filter(v => { const d = parseD(v.date); return d && d >= wk0 && d < wkEnd && !/cancel/i.test(v.status || ""); });
+  const recentDone = by.completed.filter(j => { const d = parseD(j.completed); return d && days(d, t) <= 14; });
+  const notBilled = by.completed.filter(j => !DONE_BILLING.test(j.billingStatus || ""));
+  const unscheduled = by.upcoming.filter(j => !j.nextVisit);
+  const pms = (D.maintenance || []).filter(m => !/complete|cancel|skipped/i.test(m.status || ""));
+  const pmOverdue = pms.filter(m => { const d = parseD(m.due); return d && d < t; });
+  const pmSoon = pms.filter(m => { const d = parseD(m.due); return d && d >= t && days(t, d) <= 30; });
+
+  const flags = [];
+  const add = (sev, tag, html) => flags.push({ sev, tag, html });
+  notBilled.forEach(j => { const age = j.completed ? days(parseD(j.completed), t) : null; add(age != null && age > 7 ? 0 : 1, ["Not invoiced", age != null && age > 7 ? "red" : "amber"], `${jobLink(j)} ${esc(j.customer)} — completed ${fmtD(j.completed)}${age != null ? ` (${age} days ago)` : ""}, billing status <b>${esc(j.billingStatus || "not billed")}</b>${j.quoted ? `, quoted ${money(j.quoted)}` : ""}.`); });
+  pmOverdue.forEach(m => add(1, ["PM overdue", "red"], `${esc(m.id)} ${esc(m.customer)} at ${esc(m.property)} — due ${fmtD(m.due)} (${days(parseD(m.due), t)} days late), status ${esc(m.status || "open")}.`));
+  by.ongoing.forEach(j => { if (j.budgetHrs && j.actualHrs > j.budgetHrs) add(1, ["Over hours", "red"], `${jobLink(j)} ${esc(j.customer)} — ${j.actualHrs} of ${j.budgetHrs} budgeted hours used (${Math.round(j.actualHrs / j.budgetHrs * 100)}%).`); });
+  by.ongoing.forEach(j => { if (!j.nextVisit) add(2, ["No next visit", "amber"], `${jobLink(j)} ${esc(j.customer)} — in progress, last visit ${fmtD(j.lastVisit)}, nothing scheduled.`); });
+  by.ongoing.forEach(j => { const d = parseD(j.lastVisit); if (d && days(d, t) > 14 && j.nextVisit) add(3, ["Stalled", "amber"], `${jobLink(j)} ${esc(j.customer)} — no site time since ${fmtD(j.lastVisit)} (${days(d, t)} days).`); });
+  unscheduled.forEach(j => { const d = parseD(j.created); const age = d ? days(d, t) : null; if (age == null || age > 5) add(age != null && age > 14 ? 2 : 3, ["Unscheduled", "purple"], `${jobLink(j)} ${esc(j.customer)} — ${esc(j.title || j.type)} created ${fmtD(j.created)}${age != null ? ` (${age} days)` : ""}, no visit booked.`); });
+  weekVisits.filter(v => !v.tech).forEach(v => { const j = jobById(v.job); add(1, ["No tech", "red"], `${j ? jobLink(j) : esc(v.job)} ${esc(v.customer)} — visit ${fmtD(v.date)} has no tech assigned.`); });
+  (D.flags || []).forEach(f => add(f.sev ?? 2, [f.tag || "Note", f.color || "teal"], esc(f.text)));
+  flags.sort((a, b) => a.sev - b.sev);
+  return { by, weekVisits, recentDone, notBilled, unscheduled, pmOverdue, pmSoon, flags };
+}
+
+/* ---------- render ---------- */
+function render() {
+  const t = today(), X = derive();
+  const upd = D.updated && D.updated.buildops ? new Date(D.updated.buildops) : null;
+  const stale = upd ? (Date.now() - upd.getTime()) / 3600000 > 30 : true;
+  const saved = window.__apSaved;
+  $("banner").innerHTML = D.sample
+    ? `<div class="banner sample">Sample data. Nothing on this page is real yet. The first daily refresh replaces it.</div>`
+    : stale ? `<div class="banner stale">BuildOps data is more than 30 hours old${upd ? ` (pulled ${upd.toLocaleString("en-CA")})` : ""}. Check the daily refresh.</div>`
+    : `<div class="banner live">Live from BuildOps, pulled ${upd.toLocaleString("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit" })}${saved && saved.by ? ` · saved by ${esc(saved.by)}` : ""}.</div>`;
+  $("asof").innerHTML = `As of <b>${t.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" })}</b>`;
+
+  const urgent = X.flags.filter(f => f.sev <= 1).length;
+  const lvl = urgent >= 3 ? "alert" : urgent ? "warn" : "";
+  const line = D.headline || (urgent ? `${urgent} item${urgent > 1 ? "s" : ""} need${urgent > 1 ? "" : "s"} the service lead today.` : "Field is on plan. Nothing urgent.");
+  const todayN = (D.visits || []).filter(v => v.date === iso(t) && !/cancel/i.test(v.status || "")).length;
+  $("verdict").innerHTML = `<div class="verdict ${lvl}"><div class="verdict-line">${esc(line)}</div><div class="verdict-sub">${esc(D.summary || `${todayN} visit${todayN === 1 ? "" : "s"} today, ${X.weekVisits.length} this week. ${X.by.ongoing.length} jobs in progress, ${X.unscheduled.length} waiting to be scheduled, ${X.notBilled.length} complete but not fully invoiced.`)}</div></div>`;
+
+  const M = [
+    ["Jobs in progress", X.by.ongoing.length, `${X.by.ongoing.filter(j => !j.nextVisit).length} with no next visit`, "ongoing"],
+    ["Upcoming jobs", X.by.upcoming.length, `${X.unscheduled.length} not yet scheduled`, "upcoming", X.unscheduled.length ? "watch" : ""],
+    ["Visits this week", X.weekVisits.length, `${todayN} today`, null],
+    ["Completed, last 14 days", X.recentDone.length, `${X.by.completed.length} on file`, "completed"],
+    ["Complete, not invoiced", X.notBilled.length, money(X.notBilled.reduce((s, j) => s + (j.quoted || 0), 0)) + " quoted", "completed", X.notBilled.length ? "bad" : "good"],
+    ["PMs overdue / due 30 days", `${X.pmOverdue.length} / ${X.pmSoon.length}`, "service agreements", null, X.pmOverdue.length ? "bad" : ""],
+  ];
+  $("metrics").innerHTML = M.map(m => `<button class="metric" ${m[3] ? `data-stage="${m[3]}"` : "disabled style='cursor:default'"}><div class="m-label">${m[0]}</div><div class="m-value ${m[4] || ""}">${m[1]}</div><div class="m-sub">${esc(m[2])}</div></button>`).join("");
+  document.querySelectorAll(".metric[data-stage]").forEach(b => b.onclick = () => { STAGE = b.dataset.stage; renderJobs(); $("jobs-section").scrollIntoView({ behavior: "smooth" }); });
+
+  $("flags").innerHTML = X.flags.length ? X.flags.map(f => `<li><span class="tag ${f.tag[1]}">${esc(f.tag[0])}</span><div>${f.html}</div></li>`).join("") : `<li><span class="tag teal">Clear</span><div>Nothing flagged.</div></li>`;
+
+  const techs = new Set((D.techs || []).map(x => x.name));
+  (D.visits || []).forEach(v => { if (v.tech) techs.add(v.tech); });
+  $("f-tech").innerHTML = `<option value="">All techs</option>` + [...techs].sort().map(n => `<option>${esc(n)}</option>`).join("");
+
+  renderBoard(); renderJobs(); renderTechLoad(X); renderPMs(X);
+  $("questions").innerHTML = (D.questions || []).length ? D.questions.map(q => `<li>${esc(q)}</li>`).join("") : `<li class="dim" style="list-style:none;margin-left:-1.2rem">No open questions this run.</li>`;
+  const ctx = (D.context || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  $("context").innerHTML = ctx.length ? ctx.map(c => `<li><div><span class="tag ${({Personnel:"purple",Operations:"teal",Financial:"amber",Customer:"grey"})[c.area] || "grey"}">${esc(c.area || "Note")}</span><small style="margin-top:.3rem">${fmtD(c.date)}</small></div><div>${esc(c.change)}${c.effective ? `<small>Effective ${fmtD(c.effective)}${c.impact ? " · " + esc(c.impact) : ""}</small>` : c.impact ? `<small>${esc(c.impact)}</small>` : ""}</div></li>`).join("") : `<li><div></div><div class="dim">Nothing logged yet.</div></li>`;
+  $("checks").innerHTML = (D.checks || []).map(c => `<li class="${c.ok ? "" : "no"}">${esc(c.text)}</li>`).join("") || `<li class="no">No checks recorded this run.</li>`;
+}
+
+function renderBoard() {
+  const t = today(), wk0 = addDays(monday(t), WEEK * 7);
+  const dayList = [0,1,2,3,4,5].map(i => addDays(wk0, i));
+  const inWeek = (D.visits || []).filter(v => { const d = parseD(v.date); return d && d >= wk0 && d < addDays(wk0, 6) && !/cancel/i.test(v.status || ""); });
+  const hasSat = inWeek.some(v => parseD(v.date).getDay() === 6);
+  const cols = hasSat ? dayList : dayList.slice(0, 5);
+  const techOrder = (D.techs || []).map(x => x.name);
+  const names = [...new Set([...techOrder, ...inWeek.map(v => v.tech).filter(Boolean)])];
+  if (inWeek.some(v => !v.tech)) names.push("");
+  const role = n => ((D.techs || []).find(x => x.name === n) || {}).role || "";
+  const b = $("board");
+  b.style.gridTemplateColumns = `minmax(9rem,11rem) repeat(${cols.length}, minmax(9.5rem,1fr))`;
+  let h = `<div class="bh"></div>` + cols.map(d => { const isT = iso(d) === iso(t); const n = inWeek.filter(v => v.date === iso(d)).length; return `<div class="bh ${isT ? "today" : ""}"><b>${d.toLocaleDateString("en-CA", { weekday: "short", day: "numeric" })}</b>${n} visit${n === 1 ? "" : "s"}${isT ? " · today" : ""}</div>`; }).join("");
+  if (!names.length) h += `<div class="tech" style="grid-column:1/-1;color:var(--light-grey)">No visits scheduled this week.</div>`;
+  names.forEach(n => {
+    const mine = inWeek.filter(v => (v.tech || "") === n || (n && (v.others || "").split(/,\s*/).includes(n)));
+    h += `<div class="tech">${n ? esc(n) : `<span class="bad">Unassigned</span>`}<small>${role(n) ? esc(role(n)) + " · " : ""}<span class="load">${mine.length}</span> visit${mine.length === 1 ? "" : "s"}</small></div>`;
+    cols.forEach(d => {
+      const vs = mine.filter(v => v.date === iso(d)).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+      const isT = iso(d) === iso(t);
+      h += `<div class="cell ${isT ? "today" : ""} ${vs.length ? "" : "empty"}">` + vs.map(v => {
+        const j = jobById(v.job) || {};
+        const kind = v.kind || j.kind || "Service";
+        const done = /complete|closed/i.test(v.status || "");
+        const helper = v.tech !== n ? " (assist)" : "";
+        const tip = [v.customer || j.customer, v.property || j.property, v.desc || j.title, v.status].filter(Boolean).join(" — ");
+        return `<a class="chip ${esc(kind)} ${done ? "done" : ""}" ${j.url ? `href="${esc(j.url)}" target="_blank" rel="noopener"` : ""} title="${esc(tip)}"><b>${v.time ? esc(v.time) + " " : ""}${esc(v.job)}</b>${helper}<span>${esc(v.customer || j.customer || "")}</span></a>`;
+      }).join("") + `</div>`;
+    });
+  });
+  b.innerHTML = h;
+  document.querySelectorAll("#week-seg button").forEach(x => x.classList.toggle("on", +x.dataset.w === WEEK));
+}
+
+function renderJobs() {
+  const X = derive(), t = today();
+  const lists = { ongoing: X.by.ongoing, upcoming: X.by.upcoming, completed: X.by.completed };
+  $("stage-seg").innerHTML = [["ongoing", "In progress"], ["upcoming", "Upcoming"], ["completed", "Completed"]].map(([k, l]) => `<button data-s="${k}" class="${STAGE === k ? "on" : ""}">${l}<span class="n">${lists[k].length}</span></button>`).join("");
+  document.querySelectorAll("#stage-seg button").forEach(b => b.onclick = () => { STAGE = b.dataset.s; renderJobs(); });
+  $("jobs-note").textContent = { ongoing: "At least one visit done and not yet complete. Sorted by next visit.", upcoming: "Approved or created, no site work yet. Unscheduled jobs first.", completed: "Work complete. Jobs not fully invoiced first." }[STAGE];
+  const q = $("f-q").value.trim().toLowerCase(), kind = $("f-kind").value, tech = $("f-tech").value;
+  let rows = lists[STAGE].filter(j =>
+    (!q || [j.id, j.customer, j.property, j.title, j.po].join(" ").toLowerCase().includes(q)) &&
+    (!kind || (j.kind || "Service") === kind) &&
+    (!tech || (j.techs || []).includes(tech)));
+  const by = (k, dir = 1) => (a, b) => ((a[k] || "9999") > (b[k] || "9999") ? dir : (a[k] || "9999") < (b[k] || "9999") ? -dir : 0);
+  if (STAGE === "ongoing") rows.sort(by("nextVisit"));
+  if (STAGE === "upcoming") rows.sort((a, b) => (!!a.nextVisit - !!b.nextVisit) || by("nextVisit")(a, b) || by("created")(a, b));
+  if (STAGE === "completed") rows.sort((a, b) => (DONE_BILLING.test(a.billingStatus || "") - DONE_BILLING.test(b.billingStatus || "")) || by("completed", -1)(a, b));
+  const hrs = j => { if (!j.budgetHrs && !j.actualHrs) return "—"; const pct = j.budgetHrs ? Math.min(100, (j.actualHrs || 0) / j.budgetHrs * 100) : 0; const over = j.budgetHrs && j.actualHrs > j.budgetHrs; return `<div class="hrs"><span class="${over ? "bad" : ""}">${j.actualHrs ?? 0}${j.budgetHrs ? " / " + j.budgetHrs : ""}</span>${j.budgetHrs ? `<span class="bar"><i class="${over ? "over" : ""}" style="width:${pct}%"></i></span>` : ""}</div>`; };
+  const kindTag = j => `<span class="tag ${j.kind === "Project" ? "purple" : "teal"}">${esc(j.kind || "Service")}</span>`;
+  const ageDays = j => { const d = parseD(j.created); return d ? days(d, t) : null; };
+  const H = {
+    ongoing: ["Job", "Customer / site", "Kind", "Techs", "Visits", "Last visit", "Next visit", "Hours used", "Quoted"],
+    upcoming: ["Job", "Customer / site", "Kind", "Status", "Created", "First visit", "Tech", "Budget hrs", "Quoted"],
+    completed: ["Job", "Customer / site", "Kind", "Completed", "Billing", "Hours used", "Quoted", "Billed"],
+  }[STAGE];
+  $("jobs-head").innerHTML = `<tr>${H.map((x, i) => `<th class="${i >= H.length - 2 || /hrs|Hours|Visits/.test(x) ? "num" : ""}">${x}</th>`).join("")}</tr>`;
+  const cust = j => `${esc(j.customer)}<small>${esc(j.property || "")}${j.title ? " · " + esc(j.title) : ""}</small>`;
+  $("jobs-body").innerHTML = rows.length ? rows.map(j => {
+    if (STAGE === "ongoing") return `<tr><td>${jobLink(j)}${j.po ? `<small>PO ${esc(j.po)}</small>` : ""}</td><td>${cust(j)}</td><td>${kindTag(j)}</td><td>${esc((j.techs || []).join(", ") || "—")}</td><td class="num">${j.visitsDone ?? "—"}${j.visitsTotal ? " / " + j.visitsTotal : ""}</td><td>${fmtD(j.lastVisit)}</td><td>${j.nextVisit ? fmtD(j.nextVisit) : `<span class="watch">None</span>`}</td><td class="num">${hrs(j)}</td><td class="num">${money(j.quoted)}</td></tr>`;
+    if (STAGE === "upcoming") { const a = ageDays(j); return `<tr><td>${jobLink(j)}${j.po ? `<small>PO ${esc(j.po)}</small>` : ""}</td><td>${cust(j)}</td><td>${kindTag(j)}</td><td>${esc(j.status || "—")}</td><td>${fmtD(j.created)}${a != null ? `<small>${a} days ago</small>` : ""}</td><td>${j.nextVisit ? fmtD(j.nextVisit) : `<span class="${a != null && a > 14 ? "bad" : "watch"}">Not scheduled</span>`}</td><td>${esc((j.techs || []).join(", ") || "—")}</td><td class="num">${j.budgetHrs ?? "—"}</td><td class="num">${money(j.quoted)}</td></tr>`; }
+    const billed = DONE_BILLING.test(j.billingStatus || "");
+    return `<tr><td>${jobLink(j)}${j.po ? `<small>PO ${esc(j.po)}</small>` : ""}</td><td>${cust(j)}</td><td>${kindTag(j)}</td><td>${fmtD(j.completed)}</td><td><span class="tag ${billed ? "teal" : "red"}">${esc(j.billingStatus || "Not billed")}</span></td><td class="num">${hrs(j)}</td><td class="num">${money(j.quoted)}</td><td class="num">${money(j.billed)}</td></tr>`;
+  }).join("") : `<tr><td class="empty-row" colspan="${H.length}">No jobs match.</td></tr>`;
+}
+
+function renderTechLoad(X) {
+  const counts = {};
+  (D.techs || []).forEach(x => counts[x.name] = { s: 0, p: 0, m: 0 });
+  X.weekVisits.forEach(v => { const k = (v.kind || (jobById(v.job) || {}).kind || "Service"); const who = [v.tech || "Unassigned", ...(v.others ? v.others.split(/,\s*/) : [])]; new Set(who).forEach(n => { const c = counts[n] = counts[n] || { s: 0, p: 0, m: 0 }; c[k === "Project" ? "p" : k === "Maintenance" ? "m" : "s"]++; }); });
+  const max = Math.max(1, ...Object.values(counts).map(c => c.s + c.p + c.m));
+  const rows = Object.entries(counts).sort((a, b) => (b[1].s + b[1].p + b[1].m) - (a[1].s + a[1].p + a[1].m));
+  $("tech-load").innerHTML = rows.length ? rows.map(([n, c]) => { const tot = c.s + c.p + c.m; return `<div class="tload"><span>${esc(n)}</span><span class="track">${[["s", "var(--teal-light)"], ["p", "var(--purple)"], ["m", "var(--green)"]].map(([k, col]) => `<i style="width:${c[k] / max * 100}%;background:${col}"></i>`).join("")}</span><span class="num ${tot === 0 ? "watch" : ""}" style="text-align:right">${tot} visit${tot === 1 ? "" : "s"}</span></div>`; }).join("") : `<div class="dim">No techs on file.</div>`;
+}
+
+function renderPMs(X) {
+  const t = today();
+  const list = [...X.pmOverdue, ...X.pmSoon].sort((a, b) => (a.due || "").localeCompare(b.due || ""));
+  $("pm-panel").innerHTML = list.length ? `<ul class="flags">${list.slice(0, 12).map(m => { const d = parseD(m.due), late = d < t; return `<li><span class="tag ${late ? "red" : "teal"}">${late ? days(d, t) + " days late" : "Due " + fmtD(m.due)}</span><div>${esc(m.customer)} — ${esc(m.property)}<small class="dim" style="display:block">${esc(m.id)}${m.sa ? " · " + esc(m.sa) : ""}${m.budgetHrs ? " · " + m.budgetHrs + " budgeted hrs" : ""} · ${esc(m.status || "open")}</small></div></li>`; }).join("")}</ul>${list.length > 12 ? `<p class="dim" style="font-size:.82rem;margin-top:.6rem">${list.length - 12} more not shown.</p>` : ""}` : `<div class="dim">Nothing overdue or due in the next 30 days.</div>`;
+}
+
+document.querySelectorAll("#week-seg button").forEach(b => b.onclick = () => { WEEK = +b.dataset.w; renderBoard(); });
+["f-q", "f-kind", "f-tech"].forEach(id => $(id).addEventListener("input", renderJobs));
+window.apOpsStart = data => { D = data; render(); };
+</script>
+
+<script type="module">
+import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { db, currentUser } from "./ap-firebase.js";
+const main = document.querySelector("main");
+const fail = msg => { document.getElementById("verdict").innerHTML = `<div class="verdict alert"><div class="verdict-line">Field data couldn't load.</div><div class="verdict-sub">${msg}</div></div>`; };
+const user = await currentUser();
+if (!user) { sessionStorage.clear(); window.location.href = "index.html"; }
+else {
+  document.getElementById("update-section").style.display = "";
+  try {
+    const snap = await getDoc(doc(db, "ops_dashboard", "latest"));
+    if (snap.exists()) { const s = snap.data(); window.__apSaved = { at: s.updatedAt && s.updatedAt.toDate ? s.updatedAt.toDate().toISOString() : null, by: s.updatedBy || "" }; window.apOpsStart(JSON.parse(s.json)); }
+    else fail("No data saved yet. Paste the first data file under Update data at the bottom of this page.");
+  } catch (e) { fail("Access denied or offline. This page is limited to Jake and Mike. (" + e.code + ")"); }
+  document.getElementById("upd-save").addEventListener("click", async () => {
+    const msg = document.getElementById("upd-msg");
+    let d;
+    try { d = JSON.parse(document.getElementById("upd-json").value); } catch (e) { msg.textContent = "That isn't valid JSON."; return; }
+    if (!d.asOf || !Array.isArray(d.jobs) || !Array.isArray(d.visits)) { msg.textContent = "Missing asOf, jobs or visits. Not saved."; return; }
+    const rec = { json: JSON.stringify(d), asOf: d.asOf, updatedAt: serverTimestamp(), updatedBy: user.email };
+    try {
+      await setDoc(doc(db, "ops_dashboard", "latest"), rec);
+      await setDoc(doc(db, "ops_dashboard_history", d.asOf), rec);
+      msg.textContent = "Saved. Reloading…"; setTimeout(() => location.reload(), 800);
+    } catch (e) { msg.textContent = "Save failed: " + e.code; }
+  });
+}
+</script>
+</body>
+</html>
