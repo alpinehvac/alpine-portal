@@ -26,7 +26,7 @@ function apRenderAIEvalHTML(result, acceptFnName) {
 }
 
 // ── DATA MANAGER ──
-const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_bas_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_bc_q1','alpine_bc_q2','alpine_bc_q3','alpine_onboarding_v2','alpine_preint_v1'];
+const DM_KEYS = ['alpine_reviews_v1','alpine_review_questions_v1','alpine_review_questions_v2','alpine_foreman_standards','alpine_bdr_candidates','alpine_tech_candidates','alpine_bas_candidates','alpine_sr_q1','alpine_sr_q2','alpine_sr_q3','alpine_bc_q1','alpine_bc_q2','alpine_bc_q3','alpine_onboarding_v2','alpine_preint_v1'];
 
 function openDataManager() {
   document.getElementById('dm-import-field').value = '';
@@ -1408,18 +1408,18 @@ function setRole(role) {
 
 // ── STORAGE KEYS ──
 const STORAGE_KEY = 'alpine_reviews_v1';
-const QS_KEY = 'alpine_review_questions_v1';
+// v2 (Oct 2026): questions rebuilt around the Core Principles. v1 (the old
+// question list) is left untouched so past reviews and exports still read it.
+const QS_KEY = 'alpine_review_questions_v2';
 
 // ── DEFAULT QUESTIONS ──
 const DEFAULT_QUESTIONS = [
-  'What should the company start, stop, and keep doing?',
-  'Where have you seen your skills grow? What would you like to grow into?',
-  'What administrative hitches could be improved?',
-  'What are 1–2 things you want to dial in for 2026?',
-  '1–2 ways we can improve in 2026',
-  'Are there any personality conflicts troubling you?',
-  'What is your dream outcome at Alpine?',
-  'Does the future look bright?'
+  'GRIT: What was the hardest part of this quarter, and how did you push through it?',
+  'RELENTLESSNESS: What feedback did you act on this quarter, and where do you want to grow next quarter?',
+  'CONTRIBUTION: Who did you make better this quarter? Who or what is making your job harder?',
+  'PURPOSE-FILLED: What work are you proudest of this quarter, and why did it matter?',
+  'What should Alpine start, stop, and keep doing?',
+  'Where do you want to be in 1–2 years, and what do you need from us to get there?'
 ];
 
 function loadQuestions() {
@@ -1470,7 +1470,14 @@ function renderQuestionFields(answers) {
 }
 
 // ── STAR RATINGS ──
-const ratings = { character:0, courage:0, curiosity:0, competence:0, caring:0 };
+// Core Principles ratings (Oct 2026). Reviews before then used the old core values
+// (character, courage, curiosity, competence, caring); those are kept as-is.
+const RV_PRINCIPLES = ['grit','relentlessness','contribution','purpose'];
+const RV_PRINCIPLE_LABELS = { grit:'Grit', relentlessness:'Relentlessness', contribution:'Contribution', purpose:'Purpose-filled' };
+const RV_LEGACY_VALUES = ['character','courage','curiosity','competence','caring'];
+const ratings = { grit:0, relentlessness:0, contribution:0, purpose:0 };
+let rvLegacyRatings = null;   // old core-values ratings of the review being edited
+let rvEditingQs = null;       // questions the review being edited was answered against
 document.querySelectorAll('.rv-stars').forEach(group => {
   const key = group.dataset.value;
   group.querySelectorAll('.rv-star').forEach(star => {
@@ -1490,7 +1497,7 @@ function resetStars() {
   document.querySelectorAll('.rv-stars').forEach(g => updateStars(g, 0));
 }
 function setStars(vals) {
-  Object.keys(vals).forEach(k => {
+  Object.keys(vals).filter(k => k in ratings).forEach(k => {
     ratings[k] = vals[k];
     const group = document.querySelector(`.rv-stars[data-value="${k}"]`);
     if(group) updateStars(group, vals[k]);
@@ -1551,6 +1558,8 @@ function saveQTemplate() {
 let editingId = null;
 function openNewReview() {
   editingId = null;
+  rvLegacyRatings = null;
+  rvEditingQs = null;
   document.getElementById('rv-modal-title').textContent = 'New Quarterly Review';
   clearForm();
   document.getElementById('rv-date').value = new Date().toISOString().slice(0,10);
@@ -1576,7 +1585,7 @@ function clearForm() {
 function saveReview() {
   const tech = document.getElementById('rv-tech').value.trim();
   if(!tech) { alert('Please enter a team member name.'); return; }
-  const qs = loadQuestions();
+  const qs = rvEditingQs || loadQuestions();
   const dynamicAnswers = qs.map((_, i) => {
     const el = document.getElementById('rv-dq-' + i);
     return el ? el.value : '';
@@ -1595,7 +1604,7 @@ function saveReview() {
     actions: document.getElementById('rv-actions').value,
     notes: document.getElementById('rv-notes').value,
     diffNotes: document.getElementById('rv-diff-notes').value,
-    ratings: {...ratings}
+    ratings: {...(rvLegacyRatings || {}), ...ratings}
   };
   // Transcripts are long, so each one is stored as its own record
   // (alpine_review_tx_<id>) instead of inside the shared reviews list,
@@ -1629,6 +1638,10 @@ function editReview(id, e) {
   const review = loadReviews().find(r => r.id === id);
   if(!review) return;
   editingId = id;
+  rvEditingQs = review.dynamicAnswers ? (review.questionSnapshot || null) : null;
+  rvLegacyRatings = {};
+  RV_LEGACY_VALUES.forEach(k => { if (review.ratings && review.ratings[k]) rvLegacyRatings[k] = review.ratings[k]; });
+  if (!Object.keys(rvLegacyRatings).length) rvLegacyRatings = null;
   document.getElementById('rv-modal-title').textContent = 'Edit Review — ' + review.tech;
   document.getElementById('rv-tech').value = review.tech;
   document.getElementById('rv-date').value = review.date;
@@ -1698,14 +1711,15 @@ function viewReview(id) {
   }
 
   const rv = review.ratings || {};
-  const valNames = ['character','courage','curiosity','competence','caring'];
-  const valHtml = valNames.some(k=>rv[k]) ? `
+  const ratingBlock = (title, keys, label) => keys.some(k=>rv[k]) ? `
     <div class="rv-view-section">
-      <div class="rv-view-section-title">Core Values Ratings</div>
+      <div class="rv-view-section-title">${title}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem">
-        ${valNames.map(k=>`<div><div style="font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--grey);margin-bottom:4px">${k}</div><div class="rv-view-stars">${stars(rv[k]||0)}</div></div>`).join('')}
+        ${keys.map(k=>`<div><div style="font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--grey);margin-bottom:4px">${label(k)}</div><div class="rv-view-stars">${stars(rv[k]||0)}</div></div>`).join('')}
       </div>
     </div>` : '';
+  const valHtml = ratingBlock('Core Principles Ratings', RV_PRINCIPLES, k => RV_PRINCIPLE_LABELS[k])
+    + ratingBlock('Core Values Ratings (previous framework)', RV_LEGACY_VALUES, k => k);
   document.getElementById('rv-view-body').innerHTML = `
     <div class="rv-view-section">
       <div class="rv-view-section-title">Details</div>
@@ -2675,8 +2689,14 @@ async function tfMigrateReviews() {
 // Non-owners: clear any cached copy of reviews from this browser
 function tfPurgeForNonOwners() {
   if (thOwnerOk()) return;
-  ['alpine_reviews_v1', 'alpine_review_questions_v1', TF_SYNC_KEY, TF_PROFILES_KEY, TF_SETTINGS_KEY, TF_QNLOG_KEY]
-    .forEach(k => { try { Storage.prototype.removeItem.call(localStorage, k); } catch (e) {} });
+  // Local-only removal: this must never touch the cloud copy (and non-owners
+  // aren't allowed to anyway, which would leave a permanent "not saved" warning).
+  const localRemove = typeof window.apLocalRemove === 'function'
+    ? window.apLocalRemove
+    : k => Storage.prototype.removeItem.call(localStorage, k);
+  const keys = ['alpine_reviews_v1', 'alpine_review_questions_v1', 'alpine_review_questions_v2', TF_SYNC_KEY, TF_PROFILES_KEY, TF_SETTINGS_KEY, TF_QNLOG_KEY]
+    .concat(Object.keys(localStorage).filter(k => k.startsWith('alpine_review_tx_')));
+  keys.forEach(k => { try { localRemove(k); } catch (e) {} });
 }
 
 tfPurgeForNonOwners();

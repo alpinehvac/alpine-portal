@@ -2429,6 +2429,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 .rv-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6B67' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .875rem center;padding-right:2.25rem}
 .rv-textarea{resize:vertical;min-height:90px;line-height:1.6}
 .rv-textarea.tall{min-height:120px}
+.rv-value-desc{font-size:.75rem;color:rgba(255,255,255,0.5);line-height:1.45;margin:.2rem 0 .5rem}
 .rv-textarea.rv-transcript{min-height:200px;font-size:.825rem}
 .rv-transcript-view summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.5rem}
 .rv-transcript-view .rv-transcript-body{white-space:pre-wrap;font-size:.85rem;line-height:1.65;color:rgba(255,255,255,0.75);max-height:420px;overflow-y:auto;background:var(--charcoal);border-radius:var(--radius);padding:1rem}
@@ -2562,39 +2563,37 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
       <div id="rv-questions-container"></div>
 
-      <!-- Core values -->
+      <!-- Core principles -->
       <div class="rv-form-section">
-        <div class="rv-form-section-title">Core Values — Performance Rating</div>
-        <div class="rv-form-section-sub">Rate 1–5 stars</div>
+        <div class="rv-form-section-title">Core Principles — Rating</div>
+        <div class="rv-form-section-sub">Rate 1–5 stars: how clearly does this describe them today?</div>
       </div>
       <div class="rv-values-grid">
         <div class="rv-value-item">
-          <div class="rv-value-name">Character</div>
-          <div class="rv-stars" data-value="character">
+          <div class="rv-value-name">Grit</div>
+          <div class="rv-value-desc">Chooses meaningful over easy; stays on the hard call until it's right.</div>
+          <div class="rv-stars" data-value="grit">
             <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
           </div>
         </div>
         <div class="rv-value-item">
-          <div class="rv-value-name">Courage</div>
-          <div class="rv-stars" data-value="courage">
+          <div class="rv-value-name">Relentlessness</div>
+          <div class="rv-value-desc">Never done getting better; chases feedback, owns mistakes, acts on both.</div>
+          <div class="rv-stars" data-value="relentlessness">
             <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
           </div>
         </div>
         <div class="rv-value-item">
-          <div class="rv-value-name">Curiosity</div>
-          <div class="rv-stars" data-value="curiosity">
+          <div class="rv-value-name">Contribution</div>
+          <div class="rv-value-desc">Makes everyone around them better; teaches, carries their share, team win first.</div>
+          <div class="rv-stars" data-value="contribution">
             <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
           </div>
         </div>
         <div class="rv-value-item">
-          <div class="rv-value-name">Competence</div>
-          <div class="rv-stars" data-value="competence">
-            <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
-          </div>
-        </div>
-        <div class="rv-value-item">
-          <div class="rv-value-name">Caring</div>
-          <div class="rv-stars" data-value="caring">
+          <div class="rv-value-name">Purpose-filled</div>
+          <div class="rv-value-desc">Knows why the work matters beyond the paycheque; it shows in every job.</div>
+          <div class="rv-stars" data-value="purpose">
             <span class="rv-star" data-n="1">★</span><span class="rv-star" data-n="2">★</span><span class="rv-star" data-n="3">★</span><span class="rv-star" data-n="4">★</span><span class="rv-star" data-n="5">★</span>
           </div>
         </div>

@@ -224,6 +224,13 @@ window.addEventListener("beforeunload", e => {
 });
 window.addEventListener("online", retryDirty);
 setInterval(retryDirty, RETRY_MS);
+// Remove a key from THIS browser only (never deletes the cloud copy). Used to clear
+// cached data a signed-in user isn't allowed to see.
+window.apLocalRemove = function (key) {
+  _origRemoveItem.call(localStorage, key);
+  const m = loadMeta(); delete m[key]; saveMeta(m);
+  renderBanner();
+};
 window.apSyncStatus = () => ({ unsynced: dirtyKeys(), readFailed: window.AP_SYNC_FAILED || [], lastWriteError: window.AP_SYNC_WRITE_ERROR || null });
 
 // ── Safe move of one saved key between collections (used for one-time data migrations).
