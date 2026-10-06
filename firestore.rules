@@ -2,6 +2,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─────────────────────────────────────────────────────────────────
+    // SINGLE SOURCE OF TRUTH: this file in the alpine-portal repo.
+    // To change rules: edit this file, commit it, then in the Firebase
+    // console (Firestore > Rules) select ALL, paste the WHOLE file, Publish.
+    // Never append to the console editor: anything placed after the
+    // closing brace of this block is silently ignored and those saves fail.
+    //
+    // {doc=**} also covers each document's "versions" history subcollection.
+    // ─────────────────────────────────────────────────────────────────
+
     // ── Who's who (keep in sync with AP_USERS in auth.js) ──
     function signedIn() {
       return request.auth != null && request.auth.token.email != null;
@@ -25,15 +35,12 @@ service cloud.firestore {
         'cole.hamilton@alpinehvac.ca'
       ];
     }
-
-    // Owners only: Team Files (profiles, SharePoint index) + quarterly reviews
     function isOwner() {
       return signedIn() && email() in [
         'jake.gilmore@alpinehvac.ca',
         'mike.launder@alpinehvac.ca'
       ];
     }
-
     function isOps() {
       return signedIn() && email() in [
         'cole.hamilton@alpinehvac.ca',
@@ -44,44 +51,59 @@ service cloud.firestore {
         'matt.martin@alpinehvac.ca'
       ];
     }
+    function isFinance() {
+      return signedIn() && email() in [
+        'jake.gilmore@alpinehvac.ca',
+        'mike.launder@alpinehvac.ca',
+        'clarissa.launder@alpinehvac.ca'
+      ];
+    }
+
+    // Financial Position + Job Profit: finance only
+    match /cash_dashboard/{doc=**} {
+      allow read, write: if isFinance();
+    }
+    match /cash_dashboard_history/{doc=**} {
+      allow read, write: if isFinance();
+    }
 
     // Site Reports (maintenance checklists, customer summaries): sales + ops
-    match /site_reports_data/{doc} {
+    match /site_reports_data/{doc=**} {
       allow read, write: if isSales() || isOps();
     }
 
     // Site pages: BuildOps activity per address + CLEAR reports: sales + ops
-    match /site_data/{doc} {
+    match /site_data/{doc=**} {
       allow read, write: if isSales() || isOps();
     }
 
     // Service Agreement Tracker: sales only
-    match /service_agreements_data/{doc} {
+    match /service_agreements_data/{doc=**} {
       allow read, write: if isSales();
     }
 
     // Service Agreement Calculator: sales + super admins
-    match /service_agreement_data/{doc} {
+    match /service_agreement_data/{doc=**} {
       allow read, write: if isSales() || isAdmin();
     }
 
     // Sales Strategy: sales + super admins
-    match /sales_strategy_data/{doc} {
+    match /sales_strategy_data/{doc=**} {
       allow read, write: if isSales() || isAdmin();
     }
 
-    // Team Hub (recruiting, reviews): super admins only
-    match /team_hub_data/{doc} {
+    // Team Hub (recruiting, onboarding): super admins only
+    match /team_hub_data/{doc=**} {
       allow read, write: if isAdmin();
     }
 
     // Team Hub > Pre-Interview resume files (one doc per file): super admins only
-    match /team_hub_resumes/{doc} {
+    match /team_hub_resumes/{doc=**} {
       allow read, write: if isAdmin();
     }
 
     // Team Hub > Team Files + Quarterly Reviews: owners (Jake, Mike) only
-    match /team_files_data/{doc} {
+    match /team_files_data/{doc=**} {
       allow read, write: if isOwner();
     }
 

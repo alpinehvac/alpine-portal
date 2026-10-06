@@ -2429,6 +2429,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 .rv-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6B67' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .875rem center;padding-right:2.25rem}
 .rv-textarea{resize:vertical;min-height:90px;line-height:1.6}
 .rv-textarea.tall{min-height:120px}
+.rv-textarea.rv-transcript{min-height:200px;font-size:.825rem}
+.rv-transcript-view summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.5rem}
+.rv-transcript-view .rv-transcript-body{white-space:pre-wrap;font-size:.85rem;line-height:1.65;color:rgba(255,255,255,0.75);max-height:420px;overflow-y:auto;background:var(--charcoal);border-radius:var(--radius);padding:1rem}
 
 /* Section dividers inside form */
 .rv-form-section{margin:1.75rem 0 1.25rem;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,0.06)}
@@ -2601,6 +2604,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
       <div class="rv-field">
         <label class="rv-label">Performance Notes (manager observations)</label>
         <textarea class="rv-textarea tall" id="rv-perf" placeholder="Your notes on employee performance this quarter..."></textarea>
+      </div>
+
+      <!-- Meeting transcript (voice recording) -->
+      <div class="rv-form-section">
+        <div class="rv-form-section-title">Meeting Transcript</div>
+        <div class="rv-form-section-sub">Paste the transcript of the review's voice recording. Saved with the review.</div>
+      </div>
+      <div class="rv-field">
+        <label class="rv-label" for="rv-transcript">Voice Recording Transcript</label>
+        <textarea class="rv-textarea rv-transcript" id="rv-transcript" placeholder="Paste the full transcript here..."></textarea>
       </div>
 
       <!-- Action items -->

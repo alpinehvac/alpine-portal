@@ -44,6 +44,11 @@ function dmExport() {
     const val = localStorage.getItem(k);
     if (val) bundle[k] = val;
   });
+  // Review transcripts are stored one per review
+  Object.keys(localStorage).filter(k => k.startsWith('alpine_review_tx_')).forEach(k => {
+    const val = localStorage.getItem(k);
+    if (val) bundle[k] = val;
+  });
   if (!Object.keys(bundle).length) {
     alert('No saved data found yet. Add some reviews or notes first.');
     return;
@@ -1434,6 +1439,14 @@ function loadReviews() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
   catch(e) { return []; }
 }
+const RV_TX_PREFIX = 'alpine_review_tx_';
+function rvLoadTranscript(id) {
+  return localStorage.getItem(RV_TX_PREFIX + id) || '';
+}
+function rvSaveTranscript(id, text) {
+  if ((text || '').trim()) localStorage.setItem(RV_TX_PREFIX + id, text);
+  else if (localStorage.getItem(RV_TX_PREFIX + id) !== null) localStorage.removeItem(RV_TX_PREFIX + id);
+}
 function saveReviews(reviews) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
 }
@@ -1551,7 +1564,7 @@ function closeViewModal() {
 }
 
 function clearForm() {
-  ['rv-tech','rv-date','rv-quarter','rv-level','rv-perf','rv-actions','rv-notes','rv-diff-notes']
+  ['rv-tech','rv-date','rv-quarter','rv-level','rv-perf','rv-actions','rv-notes','rv-diff-notes','rv-transcript']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   renderQuestionFields();
   resetStars();
@@ -1584,6 +1597,11 @@ function saveReview() {
     diffNotes: document.getElementById('rv-diff-notes').value,
     ratings: {...ratings}
   };
+  // Transcripts are long, so each one is stored as its own record
+  // (alpine_review_tx_<id>) instead of inside the shared reviews list,
+  // keeping that list well under the cloud's 1 MB-per-record limit.
+  rvSaveTranscript(review.id, (document.getElementById('rv-transcript') || {}).value || '');
+  review.hasTranscript = !!((document.getElementById('rv-transcript') || {}).value || '').trim();
   const reviews = loadReviews();
   const idx = reviews.findIndex(r => r.id === editingId);
   if(idx > -1) reviews[idx] = review;
@@ -1600,6 +1618,7 @@ function deleteReview(id, e) {
   if(!confirm('Delete this review?')) return;
   const reviews = loadReviews().filter(r => r.id !== id);
   saveReviews(reviews);
+  rvSaveTranscript(id, '');
   renderList();
   tfAfterReviewChange();
 }
@@ -1641,6 +1660,7 @@ function editReview(id, e) {
   document.getElementById('rv-actions').value = review.actions || '';
   document.getElementById('rv-notes').value = review.notes || '';
   document.getElementById('rv-diff-notes').value = review.diffNotes || '';
+  if(document.getElementById('rv-transcript')) document.getElementById('rv-transcript').value = rvLoadTranscript(review.id);
   if(review.ratings) setStars(review.ratings);
   document.getElementById('rv-modal').classList.add('open');
 }
@@ -1701,6 +1721,7 @@ function viewReview(id) {
     ${review.actions ? `<div class="rv-view-section"><div class="rv-view-section-title">Action Items</div><div class="rv-view-field full"><div class="rv-view-field-value">${review.actions}</div></div></div>` : ''}
     ${review.notes ? `<div class="rv-view-section"><div class="rv-view-section-title">Additional Notes</div><div class="rv-view-field full"><div class="rv-view-field-value">${review.notes}</div></div></div>` : ''}
     ${review.diffNotes ? `<div class="rv-view-section"><div class="rv-view-section-title" style="color:var(--purple-light)">Difficult Conversation Notes</div><div class="rv-view-field full"><div class="rv-view-field-value">${review.diffNotes}</div></div></div>` : ''}
+    ${rvLoadTranscript(review.id) ? `<div class="rv-view-section"><details class="rv-transcript-view"><summary>Meeting Transcript (${rvLoadTranscript(review.id).trim().split(/\s+/).length.toLocaleString()} words) — click to expand</summary><div class="rv-transcript-body">${String(rvLoadTranscript(review.id)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></details></div>` : ''}
   `;
   document.getElementById('rv-view-modal').classList.add('open');
 }
