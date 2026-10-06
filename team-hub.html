@@ -332,13 +332,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 .vv-h1{font-family:'Oswald',sans-serif;font-size:clamp(2.6rem,7vw,4.75rem);font-weight:700;line-height:.95;text-transform:uppercase;letter-spacing:.01em;margin:0 0 1rem}
 .vv-sub{font-family:'Oswald',sans-serif;font-size:clamp(1.05rem,2.4vw,1.35rem);font-weight:500;letter-spacing:.03em;color:var(--teal-light);line-height:1.35}
 .vv-why{font-size:1.05rem;line-height:1.8;color:rgba(255,255,255,0.75);max-width:760px;margin:0}
-.vv-cycle{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.6rem;counter-reset:step}
-.vv-step{background:var(--off-black);border:1px solid rgba(255,255,255,0.08);border-top:3px solid var(--teal-light);border-radius:4px;padding:1.1rem 1rem 1.2rem;position:relative}
-.vv-step:not(:last-child)::after{content:'›';position:absolute;right:-.55rem;top:50%;transform:translateY(-50%);font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:var(--teal-light);z-index:1}
-.vv-step.end{background:var(--teal-dark);border-top-color:var(--purple)}
-.vv-step-n{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:500;letter-spacing:.14em;color:rgba(255,255,255,0.4)}
-.vv-step-t{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;line-height:1.15;margin:.35rem 0 .45rem}
-.vv-step-d{font-size:.825rem;color:rgba(255,255,255,0.6);line-height:1.5}
+.vv-cycle{display:flex;align-items:flex-end;gap:6px;border-bottom:3px solid var(--white)}
+.vv-step{flex:1;background:var(--c-bg);border-top:4px solid var(--teal-light);border-radius:4px 4px 0 0;padding:1.1rem 1rem;box-sizing:border-box;display:flex;flex-direction:column;gap:.35rem}
+.vv-step.s1{height:200px;--c-bg:#16302F}.vv-step.s2{height:240px;--c-bg:#1B3D3D}.vv-step.s3{height:280px;--c-bg:#204B4B}.vv-step.s4{height:320px;--c-bg:#255A5A}
+.vv-step.end{height:360px;--c-bg:var(--teal);border-top-color:var(--purple)}
+.vv-step-n{font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:500;letter-spacing:.14em;color:rgba(255,255,255,0.5)}
+.vv-step-t{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+.vv-step-d{font-size:.825rem;color:rgba(255,255,255,0.7);line-height:1.5}
 .vv-vision{border-top:4px solid var(--teal-light);background:var(--charcoal);border-radius:4px 4px var(--radius-lg) var(--radius-lg);padding:2.25rem 2rem}
 .vv-vision-t{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,4vw,2.4rem);font-weight:600;line-height:1.2;text-transform:uppercase;letter-spacing:.02em;margin:0}
 .vv-pr-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:.75rem;margin-bottom:.25rem}
@@ -356,7 +356,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 .vv-note-box.p{border-left-color:var(--purple)}
 .vv-note-h{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem}
 .vv-note-t{font-size:.875rem;color:rgba(255,255,255,0.6);line-height:1.7}
-@media (max-width:860px){.vv-cycle{grid-template-columns:1fr}.vv-step:not(:last-child)::after{content:'▼';right:auto;left:50%;top:auto;bottom:-.95rem;transform:translateX(-50%);font-size:.8rem}}
+@media (max-width:860px){.vv-cycle{flex-direction:column;align-items:stretch;border-bottom:none}.vv-step.s1,.vv-step.s2,.vv-step.s3,.vv-step.s4,.vv-step.end{height:auto;border-radius:4px}}
 @media (max-width:760px){.vv-prs,.vv-note{grid-template-columns:1fr}.vv-wrap{padding:2.25rem 1rem 3rem}}
 @media print{#panel-principles{height:auto;overflow:visible}}
 </style>
@@ -372,10 +372,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   <section>
     <div class="vv-eyebrow">The Alpine Cycle</div>
     <div class="vv-cycle">
-      <div class="vv-step"><div class="vv-step-n">01</div><div class="vv-step-t">Grit</div><div class="vv-step-d">Meaningful over easy</div></div>
-      <div class="vv-step"><div class="vv-step-n">02</div><div class="vv-step-t">Relentless Growth</div><div class="vv-step-d">Every call makes you better</div></div>
-      <div class="vv-step"><div class="vv-step-n">03</div><div class="vv-step-t">Rare Value</div><div class="vv-step-d">Skill the market can't find</div></div>
-      <div class="vv-step"><div class="vv-step-n">04</div><div class="vv-step-t">Unified Team</div><div class="vv-step-d">= Purpose, Contribution, Excellence</div></div>
+      <div class="vv-step s1"><div class="vv-step-n">01</div><div class="vv-step-t">Grit</div><div class="vv-step-d">Meaningful over easy</div></div>
+      <div class="vv-step s2"><div class="vv-step-n">02</div><div class="vv-step-t">Relentless Growth</div><div class="vv-step-d">Every call makes you better</div></div>
+      <div class="vv-step s3"><div class="vv-step-n">03</div><div class="vv-step-t">Rare Value</div><div class="vv-step-d">Skill the market can't find</div></div>
+      <div class="vv-step s4"><div class="vv-step-n">04</div><div class="vv-step-t">Unified Team</div><div class="vv-step-d">Purpose, Contribution, Excellence</div></div>
       <div class="vv-step end"><div class="vv-step-n">05</div><div class="vv-step-t">Service the World Needs</div><div class="vv-step-d">The by-product of all of it</div></div>
     </div>
   </section>
