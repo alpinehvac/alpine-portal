@@ -76,6 +76,7 @@ h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spac
 .phase small{display:block;font-size:.7rem;opacity:.75;margin-top:2px}
 .phase.on{color:var(--black);font-weight:600}
 #view-toggle .phase{border:none;cursor:pointer;font:inherit;font-size:.78rem;padding:.45rem .8rem}
+@media (max-width:700px){#view-toggle{grid-template-columns:repeat(3,auto)!important}}
 .phase.on.p0{background:var(--green);color:#FFFFFF}.phase.on.p1{background:var(--amber);color:#FFFFFF}.phase.on.p2{background:#C26A2B}.phase.on.p3{background:var(--red);color:#FFFFFF}
 .risk-list{list-style:none;counter-reset:r}
 .risk-list li{counter-increment:r;display:grid;grid-template-columns:1.6rem 1fr auto;gap:.5rem;padding:.7rem 0;border-bottom:1px solid var(--border);align-items:baseline}
@@ -200,9 +201,10 @@ tr.detail td{background:rgba(16,68,78,0.028);text-align:left;padding:.9rem 1rem 
 
   <section>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap">
-      <h2 id="chart-title">Next 13 weeks</h2>
-      <div class="phases" id="view-toggle" style="grid-template-columns:repeat(4,auto);margin-bottom:.4rem">
-        <button class="phase on p0" data-v="f">Next 13 weeks</button>
+      <h2 id="chart-title">Last 13 weeks and next 13 weeks</h2>
+      <div class="phases" id="view-toggle" style="grid-template-columns:repeat(5,auto);margin-bottom:.4rem">
+        <button class="phase on p0" data-v="c">13 back + 13 ahead</button>
+        <button class="phase" data-v="f">Next 13 weeks</button>
         <button class="phase" data-v="13">Last 3 months</button>
         <button class="phase" data-v="26">Last 6 months</button>
         <button class="phase" data-v="52">Last 12 months</button>
@@ -210,11 +212,12 @@ tr.detail td{background:rgba(16,68,78,0.028);text-align:left;padding:.9rem 1rem 
     </div>
     <p class="h2-note" id="chart-note"></p>
     <div class="chart-box">
-      <div class="chart-scroll"><svg id="chart" viewBox="0 0 1000 470" role="img" aria-label="13-week cash forecast"></svg></div>
+      <div class="chart-scroll"><svg id="chart" viewBox="0 0 1000 470" role="img" aria-label="Operating cash: last 13 weeks actual and 13-week forecast"></svg></div>
       <div class="legend">
+        <span id="lg-past"><i style="background:#10444E;height:3px;vertical-align:3px"></i>Past weeks (actual)</span>
         <span><i style="background:var(--teal-light);color:#FFFFFF"></i>Closing cash (committed)</span>
         <span><i style="background:#27636C;height:3px;vertical-align:3px;color:#FFFFFF"></i>With expected service work</span>
-        <span><i style="background:#FFFFFF;border-radius:50%"></i>Actual (logged daily)</span>
+        <span><i style="background:#FFFFFF;border:2px solid #10444E;border-radius:50%;box-sizing:border-box"></i>Actual (logged daily)</span>
         <span><i style="background:var(--amber);height:3px;vertical-align:3px;color:#FFFFFF"></i>Target (8 wks burn)</span>
         <span><i style="background:var(--red);height:3px;vertical-align:3px;color:#FFFFFF"></i>Floor (4 wks burn)</span>
         <span><i style="background:#B06AD9;height:3px;vertical-align:3px"></i>Credit line fully drawn</span>
@@ -383,11 +386,14 @@ function render(){
 
   document.getElementById("chart-note").textContent=`Closing operating cash each week from committed money only (solid line); the dashed line adds expected service/T&M work net of parts. Floor ${fmt(floor)} (4 weeks of core burn), target ${fmt(target)} (8 weeks). Core burn ${fmt(burn)}/week (actual Jul–Sep costs). Below $0 is drawn on the credit line; the purple line is where the ${fmt(locAvail)} available runs out. Hover or tap a week.`;
   const fNote=document.getElementById("chart-note").textContent;
-  drawChart(weeks,floor,target,-locAvail);
+  const cNote="Left of TODAY: actual closing operating cash each week (QuickBooks book balance). Right of TODAY: forecast from committed money only (solid) and with expected service work (dashed). White dots are the actual cash logged by each daily refresh, so you can see how the forecast is tracking. "+fNote.replace(/^Closing operating cash each week from committed money only \(solid line\); the dashed line adds expected service\/T&M work net of parts\. /,"");
+  document.getElementById("chart-note").textContent=cNote;
+  drawCombined(weeks,floor,target,-locAvail);
   document.querySelectorAll("#view-toggle .phase").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#view-toggle .phase").forEach(x=>x.classList.remove("on","p0")); b.classList.add("on","p0");
     const v=b.dataset.v, legend=document.querySelector(".chart-box .legend");
-    if(v==="f"){document.getElementById("chart-title").textContent="Next 13 weeks";document.getElementById("chart-note").textContent=fNote;legend.style.display="";drawChart(weeks,floor,target,-locAvail);}
+    if(v==="c"){document.getElementById("chart-title").textContent="Last 13 weeks and next 13 weeks";document.getElementById("chart-note").textContent=cNote;legend.style.display="";document.getElementById("lg-past").style.display="";drawCombined(weeks,floor,target,-locAvail);}
+    else if(v==="f"){document.getElementById("chart-title").textContent="Next 13 weeks";document.getElementById("chart-note").textContent=fNote;legend.style.display="";document.getElementById("lg-past").style.display="none";drawChart(weeks,floor,target,-locAvail);}
     else{const n=+v;document.getElementById("chart-title").textContent=n===52?"Last 12 months":n===26?"Last 6 months":"Last 3 months";legend.style.display="none";drawHistory(n,floor,-locAvail);}
   });
 
@@ -537,6 +543,17 @@ function renderHealth(){
   document.getElementById("crew-techs").addEventListener("change",on);document.getElementById("crew-hours").addEventListener("change",on);
 }
 
+// Actual cash logged by the daily refresh: white dots with a dark ring, joined by a dark line (drawn under the dots).
+const daysFrom=(a,b)=>(new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5;
+function actualsSvg(xOf,y1){
+  const A=(DATA.actuals||[]).filter(a=>a&&a.date&&isFinite(a.cash)); if(!A.length) return "";
+  let ln="",dt="";
+  A.forEach((a,k)=>{const ax=xOf(a.date),ay=y1(a.cash);
+    if(k>0){const p=A[k-1];ln+=`<line x1="${xOf(p.date)}" y1="${y1(p.cash)}" x2="${ax}" y2="${ay}" stroke="#10444E" stroke-width="2"/>`;}
+    dt+=`<circle cx="${ax}" cy="${ay}" r="5.5" fill="#FFFFFF" stroke="#10444E" stroke-width="2.5" style="pointer-events:none"><title>Actual ${a.date}: ${fmt(a.cash)}</title></circle>`;});
+  return ln+dt;
+}
+
 function drawHistory(n,floor,locLine){
   const H=DATA.history; const svg=document.getElementById("chart"),tip=document.getElementById("tip");
   if(!H){svg.innerHTML=`<text x="500" y="200" fill="#5A7A80" font-size="14" text-anchor="middle" font-family="Inter">No history saved yet.</text>`;return;}
@@ -550,13 +567,63 @@ function drawHistory(n,floor,locLine){
   if(minC<0) g+=`<line x1="${L}" x2="${W-R}" y1="${y1(0)}" y2="${y1(0)}" stroke="rgba(16,68,78,0.455)"/>`;
   g+=`<line x1="${L}" x2="${W-R}" y1="${y1(floor)}" y2="${y1(floor)}" stroke="#B83227" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(floor)-7}" fill="#B83227" font-size="12" text-anchor="end" font-family="Inter">Today's floor ${fmtK(floor)}</text>`;
   const pts=cl.map((v,i)=>[x(i),y1(v)]);
-  g+=`<path d="M${pts.map(p=>p.join(",")).join(" L")} L${pts[m-1][0]},${top1+h1} L${pts[0][0]},${top1+h1} Z" fill="rgba(16,68,78,0.084)"/><path d="M${pts.map(p=>p.join(",")).join(" L")}" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"/>`;
+  g+=`<path d="M${pts.map(p=>p.join(",")).join(" L")} L${pts[m-1][0]},${top1+h1} L${pts[0][0]},${top1+h1} Z" fill="rgba(16,68,78,0.084)"/><path d="M${pts.map(p=>p.join(",")).join(" L")}" fill="none" stroke="#10444E" stroke-width="2.5" stroke-linejoin="round"/>`;
   const bw=Math.max(2,step*.55), every=Math.ceil(m/13);
   wk.forEach((w,i)=>{g+=`<rect x="${x(i)-bw/2}" y="${mid2-y2(ci[i])}" width="${bw}" height="${y2(ci[i])}" fill="rgba(42,138,142,0.55)" rx="1"/><rect x="${x(i)-bw/2}" y="${mid2}" width="${bw}" height="${y2(co[i])}" fill="rgba(155,142,196,0.6)" rx="1"/>`; if(i%every===0) g+=`<text x="${x(i)}" y="${top2+h2+22}" fill="#5A7A80" font-size="11" text-anchor="middle" font-family="Inter">${dShort(w)}</text>`;});
   g+=`<line x1="${L}" x2="${W-R}" y1="${mid2}" y2="${mid2}" stroke="rgba(16,68,78,0.21)"/><text x="${L-10}" y="${top2+10}" fill="#5A7A80" font-size="11" text-anchor="end" font-family="Inter">In</text><text x="${L-10}" y="${top2+h2}" fill="#5A7A80" font-size="11" text-anchor="end" font-family="Inter">Out</text>`;
   wk.forEach((w,i)=>{g+=`<rect class="hit" data-i="${i}" x="${x(i)-step/2}" y="${top1}" width="${step}" height="${top2+h2-top1}" fill="transparent"/>`;});
   svg.innerHTML=g;
   svg.querySelectorAll(".hit").forEach(r=>{const i=+r.dataset.i;const show=e=>{tip.innerHTML=`<b>Week of ${dShort(wk[i])}</b><br>Closing ${fmt(cl[i])}<br>In ${fmt(ci[i])}<br>Out ${fmt(co[i])}`;tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
+}
+
+// Default view: last 13 weeks of actual closing cash (QuickBooks history) joined to the 13-week forecast.
+function drawCombined(weeks,floor,target,locLine){
+  const svg=document.getElementById("chart"),tip=document.getElementById("tip"), H=DATA.history;
+  const f0=weeks[0].start;
+  let past=[];
+  if(H&&H.weeks){H.weeks.forEach((w,i)=>{if(w<f0) past.push({start:w,close:H.close[i],cin:H.cin[i],cout:H.cout[i]});}); past=past.slice(-13);}
+  const P=past.length, n=P+weeks.length;
+  const W=1000,L=70,R=20,top1=28,h1=272,top2=340,h2=100,step=(W-L-R)/n,x=i=>L+step*(i+.5), xf=i=>x(P+i), base=L+step*P;
+  const closes=[...past.map(p=>p.close),...weeks.map(w=>w.close),weeks[0].open,...(DATA.upside||[]),...(DATA.actuals||[]).map(a=>a.cash)];
+  const maxC=Math.max(target,...closes)*1.08, minC=Math.min(locLine,...closes)*1.08;
+  const y1=v=>top1+h1-(v-minC)/(maxC-minC)*h1;
+  const flows=[...past.map(p=>Math.max(p.cin,p.cout)),...weeks.map(w=>Math.max(w.cin,w.cout))], maxF=Math.max(1,...flows)*1.1, mid2=top2+h2/2, y2=v=>v/maxF*(h2/2);
+  let g="";
+  for(let k=0;k<=5;k++){const v=minC+(maxC-minC)*k/5,yy=y1(v);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="rgba(16,68,78,0.084)"/><text x="${L-10}" y="${yy+4}" fill="#5A7A80" font-size="12" text-anchor="end" font-family="Inter">${fmtK(v)}</text>`;}
+  if(P) g+=`<rect x="${L}" y="${top1}" width="${base-L}" height="${top2+h2-top1}" fill="rgba(16,68,78,0.035)"/>`;
+  g+=`<rect x="${L}" y="${y1(0)}" width="${W-L-R}" height="${y1(locLine)-y1(0)}" fill="rgba(224,112,94,0.10)"/>`;
+  g+=`<rect x="${L}" y="${y1(locLine)}" width="${W-L-R}" height="${top1+h1-y1(locLine)}" fill="rgba(176,106,217,0.12)"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y1(0)}" y2="${y1(0)}" stroke="rgba(16,68,78,0.455)"/>`;
+  [[target,"#A9821F","Target "+fmtK(target)],[floor,"#B83227","Floor "+fmtK(floor)],[locLine,"#B06AD9","Credit line used up "+fmtK(locLine)]].forEach(([v,c,t])=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y1(v)}" y2="${y1(v)}" stroke="${c}" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(v)-7}" fill="${c}" font-size="12" text-anchor="end" font-family="Inter">${t}</text>`;});
+  // Today divider + period labels
+  g+=`<line x1="${base}" x2="${base}" y1="${top1-6}" y2="${top2+h2}" stroke="#10444E" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${base}" y="${top1-10}" fill="#10444E" font-size="12" text-anchor="middle" font-family="Oswald" font-weight="500">TODAY</text>`;
+  if(P) g+=`<text x="${L+8}" y="${top1+14}" fill="#5A7A80" font-size="11" font-family="Inter">Last ${P} weeks (actual)</text>`;
+  g+=`<text x="${base+8}" y="${top1+14}" fill="#5A7A80" font-size="11" font-family="Inter">Next ${weeks.length} weeks (forecast)</text>`;
+  // Past actual closing line
+  if(P){const pp=past.map((p,i)=>[x(i),y1(p.close)]);
+    g+=`<path d="M${pp.map(q=>q.join(",")).join(" L")}" fill="none" stroke="#10444E" stroke-width="2.5" stroke-linejoin="round"/>`;
+    pp.forEach(q=>{g+=`<circle cx="${q[0]}" cy="${q[1]}" r="3.5" fill="#10444E"/>`;});}
+  // Forecast line, starting from today's opening cash at the divider
+  const pts=weeks.map(w=>[xf(w.i),y1(w.close)]),path=[[base,y1(weeks[0].open)],...pts].map(q=>q.join(",")).join(" L");
+  if(DATA.upside){const up=[[base,y1(weeks[0].open)],...DATA.upside.map((v,i)=>[xf(i),y1(v)])];g+=`<path d="M${up.map(q=>q.join(",")).join(" L")}" fill="none" stroke="#27636C" stroke-width="2" stroke-dasharray="4 4"/>`;}
+  g+=`<path d="M${path}" fill="none" stroke="#3D818A" stroke-width="3" stroke-linejoin="round"/>`;
+  weeks.forEach(w=>{const col=w.beyondLoc?"#B06AD9":w.close<0||w.belowFloor?"#B83227":w.belowTarget?"#A9821F":"#3D818A";g+=`<circle cx="${xf(w.i)}" cy="${y1(w.close)}" r="${w.close<0?6:4}" fill="${col}" stroke="#FFFFFF" stroke-width="2"/>`;});
+  const low=weeks.reduce((a,b)=>b.close<a.close?b:a);
+  g+=`<text x="${xf(low.i)}" y="${y1(low.close)+24}" fill="#10444E" font-size="13" text-anchor="middle" font-family="Oswald" font-weight="500">Low ${fmtK(low.close)}</text>`;
+  // Cash in / out bars
+  g+=`<line x1="${L}" x2="${W-R}" y1="${mid2}" y2="${mid2}" stroke="rgba(16,68,78,0.21)"/><text x="${L-10}" y="${top2+10}" fill="#5A7A80" font-size="11" text-anchor="end" font-family="Inter">In</text><text x="${L-10}" y="${top2+h2}" fill="#5A7A80" font-size="11" text-anchor="end" font-family="Inter">Out</text>`;
+  const bw=step*.55, cols=[...past.map(p=>({s:p.start,cin:p.cin,cout:p.cout,past:1})),...weeks.map(w=>({s:w.start,cin:w.cin,cout:w.cout,past:0}))];
+  cols.forEach((c,i)=>{const op=c.past?0.8:1;g+=`<rect x="${x(i)-bw/2}" y="${mid2-y2(c.cin)}" width="${bw}" height="${y2(c.cin)}" fill="rgba(42,138,142,0.55)" opacity="${op}" rx="2"/><rect x="${x(i)-bw/2}" y="${mid2}" width="${bw}" height="${y2(c.cout)}" fill="rgba(155,142,196,0.6)" opacity="${op}" rx="2"/>`;
+    if(i%2===(P%2)) g+=`<text x="${x(i)}" y="${top2+h2+22}" fill="#5A7A80" font-size="11" text-anchor="middle" font-family="Inter">${dShort(c.s)}</text>`;});
+  cols.forEach((c,i)=>{g+=`<rect class="hit" data-i="${i}" x="${x(i)-step/2}" y="${top1}" width="${step}" height="${top2+h2-top1}" fill="transparent"/>`;});
+  // Daily actuals (white dots), positioned by date
+  g+=actualsSvg(d=>base+step*(daysFrom(f0,d)/7),y1);
+  svg.innerHTML=g;
+  svg.querySelectorAll(".hit").forEach(r=>{const i=+r.dataset.i;const show=e=>{
+      if(i<P){const p=past[i];tip.innerHTML=`<b>Week of ${dShort(p.start)}</b> <span style="color:#5A7A80">actual</span><br>In ${fmt(p.cin)}<br>Out ${fmt(p.cout)}<br>Closing ${fmt(p.close)}`;}
+      else{const w=weeks[i-P];tip.innerHTML=`<b>Week of ${dShort(w.start)}</b> <span style="color:#5A7A80">forecast</span><br>In ${fmt(w.cin)}<br>Out ${fmt(w.cout)}<br>Closing ${fmt(w.close)}`+(w.driver?`<br><span style="color:#5A7A80">${esc(w.driver)}</span>`:"");}
+      tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};
+    r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
 }
 
 function drawChart(weeks,floor,target,locLine){
@@ -575,12 +642,12 @@ function drawChart(weeks,floor,target,locLine){
   g+=`<path d="M${path}" fill="none" stroke="#3D818A" stroke-width="3" stroke-linejoin="round"/>`;
   weeks.forEach(w=>{const col=w.beyondLoc?"#B06AD9":w.close<0||w.belowFloor?"#B83227":w.belowTarget?"#A9821F":"#3D818A";g+=`<circle cx="${x(w.i)}" cy="${y1(w.close)}" r="${w.close<0?6:4}" fill="${col}" stroke="#FFFFFF" stroke-width="2"/>`;});
   const low=weeks.reduce((a,b)=>b.close<a.close?b:a);
-  g+=`<text x="${x(low.i)}" y="${y1(low.close)+24}" fill="#FFFFFF" font-size="13" text-anchor="middle" font-family="Oswald" font-weight="500">Low ${fmtK(low.close)}</text>`;
+  g+=`<text x="${x(low.i)}" y="${y1(low.close)+24}" fill="#10444E" font-size="13" text-anchor="middle" font-family="Oswald" font-weight="500">Low ${fmtK(low.close)}</text>`;
   g+=`<line x1="${L}" x2="${W-R}" y1="${mid2}" y2="${mid2}" stroke="rgba(16,68,78,0.21)"/><text x="${L-10}" y="${top2+10}" fill="#5A7A80" font-size="11" text-anchor="end" font-family="Inter">In</text><text x="${L-10}" y="${top2+h2}" fill="#5A7A80" font-size="11" text-anchor="end" font-family="Inter">Out</text>`;
   const bw=step*.5;
   weeks.forEach(w=>{g+=`<rect x="${x(w.i)-bw/2}" y="${mid2-y2(w.cin)}" width="${bw}" height="${y2(w.cin)}" fill="rgba(42,138,142,0.55)" rx="2"/><rect x="${x(w.i)-bw/2}" y="${mid2}" width="${bw}" height="${y2(w.cout)}" fill="rgba(155,142,196,0.6)" rx="2"/><text x="${x(w.i)}" y="${top2+h2+22}" fill="#5A7A80" font-size="11" text-anchor="middle" font-family="Inter">${dShort(w.start)}</text>`;});
   weeks.forEach(w=>{g+=`<rect class="hit" data-i="${w.i}" x="${x(w.i)-step/2}" y="${top1}" width="${step}" height="${top2+h2-top1}" fill="transparent"/>`;});
-  (DATA.actuals||[]).forEach((a,k,arr)=>{const di=(new Date(a.date+"T12:00:00")-new Date(weeks[0].start+"T12:00:00"))/864e5; const ax=L+step*(di/7); g+=`<circle cx="${ax}" cy="${y1(a.cash)}" r="5" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2"><title>Actual ${a.date}: ${fmt(a.cash)}</title></circle>`; if(k>0){const p=arr[k-1],pi=(new Date(p.date+"T12:00:00")-new Date(weeks[0].start+"T12:00:00"))/864e5; g+=`<line x1="${L+step*(pi/7)}" y1="${y1(p.cash)}" x2="${ax}" y2="${y1(a.cash)}" stroke="#FFFFFF" stroke-width="2"/>`;}});
+  g+=actualsSvg(d=>L+step*(daysFrom(weeks[0].start,d)/7),y1);
   svg.innerHTML=g;
   svg.querySelectorAll(".hit").forEach(r=>{const w=weeks[+r.dataset.i];const show=e=>{tip.innerHTML=`<b>Week of ${dShort(w.start)}</b><br>In ${fmt(w.cin)}<br>Out ${fmt(w.cout)}<br>Closing ${fmt(w.close)}`+(w.driver?`<br><span style="color:#5A7A80">${esc(w.driver)}</span>`:"");tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
 }
