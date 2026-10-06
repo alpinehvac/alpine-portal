@@ -244,7 +244,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 <!-- ── SUB TAB BAR (tabs inside the selected group) ── -->
 <div class="subtab-bar" id="subTabs">
-  <button class="subtab-btn active" data-group="recruiting" data-roles="operations admin owners" onclick="showTab('principles')">Core Principles</button>
+  <button class="subtab-btn active" data-group="recruiting" data-roles="operations admin owners" onclick="showTab('principles')">Vision / Values</button>
   <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('recruiting')">Tech Recruiting</button>
   <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('bas-recruiting')">BAS Recruiting</button>
   <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('sales-recruiting')">Sales Recruiting</button>
@@ -321,78 +321,89 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 
 
-<!-- ── TAB: CORE PRINCIPLES ── -->
+<!-- ── TAB: VISION / VALUES ── -->
 <div id="panel-principles" class="tab-panel active">
 <style>
 #panel-principles{overflow-y:auto;height:calc(100vh - 56px)}
-.cp-wrap{max-width:1000px;margin:0 auto;padding:3.5rem 1.5rem 4rem}
-.cp-head{text-align:center;margin-bottom:2.25rem}
-.cp-title{font-family:'Oswald',sans-serif;font-size:clamp(1.9rem,4.5vw,3rem);font-weight:700;text-transform:uppercase;line-height:1.05;letter-spacing:.02em;margin-bottom:.75rem}
-.cp-sub{font-size:.975rem;color:rgba(255,255,255,0.55);max-width:620px;margin:0 auto;line-height:1.75}
-.cp-roof{position:relative;background:var(--charcoal);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-lg) var(--radius-lg) 4px 4px;padding:1.5rem 1.5rem 1.35rem;text-align:center}
-.cp-roof-title{font-family:'Oswald',sans-serif;font-size:1.35rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-.cp-roof-sub{font-size:.85rem;color:rgba(255,255,255,0.5);margin-top:.2rem}
-.cp-pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin:1.25rem 0}
-.cp-pillar{background:var(--off-black);border:1px solid rgba(255,255,255,0.08);border-top:4px solid var(--cp-c);border-radius:4px;padding:1.6rem 1.4rem 1.75rem;display:flex;flex-direction:column}
-.cp-pillar.ach{--cp-c:var(--teal-light)}
-.cp-pillar.ful{--cp-c:var(--purple)}
-.cp-pillar.tru{--cp-c:var(--snow)}
-.cp-p-name{font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--cp-c);line-height:1.1}
-.cp-p-tag{font-size:.8rem;color:rgba(255,255,255,0.45);margin:.25rem 0 1.25rem}
-.cp-pr{padding:1rem 0;border-top:1px solid rgba(255,255,255,0.07)}
-.cp-pr-name{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.3rem}
-.cp-pr-desc{font-size:.875rem;color:rgba(255,255,255,0.62);line-height:1.65}
-.cp-base{background:var(--charcoal);border:1px solid rgba(255,255,255,0.1);border-radius:4px 4px var(--radius-lg) var(--radius-lg);padding:1.25rem 1.5rem;text-align:center}
-.cp-base-title{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-.cp-base-sub{font-size:.85rem;color:rgba(255,255,255,0.5);margin-top:.15rem}
-.cp-note{margin-top:2.25rem;display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
-.cp-note-box{border-left:3px solid var(--teal);padding:.25rem 0 .25rem 1.1rem}
-.cp-note-box.p{border-left-color:var(--purple)}
-.cp-note-h{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem}
-.cp-note-t{font-size:.875rem;color:rgba(255,255,255,0.6);line-height:1.7}
-@media (max-width:760px){.cp-pillars,.cp-note{grid-template-columns:1fr}.cp-wrap{padding:2.25rem 1rem 3rem}}
+.vv-wrap{max-width:1000px;margin:0 auto;padding:3.5rem 1.5rem 4rem;display:flex;flex-direction:column;gap:3.5rem}
+.vv-eyebrow{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:1rem;display:flex;align-items:center;gap:10px}
+.vv-eyebrow::before{content:'';width:28px;height:2px;background:currentColor}
+.vv-eyebrow.p{color:var(--purple)}
+.vv-h1{font-family:'Oswald',sans-serif;font-size:clamp(2.6rem,7vw,4.75rem);font-weight:700;line-height:.95;text-transform:uppercase;letter-spacing:.01em;margin:0 0 1rem}
+.vv-sub{font-family:'Oswald',sans-serif;font-size:clamp(1.05rem,2.4vw,1.35rem);font-weight:500;letter-spacing:.03em;color:var(--teal-light);line-height:1.35}
+.vv-why{font-size:1.05rem;line-height:1.8;color:rgba(255,255,255,0.75);max-width:760px;margin:0}
+.vv-cycle{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.6rem;counter-reset:step}
+.vv-step{background:var(--off-black);border:1px solid rgba(255,255,255,0.08);border-top:3px solid var(--teal-light);border-radius:4px;padding:1.1rem 1rem 1.2rem;position:relative}
+.vv-step:not(:last-child)::after{content:'›';position:absolute;right:-.55rem;top:50%;transform:translateY(-50%);font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:var(--teal-light);z-index:1}
+.vv-step.end{background:var(--teal-dark);border-top-color:var(--purple)}
+.vv-step-n{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:500;letter-spacing:.14em;color:rgba(255,255,255,0.4)}
+.vv-step-t{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;line-height:1.15;margin:.35rem 0 .45rem}
+.vv-step-d{font-size:.825rem;color:rgba(255,255,255,0.6);line-height:1.5}
+.vv-vision{border-top:4px solid var(--teal-light);background:var(--charcoal);border-radius:4px 4px var(--radius-lg) var(--radius-lg);padding:2.25rem 2rem}
+.vv-vision-t{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,4vw,2.4rem);font-weight:600;line-height:1.2;text-transform:uppercase;letter-spacing:.02em;margin:0}
+.vv-pr-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:.75rem;margin-bottom:.25rem}
+.vv-pr-title{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.75rem);font-weight:700;text-transform:uppercase;line-height:1.05;margin:0}
+.vv-pr-note{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,0.45)}
+.vv-prs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.25rem;margin-top:1.25rem}
+.vv-pr{background:var(--off-black);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:1.6rem 1.5rem;display:flex;gap:1.25rem}
+.vv-pr-n{font-family:'Oswald',sans-serif;font-size:2.4rem;font-weight:700;line-height:1;color:var(--teal-light);min-width:2.6rem}
+.vv-pr-name{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.1;margin-bottom:.45rem}
+.vv-pr-desc{font-size:.925rem;color:rgba(255,255,255,0.7);line-height:1.65}
+.vv-pr-tag{font-family:'Oswald',sans-serif;font-size:10.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--purple-light);margin-top:.75rem}
+.vv-80{margin-top:1.25rem;background:var(--charcoal);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:1.1rem 1.5rem;text-align:center;font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.vv-note{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.vv-note-box{border-left:3px solid var(--teal);padding:.25rem 0 .25rem 1.1rem}
+.vv-note-box.p{border-left-color:var(--purple)}
+.vv-note-h{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem}
+.vv-note-t{font-size:.875rem;color:rgba(255,255,255,0.6);line-height:1.7}
+@media (max-width:860px){.vv-cycle{grid-template-columns:1fr}.vv-step:not(:last-child)::after{content:'▼';right:auto;left:50%;top:auto;bottom:-.95rem;transform:translateX(-50%);font-size:.8rem}}
+@media (max-width:760px){.vv-prs,.vv-note{grid-template-columns:1fr}.vv-wrap{padding:2.25rem 1rem 3rem}}
 @media print{#panel-principles{height:auto;overflow:visible}}
 </style>
-<div class="cp-wrap">
-  <header class="cp-head">
-    <h1 class="cp-title">Our Core Principles</h1>
-    <p class="cp-sub">Skill gets you to 80%. These five principles are the last 20%, and that's where the real value lives. We hire for them, coach to them, and hold each other to them.</p>
-  </header>
+<div class="vv-wrap">
 
-  <div class="cp-roof">
-    <div class="cp-roof-title">Achievement and Fulfillment</div>
-    <div class="cp-roof-sub">The natural by-product when all five principles are present</div>
+  <section>
+    <div class="vv-eyebrow">Why we started</div>
+    <h1 class="vv-h1">Built for the Tradesman.</h1>
+    <div class="vv-sub">Great tradesmen are the cause. A better-served world is the by-product.</div>
+    <p class="vv-why" style="margin-top:1.5rem">Alpine began as a way for two tradesmen to earn freedom through purposeful work the world needs. The money was never the point. It was the proof. Every hard problem in this trade is a chance to get better, and every time you get better you become rarer and more valuable. That cycle is what this company exists to protect.</p>
+  </section>
+
+  <section>
+    <div class="vv-eyebrow">The Alpine Cycle</div>
+    <div class="vv-cycle">
+      <div class="vv-step"><div class="vv-step-n">01</div><div class="vv-step-t">Grit</div><div class="vv-step-d">Meaningful over easy</div></div>
+      <div class="vv-step"><div class="vv-step-n">02</div><div class="vv-step-t">Relentless Growth</div><div class="vv-step-d">Every call makes you better</div></div>
+      <div class="vv-step"><div class="vv-step-n">03</div><div class="vv-step-t">Rare Value</div><div class="vv-step-d">Skill the market can't find</div></div>
+      <div class="vv-step"><div class="vv-step-n">04</div><div class="vv-step-t">Unified Team</div><div class="vv-step-d">= Purpose, Contribution, Excellence</div></div>
+      <div class="vv-step end"><div class="vv-step-n">05</div><div class="vv-step-t">Service the World Needs</div><div class="vv-step-d">The by-product of all of it</div></div>
+    </div>
+  </section>
+
+  <section class="vv-vision">
+    <div class="vv-eyebrow">Our Vision</div>
+    <p class="vv-vision-t">Build the place where tradesmen become great, find their purpose, and provide a service the world desperately needs.</p>
+  </section>
+
+  <section>
+    <div class="vv-pr-head">
+      <h2 class="vv-pr-title">Who We Are: Core Principles</h2>
+      <div class="vv-pr-note">Non-negotiable at every level</div>
+    </div>
+    <div class="vv-prs">
+      <div class="vv-pr"><div class="vv-pr-n">01</div><div><div class="vv-pr-name">Grit</div><div class="vv-pr-desc">We choose meaningful over easy. When the call gets hard, we stay on it until it's right.</div><div class="vv-pr-tag">Powers: Grit</div></div></div>
+      <div class="vv-pr"><div class="vv-pr-n">02</div><div><div class="vv-pr-name">Relentlessness</div><div class="vv-pr-desc">We're never done getting better. We chase feedback, own our mistakes, and act on both.</div><div class="vv-pr-tag">Powers: Relentless Growth</div></div></div>
+      <div class="vv-pr"><div class="vv-pr-n">03</div><div><div class="vv-pr-name">Contribution</div><div class="vv-pr-desc">We make everyone around us better. We teach what we know, carry our share, and put the team's win ahead of our own credit.</div><div class="vv-pr-tag">Powers: Unified Team</div></div></div>
+      <div class="vv-pr"><div class="vv-pr-n">04</div><div><div class="vv-pr-name">Purpose-filled</div><div class="vv-pr-desc">We know why the work matters beyond the paycheque, and it shows in how we leave every job.</div><div class="vv-pr-tag">Powers: Service the World Needs</div></div></div>
+    </div>
+    <div class="vv-80">Skill gets you to 80%. These four are the last 20%.</div>
+  </section>
+
+  <div class="vv-note">
+    <div class="vv-note-box"><div class="vv-note-h">In hiring</div><div class="vv-note-t">Every interview opens with these four. If any one is a no, it's a no-hire, no matter how strong the technical skill.</div></div>
+    <div class="vv-note-box p"><div class="vv-note-h">When it doesn't fit</div><div class="vv-note-t">We address gaps directly and early, never by quiet firing. If a gap can't close, we name it honestly and help the person find the place where they will thrive.</div></div>
   </div>
 
-  <div class="cp-pillars">
-    <section class="cp-pillar ach">
-      <div class="cp-p-name">Achievement</div>
-      <div class="cp-p-tag">The science of it</div>
-      <div class="cp-pr"><div class="cp-pr-name">Hungry to Grow</div><div class="cp-pr-desc">You ask for feedback, take it without defending yourself, and visibly act on it.</div></div>
-      <div class="cp-pr"><div class="cp-pr-name">Grit</div><div class="cp-pr-desc">You choose what's meaningful over what's easy, and accept short-term discomfort for the team and the mission.</div></div>
-    </section>
-    <section class="cp-pillar ful">
-      <div class="cp-p-name">Fulfillment</div>
-      <div class="cp-p-tag">The art of it</div>
-      <div class="cp-pr"><div class="cp-pr-name">Own Your Impact</div><div class="cp-pr-desc">You see the value you deliver to customers, teammates, and the business. The work means something to you beyond the paycheque.</div></div>
-    </section>
-    <section class="cp-pillar tru">
-      <div class="cp-p-name">Trust</div>
-      <div class="cp-p-tag">The bond of the team</div>
-      <div class="cp-pr"><div class="cp-pr-name">Earned Trust</div><div class="cp-pr-desc">You do what you say and tell the truth when it's uncomfortable. Sincere candour goes both ways.</div></div>
-      <div class="cp-pr"><div class="cp-pr-name">Win Together</div><div class="cp-pr-desc">Team outcomes come before personal comfort or credit. You make the people around you better.</div></div>
-    </section>
-  </div>
-
-  <div class="cp-base">
-    <div class="cp-base-title">Task Competence</div>
-    <div class="cp-base-sub">The foundation. It gets a person to 80%.</div>
-  </div>
-
-  <div class="cp-note">
-    <div class="cp-note-box"><div class="cp-note-h">In hiring</div><div class="cp-note-t">Every interview opens with these five. If any one is a no, it's a no-hire, no matter how strong the technical skill.</div></div>
-    <div class="cp-note-box p"><div class="cp-note-h">When it doesn't fit</div><div class="cp-note-t">We address gaps directly and early, never by quiet firing. If a gap can't close, we name it honestly and help the person find the place where they will thrive.</div></div>
-  </div>
 </div>
 </div><!-- end panel-principles -->
 
