@@ -113,7 +113,15 @@ $("reset-link").addEventListener("click", async e => {
   e.preventDefault();
   const email = $("username").value.trim().toLowerCase();
   if (!email) { showErr("Enter your work email above, then click Set or reset my password."); $("username").focus(); return; }
-  try { await sendPasswordResetEmail(auth, email); } catch (err) { /* same message either way */ }
+  try { await sendPasswordResetEmail(auth, email); }
+  catch (err) {
+    // Unknown emails still get the neutral message below; only real failures are shown.
+    const code = err && err.code;
+    if (code === "auth/invalid-email") { showErr("That email address isn't valid. Use your full @alpinehvac.ca address."); return; }
+    if (code === "auth/too-many-requests") { showErr("Too many reset requests. Wait 15 minutes, then try once more."); return; }
+    if (code === "auth/network-request-failed") { showErr("No connection. Check your internet and try again."); return; }
+    if (code && code !== "auth/user-not-found") { showErr("Reset email couldn't be sent (" + code + "). Ask Jake to send it from Firebase."); return; }
+  }
   showInfo("If " + email + " has a portal account, a link to set your password is on its way. Check junk mail if it isn't in your inbox within a few minutes.");
 });
 </script>

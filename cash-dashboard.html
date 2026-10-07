@@ -175,6 +175,21 @@ tr.detail td{background:rgba(16,68,78,0.028);text-align:left;padding:.9rem 1rem 
 .warnbox{border:1px solid rgba(224,112,94,0.4);background:rgba(224,112,94,0.08);border-radius:8px;padding:.8rem 1rem;font-size:.86rem;margin-top:1rem;color:#B83227}
 .levers{list-style:decimal;padding-left:1.2rem;font-size:.88rem;color:rgba(16,68,78,0.92);margin-top:.6rem}
 .levers li{padding:.2rem 0}
+.mix-grid{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:1.25rem;align-items:start}
+.mix-pie svg{min-width:0!important;max-width:280px;margin:0 auto}
+.mix-row{display:grid;grid-template-columns:1fr auto 4rem;gap:1rem;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.9rem;cursor:pointer}
+.mix-row span:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
+.mix-row i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:8px;vertical-align:-1px}
+.mix-items{display:none;padding:.2rem 0 .5rem 1.4rem}
+.mix-items.open{display:block}
+.mix-items .kv{font-size:.82rem;color:var(--light-grey);padding:.3rem 0}
+.mix-total{display:grid;grid-template-columns:1fr auto 4rem;gap:1rem;padding:.7rem 0 0;font-weight:600;font-size:.9rem}
+.mix-total span:nth-child(n+2){text-align:right}
+.fillbar{height:10px;background:rgba(16,68,78,0.08);border-radius:5px;position:relative;margin:.5rem 0 .2rem;overflow:hidden}
+.fillbar b{position:absolute;left:0;top:0;bottom:0;background:var(--teal);border-radius:5px}
+.fillbar u{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--amber)}
+#alloc-table td,#alloc-table th{white-space:nowrap}
+@media (max-width:700px){.mix-grid{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -260,6 +275,32 @@ tr.detail td{background:rgba(16,68,78,0.028);text-align:left;padding:.9rem 1rem 
     <div class="health" id="profit-cards" style="margin-bottom:1.25rem"></div>
     <div class="chart-box"><div class="chart-scroll"><svg id="profit-chart" viewBox="0 0 1000 320" role="img" aria-label="Weekly profit"></svg></div>
       <div class="legend"><span><i style="background:rgba(16,68,78,0.585)"></i>Actual (QuickBooks, monthly spread weekly)</span><span><i style="background:#2E7D57"></i>Projected profit</span><span><i style="background:#B83227"></i>Projected loss</span></div></div>
+
+    <div id="mix-wrap" style="display:none;margin-top:2.25rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap">
+        <div><h2 style="margin-bottom:.2rem">Where revenue goes</h2><p class="h2-note" id="mix-note" style="margin:0"></p></div>
+        <div class="phases" id="mix-basis" style="grid-template-columns:repeat(2,auto)">
+          <button class="phase on p0" data-b="billed" style="border:none;cursor:pointer;font:inherit;font-size:.78rem;padding:.45rem .8rem">As billed</button>
+          <button class="phase" data-b="earned" style="border:none;cursor:pointer;font:inherit;font-size:.78rem;padding:.45rem .8rem">As earned</button>
+        </div>
+      </div>
+      <div class="mix-grid" style="margin-top:1rem">
+        <div class="chart-box mix-pie"><svg id="mix-pie" viewBox="0 0 260 260" role="img" aria-label="Share of revenue by sector"></svg></div>
+        <div class="panel" id="mix-legend"></div>
+      </div>
+      <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Trend: last quarter, this month so far, and projected</h4>
+      <div class="chart-box"><div class="chart-scroll"><svg id="mix-trend" viewBox="0 0 1000 340" role="img" aria-label="Revenue by sector, month by month"></svg></div>
+        <div class="legend" id="mix-trend-legend"></div></div>
+      <div class="table-wrap" style="margin-top:1rem"><table id="mix-q"></table></div>
+    </div>
+
+    <div id="alloc-wrap" style="display:none;margin-top:2.25rem">
+      <h2>Profit allocation plan (FY2027)</h2>
+      <p class="h2-note" id="alloc-note"></p>
+      <div class="health" id="alloc-cards" style="margin:1rem 0 1.25rem"></div>
+      <div class="table-wrap"><table id="alloc-table"></table></div>
+      <ol class="assume" id="alloc-rules" style="margin-top:1rem"></ol>
+    </div>
     <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Profit as billed vs as earned</h4>
     <div class="table-wrap"><table id="pvb"></table></div>
     <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Largest earned-but-not-billed jobs</h4>
@@ -342,6 +383,168 @@ const dLong=s=>d(s).toLocaleDateString("en-CA",{weekday:"short",month:"short",da
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const dot=l=>`<span class="h-status" style="background:var(--${l})"></span>`;
 const kv=(a,b,cls="")=>`<div class="kv ${cls}"><span>${a}</span><span>${b}</span></div>`;
+
+// ── Where revenue goes + profit allocation plan ─────────────────────
+// Needs DATA.profitMix (written by the daily refresh) and DATA.profit.
+// Sectors: direct, indirect, owner (incl. $5K/owner/month policy dividends), growth; remainder = profit (RE).
+const MIX_SECT=[["direct","Direct expenses","#10444E"],["indirect","Indirect expenses","#3D818A"],["owner","Owner benefits","#6C5D8D"],["growth","Growth","#A9821F"]];
+let MIX_BASIS="billed";
+const ymOf=dt=>dt.toISOString().slice(0,7);
+const monthName=ym=>new Date(ym+"-15T12:00:00").toLocaleDateString("en-CA",{month:"short",year:"numeric"});
+const addDays=(s,n)=>{const x=d(s);x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);};
+
+// Projected month totals by sector from the weekly profit projection.
+function mixProjection(){
+  const M=DATA.profitMix, P=DATA.profit, fw=M.fixedWeekly||{}, fsum=sum(fw)||1, polDay=(M.policyDividendsMonthly||10000)*12/365;
+  const after=(M.mtd&&M.mtd.through)||DATA.asOf, months={};
+  P.future.forEach(w=>{
+    const earned=w.revenue, billed=w.revenue-(w.jobsEarned||0)+(w.jobsBilled||0);
+    for(let k=0;k<7;k++){
+      const day=addDays(w.week,k); if(day<=after) continue;
+      const ym=day.slice(0,7), m=months[ym]=months[ym]||{earned:0,billed:0,direct:0,indirect:0,owner:0,growth:0,days:0};
+      m.days++; m.earned+=earned/7; m.billed+=billed/7;
+      m.direct+=(w.variable+w.fixed*(fw.direct||0)/fsum)/7;
+      m.indirect+=w.fixed*(fw.indirect||0)/fsum/7;
+      m.owner+=w.fixed*(fw.owner||0)/fsum/7+polDay;
+      m.growth+=w.fixed*(fw.growth||0)/fsum/7;
+    }
+  });
+  return months;
+}
+
+// Month rows for the trend: last quarter actual, current month (MTD actual + rest projected), later months projected.
+function mixMonths(){
+  const M=DATA.profitMix, proj=mixProjection(), rows=[];
+  (M.months||[]).forEach(m=>rows.push({ym:m.month,kind:"actual",revB:m.revenue,revE:m.revenue,direct:m.direct,indirect:m.indirect,owner:m.owner,growth:m.growth}));
+  const cur=M.mtd&&M.mtd.month;
+  Object.keys(proj).sort().forEach(ym=>{
+    const p=proj[ym]; if(p.days<5&&ym!==cur) return;           // skip a stub month at the end of the window
+    const a=(ym===cur&&M.mtd)?M.mtd:{revenue:0,direct:0,indirect:0,owner:0,growth:0};
+    rows.push({ym,kind:ym===cur?"current":"projected",partial:p.days<20&&ym!==cur,mtdRev:a.revenue,
+      revB:a.revenue+p.billed,revE:a.revenue+p.earned,direct:a.direct+p.direct,indirect:a.indirect+p.indirect,owner:a.owner+p.owner,growth:a.growth+p.growth});
+  });
+  rows.forEach(r=>{const c=r.direct+r.indirect+r.owner+r.growth;r.cost=c;r.profB=r.revB-c;r.profE=r.revE-c;});
+  return rows;
+}
+
+function renderMix(){
+  const M=DATA.profitMix, Q=(DATA.profit||{}).pastQuarter||{};
+  if(!M){return;}
+  document.getElementById("mix-wrap").style.display="";
+  const enb=(M.earnedNotBilled!=null?M.earnedNotBilled:Q.earnedNotBilled)||0;
+  const tot={}; MIX_SECT.forEach(([k])=>tot[k]=(M.months||[]).reduce((a,m)=>a+m[k],0));
+  const revB=(M.months||[]).reduce((a,m)=>a+m.revenue,0), rev=MIX_BASIS==="earned"?revB+enb:revB;
+  const cost=sum(tot), prof=rev-cost;
+  document.getElementById("mix-note").textContent=MIX_BASIS==="earned"
+    ?`${M.label}, as earned: QuickBooks revenue plus ${fmt(enb)} of work done but not yet billed at quarter-end (assumes little was unbilled at the start of the quarter). Costs are the same in both views.`
+    :`${M.label}, QuickBooks as billed. Owner benefits use the $5K per owner per month dividend policy, not dividends as recorded. Tap a sector for its accounts.`;
+  // Donut: share of revenue; if costs exceed revenue, slices are shares of total spend.
+  const svg=document.getElementById("mix-pie"), cx=130, cy=130, r0=118, r1=74, base=Math.max(rev,cost);
+  const segs=MIX_SECT.map(([k,l,c])=>({v:tot[k],c,l})); if(prof>0) segs.push({v:prof,c:"#2E7D57",l:"Remaining profit"});
+  let a0=-Math.PI/2, g="";
+  segs.forEach(sg=>{const a1=a0+2*Math.PI*sg.v/base, big=(a1-a0)>Math.PI?1:0, p=(r,a)=>`${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}`;
+    if(sg.v>0) g+=`<path d="M${p(r0,a0)} A${r0} ${r0} 0 ${big} 1 ${p(r0,a1)} L${p(r1,a1)} A${r1} ${r1} 0 ${big} 0 ${p(r1,a0)} Z" fill="${sg.c}"><title>${sg.l}: ${fmt(sg.v)} (${pct(sg.v/rev*100,1)} of revenue)</title></path>`; a0=a1;});
+  g+=`<text x="${cx}" y="${cy-8}" text-anchor="middle" font-family="Oswald" font-size="24" font-weight="600" fill="${prof<0?"#B83227":"#2E7D57"}">${pct(prof/rev*100,1)}</text><text x="${cx}" y="${cy+14}" text-anchor="middle" font-family="Inter" font-size="11" fill="#5A7A80">remaining profit</text><text x="${cx}" y="${cy+30}" text-anchor="middle" font-family="Inter" font-size="11" fill="#5A7A80">${fmtK(prof)}</text>`;
+  svg.innerHTML=g;
+  const items=M.items||{};
+  document.getElementById("mix-legend").innerHTML=MIX_SECT.map(([k,l,c])=>`<div class="mix-row" data-k="${k}"><span><i style="background:${c}"></i>${l} <span style="color:var(--light-grey);font-size:.75rem">▾</span></span><span>${fmt(tot[k])}</span><span>${pct(tot[k]/rev*100,1)}</span></div><div class="mix-items" id="mix-items-${k}">${(items[k]||[]).map(it=>kv(esc(it[0]),fmt(it[1]))).join("")}</div>`).join("")
+    +`<div class="mix-row" style="cursor:default"><span><i style="background:${prof<0?"#B83227":"#2E7D57"}"></i>Remaining profit (RE)</span><span class="${prof<0?"down":""}">${fmt(prof)}</span><span class="${prof<0?"down":""}">${pct(prof/rev*100,1)}</span></div>`
+    +`<div class="mix-total"><span>Revenue (${MIX_BASIS==="earned"?"as earned":"as billed"})</span><span>${fmt(rev)}</span><span>100%</span></div>`
+    +(prof<0?`<p class="h2-note" style="margin-top:.6rem">Costs were more than revenue, so the ring shows each sector's share of total spend.</p>`:"");
+  document.querySelectorAll("#mix-legend .mix-row[data-k]").forEach(el=>el.onclick=()=>document.getElementById("mix-items-"+el.dataset.k).classList.toggle("open"));
+
+  // Trend chart: stacked sector bars per month (as % of revenue), remaining profit on top or below zero.
+  const rows=mixMonths(), E=MIX_BASIS==="earned";
+  const W=1000,L=60,R=20,T=24,H=250,n=rows.length,st=(W-L-R)/n,x=i=>L+st*(i+.5);
+  const pr=rows.map(r=>{const rv=E?r.revE:r.revB;return {...r,rv,pf:rv-r.cost};});
+  const mxP=Math.max(105,...pr.map(r=>r.rv>0?(Math.max(r.cost,r.rv)/r.rv*100):100)), mnP=Math.min(0,...pr.map(r=>r.rv>0?r.pf/r.rv*100:0));
+  const y=v=>T+H*(mxP-v)/(mxP-mnP);
+  let t="";[0,25,50,75,100].forEach(v=>{t+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(16,68,78,${v===0||v===100?0.25:0.06})"/><text x="${L-8}" y="${y(v)+4}" fill="#5A7A80" font-size="11" text-anchor="end" font-family="Inter">${v}%</text>`;});
+  const iNow=pr.findIndex(r=>r.kind!=="actual");
+  if(iNow>0) t+=`<line x1="${x(iNow)-st/2}" x2="${x(iNow)-st/2}" y1="${T-10}" y2="${T+H}" stroke="rgba(16,68,78,0.42)" stroke-dasharray="3 4"/><text x="${x(iNow)-st/2+6}" y="${T-2}" fill="#5A7A80" font-size="11" font-family="Inter">TODAY</text>`;
+  pr.forEach((r,i)=>{
+    const op=r.kind==="actual"?1:r.kind==="current"?0.8:0.5, bw=st*.5; let acc=0;
+    if(r.rv<=0) return;
+    MIX_SECT.forEach(([k,l,c])=>{const v=r[k]/r.rv*100;t+=`<rect x="${x(i)-bw/2}" y="${y(acc+v)}" width="${bw}" height="${Math.max(0,y(acc)-y(acc+v))}" fill="${c}" opacity="${op}"><title>${monthName(r.ym)} · ${l}: ${fmt(r[k])} (${pct(v,1)})</title></rect>`;acc+=v;});
+    const pv=r.pf/r.rv*100;
+    if(pv>=0) t+=`<rect x="${x(i)-bw/2}" y="${y(acc+pv)}" width="${bw}" height="${y(acc)-y(acc+pv)}" fill="#2E7D57" opacity="${op}"><title>${monthName(r.ym)} · Remaining profit: ${fmt(r.pf)} (${pct(pv,1)})</title></rect>`;
+    else t+=`<rect x="${x(i)-bw/2}" y="${y(0)}" width="${bw}" height="${y(pv)-y(0)}" fill="#B83227" opacity="${op}"><title>${monthName(r.ym)} · Loss: ${fmt(r.pf)} (${pct(pv,1)}). Costs ran past revenue.</title></rect>`;
+    t+=`<text x="${x(i)}" y="${T+H+18}" fill="#10444E" font-size="12" text-anchor="middle" font-family="Inter">${monthName(r.ym)}${r.partial?"*":""}</text>`
+      +`<text x="${x(i)}" y="${T+H+34}" fill="#5A7A80" font-size="11" text-anchor="middle" font-family="Inter">${r.kind==="actual"?"actual":r.kind==="current"?"MTD "+fmtK(r.mtdRev)+" + proj.":"projected"} · ${fmtK(r.rv)}</text>`
+      +`<text x="${x(i)}" y="${Math.min(y(Math.max(acc+Math.max(pv,0),100)),y(acc+Math.max(pv,0)))-6}" fill="${pv<0?"#B83227":"#2E7D57"}" font-size="12" font-weight="600" text-anchor="middle" font-family="Inter">${pct(pv,1)}</text>`;
+  });
+  document.getElementById("mix-trend").innerHTML=t;
+  document.getElementById("mix-trend-legend").innerHTML=MIX_SECT.map(([k,l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join("")+`<span><i style="background:#2E7D57"></i>Remaining profit</span><span><i style="background:#B83227"></i>Loss</span><span>Faded = projected${pr.some(r=>r.partial)?" · * part month at the end of the forecast window":""}</span>`
+    +(E?`<span>Past months are QuickBooks as billed; earned-basis history starts building from this refresh.</span>`:"");
+
+  // Quarter comparison: last quarter vs this quarter (actual so far + projected).
+  const qOf=ym=>{const [yy,mm]=ym.split("-").map(Number);return yy+"-Q"+Math.ceil(mm/3);};
+  const lastQ=pr.filter(r=>r.kind==="actual"), curQk=pr.find(r=>r.kind==="current")?qOf(pr.find(r=>r.kind==="current").ym):null;
+  const thisQ=pr.filter(r=>r.kind!=="actual"&&qOf(r.ym)===curQk);
+  const agg=rs=>{const o={rv:0,cost:0};MIX_SECT.forEach(([k])=>o[k]=0);rs.forEach(r=>{o.rv+=r.rv;o.cost+=r.cost;MIX_SECT.forEach(([k])=>o[k]+=r[k]);});o.pf=o.rv-o.cost;return o;};
+  const A_=agg(lastQ), B_=agg(thisQ); if(E){A_.rv+=enb;A_.pf+=enb;}
+  const cell=(o,k)=>o.rv?`${fmt(o[k])} <span style="color:var(--light-grey)">· ${pct(o[k]/o.rv*100,1)}</span>`:"—";
+  const chg=k=>{if(!A_.rv||!B_.rv)return"";let dlt=B_[k]/B_.rv*100-A_[k]/A_.rv*100; if(Math.abs(dlt)<0.05)dlt=0; const good=k==="pf"?dlt>=0:dlt<=0;return `<span class="${Math.abs(dlt)<0.5?"flat":good?"up":"down"}">${dlt>=0?"+":""}${dlt.toFixed(1)} pts</span>`;};
+  document.getElementById("mix-q").innerHTML=`<thead><tr><th>Sector</th><th>${esc(M.label)} (actual${E?", incl. "+fmtK(enb)+" unbilled at quarter-end":""})</th><th>This quarter (actual to date + projected)</th><th>Change in share</th></tr></thead><tbody>`
+    +MIX_SECT.map(([k,l])=>`<tr><td>${l}</td><td>${cell(A_,k)}</td><td>${cell(B_,k)}</td><td>${chg(k)}</td></tr>`).join("")
+    +`<tr><td><b>Remaining profit (RE)</b></td><td><b class="${A_.pf<0?"down":""}">${cell(A_,"pf")}</b></td><td><b class="${B_.pf<0?"down":""}">${cell(B_,"pf")}</b></td><td>${chg("pf")}</td></tr>`
+    +`<tr><td>Revenue (${E?"as earned":"as billed"})</td><td>${fmt(A_.rv)}</td><td>${fmt(B_.rv)}</td><td></td></tr></tbody>`;
+  renderAlloc(rows);
+}
+
+// Waterfall each month: 1) extra owner dividends (fixed), 2) retained earnings until operating cash reaches
+// 8 weeks of core burn, 3) marketing. Released only from billed profit, on the week that month's invoices are
+// expected to be collected, and only if operating cash stays above the 4-week floor (8-week target for marketing)
+// for every later week of the forecast.
+function renderAlloc(rows){
+  const M=DATA.profitMix, A=DATA.accounts, burn=DATA.burn, floor=4*burn, target=8*burn;
+  document.getElementById("alloc-wrap").style.display="";
+  const opCash=A.operating.reduce((s,a)=>s+a[1],0), extra=M.extraDividendsMonthly!=null?M.extraDividendsMonthly:10000;
+  let bal=opCash; const committed=DATA.weeks.map(w=>(bal+=sum(w.in)-sum(w.out)));
+  const closes=(DATA.upside&&DATA.upside.length===committed.length)?DATA.upside:committed;
+  const W0=DATA.weeks[0].start, dtp=Math.round((DATA.ar&&DATA.ar.daysToPay)||30);
+  const wkIdx=s=>Math.floor((d(s)-d(W0))/864e5/7);
+  const released=new Array(closes.length).fill(0);            // cumulative cash paid out (dividends + marketing) by week
+  const minAfter=(k,adj)=>{let m=Infinity;for(let j=k;j<closes.length;j++)m=Math.min(m,closes[j]-released[j]-adj);return m;};
+  const plan=rows.filter(r=>r.kind!=="actual").map(r=>{
+    const end=new Date(r.ym+"-01T12:00:00");end.setMonth(end.getMonth()+1);end.setDate(0);
+    const rel=new Date(end);rel.setDate(rel.getDate()+dtp);while(rel.getDay()!==5)rel.setDate(rel.getDate()+1);
+    const relS=rel.toISOString().slice(0,10), k=wkIdx(relS), inWin=k>=0&&k<closes.length;
+    const avail=Math.max(0,Math.min(r.profB,r.profE)); let div=0,re=0,mkt=0,status;
+    if(avail<=0){status=r.profB<=0?"No billed profit to release":"Billed ahead of the work (deposits): nothing released until the work is done";}
+    else if(!inWin){div=Math.min(extra,avail);re=avail-div;status="Estimate: collection falls after the 13-week forecast; cash check runs once it's inside the window";}
+    else{
+      const room=Math.max(0,minAfter(k,0)-floor), ok=Math.min(avail,room);
+      div=Math.min(extra,ok); const rest=avail-div;
+      const roomT=Math.max(0,minAfter(k,div)-target); mkt=Math.min(Math.max(0,ok-div),roomT); re=rest-mkt;
+      for(let j=k;j<closes.length;j++)released[j]+=div+mkt;
+      status=ok<avail&&div<extra?`Held: paying more would drop cash below the 4-week floor (${fmtK(floor)})`:mkt>0?"Released":rest>0?"Released; remainder stays in operating cash (RE)":"Released";
+    }
+    return {...r,relS,inWin,avail,div,re,mkt,status};
+  });
+  const cov=opCash/burn, gap=Math.max(0,target-opCash);
+  const totDiv=plan.reduce((a,p)=>a+p.div,0), totRe=plan.reduce((a,p)=>a+p.re,0), totM=plan.reduce((a,p)=>a+p.mkt,0);
+  document.getElementById("alloc-note").textContent=`Order each month: 1) extra owner dividends, fixed at ${fmt(extra)}/month (${fmtK(extra/2).replace('.0K','K')} each), 2) retained earnings until operating cash covers 8 weeks of core burn, 3) marketing. Money is released only from profit that is both billed and earned (the lower of the two), in the week that month's invoices are expected to be collected (month-end + ${dtp} days average to get paid), and only if cash stays above the floor in every later week. Core burn is ${fmt(burn)}/week today, so targets move with it automatically.`;
+  document.getElementById("alloc-cards").innerHTML=`
+    <div class="h-card"><div class="h-label">Extra owner dividends (this forecast)</div><div class="h-value">${fmt(totDiv)}</div><div class="h-foot">Target ${fmt(extra)}/month on top of the base $5K per owner.</div></div>
+    <div class="h-card"><div class="h-label">Retained earnings: ${cov.toFixed(1)} of 8 weeks covered</div><div class="h-value">${fmt(opCash)}</div>
+      <div class="fillbar"><b style="width:${Math.min(100,Math.max(0,cov/8*100))}%"></b><u style="left:50%"></u></div>
+      <div class="h-foot">Operating cash today. Floor ${fmtK(floor)} (4 weeks, amber mark), target ${fmtK(target)} (8 weeks). ${gap>0?fmt(gap)+" to go.":"Target reached; extra profit goes to marketing."} Profit kept as retained earnings in this forecast: ${fmt(totRe)}.</div></div>
+    <div class="h-card"><div class="h-label">Marketing (this forecast)</div><div class="h-value">${fmt(totM)}</div><div class="h-foot">${totM>0?"Available once the retained earnings target is held.":"Starts once operating cash stays above the 8-week target ("+fmtK(target)+")."}</div></div>`;
+  document.getElementById("alloc-table").innerHTML=`<thead><tr><th>Profit month</th><th>Remaining profit as billed</th><th>As earned</th><th>Releasable</th><th>Cash expected</th><th>Extra dividends</th><th>Retained earnings</th><th>Marketing</th><th style="text-align:left">Status</th></tr></thead><tbody>`
+    +plan.map(p=>`<tr><td>${monthName(p.ym)}${p.kind==="current"?" (MTD + proj.)":p.partial?"*":""}</td><td class="${p.profB<0?"down":""}">${fmt(p.profB)}</td><td class="${p.profE<0?"down":""}">${fmt(p.profE)}</td><td>${fmt(p.avail)}</td><td>${dShort(p.relS)}</td><td>${fmt(p.div)}</td><td>${fmt(p.re)}</td><td>${fmt(p.mkt)}</td><td style="text-align:left;white-space:normal;min-width:16rem">${esc(p.status)}</td></tr>`).join("")
+    +`</tbody>`;
+  document.getElementById("alloc-rules").innerHTML=[
+    "Remaining profit is after the base $5K per owner per month, so the $10K extra is on top of that.",
+    "Releasable is the lower of billed and earned profit: work done but not yet invoiced can't be paid out, and deposits billed ahead of the work aren't profit yet. Each catches up as jobs are invoiced and completed.",
+    "The cash check uses the forecast line with expected service work, the same assumption as the profit projection. Every refresh re-runs this plan on the latest numbers, so amounts move as jobs, billings and burn change.",
+    "Retained earnings isn't a transfer: it's profit left in operating cash. Marketing starts only when cash would stay above the 8-week target after the spend.",
+    "Tractor loan payments come out of the owners' $5K and are not counted as a business cost or in core burn."
+  ].map(x=>`<li>${esc(x)}</li>`).join("");
+}
+document.addEventListener("click",e=>{const b=e.target.closest("#mix-basis .phase");if(!b)return;
+  MIX_BASIS=b.dataset.b;document.querySelectorAll("#mix-basis .phase").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll("#mix-basis .phase").forEach(x=>x.classList.toggle("p0",x===b));renderMix();});
 
 function render(){
   const A=DATA.accounts, burn=DATA.burn, floor=4*burn, target=8*burn;
@@ -497,6 +700,7 @@ function render(){
     document.getElementById("pvb").innerHTML=`<thead><tr><th>Period</th><th>As billed (QuickBooks basis)</th><th>As earned (percent complete)</th><th>Why they differ</th></tr></thead><tbody>
       <tr><td>${esc(Q.label||"Last 13 weeks")}</td><td>${fmt(Q.adjustedNet)}</td><td>~${fmt(pastEarned)}</td><td style="text-align:left">${fmt(Q.earnedNotBilled)} of work done but not billed by quarter-end. Estimate assumes little was unbilled at the start of the quarter.</td></tr>
       <tr><td>Next 13 weeks (projected)</td><td>${fmt(fb)}</td><td>${fmt(fp)}</td><td style="text-align:left">Job billings ${fmt(jB)} vs work done ${fmt(jE)}: catching up on unbilled work, plus deposits and equipment billings (mainly 21 Hunter) billed ahead of the work.</td></tr></tbody>`;
+    try{ renderMix(); }catch(err){ console.error("Revenue mix/allocation render failed",err); }
   }
   renderHealth();
 
