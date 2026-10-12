@@ -85,6 +85,14 @@ service cloud.firestore {
       allow read, write: if isSales() || isOps();
     }
 
+    // Building Performance Audits (records) + audit photos (one doc per photo): sales only
+    match /audit_data/{doc=**} {
+      allow read, write: if isSales();
+    }
+    match /audit_photos/{doc=**} {
+      allow read, write: if isSales();
+    }
+
     // Service Agreement Tracker: sales only
     match /service_agreements_data/{doc=**} {
       allow read, write: if isSales();
