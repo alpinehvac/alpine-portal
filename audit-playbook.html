@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit Playbook — Alpine HVAC</title>
+<script src="auth.js"></script>
+<script>apGuard("audit-playbook");</script>
+<style>
+  :root{
+    --teal:#27636C; --teal-dark:#10444E; --purple:#6C5D8D; --purple-dark:#6b5d94;
+    --black:#10444E; --white:#FFFFFF; --paper:#FBFAF8; --line:#e0dcd3; --card:#FAF9F6;
+    --muted:#6b6a66; --tint:#EEF4F4; --ptint:#F1EEF6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--paper);font-family:'Georgia','Iowan Old Style',serif;color:var(--black)}
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px 60px}
+  .back-link{display:inline-flex;gap:6px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);text-decoration:none;margin:18px 0 0}
+  .back-link:hover{color:var(--teal-dark)}
+
+  .header{background:var(--black);color:var(--white);padding:22px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:relative;margin:14px 0 22px}
+  .header::after{content:"";position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--teal) 0%,var(--teal) 60%,var(--purple) 60%,var(--purple) 100%)}
+  .brand-mark{display:flex;align-items:center;gap:10px}
+  .brand-mark svg{width:30px;height:30px;flex-shrink:0}
+  .brand-name{font-family:'Palatino Linotype','Book Antiqua',serif;font-weight:700;letter-spacing:.04em;font-size:15px;text-transform:uppercase}
+  .brand-tagline{font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#cfcac2;margin-top:2px}
+  .title-block{text-align:right}
+  .title-block h1{margin:0;font-size:24px;line-height:1.1}
+  .title-block .sub{font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:#cbbfe6;letter-spacing:.07em;text-transform:uppercase;margin-top:6px}
+
+  /* jump nav */
+  .jump{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:6px}
+  .jump a{font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:.04em;text-decoration:none;color:var(--teal);border:1px solid #cddcdc;background:var(--white);padding:5px 9px;border-radius:14px;white-space:nowrap}
+  .jump a:hover{background:var(--tint)}
+  .jump .tools{margin-left:auto;display:flex;gap:6px}
+  .jump button{font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;color:var(--purple-dark);background:var(--white);border:1px solid #d8d1e6;padding:5px 9px;border-radius:14px;cursor:pointer}
+
+  /* one-liner */
+  .hero{border-left:6px solid var(--purple);background:var(--ptint);padding:16px 20px;margin-bottom:18px}
+  .hero .k{font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--purple-dark);margin-bottom:6px}
+  .hero p{margin:0;font-size:18px;line-height:1.45}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:26px}
+  .tile{border:1px solid var(--line);background:var(--card);padding:14px 16px;border-top:4px solid var(--teal)}
+  .tile.p{border-top-color:var(--purple)}
+  .tile .k{font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+  .tile .v{font-size:22px;font-weight:700;margin:4px 0 2px}
+  .tile .d{font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.45;color:#3d4a4c}
+
+  /* sections */
+  details.sec{border:1px solid var(--line);background:var(--card);margin-bottom:12px;scroll-margin-top:60px}
+  details.sec > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:15px 20px;user-select:none}
+  details.sec > summary::-webkit-details-marker{display:none}
+  details.sec > summary:hover{background:#F5F3EE}
+  .num{font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;color:var(--white);background:var(--teal);min-width:26px;height:26px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center}
+  .sec.p .num{background:var(--purple)}
+  .st{font-size:18px;font-weight:700;flex:1}
+  .who{font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--purple-dark);white-space:nowrap}
+  .chev{font-family:Arial;color:var(--teal);transition:transform .15s}
+  details[open] > summary .chev{transform:rotate(90deg)}
+  .body{padding:4px 22px 20px;font-family:Arial,Helvetica,sans-serif;font-size:13.5px;line-height:1.6;color:#253a3e}
+  .body h3{font-family:'Georgia',serif;font-size:15.5px;color:var(--black);margin:20px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+  .body h4{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--teal);margin:14px 0 4px}
+  .body ol,.body ul{margin:4px 0 10px;padding-left:22px}
+  .body li{margin:2px 0}
+  .body p{margin:6px 0 10px}
+  .goal{background:var(--tint);border-left:4px solid var(--teal);padding:8px 12px;margin:10px 0 12px;font-weight:700;color:var(--teal-dark)}
+  .rule{background:#FFF7E8;border-left:4px solid #C98A1B;padding:8px 12px;margin:10px 0}
+  .say{background:var(--white);border:1px solid #d9e3e3;border-left:4px solid var(--purple);padding:10px 14px;margin:8px 0 12px;font-family:'Georgia',serif;font-size:14.5px;line-height:1.55;color:#22303a}
+  .say .lbl{display:block;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--purple-dark);margin-bottom:4px}
+  .say + .say{margin-top:-4px}
+  table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:12.5px;background:var(--white)}
+  th{background:var(--teal-dark);color:var(--white);text-align:left;padding:7px 9px;font-size:11px;letter-spacing:.04em}
+  td{border-bottom:1px solid #ebe7df;padding:7px 9px;vertical-align:top}
+  tr:nth-child(even) td{background:#FCFBF9}
+  .tblwrap{overflow-x:auto}
+  ul.chk{list-style:none;padding-left:0}
+  ul.chk li{display:flex;gap:8px;align-items:flex-start;padding:3px 0}
+  ul.chk input{margin-top:3px;accent-color:var(--teal)}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;color:#fff}
+  .crit{background:#9B2C2C}.high{background:#C2611F}.mod{background:#B8961B}.low{background:#3F7F55}
+
+  .footer{background:var(--teal-dark);color:#d9e6e4;padding:14px 22px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;letter-spacing:.03em;margin-top:30px}
+  .footer .strong{color:var(--white);font-weight:700}
+
+  @media (max-width:560px){
+    .title-block{text-align:left}.header{flex-direction:column;align-items:flex-start}
+    .who{display:none}.jump .tools{margin-left:0}
+    .body{padding:4px 14px 16px}
+  }
+  @media print{
+    .jump,.back-link{display:none}
+    details.sec{break-inside:auto}
+    details.sec > summary .chev{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<a class="back-link" href="dashboard.html?cat=sales">&larr; Back to Sales</a>
+
+<div class="header">
+  <div class="brand-mark">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="50,10 90,85 65,85 50,55 35,85 10,85" fill="#FFFFFF"/>
+      <polygon points="50,10 68,45 50,55 32,45" fill="#9B8EC4"/>
+    </svg>
+    <div>
+      <div class="brand-name">Alpine</div>
+      <div class="brand-tagline">Hydronics &middot; Controls &middot; Building Systems</div>
+    </div>
+  </div>
+  <div class="title-block">
+    <h1>Zero-Risk Building Performance Audit</h1>
+    <div class="sub">Offer playbook &middot; v1.1 &middot; Oct 2026</div>
+  </div>
+</div>
+
+<nav class="jump" aria-label="Sections">
+  <a href="#s0">Offer</a><a href="#s1">Qualify</a><a href="#s2">Pricing</a><a href="#s3">Flow</a>
+  <a href="#s4">BDR</a><a href="#s5">Pre-Call</a><a href="#s6">Prep</a><a href="#s7">On-Site</a>
+  <a href="#s8">Scorecard</a><a href="#s9">Report</a><a href="#s10">Debrief</a><a href="#s11">Handoff</a><a href="#s12">KPIs</a>
+  <span class="tools"><button type="button" id="openAll">Expand all</button><button type="button" id="closeAll">Collapse all</button></span>
+</nav>
+
+<div class="hero">
+  <div class="k">The one-liner — use it everywhere</div>
+  <p>&ldquo;We tell you exactly what&rsquo;s going to fail, what it&rsquo;ll cost, and what you&rsquo;re wasting &mdash; before it happens. And if you partner with us, the audit is free.&rdquo;</p>
+</div>
+
+<div class="grid">
+  <div class="tile"><div class="k">Audit fee</div><div class="v">$1,500 – $2,500</div><div class="d">Portfolio from $3,500. 10% deposit by credit card at booking, balance due on receipt.</div></div>
+  <div class="tile p"><div class="k">Fee credit</div><div class="v">100% / 45 days</div><div class="d">Full fee credited against year one of a maintenance agreement signed within 45 days of the debrief.</div></div>
+  <div class="tile"><div class="k">Findings guarantee</div><div class="v">3 findings</div><div class="d">Fewer than 3 actionable findings the client agrees are worth acting on = full refund.</div></div>
+  <div class="tile p"><div class="k">Turnaround</div><div class="v">10 + 5 days</div><div class="d">Site visit within 10 business days of booking. Debrief within 5 business days of the visit.</div></div>
+</div>
+
+<!-- ============ 0 ============ -->
+<details class="sec" id="s0" open>
+<summary><span class="num">0</span><span class="st">Offer on One Page</span><span class="who">Everyone</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <h4>What it is</h4>
+  <p>A fixed-fee, on-site assessment of a building&rsquo;s HVAC and BAS that produces a scored risk report and a 12&ndash;24 month prioritized plan with budget ranges, delivered in a debrief meeting that ends with a maintenance proposal.</p>
+  <h4>Who it&rsquo;s for</h4>
+  <p>Property and facility managers of commercial, industrial and institutional buildings with complex HVAC and BAS who are under-served, in the dark, or over-paying with their current contractor.</p>
+  <h4>Zero-risk mechanics</h4>
+  <ol>
+    <li><b>Fee credit:</b> 100% of the audit fee is credited against the first year of an Alpine maintenance agreement signed within 45 days of the debrief.</li>
+    <li><b>Findings guarantee:</b> if the report doesn&rsquo;t contain at least 3 actionable findings the client agrees are worth acting on, the fee is refunded in full, deposit included.</li>
+    <li><b>Ownership:</b> the client keeps the report whether or not they sign. It is useful to them with any contractor.</li>
+  </ol>
+  <h4>Deliverables</h4>
+  <ol>
+    <li>Pre-call (20 min) — qualify the building and decision-maker</li>
+    <li>On-site assessment (2–4 hrs) — HVAC, BAS, energy, comfort, vendor/compliance</li>
+    <li>Building Performance Scorecard (1 page, scored out of 100)</li>
+    <li>CLEAR written report — risk register, photos, 12–24 month plan, budget ranges</li>
+    <li>Debrief meeting (45 min) — walk-through plus maintenance proposal</li>
+  </ol>
+  <h4>Roles</h4>
+  <div class="tblwrap"><table>
+    <tr><th>Role</th><th>Who</th><th>Owns</th></tr>
+    <tr><td>BDR — primary seller</td><td>Natalie</td><td>Sells the idea of the audit and books the pre-call. Never quotes price.</td></tr>
+    <tr><td>Auditor &amp; closer</td><td>Jake</td><td>Pre-call, price + zero-risk terms, on-site audit, debrief, proposal. Holds this role until results are consistent enough to duplicate to a second closer.</td></tr>
+    <tr><td>Estimator</td><td>Cole</td><td>Pre-visit prep, attends site visit, records data and photos, drafts report and proposal.</td></tr>
+    <tr><td>Lead tech</td><td>Automation or service crew</td><td>Technical assessment of equipment and BAS on site.</td></tr>
+    <tr><td>Admin</td><td>Grace</td><td>Scheduling, deposit and balance invoices, customer setup, CRM hygiene, report formatting.</td></tr>
+  </table></div>
+</div>
+</details>
+
+<!-- ============ 1 ============ -->
+<details class="sec" id="s1">
+<summary><span class="num">1</span><span class="st">Qualification Rules</span><span class="who">Natalie &middot; Jake</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="goal">Book an audit only when 4 of the 6 criteria are met.</div>
+  <h4>Qualified</h4>
+  <ol>
+    <li>Commercial, industrial or institutional building (not residential, not a small strip unit with 1–2 RTUs)</li>
+    <li>At least 4 major pieces of HVAC equipment, or a central plant</li>
+    <li>Has a BAS/controls system (any brand, any condition), or is planning one</li>
+    <li>Contact is the decision-maker or can bring the decision-maker to the debrief</li>
+    <li>Current contractor relationship has a pain (cost, visibility, response, trust), or no maintenance contract at all</li>
+    <li>Inside the service area — within 150 km of downtown Hamilton</li>
+  </ol>
+  <h4>Service area rule</h4>
+  <ol>
+    <li><b>Core (Niagara–Hamilton):</b> any qualified building.</li>
+    <li><b>Outer ring (GTA and beyond, up to 150 km):</b> Complex or Portfolio buildings only. The account must justify the travel.</li>
+    <li><b>Over 150 km:</b> do not book.</li>
+  </ol>
+  <h4>Disqualifiers — do not book</h4>
+  <ol>
+    <li>Wants a free quote for a single repair or replacement, no interest in ongoing care</li>
+    <li>Locked into a contract with 12+ months remaining and no pain</li>
+    <li>New construction or large projects (not Alpine&rsquo;s model)</li>
+    <li>Decision-maker refuses to attend the debrief and won&rsquo;t name who decides</li>
+  </ol>
+</div>
+</details>
+
+<!-- ============ 2 ============ -->
+<details class="sec" id="s2">
+<summary><span class="num">2</span><span class="st">Pricing, Deposit &amp; Credit Rules</span><span class="who">Internal</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="tblwrap"><table>
+    <tr><th>Tier</th><th>Building</th><th>Fee</th><th>Deposit (10%)</th></tr>
+    <tr><td>Standard</td><td>Single building, up to ~50,000 sq ft, up to 10 major units</td><td>$1,500</td><td>$150</td></tr>
+    <tr><td>Complex</td><td>50,000–150,000 sq ft, or full BAS / central plant</td><td>$2,500</td><td>$250</td></tr>
+    <tr><td>Portfolio</td><td>Over 150,000 sq ft or multi-building</td><td>From $3,500 (first building at Standard/Complex rate, each added building quoted)</td><td>10% of quoted fee</td></tr>
+  </table></div>
+  <h4>Rules</h4>
+  <ol>
+    <li><b>Deposit:</b> 10% taken by credit card at booking. This registers the client as an Alpine customer in QuickBooks/BuildOps before the site visit.</li>
+    <li><b>Balance:</b> invoiced with the report at the debrief, payment due on receipt.</li>
+    <li><b>Credit window:</b> 45 days from the debrief date. After day 45, no credit without founder approval.</li>
+    <li><b>Credit application:</b> the full fee (deposit + balance) is credited evenly across first-year agreement invoices. Quarterly billing = 25% per invoice. Protects against sign-and-cancel.</li>
+    <li>Credit applies to any tier. If the annual agreement value is less than the audit fee, credit is capped at the annual agreement value.</li>
+    <li><b>Guarantee claim:</b> must be made in writing within 10 business days of the debrief. Refund covers deposit and balance.</li>
+    <li>Repairs and projects found in the audit are quoted separately at agreement rates (Core/Premium $130/hr; Minimum $150/hr). Show the retail rate ($200/hr) beside it.</li>
+    <li>Never discount the audit fee. If price is the blocker, restate the credit or disqualify.</li>
+  </ol>
+</div>
+</details>
+
+<!-- ============ 3 ============ -->
+<details class="sec" id="s3">
+<summary><span class="num">3</span><span class="st">Process Flow &amp; SLAs</span><span class="who">Everyone</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="tblwrap"><table>
+    <tr><th>#</th><th>Stage</th><th>Owner</th><th>Output</th><th>SLA</th></tr>
+    <tr><td>1</td><td>First contact</td><td>Natalie</td><td>Pre-call booked</td><td>Same call / visit</td></tr>
+    <tr><td>2</td><td>Pre-call</td><td>Jake</td><td>Qualified, fee agreed, visit + debrief booked</td><td>Within 3 business days of booking</td></tr>
+    <tr><td>3</td><td>Deposit + prep</td><td>Grace / Cole</td><td>Deposit taken, customer created, prep sheet done</td><td>2 business days before visit</td></tr>
+    <tr><td>4</td><td>Site visit</td><td>Jake + Cole + lead tech</td><td>Field checklist, asset register, photos complete</td><td>Within 10 business days of pre-call</td></tr>
+    <tr><td>5</td><td>Report + proposal</td><td>Cole drafts, Jake reviews</td><td>Scorecard, report, proposal</td><td>3 business days after visit</td></tr>
+    <tr><td>6</td><td>Debrief</td><td>Jake</td><td>Decision or dated next step; balance invoiced</td><td>Within 5 business days of visit</td></tr>
+    <tr><td>7</td><td>Follow-up</td><td>Jake</td><td>Signed agreement or closed-lost</td><td>Days 3, 10, 21, 40 after debrief</td></tr>
+    <tr><td>8</td><td>Handoff</td><td>Mike / Ops</td><td>Onboarding complete</td><td>Portal live ≤3 business days of signing</td></tr>
+  </table></div>
+  <div class="rule"><b>Rule:</b> the debrief date is booked on the pre-call and confirmed at the end of the site visit, before the team leaves the building.</div>
+</div>
+</details>
+
+<!-- ============ 4 ============ -->
+<details class="sec p" id="s4">
+<summary><span class="num">4</span><span class="st">BDR First Contact</span><span class="who">Natalie</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="goal">Sell the idea of the audit. Book a 20-minute pre-call with Jake. Never quote a price.</div>
+
+  <h3>Daily standard</h3>
+  <ol>
+    <li>Days 1–30: 25 logged targeted actions per day (calls, drop-ins, emails, LinkedIn)</li>
+    <li>Days 31–60: 50 logged actions per day, multi-channel cadence</li>
+    <li>Log every action the same day: building, contact, channel, hook used, outcome</li>
+  </ol>
+
+  <h3>Hooks — one offer, three angles</h3>
+  <div class="tblwrap"><table>
+    <tr><th>Hook</th><th>Angle</th><th>Use when</th></tr>
+    <tr><td>A — Risk</td><td>No-surprise HVAC/BAS risk audit</td><td>Older equipment, critical tenants, past breakdowns</td></tr>
+    <tr><td>B — Cost</td><td>Operating cost audit</td><td>Large buildings, high energy bills, BAS not being used</td></tr>
+    <tr><td>C — Vendor</td><td>Contractor check-up</td><td>Big corporate contractor, no visibility, long-tenured vendor</td></tr>
+  </table></div>
+
+  <h3>4.1 Cold call (90 seconds)</h3>
+  <div class="say"><span class="lbl">Opener</span>&ldquo;Hi [Name], it&rsquo;s Natalie from Alpine HVAC &mdash; we&rsquo;re a commercial HVAC and building automation service company here in Niagara&ndash;Hamilton. I&rsquo;ll be quick: I&rsquo;m calling because we do something called a Building Performance Audit for property managers. Can I take 30 seconds to explain, and you tell me if it&rsquo;s relevant?&rdquo;</div>
+  <div class="say"><span class="lbl">Pitch — Hook A (Risk)</span>&ldquo;Most property managers we talk to find out about an equipment problem when a tenant calls. The audit flips that &mdash; we come on site, score every major unit and your controls, and give you a 12-to-24-month plan with budget ranges so nothing catches you by surprise.&rdquo;</div>
+  <div class="say"><span class="lbl">Pitch — Hook B (Cost)</span>&ldquo;Most buildings with a BAS are wasting 10 to 20 percent on HVAC energy because the controls aren&rsquo;t being used properly. The audit finds where &mdash; and gives you a prioritized plan with costs.&rdquo;</div>
+  <div class="say"><span class="lbl">Pitch — Hook C (Vendor)</span>&ldquo;A lot of managers we talk to don&rsquo;t have time to audit their contractor. The audit gives you an independent read on what&rsquo;s actually being maintained &mdash; and what isn&rsquo;t.&rdquo;</div>
+  <div class="say"><span class="lbl">Zero-risk + close</span>&ldquo;Here&rsquo;s why it&rsquo;s zero-risk: if we don&rsquo;t find at least three things worth acting on, you don&rsquo;t pay. And if you decide to work with us afterward, the fee is credited back in full. The first step is a 20-minute call with Jake, our co-founder, to see if your building&rsquo;s a fit. Does [day] at [time] or [day] at [time] work better?&rdquo;</div>
+  <div class="say"><span class="lbl">If they ask price</span>&ldquo;It depends on the building size &mdash; Jake will give you the exact number on the call. What I can tell you is you don&rsquo;t pay if we don&rsquo;t find three things worth fixing, it&rsquo;s fully credited if you work with us, and you keep the report either way.&rdquo;</div>
+
+  <h3>4.2 Voicemail (20 seconds)</h3>
+  <div class="say">&ldquo;Hi [Name], Natalie from Alpine HVAC. We help property managers find HVAC and controls problems before tenants do. I&rsquo;d like to book you a 20-minute call about a building audit &mdash; if we don&rsquo;t find three things worth fixing, you don&rsquo;t pay. I&rsquo;ll send a short email too. [Phone].&rdquo;</div>
+
+  <h3>4.3 Drop-in (door)</h3>
+  <p><b>Bring:</b> one-pager, business card, sample scorecard (redacted).</p>
+  <div class="say">&ldquo;Hi &mdash; I&rsquo;m Natalie with Alpine HVAC. I&rsquo;m not here to sell you anything today. We work with buildings like this one in [area] doing building performance audits. Who looks after the HVAC and controls here?&rdquo;</div>
+  <ol>
+    <li>Decision-maker present → run the cold call pitch (4.1) and book the pre-call on the spot.</li>
+    <li>Not present → get name, email and best time; leave the sample scorecard; log it; email within 2 hours referencing the visit.</li>
+  </ol>
+
+  <h3>4.4 Email sequence (4 touches over 14 days)</h3>
+  <h4>Email 1 — Day 1</h4>
+  <p><b>Subject:</b> A: &ldquo;Surprises at [Building Name]&rdquo; &middot; B: &ldquo;[Building Name] HVAC operating cost&rdquo; &middot; C: &ldquo;Quick question about your HVAC contractor&rdquo;</p>
+  <div class="say">Hi [Name],<br><br>I&rsquo;m Natalie with Alpine HVAC &mdash; commercial HVAC and building automation service in Niagara&ndash;Hamilton.<br><br>[Hook paragraph — see below]<br><br>It&rsquo;s zero-risk: if we don&rsquo;t find at least three things worth acting on, you don&rsquo;t pay. If you choose to work with us, the fee is credited in full, and the report is yours either way.<br><br>Worth a 20-minute call with our co-founder to see if [Building Name] is a fit?<br><br>[Signature]</div>
+  <ol>
+    <li><b>Hook A:</b> &ldquo;Most property managers find out about HVAC problems when a tenant calls. Our Building Performance Audit flips that: we score every major unit and your controls, then give you a 12–24 month plan with budget ranges.&rdquo;</li>
+    <li><b>Hook B:</b> &ldquo;Buildings with a BAS commonly waste 10–20% of HVAC energy because the controls aren&rsquo;t tuned or used. The audit shows you where, and what it&rsquo;s worth fixing.&rdquo;</li>
+    <li><b>Hook C:</b> &ldquo;Most managers don&rsquo;t have time to audit their contractor. The audit gives you an independent read on what&rsquo;s actually being maintained — and what isn&rsquo;t.&rdquo;</li>
+  </ol>
+  <h4>Email 2 — Day 4 · Proof</h4>
+  <div class="say"><b>Subject:</b> What we found at a [similar building type]<br><br>Hi [Name], one example: a facility manager at a dealership had no visibility under his previous contractor. Within one week of starting with us, we&rsquo;d caught major issues ahead of cooling season &mdash; before they became breakdowns. That&rsquo;s what the audit is built to do. 20 minutes this week?</div>
+  <h4>Email 3 — Day 8 · Cost of inaction</h4>
+  <div class="say"><b>Subject:</b> One bad day<br><br>Hi [Name], a restaurant client called us on a stat holiday with 5 of 6 rooftop units down and about $10,000 in revenue at risk. We were on site in 90 minutes. One bad day would have paid for 2&ndash;4 years of maintenance. The audit is how you avoid the bad day. Open to a quick call?</div>
+  <h4>Email 4 — Day 14 · Breakup</h4>
+  <div class="say"><b>Subject:</b> Closing the loop<br><br>Hi [Name], I&rsquo;ll stop reaching out after this one. If HVAC surprises, operating costs or contractor visibility become a priority, reply &ldquo;audit&rdquo; and I&rsquo;ll set up the call. Thanks, Natalie</div>
+
+  <h3>4.5 LinkedIn</h3>
+  <div class="say"><span class="lbl">Connection note</span>&ldquo;Hi [Name] — I work with property managers in Niagara–Hamilton on HVAC and building automation. Would be good to connect.&rdquo;</div>
+  <div class="say"><span class="lbl">After accept</span>&ldquo;Thanks for connecting. We run a Building Performance Audit for buildings like [Building] — scored report plus a 12–24 month plan. If we don&rsquo;t find three things worth fixing, you don&rsquo;t pay. Worth a 20-minute call?&rdquo;</div>
+
+  <h3>4.6 Objections</h3>
+  <ol>
+    <li><b>&ldquo;We already have a contractor.&rdquo;</b> → &ldquo;Most of our clients did too. The audit is an independent second opinion — you keep the report either way. Plenty of managers use it to hold their current vendor accountable.&rdquo;</li>
+    <li><b>&ldquo;Send me some info.&rdquo;</b> → &ldquo;Happy to. The fastest way to know if it&rsquo;s worth your time is 20 minutes with Jake — he&rsquo;ll tell you straight if your building&rsquo;s not a fit. Does [day] work?&rdquo;</li>
+    <li><b>&ldquo;No budget.&rdquo;</b> → &ldquo;Understood. That&rsquo;s why it&rsquo;s zero-risk — no findings, no fee, and it&rsquo;s credited back if you work with us. The report also gives you budget ranges for next year.&rdquo;</li>
+    <li><b>&ldquo;Not the right person.&rdquo;</b> → &ldquo;Who looks after HVAC decisions for the building? I&rsquo;ll reach out directly and mention we spoke.&rdquo;</li>
+    <li><b>&ldquo;How much?&rdquo;</b> → see &ldquo;If they ask price&rdquo; in 4.1.</li>
+  </ol>
+</div>
+</details>
+
+<!-- ============ 5 ============ -->
+<details class="sec" id="s5">
+<summary><span class="num">5</span><span class="st">Pre-Call (20 Minutes)</span><span class="who">Jake</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="goal">Qualify the building and decision-maker, introduce price and zero-risk terms, take the deposit, book the visit and debrief.</div>
+
+  <h4>1. Frame — 1 min</h4>
+  <div class="say">&ldquo;Thanks for making time. Here&rsquo;s what I&rsquo;d like to do: ask a few questions about the building, tell you how the audit works and what it costs, and if it&rsquo;s a fit we&rsquo;ll book the visit. If it&rsquo;s not a fit, I&rsquo;ll tell you. And just so you know up front &mdash; if we don&rsquo;t find at least three things worth acting on, you don&rsquo;t pay. Fair?&rdquo;</div>
+
+  <h4>2. Building — 5 min</h4>
+  <ol>
+    <li>Building type, size (sq ft), age, number of floors / buildings</li>
+    <li>Major equipment: RTUs, boilers, chillers, cooling towers, AHUs, VAVs, heat pumps, specialty (data/server rooms, pools, process)</li>
+    <li>BAS: brand/platform (Metasys, Niagara, Delta, etc.), who services it, is anyone actually using it</li>
+    <li>Tenants/occupancy: anything critical (data, healthcare, food service, labs)</li>
+  </ol>
+
+  <h4>3. Pain — Uncovering Value — 6 min</h4>
+  <ol>
+    <li>&ldquo;Why look at this now?&rdquo;</li>
+    <li>&ldquo;What&rsquo;s the last HVAC problem that caught you off guard? What did it cost — money, tenant complaints, your time?&rdquo;</li>
+    <li>&ldquo;How do you know today what your contractor actually did on their last visit?&rdquo;</li>
+    <li>&ldquo;If a major unit went down tomorrow, who&rsquo;s affected and what does that cost?&rdquo;</li>
+    <li>&ldquo;What&rsquo;s your HVAC budget process — do you know next year&rsquo;s numbers or guess?&rdquo;</li>
+  </ol>
+  <div class="say"><span class="lbl">Label it</span>&ldquo;So it sounds like [pain 1] and [pain 2] &mdash; and the real problem is you don&rsquo;t have visibility until something breaks. Is that right?&rdquo;</div>
+
+  <h4>4. Decision — 2 min</h4>
+  <ol>
+    <li>&ldquo;Who else is involved in deciding on HVAC service?&rdquo;</li>
+    <li>&ldquo;When does your current agreement renew?&rdquo; (if any)</li>
+    <li>&ldquo;If the audit shows a clear plan, what would stop you from acting on it?&rdquo;</li>
+  </ol>
+
+  <h4>5. Offer + price — 4 min</h4>
+  <div class="say">&ldquo;Here&rsquo;s how the audit works. I come on site with one of our technicians and our estimator for two to four hours. We score every major unit, your controls, energy use, comfort and compliance. Within a week we sit down with you and [decision-maker] and walk through a one-page scorecard and a full report with a 12-to-24-month plan and budget ranges.<br><br>For a building your size, the fee is [$1,500 / $2,500]. We take a 10% deposit by credit card to book it and set you up in our system; the balance is due when you receive the report.<br><br>Two things make it zero-risk. First, as I mentioned &mdash; if the report doesn&rsquo;t give you at least three findings you&rsquo;d actually act on, we refund the whole fee. Second, if you sign a maintenance agreement with us within 45 days of the debrief, the full fee is credited against your first year.<br><br>Either way, the report is yours.&rdquo;</div>
+
+  <h4>6. Book — 2 min</h4>
+  <div class="say">&ldquo;Does [date] or [date] work for the site visit? I&rsquo;d also like to lock in the debrief now &mdash; [decision-maker] needs to be in that meeting. Can we hold [date/time]? Grace will send the deposit link today.&rdquo;</div>
+  <p><b>Confirm:</b> site access contact, parking, roof access, BAS login/front-end access, mechanical room access, any recent service reports or invoices they can send ahead, and 12 months of utility bills (optional).</p>
+
+  <h4>Outcome codes — log in CRM</h4>
+  <ol>
+    <li><b>BOOKED</b> — visit and debrief dates held, deposit link sent</li>
+    <li><b>NURTURE</b> — fit, timing off; follow-up date set</li>
+    <li><b>DISQUALIFIED</b> — reason logged</li>
+    <li><b>NO-SHOW</b> — Natalie reschedules within 1 business day</li>
+  </ol>
+</div>
+</details>
+
+<!-- ============ 6 ============ -->
+<details class="sec" id="s6">
+<summary><span class="num">6</span><span class="st">Pre-Visit Prep Checklist</span><span class="who">Cole &middot; Grace</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <ul class="chk">
+    <li><input type="checkbox">10% deposit taken; customer created in QuickBooks and BuildOps</li>
+    <li><input type="checkbox">Pre-call notes reviewed; pains and hook written at top of field sheet</li>
+    <li><input type="checkbox">Building info: address, sq ft, age, occupancy type, satellite view of roof (count RTUs)</li>
+    <li><input type="checkbox">Equipment list from client, or blank asset register ready</li>
+    <li><input type="checkbox">Prior service reports / invoices reviewed — note gaps</li>
+    <li><input type="checkbox">BAS platform confirmed; remote or on-site login arranged</li>
+    <li><input type="checkbox">Utility bills received (last 12 months, gas + electric) — optional, used for energy section</li>
+    <li><input type="checkbox">Lead tech assigned (automation crew if BAS-heavy)</li>
+    <li><input type="checkbox">Safety: roof access, fall protection, ladders, PPE, lock-out needs, site escort</li>
+    <li><input type="checkbox">Tools: tablet/phone, thermal camera, combustion analyzer, refrigerant gauges, multimeter, temp/humidity loggers</li>
+    <li><input type="checkbox">Debrief date and decision-maker attendance confirmed</li>
+  </ul>
+</div>
+</details>
+
+<!-- ============ 7 ============ -->
+<details class="sec" id="s7">
+<summary><span class="num">7</span><span class="st">On-Site Assessment Checklist</span><span class="who">Jake &middot; Cole &middot; Lead tech</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <h3>Visit flow (2–4 hrs)</h3>
+  <ol>
+    <li><b>Arrival (10 min):</b> meet contact, confirm scope, ask: &ldquo;Any areas tenants complain about? Anything you&rsquo;re worried about?&rdquo;</li>
+    <li><b>Walkthrough by system</b> (7.2–7.6)</li>
+    <li><b>BAS review at front end</b> (30–45 min)</li>
+    <li><b>Exit (10 min):</b> share 1–2 headline observations verbally (never the full list), confirm debrief date</li>
+  </ol>
+  <div class="rule"><b>Rule:</b> photograph every nameplate, every deficiency, and every &ldquo;good&rdquo; item. Photos are the report&rsquo;s credibility.</div>
+
+  <h3>7.1 Asset register — one line per major unit</h3>
+  <div class="tblwrap"><table>
+    <tr><th>ID</th><th>Type</th><th>Make/Model</th><th>Serial</th><th>Year</th><th>Location</th><th>Serves</th><th>Condition 1–5</th><th>Criticality 1–5</th><th>Risk</th><th>Notes / Photo #</th></tr>
+    <tr><td>RTU-1</td><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+  </table></div>
+  <div class="tblwrap"><table>
+    <tr><th>Score</th><th>Condition</th><th>Criticality</th></tr>
+    <tr><td>5</td><td>Like new, no deficiencies</td><td>Failure stops operations/revenue or creates safety/compliance exposure (data, healthcare, food, process)</td></tr>
+    <tr><td>4</td><td>Good, minor wear</td><td>Failure affects a major tenant or large area</td></tr>
+    <tr><td>3</td><td>Fair, deficiencies present, serviceable</td><td>Failure affects a zone; workarounds exist</td></tr>
+    <tr><td>2</td><td>Poor, active deficiencies, near-term failure risk</td><td>Minor comfort impact</td></tr>
+    <tr><td>1</td><td>Failed / critical, immediate action</td><td>Redundant or non-essential</td></tr>
+  </table></div>
+  <p><b>Risk Score = (6 − Condition) × Criticality</b> → range 1–25<br>
+    <span class="pill crit">20–25 Critical</span> <span class="pill high">12–19 High</span> <span class="pill mod">6–11 Moderate</span> <span class="pill low">1–5 Low</span></p>
+
+  <h3>7.2 Equipment checks</h3>
+  <h4>Rooftop units / packaged</h4>
+  <ul class="chk">
+    <li><input type="checkbox">Age vs expected service life (~15–20 yrs)</li>
+    <li><input type="checkbox">Cabinet, panels, gaskets, curb/seal condition</li>
+    <li><input type="checkbox">Filters — type, condition, last change date</li>
+    <li><input type="checkbox">Coils — evaporator and condenser cleanliness, fin damage</li>
+    <li><input type="checkbox">Belts/sheaves, bearings, motor condition</li>
+    <li><input type="checkbox">Economizer operation, damper linkage, actuator</li>
+    <li><input type="checkbox">Refrigerant circuit — signs of leaks/oil; pressures if running</li>
+    <li><input type="checkbox">Heat section — burner, heat exchanger visual, flue, combustion test where safe</li>
+    <li><input type="checkbox">Condensate drain, pan, trap</li>
+    <li><input type="checkbox">Electrical — contactors, wiring, disconnect</li>
+    <li><input type="checkbox">Controls — local stat vs BAS-controlled</li>
+  </ul>
+  <h4>Boilers / heating plant</h4>
+  <ul class="chk">
+    <li><input type="checkbox">Age, condition, nameplate</li>
+    <li><input type="checkbox">Combustion analysis (where accessible and safe)</li>
+    <li><input type="checkbox">Safety controls, relief valves, low-water cutoff</li>
+    <li><input type="checkbox">Venting / flue condition</li>
+    <li><input type="checkbox">Pumps, expansion tank, water treatment</li>
+    <li><input type="checkbox">TSSA certificate / inspection status current and displayed</li>
+  </ul>
+  <h4>Chillers / cooling towers</h4>
+  <ul class="chk">
+    <li><input type="checkbox">Age, condition, refrigerant type (flag phase-out refrigerants)</li>
+    <li><input type="checkbox">Operating log present; approach temps if available</li>
+    <li><input type="checkbox">Tower fill, basin, drift eliminators, water treatment program</li>
+    <li><input type="checkbox">Leak check records</li>
+  </ul>
+  <h4>Air handlers / VAV / terminal units</h4>
+  <ul class="chk">
+    <li><input type="checkbox">AHU filters, coils, fans, dampers, drain pans</li>
+    <li><input type="checkbox">Sample VAV boxes (min. 10% or 5 boxes) — damper, reheat valve, sensor vs actual</li>
+    <li><input type="checkbox">Duct / insulation condition where visible</li>
+  </ul>
+  <h4>Specialty</h4>
+  <ul class="chk">
+    <li><input type="checkbox">Server/data room cooling — redundancy, alarming, temp/humidity</li>
+    <li><input type="checkbox">Pool / dehumidification units</li>
+    <li><input type="checkbox">Make-up air, kitchen exhaust interlocks</li>
+    <li><input type="checkbox">Heat pumps / split systems</li>
+  </ul>
+
+  <h3>7.3 BAS / controls review</h3>
+  <ul class="chk">
+    <li><input type="checkbox">Platform and version — supported or end-of-life</li>
+    <li><input type="checkbox">Who has access; logins documented</li>
+    <li><input type="checkbox">Graphics accurate and usable</li>
+    <li><input type="checkbox">Schedules match actual occupancy; any units running 24/7</li>
+    <li><input type="checkbox">Manual overrides / points in hand — count</li>
+    <li><input type="checkbox">Active and suppressed alarms — count, age, anyone responding</li>
+    <li><input type="checkbox">Setpoints — deadbands, simultaneous heating and cooling</li>
+    <li><input type="checkbox">Sensor sample — 3–5 BAS readings vs handheld</li>
+    <li><input type="checkbox">Trend logs enabled; any history</li>
+    <li><input type="checkbox">Which equipment is on the BAS vs standalone</li>
+    <li><input type="checkbox">Remote access / alarm notifications to anyone</li>
+  </ul>
+
+  <h3>7.4 Energy</h3>
+  <ul class="chk">
+    <li><input type="checkbox">12-month utility history reviewed (if provided) — kWh/sq ft and m³ gas/sq ft vs building type</li>
+    <li><input type="checkbox">Equipment running outside occupied hours</li>
+    <li><input type="checkbox">Simultaneous heating and cooling</li>
+    <li><input type="checkbox">Economizers disabled / stuck</li>
+    <li><input type="checkbox">Lighting / HVAC schedule mismatch</li>
+    <li><input type="checkbox">Building ≥50,000 sq ft → ask whether they file Ontario Energy &amp; Water Reporting (O. Reg. 506/18)</li>
+  </ul>
+
+  <h3>7.5 Comfort / IAQ</h3>
+  <ul class="chk">
+    <li><input type="checkbox">Tenant complaint areas — spot-check temp/humidity</li>
+    <li><input type="checkbox">Hot/cold spots, drafts, noise</li>
+    <li><input type="checkbox">Ventilation — outdoor air dampers open and operating</li>
+    <li><input type="checkbox">Optional: loggers in 2–3 problem zones, collect at debrief</li>
+  </ul>
+
+  <h3>7.6 Vendor &amp; compliance</h3>
+  <ul class="chk">
+    <li><input type="checkbox">Current maintenance agreement — scope and frequency</li>
+    <li><input type="checkbox">Evidence of maintenance — service tags, filter dates, logs, reports</li>
+    <li><input type="checkbox">Equipment clearly not serviced per stated scope (photograph it)</li>
+    <li><input type="checkbox">TSSA certificates current (boilers, pressure vessels, fuel-fired appliances)</li>
+    <li><input type="checkbox">Refrigerant leak-check records / logbooks where required</li>
+    <li><input type="checkbox">Backflow preventer test tags current (if in scope)</li>
+    <li><input type="checkbox">As-builts, sequences of operation, BAS points list available</li>
+  </ul>
+
+  <h3>7.7 Exit conversation</h3>
+  <div class="say">&ldquo;We&rsquo;ve got what we need. A couple of things stood out &mdash; [1 headline risk, 1 headline opportunity]. We&rsquo;ll have the full picture for you on [debrief date]. Is [decision-maker] still confirmed?&rdquo;</div>
+</div>
+</details>
+
+<!-- ============ 8 ============ -->
+<details class="sec p" id="s8">
+<summary><span class="num">8</span><span class="st">Building Performance Scorecard</span><span class="who">Cole drafts &middot; Jake signs off</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="goal">Five categories × 20 points = 100. Same building, same score, regardless of who audits it.</div>
+  <div class="tblwrap"><table>
+    <tr><th>#</th><th>Category</th><th>What it measures</th><th>Score /20</th></tr>
+    <tr><td>1</td><td>Equipment Risk</td><td>Condition × criticality across the asset register</td><td></td></tr>
+    <tr><td>2</td><td>Controls &amp; BAS</td><td>Is the BAS working, used, and optimizing the building</td><td></td></tr>
+    <tr><td>3</td><td>Energy Efficiency</td><td>Waste from schedules, setpoints, economizers, simultaneous heat/cool</td><td></td></tr>
+    <tr><td>4</td><td>Comfort &amp; IAQ</td><td>Tenant comfort, ventilation, complaint zones</td><td></td></tr>
+    <tr><td>5</td><td>Vendor &amp; Compliance</td><td>Maintenance evidence, TSSA / refrigerant / backflow records, documentation</td><td></td></tr>
+  </table></div>
+
+  <div class="tblwrap"><table>
+    <tr><th>Category band (/20)</th><th>Overall grade (/100)</th></tr>
+    <tr><td>17–20 Strong</td><td><b>A · 85–100</b> — Well maintained; optimize</td></tr>
+    <tr><td>13–16 Stable</td><td><b>B · 70–84</b> — Stable; targeted fixes</td></tr>
+    <tr><td>9–12 At Risk</td><td><b>C · 55–69</b> — At risk; plan required within 12 months</td></tr>
+    <tr><td>0–8 Critical</td><td><b>D · 0–54</b> — Critical; immediate action required</td></tr>
+  </table></div>
+
+  <h3>Scoring guides — start at 20, deduct (floor at 0)</h3>
+  <h4>1. Equipment Risk</h4>
+  <ol><li>−5 per Critical asset (risk 20–25)</li><li>−2 per High asset (risk 12–19)</li><li>−1 per 3 Moderate assets</li></ol>
+  <h4>2. Controls &amp; BAS</h4>
+  <ol><li>−4 platform end-of-life / unsupported</li><li>−4 schedules don&rsquo;t match occupancy / units running 24/7</li><li>−3 more than 10 overrides or points in hand</li><li>−3 unanswered or suppressed alarms</li><li>−3 sensor readings off by more than 2°C on sample</li><li>−3 no trends / no one using the system</li></ol>
+  <h4>3. Energy Efficiency</h4>
+  <ol><li>−5 equipment running unoccupied hours</li><li>−5 simultaneous heating and cooling</li><li>−4 economizer failed / disabled</li><li>−3 poor setpoints / deadbands</li><li>−3 energy intensity above benchmark (if bills provided)</li></ol>
+  <h4>4. Comfort &amp; IAQ</h4>
+  <ol><li>−5 per persistent complaint zone (max −10)</li><li>−5 outdoor air not operating / closed</li><li>−5 temperature or humidity out of range on spot checks</li></ol>
+  <h4>5. Vendor &amp; Compliance</h4>
+  <ol><li>−6 no evidence of maintenance on stated scope</li><li>−5 TSSA / regulatory record lapsed or missing</li><li>−4 refrigerant records missing where required</li><li>−3 no as-builts / sequences / points list</li><li>−2 no service agreement in place</li></ol>
+
+  <h3>Top findings (on the scorecard)</h3>
+  <div class="tblwrap"><table>
+    <tr><th>#</th><th>Finding</th><th>Category</th><th>Risk</th><th>Est. cost range</th><th>Timing</th></tr>
+    <tr><td>1</td><td></td><td></td><td></td><td></td><td>Now / 0–6 mo / 6–12 mo / 12–24 mo</td></tr>
+  </table></div>
+</div>
+</details>
+
+<!-- ============ 9 ============ -->
+<details class="sec" id="s9">
+<summary><span class="num">9</span><span class="st">CLEAR Written Report Template</span><span class="who">Cole drafts &middot; Jake signs off</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <p><b>Target:</b> 8–15 pages. Plain language. Every finding has a photo.</p>
+  <ol>
+    <li><b>Cover</b> — Building Performance Audit · [Building] · [Address] · [Date] · Prepared for [Name, Title] · Prepared by Alpine HVAC</li>
+    <li><b>Executive summary (1 page)</b> — overall score and grade; 3 sentences (what&rsquo;s working, biggest risk, biggest opportunity); &ldquo;If you do nothing&rdquo; — most likely costly event in the next 12 months and its cost range; total 24-month plan budget range</li>
+    <li><b>Scorecard</b> — section 8, full page</li>
+    <li><b>Risk register</b> — full asset register sorted by Risk Score, highest first: Asset · Condition · Criticality · Risk · Finding · Action · Cost range · Timing</li>
+    <li><b>Findings by category</b> — for each of the 5: what we found, why it matters, what we recommend, photo(s)</li>
+    <li><b>12–24 month prioritized plan</b> — table below</li>
+    <li><b>Energy opportunities</b> — controls/BAS fixes first (low cost, fast payback); savings range only where bills were provided, otherwise &ldquo;observed waste&rdquo; with no dollar figure</li>
+    <li><b>Vendor &amp; compliance notes</b> — factual: observed vs what should be documented. Never name or criticize the current contractor.</li>
+    <li><b>Recommended care level</b> — one paragraph naming the tier that fits and why (feeds the proposal)</li>
+    <li><b>Appendix</b> — photo log, nameplate data, BAS observations (overrides, alarms, schedule screenshots)</li>
+  </ol>
+  <div class="tblwrap"><table>
+    <tr><th>Priority</th><th>Action</th><th>Category</th><th>Budget range</th><th>Timing</th><th>Covered by agreement?</th></tr>
+    <tr><td>1 — Now</td><td></td><td></td><td></td><td>0–3 mo</td><td>Y / N / Partial</td></tr>
+    <tr><td>2 — Next</td><td></td><td></td><td></td><td>3–12 mo</td><td></td></tr>
+    <tr><td>3 — Plan</td><td></td><td></td><td></td><td>12–24 mo</td><td></td></tr>
+    <tr><td colspan="3"><b>Total</b></td><td><b>$X – $Y</b></td><td colspan="2"></td></tr>
+  </table></div>
+  <p>Budget ranges: low = repair / optimize; high = replace. Labour at agreement rate, retail rate shown beside it.</p>
+  <h3>QA checklist — Jake signs off before the debrief</h3>
+  <ul class="chk">
+    <li><input type="checkbox">Every finding has a photo and a recommended action</li>
+    <li><input type="checkbox">At least 3 actionable findings (guarantee threshold)</li>
+    <li><input type="checkbox">Cost ranges sanity-checked (sell = cost ÷ (1 − margin%))</li>
+    <li><input type="checkbox">No jargon without a one-line explanation</li>
+    <li><input type="checkbox">No disparaging language about the incumbent contractor</li>
+    <li><input type="checkbox">Proposal drafted and matched to Recommended Care Level</li>
+    <li><input type="checkbox">Balance invoice prepared for the debrief</li>
+  </ul>
+</div>
+</details>
+
+<!-- ============ 10 ============ -->
+<details class="sec p" id="s10">
+<summary><span class="num">10</span><span class="st">Debrief Meeting (45 Minutes)</span><span class="who">Jake</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="goal">Walk the findings, tie them to their stated pain, present the proposal, leave with a decision or a dated next step.</div>
+  <div class="rule"><b>Decision-maker must be in the room.</b> If they&rsquo;re not, reschedule. Do not pitch to a partial room.<br><b>Bring:</b> printed scorecard (2 copies), printed report, proposal (3 tiers, recommended highlighted), balance invoice, Service Agreement Calculator ready.</div>
+
+  <h4>1. Clarify — 3 min</h4>
+  <div class="say">&ldquo;Before we get into it &mdash; when we first spoke, you said [pain 1] and [pain 2]. Is that still the priority? Anything changed?&rdquo;</div>
+  <h4>2. Scorecard — 10 min</h4>
+  <div class="say">&ldquo;Here&rsquo;s the one-page view. Your building scored [X] out of 100 &mdash; a [grade]. Here&rsquo;s where it&rsquo;s strong, and here&rsquo;s where it&rsquo;s exposed.&rdquo;</div>
+  <p>Walk all 5 categories. Spend the time on the lowest two.</p>
+  <h4>3. Overview the pain — top findings — 12 min</h4>
+  <p>For each: photo → what it means → cost if ignored → cost to fix. After finding #2 or #3:</p>
+  <div class="say">&ldquo;What would it mean for you if [critical asset] went down in [peak season]?&rdquo; &mdash; let them answer.</div>
+  <h4>4. Label — 2 min</h4>
+  <div class="say">&ldquo;So the picture is: [critical risks] that could cost you [$range] if they fail, [energy waste], and no clear record of what&rsquo;s being maintained. Fair summary?&rdquo;</div>
+  <h4>5. The plan — 5 min</h4>
+  <div class="say">&ldquo;Here&rsquo;s the 12-to-24-month plan. It&rsquo;s sequenced so you spend where the risk is highest first, and the total range is [$X&ndash;$Y]. You can take this to budget today.&rdquo;</div>
+  <h4>6. Sell the vacation — proposal — 8 min</h4>
+  <div class="say">&ldquo;The plan tells you what to do. The question is who makes sure it actually happens. Here&rsquo;s what that looks like with Alpine.&rdquo;</div>
+  <ol>
+    <li><b>Peace / organization</b> — customer portal: schedules, reports, invoices in one place</li>
+    <li><b>Stability / predictability</b> — fixed maintenance frequency, CLEAR quarterly reports reviewed with you personally, costs flagged well in advance</li>
+    <li><b>Response</b> — contract customers get priority on-call response, target under 90 minutes; agreement labour $130/hr vs $200/hr retail</li>
+  </ol>
+  <div class="say">&ldquo;Based on what we found, I&rsquo;d recommend [tier] &mdash; here&rsquo;s why: [tie to 2&ndash;3 specific findings].&rdquo;</div>
+  <p>Show all three tiers; highlight the recommended one.</p>
+  <h4>7. Zero-risk close — 3 min</h4>
+  <div class="say">&ldquo;And because you&rsquo;ve done the audit, the full [$fee] comes off your first year if we start within 45 days &mdash; by [date]. Which option makes sense for you?&rdquo;</div>
+  <p><b>Then stop talking.</b></p>
+  <h4>8. Next step — 2 min</h4>
+  <ol>
+    <li><b>Yes</b> → sign on the spot (Calculator PDF + signature) or send for signature same day; book first maintenance visit.</li>
+    <li><b>Not yet</b> → &ldquo;What needs to happen for you to decide?&rdquo; Book a dated follow-up before leaving. Never leave without a date.</li>
+  </ol>
+
+  <h3>10.1 Objections</h3>
+  <ol>
+    <li><b>&ldquo;We need other quotes.&rdquo;</b> → &ldquo;Makes sense. You now have a report you can hand to anyone. Compare scope, not just price — frequency, BAS coverage, response time, reporting. Can we book 15 minutes on [date] to review what you get back?&rdquo;</li>
+    <li><b>&ldquo;We&rsquo;ll use this with our current contractor.&rdquo;</b> → &ldquo;You can — it&rsquo;s yours. The question is whether they&rsquo;ll act on it when they didn&rsquo;t catch it themselves. The credit is there until [date] if you want us to own it.&rdquo;</li>
+    <li><b>&ldquo;Not in this year&rsquo;s budget.&rdquo;</b> → &ldquo;That&rsquo;s what the plan is for. Start on Minimum now so the critical items are covered, step up at your next budget cycle. The credit still applies.&rdquo;</li>
+    <li><b>&ldquo;Too expensive.&rdquo;</b> → &ldquo;Compare it to [critical finding] failing: [$range] plus tenant impact. One event covers years of the agreement. Is it the tier or the total?&rdquo;</li>
+    <li><b>&ldquo;Need to talk to [owner/board].&rdquo;</b> → &ldquo;Of course. What will they want to see? I&rsquo;ll prepare a one-page summary. Can we get 20 minutes with them before [date]?&rdquo;</li>
+  </ol>
+
+  <h3>10.2 Follow-up cadence</h3>
+  <div class="tblwrap"><table>
+    <tr><th>Day</th><th>Channel</th><th>Action</th></tr>
+    <tr><td>3</td><td>Email</td><td>Recap — scorecard attached, recommended tier, credit deadline</td></tr>
+    <tr><td>10</td><td>Call</td><td>&ldquo;Any questions from [decision-maker]?&rdquo;</td></tr>
+    <tr><td>21</td><td>Email</td><td>One new piece of value — seasonal risk tied to their top finding</td></tr>
+    <tr><td>40</td><td>Call</td><td>&ldquo;Credit expires [date]; want to lock it in?&rdquo;</td></tr>
+    <tr><td>46+</td><td>—</td><td>Move to NURTURE; quarterly seasonal check-in</td></tr>
+  </table></div>
+</div>
+</details>
+
+<!-- ============ 11 ============ -->
+<details class="sec" id="s11">
+<summary><span class="num">11</span><span class="st">Handoff into Maintenance Contract</span><span class="who">Jake &rarr; Mike</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <h3>Tier mapping</h3>
+  <div class="tblwrap"><table>
+    <tr><th>Scorecard result</th><th>Recommend</th><th>Why</th></tr>
+    <tr><td>Any Critical asset, OR Controls &amp; BAS ≤ 8, OR critical occupancy (data / healthcare / food / process)</td><td><b>Premium</b></td><td>Highest risk/criticality; needs BAS coverage and fastest response</td></tr>
+    <tr><td>Overall 55–84, no Critical assets</td><td><b>Core</b></td><td>Stable but needs consistent maintenance and reporting</td></tr>
+    <tr><td>Overall 85+, low criticality, budget-constrained</td><td><b>Minimum</b></td><td>Protect what&rsquo;s working; entry point to step up</td></tr>
+  </table></div>
+  <h3>Agreement scope build</h3>
+  <ol>
+    <li>Audit asset register becomes the agreement equipment schedule — no re-survey</li>
+    <li>Hours calculated in the Service Agreement Calculator from the asset register</li>
+    <li>&ldquo;Now&rdquo; items quoted as separate repair proposals at agreement rates</li>
+    <li>&ldquo;Next&rdquo; and &ldquo;Plan&rdquo; items logged in the customer portal as future recommendations with budget ranges</li>
+  </ol>
+  <h3>Signing → onboarding checklist</h3>
+  <ul class="chk">
+    <li><input type="checkbox">Agreement signed; audit credit schedule noted on billing (even split across first-year invoices)</li>
+    <li><input type="checkbox">Credit recorded in QuickBooks / BuildOps</li>
+    <li><input type="checkbox">Customer portal live within 3 business days; audit report + scorecard uploaded</li>
+    <li><input type="checkbox">Asset register loaded into BuildOps as equipment list</li>
+    <li><input type="checkbox">First maintenance visit within 15 business days</li>
+    <li><input type="checkbox">&ldquo;Now&rdquo; repair proposals sent within 3 business days of signing</li>
+    <li><input type="checkbox">Service manager introduced; quarterly review dates set</li>
+    <li><input type="checkbox">First visit: meet or exceed — fix at least one visible finding from the audit</li>
+    <li><input type="checkbox">30-day check-in call by Jake: &ldquo;How&rsquo;s it going vs what we promised?&rdquo;</li>
+  </ul>
+  <div class="goal">Reinforce the decision: every quarterly report re-scores the building against the audit baseline. Show the score improving.</div>
+</div>
+</details>
+
+<!-- ============ 12 ============ -->
+<details class="sec" id="s12">
+<summary><span class="num">12</span><span class="st">KPIs &amp; Weekly Review</span><span class="who">Jake</span><span class="chev">&#9656;</span></summary>
+<div class="body">
+  <div class="tblwrap"><table>
+    <tr><th>Metric</th><th>Target (days 31–90)</th></tr>
+    <tr><td>Natalie — logged actions per day</td><td>25 → 50</td></tr>
+    <tr><td>Pre-calls booked per week</td><td>5+</td></tr>
+    <tr><td>Pre-call → deposit taken</td><td>≥ 50%</td></tr>
+    <tr><td>Audits completed per week</td><td>3+</td></tr>
+    <tr><td>Report delivered ≤ 3 business days post-visit</td><td>100%</td></tr>
+    <tr><td>Debrief held ≤ 5 business days post-visit</td><td>100%</td></tr>
+    <tr><td>Audit → signed agreement (45-day window)</td><td>≥ 50%</td></tr>
+    <tr><td>Average first-year agreement value</td><td>Track vs ~$25k/yr baseline</td></tr>
+    <tr><td>Guarantee refunds</td><td>&lt; 5% of audits</td></tr>
+    <tr><td>Bookings by hook (A / B / C)</td><td>Reallocate effort monthly</td></tr>
+  </table></div>
+  <h3>Funnel math — target state</h3>
+  <ol>
+    <li>50 actions/day × 20 days = 1,000 actions per month</li>
+    <li>→ ~20 pre-calls (2%)</li>
+    <li>→ ~10 paid audits (50%)</li>
+    <li>→ ~5 signed agreements (50%)</li>
+  </ol>
+  <p>Baseline today: ~1 new customer per month.</p>
+  <h3>Second closer</h3>
+  <p>Jake runs every audit and debrief until conversion and report quality are consistent. Then the debrief script, scorecard rules and QA checklist above become the training package for a second closer.</p>
+</div>
+</details>
+
+<div class="footer">
+  <div><span class="strong">Alpine HVAC Service Inc.</span> — Commercial, Industrial &amp; Institutional</div>
+  <div>Internal use only &nbsp;|&nbsp; Playbook v1.1</div>
+</div>
+
+</div>
+<script>
+(function(){
+  var secs = document.querySelectorAll('details.sec');
+  document.getElementById('openAll').onclick = function(){ secs.forEach(function(d){ d.open = true; }); };
+  document.getElementById('closeAll').onclick = function(){ secs.forEach(function(d){ d.open = false; }); };
+  // Jump links open the target section
+  document.querySelectorAll('.jump a').forEach(function(a){
+    a.addEventListener('click', function(){
+      var t = document.querySelector(a.getAttribute('href'));
+      if (t && t.tagName === 'DETAILS') t.open = true;
+    });
+  });
+  if (location.hash) { var t = document.querySelector(location.hash); if (t && t.tagName === 'DETAILS') t.open = true; }
+  // Print everything expanded
+  window.addEventListener('beforeprint', function(){ secs.forEach(function(d){ d.open = true; }); });
+})();
+</script>
+</body>
+</html>
