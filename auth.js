@@ -35,6 +35,8 @@ const AP_TOOLS = {
   "site-reports":       { label: "Site Reports",                  roles: ["sales", "ops"], strict: true }, // quarterly maintenance progress + customer summaries
   "sales-strategy":     { label: "Sales Strategy",                roles: ["sales"] },
   "case-studies":       { label: "Case Studies",                  roles: ["sales"] },
+  "audit-playbook":     { label: "Audit Playbook",                roles: ["sales"] },
+  "audit-tool":         { label: "Building Performance Audit",    roles: ["sales"], strict: true }, // audit_data + audit_photos: sales only
   "lead-sheets":        { label: "Lead Sheets",                   roles: ["sales"] },
   "call-log":           { label: "Alpine Call Log / On-Call",     roles: ["ops"] },
 };
