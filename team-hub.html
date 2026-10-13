@@ -359,6 +359,17 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 .vv-note-t{font-size:.875rem;color:rgba(16,68,78,0.78);line-height:1.7}
 @media (max-width:860px){.vv-cycle{flex-direction:column;align-items:stretch;border-bottom:none}.vv-step.s1,.vv-step.s2,.vv-step.s3,.vv-step.s4,.vv-step.end{height:auto;border-radius:4px}}
 @media (max-width:760px){.vv-prs,.vv-note{grid-template-columns:1fr}.vv-wrap{padding:2.25rem 1rem 3rem}}
+.vv-fr{background:linear-gradient(120deg,#0A2A30 0%,#10444E 55%,#27636C 100%);border-radius:4px 4px var(--radius-lg) var(--radius-lg);border-top:4px solid var(--purple-light);padding:2.25rem 2rem;color:#FFFFFF}
+.vv-fr .vv-eyebrow{color:#9FD3D5}
+.vv-fr-title{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.75rem);font-weight:700;text-transform:uppercase;line-height:1.05;margin:0 0 1rem;color:#FFFFFF}
+.vv-fr-intro{font-size:1rem;line-height:1.75;color:rgba(255,255,255,0.88);max-width:760px;margin:0}
+.vv-fr-intro b{color:#FFFFFF;font-weight:600}
+.vv-fruits{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:1.75rem}
+.vv-fruit{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.16);border-top:3px solid #9FD3D5;border-radius:4px;padding:1rem .8rem 1.15rem;min-width:0;display:flex;flex-direction:column;gap:.35rem}
+.vv-fruit.end{border-top-color:var(--purple-light);background:rgba(138,123,176,0.18)}
+.vv-fruit-n{font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:500;letter-spacing:.14em;color:rgba(255,255,255,0.6)}
+.vv-fruit-t{font-family:'Oswald',sans-serif;font-size:clamp(.95rem,1.3vw,1.15rem);font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.1;white-space:nowrap}
+@media (max-width:860px){.vv-fruits{grid-template-columns:1fr}.vv-fruit{flex-direction:row;align-items:baseline;gap:1rem}.vv-fruit-t{font-size:1.3rem}.vv-fr{padding:1.75rem 1.25rem}}
 @media print{#panel-principles{height:auto;overflow:visible}}
 </style>
 <div class="vv-wrap">
@@ -398,6 +409,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
       <div class="vv-pr"><div class="vv-pr-n">04</div><div><div class="vv-pr-name">Purpose-filled</div><div class="vv-pr-desc">We know why the work matters beyond the paycheque, and it shows in how we leave every job.</div><div class="vv-pr-tag">Powers: Service the World Needs</div></div></div>
     </div>
     <div class="vv-80">Skill gets you to 80%. These four are the last 20%.</div>
+  </section>
+
+  <section class="vv-fr">
+    <div class="vv-eyebrow">The standard for every team member</div>
+    <h2 class="vv-fr-title">The Fruits of Fulfillment</h2>
+    <p class="vv-fr-intro">This is Alpine's new standard for every team member, regardless of role. Our Core Principles say every person here should be fulfilled and purpose-filled in their work. <b>The Fruits of Fulfillment are how we know whether that's true:</b></p>
+    <div class="vv-fruits">
+      <div class="vv-fruit"><div class="vv-fruit-n">01</div><div class="vv-fruit-t">Speed</div></div>
+      <div class="vv-fruit"><div class="vv-fruit-n">02</div><div class="vv-fruit-t">Accuracy</div></div>
+      <div class="vv-fruit"><div class="vv-fruit-n">03</div><div class="vv-fruit-t">Trustworthiness</div></div>
+      <div class="vv-fruit"><div class="vv-fruit-n">04</div><div class="vv-fruit-t">Relentlessness</div></div>
+      <div class="vv-fruit end"><div class="vv-fruit-n">05</div><div class="vv-fruit-t">Joy</div></div>
+    </div>
   </section>
 
   <div class="vv-note">
