@@ -251,6 +251,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('sales-recruiting')">Sales Recruiting</button>
   <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('support-recruiting')">Support Recruiting</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('onboarding')">New Hire Onboarding</button>
+  <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('roles')">Role Descriptions</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('team')">Team Members</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('reviews')">Quarterly Reviews</button>
@@ -2327,6 +2328,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
       </div>
       <div>
         <div class="tf-box">
+          <div class="tf-box-title">Role Description <span class="tf-pill muted">Condensed</span></div>
+          <div id="tf-p-role"></div>
+        </div>
+        <div class="tf-box">
           <div class="tf-box-title">Quarterly Reviews</div>
           <div id="tf-p-reviews"></div>
           <div class="tf-log" id="tf-p-qnlog"></div>
@@ -2575,10 +2580,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
             <option>5th Year Apprentice</option>
             <option>Journeyman</option>
             <option>Licensed Technician</option>
+            <option>Foreman</option>
+            <option>Support</option>
             <option>Office / Sales / Leadership</option>
           </select>
         </div>
       </div>
+
+      <!-- Condensed job description for the selected team member -->
+      <div id="rv-role-box" class="rv-role-box" style="display:none"></div>
 
       <!-- Review questions -->
       <div class="rv-form-section">
@@ -3110,6 +3120,43 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   </div>
 
 </div><!-- end panel-onboarding -->
+
+<!-- ── TAB: ONBOARDING › ROLE DESCRIPTIONS (long form; condensed versions show in Team Files) ── -->
+<style>
+#panel-roles{overflow-y:auto;height:calc(100vh - 56px)}
+.rd-count{display:inline-block;margin-left:6px;font-size:10px;padding:1px 6px;border-radius:99px;background:rgba(16,68,78,0.084);color:rgba(16,68,78,0.6)}
+.rd-empty{text-align:center;padding:3rem 1rem;color:rgba(16,68,78,0.42);font-size:.875rem;background:var(--off-black);border:1px dashed rgba(16,68,78,0.14);border-radius:var(--radius-lg)}
+.rd-block{margin-top:1.4rem}
+.rd-block-title{font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.7rem}
+.rd-list{margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.35rem}
+.rd-list li{font-size:.875rem;line-height:1.6;color:rgba(16,68,78,0.92)}
+.rd-p{font-size:.875rem;line-height:1.7;color:rgba(16,68,78,0.78);margin:0 0 .6rem}
+.rd-acc{border:1px solid rgba(16,68,78,0.084);border-radius:var(--radius);padding:.9rem 1.1rem;margin-bottom:.6rem;background:var(--white-ish,transparent)}
+.rd-acc-head{display:flex;align-items:center;gap:.7rem;margin-bottom:.55rem;flex-wrap:wrap}
+.rd-acc-num{font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:700;color:var(--teal-light)}
+.rd-acc-title{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--white);flex:1}
+.rd-fruits{display:flex;flex-wrap:wrap;gap:.4rem}
+.rd-fruits span{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:4px;background:rgba(28,107,110,0.15);color:var(--teal-light)}
+.rd-short-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.6rem}
+.rd-short-title{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.rd-short-list{margin:0 0 .7rem;padding-left:1.2rem;display:flex;flex-direction:column;gap:.3rem}
+.rd-short-list li{font-size:.8rem;line-height:1.5;color:rgba(16,68,78,0.9)}
+.rd-short-fruits{font-size:.75rem;color:rgba(16,68,78,0.65);border-top:1px solid rgba(16,68,78,0.07);padding-top:.55rem}
+.rd-short-fruits b{color:var(--teal-light);font-weight:600}
+.rv-role-box{background:var(--off-black);border:1px solid rgba(28,107,110,0.25);border-radius:var(--radius);padding:1rem 1.15rem;margin:1rem 0 .5rem}
+</style>
+<div id="panel-roles" class="tab-panel">
+  <div class="ob-inner" style="max-width:880px;margin:0 auto;padding:3.5rem 2rem 1.5rem">
+    <div class="ob-page-header" style="margin-bottom:1.5rem">
+      <div class="ob-eyebrow">Alpine HVAC — Onboarding</div>
+      <div class="ob-title">Role Descriptions</div>
+      <div class="ob-subtitle">The full job description for each defined role. A condensed version shows on each team member's profile in Team Files and in the quarterly review form.</div>
+    </div>
+  </div>
+  <div class="ob-role-bar" id="rd-cat-bar" style="justify-content:center"></div>
+  <div class="ob-inner" style="max-width:880px;margin:0 auto;padding:2rem 2rem 5rem" id="rd-body"></div>
+</div><!-- end panel-roles -->
+
 
 <style>
 /* hire cards */

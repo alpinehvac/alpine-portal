@@ -1843,7 +1843,8 @@ const OB_CHECKLISTS = {
         'Employment Agreement — role-specific version signed',
         'Alpine Key Result Areas document — role-specific version reviewed',
         'Expense Submission & Packing Slip Instructions — if applicable to role',
-        "Copy of driver's licence & driver's abstract collected"
+        "Copy of driver's licence & driver's abstract collected",
+        'Role description reviewed with the new hire — Onboarding › Role Descriptions (if defined for the role)'
       ]},
       { id:'equip', title:'Basic Equipment', icon:'📦', tag:'Day 1', open:false, items:[
         'Company phone issued (with screen protector & case)',
@@ -2233,10 +2234,10 @@ const TF_ROSTER = [
   { id:'jake-gilmore',     name:'Jake Gilmore',     title:'Co-Founder & CEO',             team:'Leadership', email:'jake.gilmore@alpinehvac.ca',     owner:true, aliases:['jake','jacob gilmore'] },
   { id:'mike-launder',     name:'Mike Launder',     title:'Co-Owner',                     team:'Leadership', email:'mike.launder@alpinehvac.ca',     owner:true, aliases:['mike','michael launder'] },
   { id:'clarissa-launder', name:'Clarissa Launder', title:'Office & Admin Support',       team:'Office',     email:'clarissa.launder@alpinehvac.ca', aliases:['clarissa'] },
-  { id:'cole-hamilton',    name:'Cole Hamilton',    title:'Estimator / Sales',            team:'Sales',      email:'cole.hamilton@alpinehvac.ca',    aliases:['cole'] },
+  { id:'cole-hamilton',    name:'Cole Hamilton',    title:'Sales & Support Coordinator',  team:'Support',    email:'cole.hamilton@alpinehvac.ca',    roleKey:'sales-support-coordinator', aliases:['cole','khol'] },
   { id:'natalie-townsend', name:'Natalie Townsend', title:'Business Development Rep',     team:'Sales',      email:'natalie.townsend@alpinehvac.ca', aliases:['natalie'] },
-  { id:'steven-coles',     name:'Steven Coles',     title:'Service Foreman',              team:'Field',      email:'steven.coles@alpinehvac.ca',     aliases:['steve','steven','steve coles'] },
-  { id:'nick-drost',       name:'Nick Drost',       title:'T&M / Projects Foreman',       team:'Field',      email:'nick.drost@alpinehvac.ca',       aliases:['nick'] },
+  { id:'steven-coles',     name:'Steven Coles',     title:'Service Foreman',              team:'Field',      email:'steven.coles@alpinehvac.ca',     roleKey:'foreman', aliases:['steve','steven','steve coles'] },
+  { id:'nick-drost',       name:'Nick Drost',       title:'T&M / Projects Foreman',       team:'Field',      email:'nick.drost@alpinehvac.ca',       roleKey:'foreman', aliases:['nick'] },
   { id:'tyson-marcoux',    name:'Tyson Marcoux',    title:'Projects Technician',          team:'Field',      email:'tyson.marcoux@alpinehvac.ca',    aliases:['tyson'] },
   { id:'matt-martin',      name:'Matt Martin',      title:'Service Technician',           team:'Field',      email:'matt.martin@alpinehvac.ca',      aliases:['matt','matthew martin'] },
   { id:'brandon-launder',  name:'Brandon Launder',  title:'BAS Apprentice / Technician',  team:'BAS',        email:'brandon.launder@alpinehvac.ca',  aliases:['brandon'] },
@@ -2391,6 +2392,14 @@ function tfRenderProfile() {
     return `<dt>${label}</dt><dd>${shown || '<span style="color:rgba(16,68,78,0.35)">—</span>'}</dd>`;
   }).join('');
 
+  // Role description (condensed)
+  const roleEl = document.getElementById('tf-p-role');
+  if (roleEl) {
+    if (tfEditing) roleEl.innerHTML = `<select id="tf-e-roleKey" class="rv-select" style="width:100%">${rdRoleOptionsHTML(m.roleKey || '')}</select><div class="tf-empty" style="font-size:.72rem">Full version: Onboarding \u203a Role Descriptions. Save with the Edit button above.</div>`;
+    else roleEl.innerHTML = (m.roleKey && ROLE_DEFS[m.roleKey]) ? rdShortHTML(m.roleKey)
+      : '<div class="tf-empty">No role description defined yet. Use Edit to assign one once the role is written up.</div>';
+  }
+
   // HR checklist
   const ck = document.getElementById('tf-p-check');
   if (m.owner) ck.innerHTML = '<li class="tf-empty">Owner. Employee HR checklist does not apply.</li>';
@@ -2426,7 +2435,7 @@ function tfToggleEdit() {
   if (tfEditing) {
     const profiles = tfJSON(TF_PROFILES_KEY, {});
     const p = profiles[tfCurrentId] || {};
-    ['title','team','email','phone','startDate','notes'].forEach(k => {
+    ['title','team','email','phone','startDate','notes','roleKey'].forEach(k => {
       const el = document.getElementById('tf-e-' + k);
       if (el) p[k] = el.value.trim();
     });
@@ -2958,3 +2967,212 @@ function piMoveToInterview() {
 }
 
 piRenderAll();
+
+// ══════════════════════════════════════════════════════════════════
+// ── ROLE DESCRIPTIONS ─────────────────────────────────────────────
+// One source for every defined role. Each role has:
+//   long  — full job description (Onboarding › Role Descriptions)
+//   short — condensed version (Team Files profile + Quarterly Review modal)
+// Categories: support, foreman, journeyman, apprentice.
+// To add a role: add an entry to ROLE_DEFS, then set roleKey on the person
+// in TF_ROSTER (or pick it in their profile's Edit view).
+// ══════════════════════════════════════════════════════════════════
+const ROLE_CATEGORIES = [
+  { key:'support',    label:'Support',    icon:'🎧' },
+  { key:'foreman',    label:'Foreman',    icon:'🦺' },
+  { key:'journeyman', label:'Journeyman', icon:'🔧' },
+  { key:'apprentice', label:'Apprentice', icon:'📘' }
+];
+
+const RD_FRUITS = ['Speed','Accuracy','Trustworthiness','Relentlessness','Joy'];
+
+const ROLE_DEFS = {
+  'sales-support-coordinator': {
+    category: 'support',
+    title: 'Sales & Support Coordinator',
+    effective: 'October 2026',
+    summary: 'Supports Alpine’s sales engine and day-to-day operations. Owns estimate quality control, runs material and vendor logistics as a “runner with a brain,” and keeps invoicing, maintenance reports, inbound leads and the shop moving. Accountabilities are listed in priority order.',
+    crossCutting: [
+      'Record site visits',
+      'Look for system improvements in everything you touch',
+      'Prompt & verify: use AI tools to do the work, then verify the output before it goes out'
+    ],
+    long: [
+      { title:'Estimation Support', items:[
+        'Attend site visits and compile relevant data and information',
+        'Conduct solo site visits',
+        'Build and refine a tool for virtually instant estimates. Estimating is moving to an AI tool that builds estimates; this role becomes quality control of those estimates, freeing time for sales and support',
+        'Refine post-quote systems',
+        'Facilitate the entire sales process'
+      ]},
+      { title:'Runner with a Brain', note:'Dispatched by Mike or Jake only', items:[
+        'Reliable and accountable, with the ability and empowerment to make project-specific recommendations and decisions',
+        'Verify correct materials',
+        'Manage vendor relationships',
+        'Facilitate pickup and return operations where appropriate',
+        'Set boundaries and expectations, and adhere to Mike’s dispatch discretion'
+      ]},
+      { title:'Invoicing', note:'Weekly', items:[
+        'Run weekly invoicing — “learn to love it”',
+        'Consult with Mike on requirements'
+      ]},
+      { title:'Maintenance Reports', note:'Quarterly', items:[
+        'Generate maintenance reports for operators and owners',
+        'Hold Jake accountable to reach out to each operator/owner quarterly with their maintenance report'
+      ]},
+      { title:'Contact Email / Inbound Leads', items:[
+        'Identify “actionable” next steps',
+        'Inbound call log management, including after hours',
+        'Book and engage'
+      ]},
+      { title:'Shop Manager', items:[
+        'Both uphold and improve the facility to meet current needs and future aspirations'
+      ]}
+    ],
+    delegation: 'As Alpine’s volume grows, duties are delegated off this list from the bottom up: Shop Manager first, then Inbound Leads, then Maintenance Reports, and so on.',
+    short: [
+      'Estimation Support — QC AI-built estimates, refine post-quote systems, facilitate the sales process',
+      'Runner with a Brain — dispatched by Mike/Jake only; materials, vendors, pickups/returns',
+      'Invoicing — weekly; requirements per Mike',
+      'Maintenance Reports — generate; keep Jake on quarterly owner/operator outreach',
+      'Inbound Leads — actionable next steps, call log incl. after hours, book + engage',
+      'Shop Manager — uphold and improve the facility'
+    ]
+  },
+
+  'foreman': {
+    category: 'foreman',
+    title: 'Foreman',
+    effective: 'October 2026',
+    summary: 'A designated role with real accountability, not automatic tenure. The Foreman leads a crew on site, owns crew productivity, and removes burdens from leadership rather than adding to them. Applies to the Service Foreman and the T&M / Projects Foreman.',
+    crossCutting: [
+      'Weekly planning meeting with leadership: agree a realistic plan for jobs, projects and maintenance events, sorting out as many details as possible up front',
+      'Pre-established daily check-ins: morning and evening',
+      'Full standards with real examples: Onboarding › Foreman Standards'
+    ],
+    long: [
+      { title:'Bring Solutions, Not Problems', items:[
+        'Handle the crew and its tasks effectively, with leadership’s best interest in mind',
+        'Arrive at leadership with a recommended solution, not just the problem'
+      ]},
+      { title:'Responsible for Crew Productivity', items:[
+        'Own the maximum efficiency and productivity of yourself and your crew, every day',
+        'Anticipate hurdles (scheduling, materials, equipment) before the crew is on site'
+      ]},
+      { title:'Delegation & Personal Organization', items:[
+        'Manage physical work productivity and administrative duty together — both get adequate attention',
+        'Create peace among the team and customers, not chaos'
+      ]},
+      { title:'Communication', items:[
+        'Communicate at the right times: morning huddle and evening check-out',
+        'Handle strategy changes on site, then report at the designated check-in points; keep mid-day calls to emergencies and major schedule changes'
+      ]},
+      { title:'Designation & Compensation', items:[
+        'Foreman add-on: +$5.00/hr per job, tied to crew management',
+        'Efficiency benchmark: 38.5 net billable hours/week = 100%; the efficiency bonus pool (split between foremen only) triggers above 100%',
+        'A minimum threshold applies — falling below it puts the Foreman designation at risk'
+      ]}
+    ],
+    short: [
+      'Bring solutions, not problems — remove burdens from leadership',
+      'Own crew productivity daily — benchmark 38.5 net billable hrs/wk = 100%',
+      'Balance field work and admin — peace with team and customers, not chaos',
+      'Communicate at set points — weekly plan, morning + evening check-ins',
+      'Designation is earned: +$5/hr per job; minimum threshold applies'
+    ]
+  }
+};
+
+function rdEsc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function rdRolesIn(cat) { return Object.keys(ROLE_DEFS).filter(k => ROLE_DEFS[k].category === cat); }
+function rdCatLabel(cat) { const c = ROLE_CATEGORIES.find(x => x.key === cat); return c ? c.label : cat; }
+
+// ── Onboarding › Role Descriptions (long form) ──
+let rdCurrentCat = 'support';
+function rdRender() {
+  const bar = document.getElementById('rd-cat-bar');
+  const body = document.getElementById('rd-body');
+  if (!bar || !body) return;
+  bar.innerHTML = ROLE_CATEGORIES.map(c =>
+    `<button class="ob-role-btn${c.key === rdCurrentCat ? ' active' : ''}" onclick="rdShowCat('${c.key}')">${c.icon} ${c.label} <span class="rd-count">${rdRolesIn(c.key).length}</span></button>`).join('');
+  const keys = rdRolesIn(rdCurrentCat);
+  if (!keys.length) {
+    body.innerHTML = `<div class="rd-empty">No ${rdEsc(rdCatLabel(rdCurrentCat))} role descriptions defined yet. They’ll appear here as each role is defined.</div>`;
+    return;
+  }
+  body.innerHTML = keys.map(k => {
+    const r = ROLE_DEFS[k];
+    const cross = (r.crossCutting || []).length
+      ? `<div class="rd-block"><div class="rd-block-title">Across all responsibilities</div><ul class="rd-list">${r.crossCutting.map(i => `<li>${rdEsc(i)}</li>`).join('')}</ul></div>` : '';
+    const acc = r.long.map((s, i) => `
+      <div class="rd-acc">
+        <div class="rd-acc-head"><span class="rd-acc-num">${String(i + 1).padStart(2, '0')}</span><span class="rd-acc-title">${rdEsc(s.title)}</span>${s.note ? `<span class="ob-card-tag">${rdEsc(s.note)}</span>` : ''}</div>
+        <ul class="rd-list">${s.items.map(it => `<li>${rdEsc(it)}</li>`).join('')}</ul>
+      </div>`).join('');
+    return `
+      <div class="ob-card open rd-card">
+        <div class="ob-card-header" onclick="this.closest('.ob-card').classList.toggle('open')">
+          <span class="ob-card-icon">${(ROLE_CATEGORIES.find(c => c.key === r.category) || {}).icon || ''}</span>
+          <span class="ob-card-title">${rdEsc(r.title)}</span>
+          <span class="ob-card-tag">${rdEsc(rdCatLabel(r.category))}${r.effective ? ' · ' + rdEsc(r.effective) : ''}</span>
+          <span class="ob-card-chevron">▼</span>
+        </div>
+        <div class="ob-card-body">
+          <div class="ob-intro" style="margin-bottom:1.25rem">${rdEsc(r.summary)}</div>
+          ${cross}
+          <div class="rd-block"><div class="rd-block-title">Accountabilities${r.long.length > 1 && r.category === 'support' ? ' — in order of priority' : ''}</div>${acc}</div>
+          ${r.delegation ? `<div class="rd-block"><div class="rd-block-title">Delegation as Alpine grows</div><p class="rd-p">${rdEsc(r.delegation)}</p></div>` : ''}
+          <div class="rd-block"><div class="rd-block-title">The Fruits of Fulfillment</div>
+            <p class="rd-p">Alpine’s standard for every team member, regardless of role. These are how we know someone is fulfilled and purpose-filled in their work.</p>
+            <div class="rd-fruits">${RD_FRUITS.map(f => `<span>${f}</span>`).join('')}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+function rdShowCat(cat) { rdCurrentCat = cat; rdRender(); }
+
+// ── Condensed version (Team Files profile + Quarterly Review modal) ──
+function rdShortHTML(roleKey) {
+  const r = ROLE_DEFS[roleKey];
+  if (!r) return '';
+  return `<div class="rd-short">
+      <div class="rd-short-head"><span class="rd-short-title">${rdEsc(r.title)}</span><span class="tf-pill">${rdEsc(rdCatLabel(r.category))}</span></div>
+      <ol class="rd-short-list">${r.short.map(s => `<li>${rdEsc(s)}</li>`).join('')}</ol>
+      <div class="rd-short-fruits"><b>Fruits of Fulfillment:</b> ${RD_FRUITS.join(' · ')}</div>
+    </div>`;
+}
+function rdRoleOptionsHTML(selected) {
+  return '<option value="">— Not defined —</option>' + ROLE_CATEGORIES.map(c => {
+    const keys = rdRolesIn(c.key);
+    if (!keys.length) return '';
+    return `<optgroup label="${rdEsc(c.label)}">${keys.map(k => `<option value="${k}"${k === selected ? ' selected' : ''}>${rdEsc(ROLE_DEFS[k].title)}</option>`).join('')}</optgroup>`;
+  }).join('');
+}
+
+// Review modal: show the condensed job description for the selected team member
+function rdUpdateReviewRole() {
+  const box = document.getElementById('rv-role-box');
+  if (!box) return;
+  const m = typeof tfMatchMember === 'function' ? tfMatchMember(document.getElementById('rv-tech').value) : null;
+  const key = m && m.roleKey;
+  if (key && ROLE_DEFS[key]) {
+    box.innerHTML = `<div class="rv-form-section-title" style="margin-bottom:.6rem">Job Description — Condensed</div>${rdShortHTML(key)}`;
+    box.style.display = '';
+  } else {
+    box.innerHTML = '';
+    box.style.display = 'none';
+  }
+}
+(function rdInit() {
+  const tech = document.getElementById('rv-tech');
+  if (tech) { tech.addEventListener('input', rdUpdateReviewRole); tech.addEventListener('change', rdUpdateReviewRole); }
+  ['openNewReview','editReview','tfNewReviewFor'].forEach(fn => {
+    const orig = window[fn];
+    if (typeof orig !== 'function') return;
+    window[fn] = function () { const out = orig.apply(this, arguments); rdUpdateReviewRole(); return out; };
+  });
+  rdRender();
+})();
