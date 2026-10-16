@@ -1790,13 +1790,19 @@ function toggleStandard(id) {
 }
 
 const FM_KEY = 'alpine_foreman_standards';
-const FM_FIELDS = ['s1-notes','s2-notes','s3-notes','s4-notes'];
+// Notes fields on both the Technician Standards and Foreman Standards tabs
+// (ids fm-<key>; s1 now lives on Technician Standards, so older saved notes still load).
+function fmFields() {
+  return Array.from(document.querySelectorAll('textarea.fm-notes-field[id^="fm-"]')).map(el => el.id.slice(3));
+}
 
-function fmSave() {
-  const data = {};
-  FM_FIELDS.forEach(f => { data[f] = document.getElementById('fm-' + f).value; });
+function fmSave(statusId) {
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(FM_KEY)) || {}; } catch(e) {}
+  fmFields().forEach(f => { data[f] = document.getElementById('fm-' + f).value; });
   localStorage.setItem(FM_KEY, JSON.stringify(data));
-  const status = document.getElementById('fm-save-status');
+  const status = document.getElementById(statusId || 'fm-save-status');
+  if (!status) return;
   status.classList.add('show');
   setTimeout(() => status.classList.remove('show'), 2200);
 }
@@ -1814,9 +1820,9 @@ function fmLoad() {
 }
 
 function fmReset() {
-  if (!confirm('Clear all saved foreman notes? This cannot be undone.')) return;
+  if (!confirm('Clear all saved standards notes (Technician and Foreman)? This cannot be undone.')) return;
   localStorage.removeItem(FM_KEY);
-  FM_FIELDS.forEach(f => { const el = document.getElementById('fm-' + f); if (el) el.value = ''; });
+  fmFields().forEach(f => { const el = document.getElementById('fm-' + f); if (el) el.value = ''; });
 }
 
 fmLoad();
@@ -1876,13 +1882,22 @@ const OB_CHECKLISTS = {
       ]},
       { id:'safety', title:'Safety Gear & Certifications', icon:'🦺', tag:'Day 1', open:false, items:[
         'Hard hat issued','Safety vest issued','Safety glasses issued','Ear protection issued',
-        'Gloves issued (standard & electrical)','Ventilation mask issued',
+        'Gloves issued (standard & electrical)','Ventilation mask issued','Electrical PPE per SWP-ELEC-01 issued',
         'Safety boots confirmed (employee-supplied)','H&S policy reviewed and signed'
       ]},
       { id:'sys', title:'Systems & Software', icon:'💻', tag:'Day 1', open:false, items:[
         'BuildOps account created & login tested (field service & dispatch)',
         'QuickBooks Workforce set up (time tracking)',
         'BuildOps walkthrough completed with a senior tech or admin'
+      ]},
+      { id:'standards', title:'Standards & Expectations', icon:'📋', tag:'Week 1', open:false, items:[
+        'Technician Standards reviewed with the new hire — Onboarding › Technician Standards',
+        'Technician Standards & Expectations addendum signed (SharePoint › Onboarding Package)',
+        'Business hours (7:30–3:30) and the occasional-overtime requirement reviewed against the role KRA; overtime approved in advance by the Service Manager',
+        'SWP-ELEC-01 Electrical Work on HVAC-R Equipment reviewed & signed',
+        'PPE specified in SWP-ELEC-01 issued',
+        'Core Principles and Fruits of Fulfillment reviewed',
+        'Foreman designation only: Foreman Standards reviewed and designation terms acknowledged (+$5/hr per job, earned — not automatic tenure)'
       ]},
       { id:'vehicle', title:'Company Vehicle', icon:'🚐', tag:'Year 2+', open:false, items:[
         "Valid driver's licence confirmed & driver's abstract on file",
@@ -2238,9 +2253,9 @@ const TF_ROSTER = [
   { id:'natalie-townsend', name:'Natalie Townsend', title:'Business Development Rep',     team:'Sales',      email:'natalie.townsend@alpinehvac.ca', aliases:['natalie'] },
   { id:'steven-coles',     name:'Steven Coles',     title:'Service Foreman',              team:'Field',      email:'steven.coles@alpinehvac.ca',     roleKey:'foreman', aliases:['steve','steven','steve coles'] },
   { id:'nick-drost',       name:'Nick Drost',       title:'T&M / Projects Foreman',       team:'Field',      email:'nick.drost@alpinehvac.ca',       roleKey:'foreman', aliases:['nick'] },
-  { id:'tyson-marcoux',    name:'Tyson Marcoux',    title:'Projects Technician',          team:'Field',      email:'tyson.marcoux@alpinehvac.ca',    aliases:['tyson'] },
-  { id:'matt-martin',      name:'Matt Martin',      title:'Service Technician',           team:'Field',      email:'matt.martin@alpinehvac.ca',      aliases:['matt','matthew martin'] },
-  { id:'brandon-launder',  name:'Brandon Launder',  title:'BAS Apprentice / Technician',  team:'BAS',        email:'brandon.launder@alpinehvac.ca',  aliases:['brandon'] },
+  { id:'tyson-marcoux',    name:'Tyson Marcoux',    title:'Projects Technician',          team:'Field',      email:'tyson.marcoux@alpinehvac.ca',    roleKey:'field-technician', aliases:['tyson'] },
+  { id:'matt-martin',      name:'Matt Martin',      title:'Service Technician',           team:'Field',      email:'matt.martin@alpinehvac.ca',      roleKey:'field-technician', aliases:['matt','matthew martin'] },
+  { id:'brandon-launder',  name:'Brandon Launder',  title:'BAS Apprentice / Technician',  team:'BAS',        email:'brandon.launder@alpinehvac.ca',  roleKey:'field-technician', aliases:['brandon'] },
   { id:'hardiksinh-raol',  name:'Hardiksinh Raol',  title:'BAS Programmer',               team:'BAS',        email:'',                               aliases:['raol','hardik','hardiksinh'] }
 ];
 const TF_CHECKLIST = [
@@ -3044,41 +3059,99 @@ const ROLE_DEFS = {
     category: 'foreman',
     title: 'Foreman',
     effective: 'October 2026',
-    summary: 'A designated role with real accountability, not automatic tenure. The Foreman leads a crew on site, owns crew productivity, and removes burdens from leadership rather than adding to them. Applies to the Service Foreman and the T&M / Projects Foreman.',
+    summary: 'A designated role with real accountability, not automatic tenure. The Foreman meets every Technician Standard, plus leads a crew on site: delegates, owns crew productivity, makes the play calls, and removes burdens from leadership rather than adding to them. Applies to the Service Foreman and the T&M / Projects Foreman.',
     crossCutting: [
+      'All Technician Standards apply: Solutions Not Problems, Personal Organization, Communication, Close-Out, Safety & Electrical Scope, Receiving Feedback, Character',
       'Weekly planning meeting with leadership: agree a realistic plan for jobs, projects and maintenance events, sorting out as many details as possible up front',
       'Pre-established daily check-ins: morning and evening',
-      'Full standards with real examples: Onboarding › Foreman Standards'
+      'Full standards with real examples: Onboarding › Foreman Standards and Onboarding › Technician Standards'
     ],
     long: [
-      { title:'Bring Solutions, Not Problems', items:[
-        'Handle the crew and its tasks effectively, with leadership’s best interest in mind',
-        'Arrive at leadership with a recommended solution, not just the problem'
+      { title:'Master Delegation', items:[
+        'Do the work and coordinate the crew at the same time — in parallel, not one then the other',
+        'Every crew member has a clear task and knows what done looks like; split the crew once two-person work is done',
+        'Use support (runner, materials, office) instead of leaving site'
       ]},
       { title:'Responsible for Crew Productivity', items:[
         'Own the maximum efficiency and productivity of yourself and your crew, every day',
-        'Anticipate hurdles (scheduling, materials, equipment) before the crew is on site'
+        'Anticipate hurdles (scheduling, materials, equipment) before the crew is on site',
+        'If weekly goals are missed, identify a clear reason and fix it for next week'
       ]},
-      { title:'Delegation & Personal Organization', items:[
-        'Manage physical work productivity and administrative duty together — both get adequate attention',
-        'Create peace among the team and customers, not chaos'
+      { title:'Make the Play Calls', items:[
+        'The foreman add-on pays for field decisions — make them in the moment, then report at check-in',
+        'If you plan to take a different direction from leadership, say so that morning, not at end of day',
+        'Own a wrong call at checkout and say what you would do differently'
       ]},
-      { title:'Communication', items:[
-        'Communicate at the right times: morning huddle and evening check-out',
-        'Handle strategy changes on site, then report at the designated check-in points; keep mid-day calls to emergencies and major schedule changes'
+      { title:'Own the Job — Handoff to Close-Out', items:[
+        'Attend the handoff site meeting with the quoting party and the customer or GC',
+        'Keep job notes per the Foreman Notes Procedure; solve post-start hitches on site',
+        'Tell the office when the job is complete and review the invoice before it goes out',
+        'Develop the apprentice while the work gets done'
+      ]},
+      { title:'Foreman Communication Rhythm', items:[
+        'Communicate at the right times: morning huddle and evening check-out; mid-day calls for emergencies and major schedule changes only',
+        'Submit a weekly report through the portal'
       ]},
       { title:'Designation & Compensation', items:[
-        'Foreman add-on: +$5.00/hr per job, tied to crew management',
+        'Foreman add-on: +$5.00/hr per job, tied to crew management — earned and kept, not automatic tenure',
         'Efficiency benchmark: 38.5 net billable hours/week = 100%; the efficiency bonus pool (split between foremen only) triggers above 100%',
-        'A minimum threshold applies — falling below it puts the Foreman designation at risk'
+        'Below the minimum threshold, leadership may place the designation under a review period with written feedback, or remove it'
       ]}
     ],
     short: [
-      'Bring solutions, not problems — remove burdens from leadership',
+      'All Technician Standards, plus:',
+      'Master delegation — do the work and run the crew in parallel',
       'Own crew productivity daily — benchmark 38.5 net billable hrs/wk = 100%',
-      'Balance field work and admin — peace with team and customers, not chaos',
-      'Communicate at set points — weekly plan, morning + evening check-ins',
-      'Designation is earned: +$5/hr per job; minimum threshold applies'
+      'Make the play calls — decide on site; flag a different direction in the morning',
+      'Own the job from handoff to close-out; weekly report through the portal',
+      'Designation is earned: +$5/hr per job; review period or removal below threshold'
+    ]
+  },
+
+  'field-technician': {
+    category: 'journeyman',
+    title: 'Field Technician',
+    effective: 'October 2026',
+    summary: 'The minimum standard for every Alpine field technician — journeyman or apprentice. Role-specific duties, hours and pay are set out in each person’s Key Results Areas; these standards apply on top of the KRA. Foremen meet all of these plus the Foreman standards.',
+    crossCutting: [
+      'Full standards with real examples: Onboarding › Technician Standards',
+      'Key Results Areas (KRA) for the specific role still apply'
+    ],
+    long: [
+      { title:'Bring Solutions, Not Problems', items:[
+        'Own the problem in front of you first — come with what you tried and what you recommend',
+        'Escalate safety, out-of-scope and cost/customer decisions, with a recommendation',
+        'If you plan a different direction from what you were given, say so that morning, not at end of day'
+      ]},
+      { title:'Personal Organization', items:[
+        'Clean truck, tools, uniform, job site, inbox, notes and timesheet',
+        'Notes and photos in BuildOps the same day; know tomorrow’s plan before leaving today'
+      ]},
+      { title:'Communication', items:[
+        'Updates at morning huddle and daily checkout; customer updated before and after every visit',
+        'Flag plan changes as soon as you know; keep mid-day calls to emergencies and major schedule changes'
+      ]},
+      { title:'Own the Job Through Close-Out', items:[
+        'Business hours 7:30–3:30; occasional overtime is required (per KRA), approved in advance by the Service Manager',
+        'Plan the most efficient way to finish; raise a long day in the morning; say early if you can’t stay'
+      ]},
+      { title:'Safety & Electrical Scope', items:[
+        'SWP-ELEC-01: like-for-like fuse replacement in disconnects on verified dead power falls under 313A',
+        'Wear the PPE the policy specifies — Alpine supplies it; outside scope, stop and call the Service Manager'
+      ]},
+      { title:'Receiving Feedback & Character', items:[
+        'Take responsibility first; don’t get defensive or take feedback personally; grace both ways',
+        'Grit, Relentlessness, Contribution, Integrity, Purpose-filled',
+        'Not tolerated: mediocrity, bitterness, dishonesty, unending conflict, degrading morale, disrespect, giving up on improvement'
+      ]}
+    ],
+    short: [
+      'Bring solutions, not problems — flag a different direction in the morning',
+      'Personal organization — CLEAN truck, site, inbox, notes, timesheet',
+      'Communication — huddle + checkout; customer before/after every visit',
+      'Own the job to close-out — 7:30–3:30, occasional approved overtime',
+      'Safety — SWP-ELEC-01 scope and PPE',
+      'Receive feedback well; Grit, Relentlessness, Contribution, Integrity, Purpose'
     ]
   }
 };

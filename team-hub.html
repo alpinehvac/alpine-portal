@@ -252,6 +252,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   <button class="subtab-btn" data-group="recruiting" data-roles="admin owners" onclick="showTab('support-recruiting')">Support Recruiting</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('onboarding')">New Hire Onboarding</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('roles')">Role Descriptions</button>
+  <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('techstd')">Technician Standards</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('team')">Team Members</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('reviews')">Quarterly Reviews</button>
@@ -2756,6 +2757,259 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 
 
+<!-- ── TAB: TECHNICIAN STANDARDS (all field techs; foremen meet these plus Foreman Standards) ── -->
+<div id="panel-techstd" class="tab-panel" style="overflow-y:auto;height:calc(100vh - 56px)">
+<div class="fm-wrap">
+  <div class="fm-eyebrow">Field Team · All Technicians</div>
+  <h1 class="fm-page-title">Technician Standards</h1>
+  <p class="fm-page-sub">The minimum standard for every Alpine field technician — apprentice, journeyman and foreman. Use this in onboarding, quarterly reviews and day-to-day feedback.</p>
+
+  <div class="fm-intro">
+    <p>Every technician is held to <strong>Bring Solutions, Not Problems</strong>, <strong>Personal Organization</strong> and <strong>Communication</strong>, plus the expectations below. Foremen meet every Technician Standard <strong>plus</strong> the Foreman Standards (Master Delegation, Crew Productivity, Play Calls, Job Ownership).</p>
+  </div>
+
+  <!-- T1 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('t1')">
+      <span class="fm-standard-num">01</span>
+      <span class="fm-standard-title">Bring solutions, not problems</span>
+      <span class="fm-chevron" id="fm-chevron-t1">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-t1">
+      <p class="fm-desc">Own the problem in front of you first. Before calling up the ladder, work it: what have you tried, what are the options, what do you recommend? Escalate when it's genuinely a safety issue, outside your licence or scope, or a decision with real cost or customer impact — and bring a recommendation when you do.</p>
+      <div class="fm-scenarios">
+        <div>
+          <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
+          <div class="fm-scenario-text fm-scenario-text--good">
+            <div class="fm-example"><div class="fm-example-num">1</div><p>"The ductwork we ordered turned out to be wrong. I sourced the fittings from another supplier so the project keeps moving. In the meantime we hung most of the square duct and prepped hangers and rod for those fittings. Tomorrow I'd like to keep going here. Any changes you'd like to make to that plan?"</p></div>
+            <div class="fm-example"><div class="fm-example-num">2</div><p>"We showed up and don't have the scissor lift. I got going on everything we can reach without it and sourced a rental in town — it's here and we'll still get most of today's work done. Any changes you'd like to make to that plan?"</p></div>
+            <div class="fm-example"><div class="fm-example-num">3</div><p>"The customer asked us to look at a second unit that isn't on the work order. I noted the model, serial and symptoms, told them we'd follow up with a quote, and put it in the job notes so the office has it."</p></div>
+          </div>
+        </div>
+        <div>
+          <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">Doesn't look like</span></div>
+          <div class="fm-scenario-text fm-scenario-text--bad">
+            <div class="fm-example"><div class="fm-example-num">1</div><p>"The ductwork that we ordered is wrong. I've got 3 fittings here that won't work. What do you want me to do?"</p></div>
+            <div class="fm-example"><div class="fm-example-num">2</div><p>"We showed up on site and don't have access to the scissor lift. What do you want me to do?"</p></div>
+            <div class="fm-example"><div class="fm-example-num">3</div><p>Leadership finds out at end of day that the plan set in the morning wasn't followed, and why.</p></div>
+          </div>
+        </div>
+      </div>
+      <ul class="fm-checklist fm-checklist--good" style="margin-bottom:1.25rem">
+        <li>If you've been given a direction and plan to take a different approach, say so that morning — not at the end of the day.</li>
+      </ul>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-s1-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <!-- T2 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('t2')">
+      <span class="fm-standard-num">02</span>
+      <span class="fm-standard-title">Personal organization</span>
+      <span class="fm-chevron" id="fm-chevron-t2">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-t2">
+      <p class="fm-desc">Manage your physical work and your admin together — both get adequate attention, every day. An organized technician creates peace for the team and the customer, not chaos.</p>
+      <div class="fm-scenarios">
+        <div>
+          <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like — CLEAN</span></div>
+          <div class="fm-scenario-text fm-scenario-text--good">
+            <ul class="fm-checklist fm-checklist--good">
+              <li>Clean truck, tools and uniform</li>
+              <li>Clean, safe job site</li>
+              <li>Clean inbox</li>
+              <li>Clean notes, photos and records — completed in BuildOps the same day</li>
+              <li>Clean timesheet</li>
+              <li>Know tomorrow's plan, materials and access before you leave today</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">Doesn't look like — UNCLEAN</span></div>
+          <div class="fm-scenario-text fm-scenario-text--bad">
+            <ul class="fm-checklist fm-checklist--bad">
+              <li>Unclean truck or missing tools</li>
+              <li>Unclean or unsafe job site</li>
+              <li>Unanswered inbox</li>
+              <li>Notes and records missing, late or incomplete</li>
+              <li>Timesheets corrected after the fact</li>
+              <li>Arriving on site to discover what's missing</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-t2-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <!-- T3 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('t3')">
+      <span class="fm-standard-num">03</span>
+      <span class="fm-standard-title">Communication</span>
+      <span class="fm-chevron" id="fm-chevron-t3">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-t3">
+      <p class="fm-desc">Communicate at the right time, through the right channel, with the right people. Honest and complete: what got done, what didn't, why, and what's next.</p>
+      <div class="fm-scenarios">
+        <div>
+          <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
+          <div class="fm-scenario-text fm-scenario-text--good">
+            <ul class="fm-checklist fm-checklist--good">
+              <li>Updates at morning huddle and daily checkout</li>
+              <li>Customer updated before and after every visit</li>
+              <li>A change to the plan is flagged as soon as you know it — not at checkout</li>
+              <li>Mid-day calls kept to emergencies and major schedule changes</li>
+              <li>Correction asked for, and accepted, in the moment</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">Doesn't look like</span></div>
+          <div class="fm-scenario-text fm-scenario-text--bad">
+            <ul class="fm-checklist fm-checklist--bad">
+              <li>Surprises at checkout</li>
+              <li>Constant calls for problems that planning would have prevented</li>
+              <li>Customer left without an update</li>
+              <li>Partial updates that leave out what didn't get done</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-t3-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <!-- T4 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('t4')">
+      <span class="fm-standard-num">04</span>
+      <span class="fm-standard-title">Own the job through close-out</span>
+      <span class="fm-chevron" id="fm-chevron-t4">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-t4">
+      <p class="fm-desc">Business hours are 7:30–3:30. Job reality, team needs and customer requirements will require occasional overtime, as stated in every technician's Key Results Areas. Exceptions are made case by case, personally and professionally — but understanding the occasional requirement is essential. This commitment starts with leadership.</p>
+      <ul class="fm-checklist fm-checklist--good" style="margin-bottom:1.25rem">
+        <li>Plan the most efficient way to finish the job. If it will run past 3:30, raise it in the morning or as soon as you know.</li>
+        <li>Overtime is approved in advance by the Service Manager (per your KRA).</li>
+        <li>If you can't stay on a given day, say so early so the plan can change.</li>
+        <li>Jobs are closed out: work complete, site clean, notes and photos in, customer informed.</li>
+      </ul>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-t4-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <!-- T5 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('t5')">
+      <span class="fm-standard-num">05</span>
+      <span class="fm-standard-title">Safety &amp; electrical scope</span>
+      <span class="fm-chevron" id="fm-chevron-t5">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-t5">
+      <p class="fm-desc">Policy <strong>SWP-ELEC-01 — Electrical Work on HVAC-R Equipment</strong>. Read and sign it during onboarding.</p>
+      <ul class="fm-checklist fm-checklist--good" style="margin-bottom:1.25rem">
+        <li>Replacing fuses in disconnect boxes falls under the 313A licence, provided it is a like-for-like replacement on verified dead power.</li>
+        <li>Wear the PPE specified in SWP-ELEC-01. Alpine supplies it — if you don't have it, ask. Missing PPE is a reason to ask, never a reason to skip the PPE.</li>
+        <li>Electrical work outside the policy's scope: stop and call the Service Manager.</li>
+      </ul>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-t5-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <!-- T6 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('t6')">
+      <span class="fm-standard-num">06</span>
+      <span class="fm-standard-title">Receiving feedback</span>
+      <span class="fm-chevron" id="fm-chevron-t6">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-t6">
+      <p class="fm-desc">Feedback is how we help each other improve. How it's received matters as much as how it's given.</p>
+      <div class="fm-scenarios">
+        <div>
+          <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
+          <div class="fm-scenario-text fm-scenario-text--good">
+            <ul class="fm-checklist fm-checklist--good">
+              <li>Take personal responsibility first</li>
+              <li>Ask questions to understand the expectation</li>
+              <li>Grace both ways: grace on past performance for the team member, grace on miscommunication for leadership</li>
+              <li>Correction can come in the moment — including in front of others when timing matters</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">Doesn't look like</span></div>
+          <div class="fm-scenario-text fm-scenario-text--bad">
+            <ul class="fm-checklist fm-checklist--bad">
+              <li>Getting defensive immediately</li>
+              <li>Casting blame before taking responsibility</li>
+              <li>Taking feedback personally</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-t6-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <!-- T7 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('t7')">
+      <span class="fm-standard-num">07</span>
+      <span class="fm-standard-title">Character minimums</span>
+      <span class="fm-chevron" id="fm-chevron-t7">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-t7">
+      <p class="fm-desc">Applies to every team member. Performance is evaluated at the discretion of leadership.</p>
+      <div class="fm-scenarios">
+        <div>
+          <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">What we need to see</span></div>
+          <div class="fm-scenario-text fm-scenario-text--good">
+            <ul class="fm-checklist fm-checklist--good">
+              <li><b>Grit</b> — the right way over the easy way. When the call gets hard, we stay on it until it's right.</li>
+              <li><b>Relentlessness</b> — never done improving. Chase feedback, own mistakes, act on both.</li>
+              <li><b>Contribution</b> — make everyone around you better. Teach, carry your share, team's win ahead of your credit.</li>
+              <li><b>Integrity</b> — do what you say you'll do; honest and true with customers, team and leadership.</li>
+              <li><b>Purpose-filled</b> — know why the work matters beyond the paycheque; it shows in how you leave every job.</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">What we can't tolerate</span></div>
+          <div class="fm-scenario-text fm-scenario-text--bad">
+            <ul class="fm-checklist fm-checklist--bad">
+              <li>Lack of any of the qualities at left</li>
+              <li>Mediocrity</li>
+              <li>Bitterness</li>
+              <li>Dishonesty</li>
+              <li>Unending conflict</li>
+              <li>Degradation of morale</li>
+              <li>Disrespect</li>
+              <li>Lack of hope that things will improve, or willingness to try</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-t7-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <div class="fm-save-bar">
+    <span class="fm-save-status" id="fm-save-status-t">Saved ✓</span>
+    <button class="fm-save-btn" onclick="fmSave('fm-save-status-t')">Save Notes</button>
+  </div>
+</div>
+</div><!-- end panel-techstd -->
+
 <!-- ── TAB: FOREMAN STANDARDS ── -->
 <div id="panel-foreman" class="tab-panel">
 <style>
@@ -2822,56 +3076,44 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   <p class="fm-page-sub">What the Foreman designation means at Alpine — in plain language, with real examples. Use this as a living reference for foreman meetings and ongoing performance conversations.</p>
 
   <div class="fm-intro">
-    <p>The Foreman add-on (+$5.00/hr) is a <strong>designated role with real accountability</strong>, not automatic tenure. The four standards below define what it looks like to earn and keep that designation.</p>
+    <p>The Foreman add-on (+$5.00/hr) is a <strong>designated role with real accountability</strong>, not automatic tenure. The standards below define what it looks like to earn and keep that designation.</p>
+    <p style="margin-top:.75rem">A Foreman meets <strong>every Technician Standard</strong> (Solutions Not Problems, Personal Organization, Communication, Close-Out, Safety, Feedback, Character) <strong>plus</strong> the five standards below. <a href="#" onclick="showTab('techstd');return false" style="color:var(--teal-light);font-weight:600">View Technician Standards →</a></p>
   </div>
 
-  <!-- Standard 1 -->
+  <!-- Standard 1 (notes key s3 kept from the old "Delegation & Personal Organization" standard) -->
   <div class="fm-standard">
-    <div class="fm-standard-header" onclick="toggleStandard('s1')">
+    <div class="fm-standard-header" onclick="toggleStandard('s3')">
       <span class="fm-standard-num">01</span>
-      <span class="fm-standard-title">Bring solutions, not problems</span>
-      <span class="fm-chevron" id="fm-chevron-s1">▼</span>
+      <span class="fm-standard-title">Master delegation</span>
+      <span class="fm-chevron" id="fm-chevron-s3">▼</span>
     </div>
-    <div class="fm-standard-body" id="fm-body-s1">
-      <p class="fm-desc">A Foreman removes burdens from leadership, rather than adding to them. He handles his crew and tasks effectively, with leadership's best interest in mind.</p>
+    <div class="fm-standard-body" id="fm-body-s3">
+      <p class="fm-desc">A Foreman does the work and coordinates the crew at the same time — in parallel, not one and then the other. Nobody on the crew should be waiting on the Foreman to know what to do next.</p>
       <div class="fm-scenarios">
         <div>
           <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
           <div class="fm-scenario-text fm-scenario-text--good">
-            <div class="fm-example">
-              <div class="fm-example-num">1</div>
-              <p>"Hey, the ductwork we ordered turned out to be wrong. I sourced the fittings we needed from another supplier — our original one couldn't get it done in time, so I made the call to keep the project moving rather than save a few bucks. In the meantime we got most of the square duct hung, hangers and rod in the ceiling prepped for those fittings, and got started on the next phase. Tomorrow I'd like to have my apprentice continue here while I head to another site to keep the ball rolling on our weekly objective. Any changes you'd like to make to that plan?"</p>
-            </div>
-            <div class="fm-example">
-              <div class="fm-example-num">2</div>
-              <p>"We showed up on site and don't have access to the scissor lift we needed. I got my apprentice going on demoing equipment we could access without the lift, while I sourced another one from a rental company in town. They dropped it off in good time and we were still able to complete the majority of the work planned for today. Most of the two-man work is done now, so we can divide and conquer tomorrow. I've ordered all the parts needed to finish the repairs — the apprentice will pick those up in the morning while I head to another site to keep the planned work on schedule. Any changes you'd like to make to that plan?"</p>
-            </div>
-            <div class="fm-example">
-              <div class="fm-example-num">3</div>
-              <p>"I know we had a plan for this particular unit, but I noticed a couple of items that might justify tagging it — venting, gas fittings. I looked up the code while I set the apprentice up to continue work. Some of those infractions are legitimate. The venting needs to be replaced, and the gas valve as well. I've ordered the materials and noted them for repair on our next visit. Any changes you'd like to make to that plan?"</p>
-            </div>
+            <ul class="fm-checklist fm-checklist--good">
+              <li>Every crew member has a clear task and knows what "done" looks like before the Foreman's hands are busy</li>
+              <li>The apprentice keeps working while the Foreman solves the problem</li>
+              <li>Once the two-person work is done, the crew splits to cover more ground</li>
+              <li>Support is used for what it's for — runner, materials and office — instead of the Foreman leaving site</li>
+            </ul>
           </div>
         </div>
         <div>
           <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">Doesn't look like</span></div>
           <div class="fm-scenario-text fm-scenario-text--bad">
-            <div class="fm-example">
-              <div class="fm-example-num">1</div>
-              <p>"The ductwork that we ordered is wrong. I've got 3 fittings here that won't work. What do you want me to do?"</p>
-            </div>
-            <div class="fm-example">
-              <div class="fm-example-num">2</div>
-              <p>"We showed up on site and don't have access to the scissor lift we need to complete the job. What do you want me to do?"</p>
-            </div>
-            <div class="fm-example">
-              <div class="fm-example-num">3</div>
-              <p>"I know we had a plan for this particular unit, but do you really want it repaired? What do you want me to do?"</p>
-            </div>
+            <ul class="fm-checklist fm-checklist--bad">
+              <li>The crew watches while the Foreman sources material</li>
+              <li>The Foreman does everything himself, then catches up on admin at night</li>
+              <li>Two people finishing one-person work at the end of the day</li>
+            </ul>
           </div>
         </div>
       </div>
       <label class="fm-notes-label">Notes for this standard</label>
-      <textarea class="fm-notes-field" id="fm-s1-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+      <textarea class="fm-notes-field" id="fm-s3-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
     </div>
   </div>
 
@@ -2883,7 +3125,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
       <span class="fm-chevron" id="fm-chevron-s2">▼</span>
     </div>
     <div class="fm-standard-body" id="fm-body-s2">
-      <p class="fm-desc">A Foreman is responsible for the maximum efficiency and productivity of himself and his crew. Every day.</p>
+      <p class="fm-desc">A Foreman is responsible for the maximum efficiency and productivity of himself and his crew. Every day. Benchmark: 38.5 net billable hours per week = 100%.</p>
       <div class="fm-scenarios">
         <div>
           <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
@@ -2907,53 +3149,67 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
   <!-- Standard 3 -->
   <div class="fm-standard">
-    <div class="fm-standard-header" onclick="toggleStandard('s3')">
+    <div class="fm-standard-header" onclick="toggleStandard('s5')">
       <span class="fm-standard-num">03</span>
-      <span class="fm-standard-title">Master delegation and personal organization</span>
-      <span class="fm-chevron" id="fm-chevron-s3">▼</span>
+      <span class="fm-standard-title">Make the play calls</span>
+      <span class="fm-chevron" id="fm-chevron-s5">▼</span>
     </div>
-    <div class="fm-standard-body" id="fm-body-s3">
-      <p class="fm-desc">A Foreman needs to manage both his physical work productivity and his administrative duty. It is not one or the other — both need adequate attention in harmony. Creating peace among the team and customers, not chaos.</p>
+    <div class="fm-standard-body" id="fm-body-s5">
+      <p class="fm-desc">The foreman add-on pays for making the field decisions. A good play call weighs the whole picture — customer impact, travel between sites, who's on the crew, and what closes jobs out — and is made in the moment, not handed back to leadership.</p>
       <div class="fm-scenarios">
         <div>
-          <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like — CLEAN</span></div>
+          <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
           <div class="fm-scenario-text fm-scenario-text--good">
             <ul class="fm-checklist fm-checklist--good">
-              <li>Clean truck</li>
-              <li>Clean job site</li>
-              <li>Safe job site</li>
-              <li>Clean inbox</li>
-              <li>Clean notes and records</li>
-              <li>Clear communication with customer before and after every visit</li>
-              <li>Clear communication with team members and leaders</li>
+              <li>The call is made on site, then reported at the next check-in</li>
+              <li>When leadership has set a direction and you see a better play, you say so that morning</li>
+              <li>When a call turns out wrong, you own it at checkout and say what you'd do differently</li>
+              <li>Crews are routed to the closest sensible work, not across the region</li>
             </ul>
           </div>
         </div>
         <div>
-          <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">Doesn't look like — UNCLEAN</span></div>
+          <div class="fm-scenario-head doesnt"><span class="fm-scenario-icon">✗</span><span class="fm-scenario-label">Doesn't look like</span></div>
           <div class="fm-scenario-text fm-scenario-text--bad">
             <ul class="fm-checklist fm-checklist--bad">
-              <li>Unclean truck</li>
-              <li>Unclean job site</li>
-              <li>Unsafe job site</li>
-              <li>Unclean inbox</li>
-              <li>Unclean or non-existent notes and records</li>
-              <li>Unclear or non-existent communication with customer</li>
-              <li>Unclear or non-existent communication with team members and leaders</li>
+              <li>Every decision deferred to leadership</li>
+              <li>The plan quietly changed, with leadership finding out at end of day</li>
+              <li>Leadership correcting the same type of call more than once</li>
             </ul>
           </div>
         </div>
       </div>
       <label class="fm-notes-label">Notes for this standard</label>
-      <textarea class="fm-notes-field" id="fm-s3-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+      <textarea class="fm-notes-field" id="fm-s5-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
     </div>
   </div>
 
   <!-- Standard 4 -->
   <div class="fm-standard">
-    <div class="fm-standard-header" onclick="toggleStandard('s4')">
+    <div class="fm-standard-header" onclick="toggleStandard('s6')">
       <span class="fm-standard-num">04</span>
-      <span class="fm-standard-title">Communication</span>
+      <span class="fm-standard-title">Own the job — handoff to close-out</span>
+      <span class="fm-chevron" id="fm-chevron-s6">▼</span>
+    </div>
+    <div class="fm-standard-body" id="fm-body-s6">
+      <p class="fm-desc">Jobs are not perfectly predictable and challenges will always arise. Once a job is handed off, the hitches that come up after start are the Foreman's to solve.</p>
+      <ul class="fm-checklist fm-checklist--good" style="margin-bottom:1.25rem">
+        <li>Attend the handoff site meeting with the quoting party and the customer or GC, at or before job start</li>
+        <li>Keep job notes per the Foreman Notes Procedure — scope, timelines and ordering status of every item</li>
+        <li>Solve post-start hitches on site; report the solution at check-in</li>
+        <li>Tell the office when the job is complete, and review the invoice before it goes out (Invoicing Procedure)</li>
+        <li>Develop the apprentice — teach the systems and procedures while the work gets done</li>
+      </ul>
+      <label class="fm-notes-label">Notes for this standard</label>
+      <textarea class="fm-notes-field" id="fm-s6-notes" placeholder="Additional context, reminders, or talking points for this conversation..."></textarea>
+    </div>
+  </div>
+
+  <!-- Standard 5 -->
+  <div class="fm-standard">
+    <div class="fm-standard-header" onclick="toggleStandard('s4')">
+      <span class="fm-standard-num">05</span>
+      <span class="fm-standard-title">Foreman communication rhythm</span>
       <span class="fm-chevron" id="fm-chevron-s4">▼</span>
     </div>
     <div class="fm-standard-body" id="fm-body-s4">
@@ -2963,6 +3219,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
           <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
           <div class="fm-scenario-text fm-scenario-text--good">
             <p>Communication is limited to Morning Huddles and daily checkouts. With the exception of emergencies and major schedule changes, the plan for the week has already been established. Any hurdles or changes that require a strategy shift are handled by the Foreman, then communicated to the leader at the designated check-in points — morning and evening. Mid-day communication is limited as much as possible, allowing for maximum efficiency across the board.</p>
+            <p>A weekly report is submitted through the portal.</p>
           </div>
         </div>
         <div>
@@ -2977,6 +3234,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
     </div>
   </div>
 
+  <div class="fm-intro" style="margin-top:2rem">
+    <p><strong>Designation &amp; review.</strong> +$5.00/hr per job, tied to crew management. The designation is earned and kept by meeting these standards — it is not automatic tenure. Efficiency benchmark: 38.5 net billable hours/week = 100%; the efficiency bonus pool (foremen only) triggers above 100%. Below the minimum threshold, leadership may place the designation under a review period with written feedback, or remove it.</p>
+  </div>
+
   <div class="fm-save-bar">
     <span class="fm-save-status" id="fm-save-status">Saved ✓</span>
     <button class="fm-reset-btn" onclick="fmReset()">Clear All</button>
@@ -2987,6 +3248,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 
 </div><!-- end panel-foreman -->
+
 
 <!-- ═══════════════════════════════════════════════════════════════
      ONBOARDING TAB
