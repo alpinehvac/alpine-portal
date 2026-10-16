@@ -159,6 +159,11 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 .jc-meta .tag{font-size:.7rem}
 .jc-body{padding:0 .85rem .85rem;border-top:1px solid var(--border)}
 .jc summary{position:relative;padding-right:2rem !important}
+.found{list-style:none;margin-bottom:.2rem}
+.found li{display:grid;grid-template-columns:3.4rem 1fr;gap:.4rem;font-size:.8rem;line-height:1.4;padding:.3rem 0;border-bottom:1px dashed var(--border)}
+.found li:last-child{border-bottom:none}
+.found .fd{color:var(--light-grey);font-variant-numeric:tabular-nums}
+.found small{display:block;font-size:.7rem;color:var(--light-grey)}
 .jc .chev{position:absolute;right:.7rem;bottom:.85rem;font-size:.8rem;color:var(--light-grey);transition:transform .15s}
 .jc[open] .chev{transform:rotate(180deg)}
 .jc summary:hover .chev{color:#27636C}
@@ -702,6 +707,14 @@ function taskList(P) {
   <div class="addrow"><input data-add="task" placeholder="Add task (e.g. Set RTU-3 and curb adapter)" aria-label="New task"><input class="h" data-add="taskhrs" type="number" min="0" step="0.5" placeholder="Hrs" aria-label="Hours"><button class="btn" data-act="task-add" data-job="${id}">Add</button></div>`;
 }
 
+/* Context the daily refresh found outside BuildOps (Outlook, QuickBooks): shown, never auto-ticked */
+const holdPill = j => j.hold ? `<span class="tag amber" title="${esc(j.hold)}">On hold: ${esc(j.hold.length > 34 ? j.hold.slice(0, 32) + "…" : j.hold)}</span>` : "";
+const orderPill = j => j.equipment ? `<span class="tag ${/received|on site|delivered/i.test(j.equipment) ? "teal" : /ordered|factory|placed/i.test(j.equipment) ? "purple" : "grey"}" title="${esc(j.equipment)}">${esc(j.equipment.length > 34 ? j.equipment.slice(0, 32) + "…" : j.equipment)}</span>` : "";
+function notesBlock(j) {
+  const N = (j.notes || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  if (!N.length) return "";
+  return `<div class="jc-sec"><span>Latest from email &amp; QuickBooks</span><span>found by Claude</span></div><ul class="found">${N.slice(0, 6).map(n => `<li><span class="fd">${fmtD(n.date)}</span><span>${esc(n.text)}<small>${esc(n.source || "")}</small></span></li>`).join("")}</ul>`;
+}
 function approvedCard(P, t) {
   const j = P.j, d = parseD(j.approved || j.created), age = d ? days(d, t) : null;
   const all = P.materials.length, out = all - P.ordered;
@@ -710,8 +723,9 @@ function approvedCard(P, t) {
     <div class="jc-top"><span class="jc-id">${jobRef(j)}${j.po ? ` · PO ${esc(j.po)}` : ""}</span><span class="jc-amt">${fm(j.quoted)}</span></div>
     <div class="jc-cust">${esc(j.customer)}</div><div class="jc-site">${esc(j.property || "")}</div>
     <div class="jc-scope">${esc(j.scope || j.title || "No description on the job yet.")}</div>
-    <div class="jc-meta">${age != null ? `<span class="tag ${age > 21 ? "amber" : "grey"}">Approved ${fmtD(j.approved || j.created)} · ${age}d</span>` : ""}<span class="tag grey">${j.budgetHrs ? j.budgetHrs + " hrs quoted" : "Hours not set"}</span>${all ? `<span class="tag ${out ? "amber" : "teal"}">${out ? `${out} of ${all} to order` : "All ordered"}</span>` : `<span class="tag grey">No materials list</span>`}${visit ? `<span class="tag teal">Visit ${fmtD(visit)}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
+    <div class="jc-meta">${age != null ? `<span class="tag ${age > 21 ? "amber" : "grey"}">Approved ${fmtD(j.approved || j.created)} · ${age}d</span>` : ""}<span class="tag grey">${j.budgetHrs ? j.budgetHrs + " hrs quoted" : "Hours not set"}</span>${all ? `<span class="tag ${out ? "amber" : "teal"}">${out ? `${out} of ${all} to order` : "All ordered"}</span>` : `<span class="tag grey">No materials list</span>`}${visit ? `<span class="tag teal">Visit ${fmtD(visit)}</span>` : ""}${orderPill(j)}${holdPill(j)}<span class="chev" aria-hidden="true">▾</span></div>
   </summary><div class="jc-body">
+    ${notesBlock(j)}
     <div class="jc-sec"><span>Materials &amp; equipment</span><span>${P.ordered} of ${all} ordered</span></div>
     ${matList(P)}
     <div class="jc-act"><span class="sync">${P.S.stage === null && P.S.stageBy ? `Moved back by ${stampTxt(P.S.stageBy, P.S.stageAt)}` : ""}</span><button class="btn go" data-act="stage" data-job="${esc(j.id)}" data-to="inprogress">Start job →</button></div>
@@ -731,9 +745,10 @@ function progressCard(P, t) {
     <div class="jc-cust">${esc(j.customer)}</div><div class="jc-site">${esc(j.property || "")}</div>
     <div class="jc-scope">${esc(j.scope || j.title || "")}</div>
     <div class="pbar"><i class="${P.pct === 100 ? "full" : ""}" style="width:${P.pct || 0}%"></i></div>
-    <div class="jc-meta">${P.tasks.length ? `<span class="tag grey">${P.doneH} of ${P.totH} task hrs done</span>` : `<span class="tag amber">No task list</span>`}${j.budgetHrs || j.actualHrs ? `<span class="tag ${over ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs ?? "?"} hrs used</span>` : ""}${out > 0 ? `<span class="tag amber">${out} item${out > 1 ? "s" : ""} not ordered</span>` : ""}${manual ? `<span class="tag purple">Started manually</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
+    <div class="jc-meta">${P.tasks.length ? `<span class="tag grey">${P.doneH} of ${P.totH} task hrs done</span>` : `<span class="tag amber">No task list</span>`}${j.budgetHrs || j.actualHrs ? `<span class="tag ${over ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs ?? "?"} hrs used</span>` : ""}${out > 0 ? `<span class="tag amber">${out} item${out > 1 ? "s" : ""} not ordered</span>` : ""}${manual ? `<span class="tag purple">Started manually</span>` : ""}${orderPill(j)}${holdPill(j)}<span class="chev" aria-hidden="true">▾</span></div>
   </summary><div class="jc-body">
     <div class="visit">${visitTxt}${j.nextVisit ? "" : `<label class="dim">Set date <input type="date" data-act="visit" data-job="${esc(j.id)}" value="${esc(P.S.visit || "")}"></label>`}</div>
+    ${notesBlock(j)}
     <div class="jc-sec"><span>Tasks</span><span>hours</span></div>
     ${taskList(P)}
     ${P.materials.length ? `<div class="jc-sec"><span>Materials &amp; equipment</span><span>${P.ordered} of ${P.materials.length} ordered</span></div>${matList(P)}` : ""}
