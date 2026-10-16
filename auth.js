@@ -12,7 +12,7 @@ const AP_USERS = {
   "jake.gilmore@alpinehvac.ca":     { name: "Jake Gilmore",     roles: ["super_admin", "sales", "finance", "owner"] },
   "mike.launder@alpinehvac.ca":     { name: "Mike Launder",     roles: ["super_admin", "sales", "finance", "owner"] },
   "clarissa.launder@alpinehvac.ca": { name: "Clarissa Launder", roles: ["super_admin", "support", "finance"] },
-  "cole.hamilton@alpinehvac.ca":    { name: "Cole Hamilton",    roles: ["super_admin", "sales", "ops"] },
+  "cole.hamilton@alpinehvac.ca":    { name: "Cole Hamilton",    roles: ["super_admin", "sales", "ops", "field_ops"] },
   "natalie.townsend@alpinehvac.ca": { name: "Natalie Townsend", roles: ["sales"] },
   "steven.coles@alpinehvac.ca":     { name: "Steven Coles",     roles: ["ops"] },
   "nick.drost@alpinehvac.ca":       { name: "Nick Drost",       roles: ["ops"] },
@@ -25,8 +25,8 @@ const AP_USERS = {
 // except tools marked strict: true, which require one of the listed roles.
 const AP_TOOLS = {
   "cash-dashboard":     { label: "Financial Position",            roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
-  "job-profit":         { label: "Job Profit",                    roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
-  "ops-dashboard":      { label: "Field Operations",              roles: ["owner"], strict: true },   // Jake, Mike only
+  "job-profit":         { label: "Job Profit",                    roles: ["owner"], strict: true },   // retired: now Field Operations > Completed jobs; page redirects there
+  "ops-dashboard":      { label: "Field Operations",              roles: ["owner", "field_ops"], strict: true }, // Jake, Mike + Cole (pipeline + materials); Completed jobs / profit shown to owners only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "team-files":         { label: "Team Files",                    roles: ["owner"], strict: true }, // Team Hub > Team Files + quarterly reviews: Jake, Mike only

@@ -8,7 +8,7 @@
 <script>if (typeof apGuard === "function") apGuard("ops-dashboard");</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- ALPINE FIELD OPERATIONS — portal version. Contains NO job data: everything loads from Firestore (ops_dashboard/latest) after sign-in; access limited to the owner role (Jake, Mike) by auth.js and firestore.rules. -->
+<!-- ALPINE FIELD OPERATIONS — portal version. Contains NO job data: everything loads from Firestore (ops_dashboard/latest) after sign-in; access: owners (Jake, Mike) + Cole via the field_ops role in auth.js and firestore.rules. Shared pipeline checklists live in ops_jobs/{jobId}; Completed jobs / job profit reads cash_dashboard/latest (owners only). -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -133,6 +133,116 @@ td small{display:block;color:var(--light-grey);font-size:.78rem}
 .checks li.no::before{content:'✕';color:var(--red)}
 textarea{width:100%;background:var(--black);color:var(--white);border:1px solid rgba(16,68,78,0.252);border-radius:6px;padding:.6rem;font:12px/1.4 ui-monospace,monospace}
 
+/* ── Job pipeline (front and centre) ── */
+.pipe-head{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.pipe{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.1rem;align-items:start}
+.col{min-width:0;background:rgba(16,68,78,0.045);border:1px solid var(--border);border-radius:var(--radius-lg);padding:.8rem;min-height:12rem}
+.col-h{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;padding:.2rem .3rem .75rem;border-bottom:3px solid var(--grey);margin-bottom:.8rem}
+.col.q .col-h{border-color:var(--amber)}.col.a .col-h{border-color:var(--teal-light)}.col.p .col-h{border-color:var(--purple)}
+.col-h h3{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.col-h h3 .n{font-family:'Inter',sans-serif;font-size:.78rem;font-weight:500;color:var(--light-grey);margin-left:.4rem}
+.col-h .tot{font-family:'Oswald',sans-serif;font-size:1rem;font-variant-numeric:tabular-nums}
+.col-h .tot small{display:block;font-family:'Inter',sans-serif;font-size:.7rem;color:var(--light-grey);text-align:right}
+.col-empty{font-size:.84rem;color:var(--light-grey);padding:.8rem .4rem;line-height:1.45}
+.jc{background:var(--off-black);border:1px solid var(--border);border-left:4px solid var(--teal-light);border-radius:10px;margin-bottom:.7rem;box-shadow:0 1px 3px rgba(16,68,78,.06)}
+.col.q .jc{border-left-color:var(--amber)}.col.p .jc{border-left-color:var(--purple)}
+.jc summary{list-style:none;cursor:pointer;padding:.75rem .85rem .7rem}
+.jc summary::-webkit-details-marker{display:none}
+.jc-top{display:flex;justify-content:space-between;gap:.6rem;align-items:baseline}
+.jc-id{font-size:.75rem;color:var(--light-grey);font-variant-numeric:tabular-nums}
+.jc-id a{color:#27636C;text-decoration:none}.jc-id a:hover{text-decoration:underline}
+.jc-amt{font-family:'Oswald',sans-serif;font-size:1.05rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.jc-cust{font-weight:600;font-size:.92rem;line-height:1.3;margin-top:.15rem}
+.jc-site{font-size:.8rem;color:var(--light-grey)}
+.jc-scope{font-size:.82rem;line-height:1.45;margin-top:.45rem;color:rgba(16,68,78,0.92)}
+.jc-meta{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem}
+.jc-meta .tag{font-size:.7rem}
+.jc-body{padding:0 .85rem .85rem;border-top:1px solid var(--border)}
+.jc summary{position:relative;padding-right:2rem !important}
+.jc .chev{position:absolute;right:.7rem;bottom:.85rem;font-size:.8rem;color:var(--light-grey);transition:transform .15s}
+.jc[open] .chev{transform:rotate(180deg)}
+.jc summary:hover .chev{color:#27636C}
+.jc[open]{border-color:rgba(16,68,78,0.25)}
+.jc-sec{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--light-grey);margin:.75rem 0 .35rem;display:flex;justify-content:space-between}
+.pbar{height:8px;background:rgba(16,68,78,0.1);border-radius:4px;overflow:hidden;margin-top:.55rem}
+.pbar i{display:block;height:100%;background:var(--purple);border-radius:4px}
+.pbar i.full{background:var(--green)}
+.pct{font-family:'Oswald',sans-serif;font-size:1.35rem;line-height:1}
+.ck{list-style:none}
+.ck li{display:grid;grid-template-columns:1.2rem 1fr auto;gap:.45rem;align-items:start;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.83rem}
+.ck li:last-child{border-bottom:none}
+.ck input[type=checkbox]{width:16px;height:16px;margin-top:2px;accent-color:var(--teal);cursor:pointer}
+.ck .nm{line-height:1.35}
+.ck li.on .nm{color:var(--light-grey)}
+.ck li.on.task .nm{text-decoration:line-through}
+.ck .hr{font-variant-numeric:tabular-nums;font-size:.78rem;color:var(--light-grey);white-space:nowrap}
+.ck .stamp{display:block;font-size:.7rem;color:var(--green);margin-top:1px}
+.ck .note{grid-column:2 / -1;width:100%;font:inherit;font-size:.78rem;padding:.3rem .45rem;border:1px solid rgba(16,68,78,0.18);border-radius:5px;background:var(--black);color:var(--white)}
+.ck .note:focus,.addrow input:focus{outline:none;border-color:var(--teal-light)}
+.ck .x{border:none;background:none;color:var(--light-grey);cursor:pointer;font-size:.9rem;line-height:1;padding:0 .15rem}
+.ck .x:hover{color:var(--red)}
+.addrow{display:flex;gap:.35rem;margin-top:.45rem}
+.addrow input{flex:1;min-width:0;font:inherit;font-size:.78rem;padding:.35rem .45rem;border:1px solid rgba(16,68,78,0.18);border-radius:5px;background:var(--black);color:var(--white)}
+.addrow input.h{flex:0 0 3.6rem}
+.btn{font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(16,68,78,0.25);background:none;color:var(--white);border-radius:5px;padding:.38rem .65rem;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--teal-light);color:#27636C}
+.btn.go{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.go:hover{background:var(--teal-dark);color:#fff}
+.btn.done{background:var(--green);border-color:var(--green);color:#fff}
+.jc-act{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-top:.8rem;flex-wrap:wrap}
+.visit{display:flex;align-items:center;gap:.45rem;font-size:.8rem;margin-top:.5rem;flex-wrap:wrap}
+.visit input{font:inherit;font-size:.78rem;padding:.2rem .35rem;border:1px solid rgba(16,68,78,0.18);border-radius:5px;background:var(--black);color:var(--white)}
+.sync{font-size:.78rem;color:var(--light-grey)}
+.sync.err{color:var(--red)}
+
+/* ── Completed jobs + job profit ── */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:1.25rem}
+.kpi{padding:1rem 1rem 1.1rem;border-right:1px solid var(--border)}
+.kpi:last-child{border-right:none}
+.kpi .eff{font-size:1.5rem;padding:0 10px}
+.eff{display:inline-block;font-family:'Oswald',sans-serif;font-size:.95rem;padding:1px 8px;border-radius:10px;font-variant-numeric:tabular-nums}
+.eff.g{background:rgba(46,125,87,0.14);color:var(--green)}.eff.a{background:rgba(226,168,69,0.18);color:#8A6A12}.eff.r{background:rgba(224,112,94,0.16);color:var(--red)}.eff.n{background:rgba(16,68,78,0.08);color:var(--light-grey)}
+.up{color:var(--green)}.down{color:var(--red)}
+.jt tr.job{cursor:pointer}.jt tr.job:hover td{background:rgba(16,68,78,0.035)}
+.jt tr.job td:first-child::before{content:'+';display:inline-block;width:1rem;color:var(--light-grey)}
+.jt tr.job.open td:first-child::before{content:'–'}
+.jt tr.det{display:none}.jt tr.det.open{display:table-row}
+.jt tr.det>td{background:rgba(16,68,78,0.028);padding:1rem 1.2rem 1.4rem}
+.dgrid{display:grid;grid-template-columns:1fr 1.6fr;gap:1.5rem}
+.mini{width:100%;border-collapse:collapse;font-size:.8rem;min-width:0}
+.mini th,.mini td{padding:.35rem .4rem;border-bottom:1px solid var(--border);background:none;text-align:right;white-space:normal}
+.mini th:first-child,.mini td:first-child{text-align:left}
+.mini td.memo{text-align:left;color:var(--light-grey);font-size:.76rem;max-width:280px}
+.mbar{height:6px;background:var(--teal-light);border-radius:3px}
+.summ{background:rgba(42,138,142,0.08);border:1px solid rgba(42,138,142,0.3);border-radius:8px;padding:.7rem .9rem;font-size:.85rem;margin-bottom:1rem}
+.flag{font-size:.72rem;padding:2px 7px;border-radius:10px;margin-left:6px;white-space:nowrap}
+.flag.red{background:rgba(224,112,94,0.16);color:var(--red)}.flag.amber{background:rgba(226,168,69,0.16);color:#8A6A12}
+.subhead{font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin:1.75rem 0 .6rem}
+.invck{display:flex;gap:.45rem;align-items:flex-start;cursor:pointer;font-size:.82rem;white-space:nowrap}
+.invck input{width:16px;height:16px;margin-top:2px;accent-color:var(--green);cursor:pointer}
+.invck.auto{cursor:default}.invck.auto span{color:var(--green)}
+.invck small{display:block;font-size:.72rem;color:var(--light-grey)}
+.netband{display:grid;grid-template-columns:repeat(4,1fr);background:var(--teal-dark);color:#fff;border-radius:var(--radius-lg);margin-bottom:1.5rem;overflow:hidden;position:relative;padding-top:1.9rem}
+.netband .nb-h{position:absolute;top:.7rem;left:1.1rem;font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:#9FD3D5}
+.netband .kpi{border-right:1px solid rgba(255,255,255,.15);padding:.6rem 1.1rem 1.1rem}
+.netband .m-label,.netband .m-sub{color:rgba(255,255,255,.72)}
+.netband .m-value{font-size:2rem;color:#fff}
+.netband .down{color:#F2A395}.netband .up{color:#8FE0B5}
+.netband .eff{font-size:1.8rem;padding:0 10px}
+.netband .eff.g{background:rgba(143,224,181,.18);color:#8FE0B5}.netband .eff.a{background:rgba(226,168,69,.25);color:#F3D27A}.netband .eff.r{background:rgba(242,163,149,.2);color:#F2A395}.netband .eff.n{background:rgba(255,255,255,.12);color:#fff}
+@media (max-width:1000px){.netband{grid-template-columns:repeat(2,1fr)}}
+.divider{border:none;border-top:2px solid var(--border);margin:.5rem 0 2.5rem}
+
+@media (max-width:1000px){
+  .pipe{grid-template-columns:minmax(0,1fr)}
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .kpi{border-bottom:1px solid var(--border)}
+}
+@media (max-width:700px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .dgrid{grid-template-columns:1fr}
+}
+
 @media (max-width:1000px){
   .metrics{grid-template-columns:repeat(3,1fr)}
   .metric{border-bottom:1px solid var(--border)}
@@ -162,6 +272,33 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 <main class="wrap">
   <div id="banner"></div>
   <div class="head"><h1>Field Operations</h1><div class="asof" id="asof"></div></div>
+
+  <section id="pipeline">
+    <div class="pipe-head">
+      <div><h2>Job pipeline</h2><p class="h2-note">Quoted and project jobs from BuildOps, refreshed daily by Claude. Checklists save instantly and are shared live between Jake, Mike and Cole.</p></div>
+      <div style="display:flex;gap:.8rem;align-items:center"><span class="sync" id="sync-state">Connecting…</span><button class="btn" id="expand-all" type="button">Expand all</button></div>
+    </div>
+    <div class="pipe">
+      <div class="col q"><div class="col-h" id="ph-q"></div><div id="pc-q"></div></div>
+      <div class="col a"><div class="col-h" id="ph-a"></div><div id="pc-a"></div></div>
+      <div class="col p"><div class="col-h" id="ph-p"></div><div id="pc-p"></div></div>
+    </div>
+  </section>
+
+  <section id="profit" style="display:none">
+    <div class="h2-row"><div><h2>Job performance</h2><p class="h2-note">Net = every completed job plus every in-progress job to date. Completed job numbers are final once a job is 100% complete. Profit, labour and materials from BuildOps job costing and QuickBooks by PO (labour at $70/hr, before HST). Efficiency = quoted hours ÷ actual hours: over 100% means the crew beat the quote. Select a job for the breakdown.</p></div></div>
+    <div class="netband" id="net-kpis"></div>
+    <h3 class="subhead" style="margin-top:0">Completed jobs only</h3>
+    <div class="kpis" id="eff-kpis"></div>
+    <div class="table-wrap"><table class="jt" id="done-jobs"></table></div>
+    <h3 class="subhead">Open jobs: earned vs billed</h3>
+    <p class="h2-note">Work in progress. Earned = percent complete × quote. Earned but not billed is cash waiting on an invoice.</p>
+    <div class="table-wrap"><table class="jt" id="wip-jobs"></table></div>
+  </section>
+
+  <hr class="divider">
+  <div class="h2-row" style="margin-bottom:1.25rem"><div><h2 style="font-size:1.3rem">Service calls &amp; maintenance</h2><p class="h2-note">Daily dispatch, service calls and agreement PMs.</p></div></div>
+
   <div id="verdict"></div>
   <div class="metrics" id="metrics"></div>
 
@@ -181,7 +318,7 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 
   <section id="jobs-section">
     <div class="h2-row">
-      <div><h2>Jobs</h2><p class="h2-note" id="jobs-note"></p></div>
+      <div><h2>All jobs</h2><p class="h2-note" id="jobs-note"></p></div>
       <div class="seg" id="stage-seg"></div>
     </div>
     <div class="filters">
@@ -421,23 +558,375 @@ function renderPMs(X) {
 
 document.querySelectorAll("#week-seg button").forEach(b => b.onclick = () => { WEEK = +b.dataset.w; renderBoard(); });
 ["f-q", "f-kind", "f-tech"].forEach(id => $(id).addEventListener("input", renderJobs));
-window.apOpsStart = data => { D = data; render(); };
+window.apOpsStart = data => { D = data; render(); if (window.apPipeStart) window.apPipeStart(); };
+</script>
+<script>
+/* ===== Job pipeline: Quoting → Approved → In progress → Completed =====
+   Job list, quotes and seeded materials/tasks come from the daily BuildOps refresh (ops_dashboard/latest).
+   Everything people click (ordered, notes, tasks, stage moves, manual visit dates) lives in ops_jobs/{jobId}
+   and syncs live between Jake, Mike and Cole. The refresh never overwrites it. */
+const SESSION = (typeof apGetSession === "function" && apGetSession()) || { name: "", roles: [] };
+const IS_OWNER = (SESSION.roles || []).includes("owner");
+const ME = (SESSION.name || "").split(" ")[0] || "Someone";
+const RATE = 70;
+let BOARD = {}, CASH = null, pendingPipe = false;
+const OPEN_CARDS = new Set();
+const RANK = { approved: 1, inprogress: 2, completed: 3 };
+const STAGE_BY_RANK = ["", "approved", "inprogress", "completed"];
+const slug = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
+const uid = () => "m-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const nowIso = () => new Date().toISOString();
+const stampTxt = (by, at) => by ? esc(by) + (at ? " · " + fmtD(at.slice(0, 10)) : "") : "";
+const fm = n => n == null || isNaN(n) ? "—" : (n < 0 ? "−$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-CA");
+const fmS = n => n == null || isNaN(n) ? "—" : (n < 0 ? "−$" : "+$") + Math.abs(Math.round(n)).toLocaleString("en-CA");
+const pctTxt = (n, dp = 0) => n == null || !isFinite(n) ? "—" : n.toFixed(dp) + "%";
+const isPipe = j => j.kind === "Project" || j.pipeline === true;
+const refreshRank = j => ({ completed: 3, ongoing: 2, upcoming: 1 })[stageOf(j)] || 1;
+
+/* Shared list = what people saved, plus anything the refresh found on the quote that isn't on it yet. */
+function mergeItems(seed, saved, removed) {
+  const out = Array.isArray(saved) ? saved.map(x => ({ ...x })) : [];
+  const gone = new Set(removed || []);
+  const have = new Set(out.flatMap(x => [x.id, "n:" + slug(x.name)]));
+  (seed || []).forEach(s => {
+    const o = typeof s === "string" ? { name: s } : s;
+    if (!o || !o.name) return;
+    const id = "r-" + slug(o.name);
+    if (gone.has(id) || have.has(id) || have.has("n:" + slug(o.name))) return;
+    out.push({ id, name: o.name, qty: o.qty ?? "", hrs: o.hrs ?? null, src: "refresh" });
+    have.add(id);
+  });
+  return out;
+}
+
+function pjob(j) {
+  const S = BOARD[j.id] || {};
+  const materials = mergeItems(j.materials, S.materials, S.removedM);
+  const tasks = mergeItems(j.tasks, S.tasks, S.removedT);
+  const totH = tasks.reduce((a, t) => a + (+t.hrs || 0), 0);
+  const doneH = tasks.filter(t => t.done).reduce((a, t) => a + (+t.hrs || 0), 0);
+  const pct = tasks.length ? Math.round(totH ? doneH / totH * 100 : tasks.filter(t => t.done).length / tasks.length * 100) : null;
+  let r = refreshRank(j);
+  const rr = r;
+  if (S.stage && RANK[S.stage] > r) r = RANK[S.stage];
+  if (pct === 100 && r === 2) r = 3;
+  return { j, S, materials, tasks, totH, doneH, pct, rr, rank: r, stage: STAGE_BY_RANK[r], ordered: materials.filter(m => m.ordered).length };
+}
+
+/* ---------- writes (optimistic, then Firestore) ---------- */
+function syncMsg(text, err) { const s = $("sync-state"); if (s) { s.textContent = text; s.className = "sync" + (err ? " err" : ""); } }
+function commit(id, patch) {
+  BOARD[id] = { ...(BOARD[id] || {}), ...patch };
+  renderPipeline(); renderProfit();
+  if (window.apBoardSave) window.apBoardSave(id, patch);
+  else syncMsg("Not connected. That change was not saved.", true);
+}
+function onBoard(e) {
+  const el = e.target.closest("[data-act]");
+  if (!el || !D) return;
+  const act = el.dataset.act, id = el.dataset.job, item = el.dataset.item;
+  const j = jobById(id); if (!j) return;
+  const P = pjob(j);
+  if (e.type === "click" && el.tagName === "INPUT" && el.type !== "checkbox") return;
+  if (e.type === "change" && !/^(mat-check|task-check|mat-note|visit)$/.test(act)) return;
+  if (e.type === "click" && /^(mat-check|task-check|mat-note|visit)$/.test(act)) return;
+  if (act === "mat-check" || act === "task-check") {
+    const key = act === "mat-check" ? "materials" : "tasks", flag = act === "mat-check" ? "ordered" : "done";
+    const list = P[key].map(x => x.id === item ? { ...x, [flag]: el.checked, by: el.checked ? ME : "", at: el.checked ? nowIso() : "" } : x);
+    commit(id, { [key]: list });
+  } else if (act === "mat-note") {
+    commit(id, { materials: P.materials.map(x => x.id === item ? { ...x, note: el.value.trim() } : x) });
+  } else if (act === "mat-del" || act === "task-del") {
+    const key = act === "mat-del" ? "materials" : "tasks", rk = act === "mat-del" ? "removedM" : "removedT";
+    const x = P[key].find(y => y.id === item); if (!x) return;
+    if (!confirm(`Remove "${x.name}"?`)) return;
+    const patch = { [key]: P[key].filter(y => y.id !== item) };
+    if (x.src === "refresh") patch[rk] = [...(P.S[rk] || []), item];
+    commit(id, patch);
+  } else if (act === "mat-add" || act === "task-add") {
+    const card = el.closest(".jc");
+    const isM = act === "mat-add";
+    const nameEl = card.querySelector(`[data-add="${isM ? "mat" : "task"}"]`), extraEl = card.querySelector(`[data-add="${isM ? "matqty" : "taskhrs"}"]`);
+    const name = nameEl.value.trim(); if (!name) { nameEl.focus(); return; }
+    const extra = extraEl.value.trim();
+    const row = isM ? { id: uid(), name, qty: extra, src: "manual", addedBy: ME } : { id: uid(), name, hrs: extra === "" ? null : +extra || 0, src: "manual", addedBy: ME };
+    nameEl.value = ""; extraEl.value = "";
+    commit(id, { [isM ? "materials" : "tasks"]: [...P[isM ? "materials" : "tasks"], row] });
+  } else if (act === "stage") {
+    const to = el.dataset.to || null;
+    if (to === "completed" && P.pct != null && P.pct < 100 && !confirm(`Tasks are ${P.pct}% checked off. Mark this job complete anyway?`)) return;
+    commit(id, { stage: to, stageBy: ME, stageAt: nowIso() });
+  } else if (act === "visit") {
+    commit(id, { visit: el.value || null, visitBy: ME, visitAt: nowIso() });
+  }
+}
+
+/* ---------- render ---------- */
+function colHead(el, title, n, total, sub) {
+  $(el).innerHTML = `<h3>${title}<span class="n">${n}</span></h3><div class="tot">${fm(total)}${sub ? `<small>${sub}</small>` : ""}</div>`;
+}
+const jobRef = (j) => j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(j.id)}</a>` : esc(j.id);
+
+function quoteCard(q, t) {
+  const draft = /draft/i.test(q.status || "");
+  const d = parseD(q.sent || q.created), age = d ? days(d, t) : null;
+  const stale = !draft && age != null && age > 14;
+  return `<div class="jc"><div style="padding:.75rem .85rem .8rem">
+    <div class="jc-top"><span class="jc-id">${jobRef(q)}</span><span class="jc-amt">${fm(q.amount)}</span></div>
+    <div class="jc-cust">${esc(q.customer)}</div><div class="jc-site">${esc(q.property || "")}</div>
+    ${q.title ? `<div class="jc-scope">${esc(q.title)}</div>` : ""}
+    <div class="jc-meta"><span class="tag ${draft ? "grey" : "amber"}">${esc(q.status || "Open")}</span>${age != null ? `<span class="tag ${stale ? "red" : "grey"}">${draft ? "Created" : "Sent"} ${fmtD(q.sent || q.created)} · ${age}d${stale ? " · follow up" : ""}</span>` : ""}${q.hrs ? `<span class="tag grey">${q.hrs} hrs</span>` : ""}${q.owner ? `<span class="tag grey">${esc(q.owner)}</span>` : ""}</div>
+  </div></div>`;
+}
+
+function matList(P) {
+  const id = esc(P.j.id);
+  const rows = P.materials.map(m => `<li class="${m.ordered ? "on" : ""}">
+    <input type="checkbox" data-act="mat-check" data-job="${id}" data-item="${esc(m.id)}" ${m.ordered ? "checked" : ""} aria-label="Ordered: ${esc(m.name)}">
+    <div class="nm">${esc(m.name)}${m.qty ? ` <span class="hr">× ${esc(m.qty)}</span>` : ""}${m.ordered ? `<span class="stamp">✓ Ordered · ${stampTxt(m.by, m.at)}</span>` : ""}</div>
+    <button class="x" data-act="mat-del" data-job="${id}" data-item="${esc(m.id)}" title="Remove item" aria-label="Remove ${esc(m.name)}">×</button>
+    ${m.ordered || m.note ? `<input class="note" data-act="mat-note" data-job="${id}" data-item="${esc(m.id)}" value="${esc(m.note || "")}" placeholder="Where from / ETA, e.g. ordered from Master Group, ETA Oct 24" aria-label="Order note for ${esc(m.name)}">` : ""}
+  </li>`).join("");
+  return `<ul class="ck">${rows || `<li style="display:block;color:var(--light-grey)">No materials listed yet. The daily refresh adds equipment from the quote, or add items here.</li>`}</ul>
+  <div class="addrow"><input data-add="mat" placeholder="Add item" aria-label="New material"><input class="h" data-add="matqty" placeholder="Qty" aria-label="Quantity"><button class="btn" data-act="mat-add" data-job="${id}">Add</button></div>`;
+}
+
+function taskList(P) {
+  const id = esc(P.j.id);
+  const rows = P.tasks.map(x => `<li class="task ${x.done ? "on" : ""}">
+    <input type="checkbox" data-act="task-check" data-job="${id}" data-item="${esc(x.id)}" ${x.done ? "checked" : ""} aria-label="Done: ${esc(x.name)}">
+    <div class="nm">${esc(x.name)}${x.done ? `<span class="stamp">✓ ${stampTxt(x.by, x.at)}</span>` : ""}</div>
+    <span class="hr">${x.hrs != null && x.hrs !== "" ? x.hrs + " h" : "— h"} <button class="x" data-act="task-del" data-job="${id}" data-item="${esc(x.id)}" title="Remove task" aria-label="Remove ${esc(x.name)}">×</button></span>
+  </li>`).join("");
+  return `<ul class="ck">${rows || `<li style="display:block;color:var(--light-grey)">No tasks yet. Add the main sections of the scope with their quoted hours; % complete is hours checked off ÷ total task hours.</li>`}</ul>
+  <div class="addrow"><input data-add="task" placeholder="Add task (e.g. Set RTU-3 and curb adapter)" aria-label="New task"><input class="h" data-add="taskhrs" type="number" min="0" step="0.5" placeholder="Hrs" aria-label="Hours"><button class="btn" data-act="task-add" data-job="${id}">Add</button></div>`;
+}
+
+function approvedCard(P, t) {
+  const j = P.j, d = parseD(j.approved || j.created), age = d ? days(d, t) : null;
+  const all = P.materials.length, out = all - P.ordered;
+  const visit = j.nextVisit || P.S.visit;
+  return `<details class="jc" data-card="${esc(j.id)}" ${OPEN_CARDS.has(j.id) ? "open" : ""}><summary>
+    <div class="jc-top"><span class="jc-id">${jobRef(j)}${j.po ? ` · PO ${esc(j.po)}` : ""}</span><span class="jc-amt">${fm(j.quoted)}</span></div>
+    <div class="jc-cust">${esc(j.customer)}</div><div class="jc-site">${esc(j.property || "")}</div>
+    <div class="jc-scope">${esc(j.scope || j.title || "No description on the job yet.")}</div>
+    <div class="jc-meta">${age != null ? `<span class="tag ${age > 21 ? "amber" : "grey"}">Approved ${fmtD(j.approved || j.created)} · ${age}d</span>` : ""}<span class="tag grey">${j.budgetHrs ? j.budgetHrs + " hrs quoted" : "Hours not set"}</span>${all ? `<span class="tag ${out ? "amber" : "teal"}">${out ? `${out} of ${all} to order` : "All ordered"}</span>` : `<span class="tag grey">No materials list</span>`}${visit ? `<span class="tag teal">Visit ${fmtD(visit)}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
+  </summary><div class="jc-body">
+    <div class="jc-sec"><span>Materials &amp; equipment</span><span>${P.ordered} of ${all} ordered</span></div>
+    ${matList(P)}
+    <div class="jc-act"><span class="sync">${P.S.stage === null && P.S.stageBy ? `Moved back by ${stampTxt(P.S.stageBy, P.S.stageAt)}` : ""}</span><button class="btn go" data-act="stage" data-job="${esc(j.id)}" data-to="inprogress">Start job →</button></div>
+  </div></details>`;
+}
+
+function progressCard(P, t) {
+  const j = P.j, out = P.materials.length - P.ordered;
+  const over = j.budgetHrs && j.actualHrs > j.budgetHrs;
+  const visitTxt = j.nextVisit
+    ? `<span class="tag teal">Next visit ${fmtD(j.nextVisit)}</span>${(j.techs || []).length ? `<span>${esc(j.techs.join(", "))}</span>` : ""}`
+    : P.S.visit ? `<span class="tag teal">Visit scheduled ${fmtD(P.S.visit)}</span><span class="dim">${stampTxt(P.S.visitBy, P.S.visitAt)}</span>`
+    : `<span class="tag amber">No visit scheduled</span>`;
+  const manual = P.rr < 2 && P.S.stage === "inprogress";
+  return `<details class="jc" data-card="${esc(j.id)}" ${OPEN_CARDS.has(j.id) ? "open" : ""}><summary>
+    <div class="jc-top"><span class="jc-id">${jobRef(j)}${j.po ? ` · PO ${esc(j.po)}` : ""}</span><span class="pct">${P.pct == null ? "—" : P.pct + "%"}</span></div>
+    <div class="jc-cust">${esc(j.customer)}</div><div class="jc-site">${esc(j.property || "")}</div>
+    <div class="jc-scope">${esc(j.scope || j.title || "")}</div>
+    <div class="pbar"><i class="${P.pct === 100 ? "full" : ""}" style="width:${P.pct || 0}%"></i></div>
+    <div class="jc-meta">${P.tasks.length ? `<span class="tag grey">${P.doneH} of ${P.totH} task hrs done</span>` : `<span class="tag amber">No task list</span>`}${j.budgetHrs || j.actualHrs ? `<span class="tag ${over ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs ?? "?"} hrs used</span>` : ""}${out > 0 ? `<span class="tag amber">${out} item${out > 1 ? "s" : ""} not ordered</span>` : ""}${manual ? `<span class="tag purple">Started manually</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
+  </summary><div class="jc-body">
+    <div class="visit">${visitTxt}${j.nextVisit ? "" : `<label class="dim">Set date <input type="date" data-act="visit" data-job="${esc(j.id)}" value="${esc(P.S.visit || "")}"></label>`}</div>
+    <div class="jc-sec"><span>Tasks</span><span>hours</span></div>
+    ${taskList(P)}
+    ${P.materials.length ? `<div class="jc-sec"><span>Materials &amp; equipment</span><span>${P.ordered} of ${P.materials.length} ordered</span></div>${matList(P)}` : ""}
+    <div class="jc-act">${manual ? `<button class="btn" data-act="stage" data-job="${esc(j.id)}" data-to="">← Back to approved</button>` : "<span></span>"}<button class="btn done" data-act="stage" data-job="${esc(j.id)}" data-to="completed">Mark complete ✓</button></div>
+  </div></details>`;
+}
+
+function renderPipeline() {
+  if (!D) return;
+  const host = $("pipeline");
+  const a = document.activeElement;
+  if (a && host.contains(a) && /INPUT|TEXTAREA/.test(a.tagName) && a.type !== "checkbox") { pendingPipe = true; return; }
+  pendingPipe = false;
+  const t = today();
+  const quotes = (D.quotes || []).filter(q => !/approved|won|declined|lost|cancel|reject|expired/i.test(q.status || ""))
+    .sort((x, y) => (x.sent || x.created || "").localeCompare(y.sent || y.created || ""));
+  const P = (D.jobs || []).filter(isPipe).map(pjob);
+  const appr = P.filter(x => x.stage === "approved").sort((x, y) => (x.j.approved || x.j.created || "").localeCompare(y.j.approved || y.j.created || ""));
+  const prog = P.filter(x => x.stage === "inprogress").sort((x, y) => (x.j.nextVisit || x.S.visit || "9999").localeCompare(y.j.nextVisit || y.S.visit || "9999") || (x.pct || 0) - (y.pct || 0));
+  const toOrder = appr.reduce((s, x) => s + x.materials.length - x.ordered, 0);
+  const pcts = prog.filter(x => x.pct != null);
+  colHead("ph-q", "Quoting", quotes.length, quotes.reduce((s, q) => s + (q.amount || 0), 0), `${quotes.filter(q => !/draft/i.test(q.status || "") && days(parseD(q.sent || q.created) || t, t) > 14).length} need follow-up`);
+  colHead("ph-a", "Approved", appr.length, appr.reduce((s, x) => s + (x.j.quoted || 0), 0), toOrder ? `${toOrder} item${toOrder > 1 ? "s" : ""} to order` : "nothing to order");
+  colHead("ph-p", "In progress", prog.length, prog.reduce((s, x) => s + (x.j.quoted || 0), 0), pcts.length ? `avg ${Math.round(pcts.reduce((s, x) => s + x.pct, 0) / pcts.length)}% complete` : "");
+  $("pc-q").innerHTML = quotes.length ? quotes.map(q => quoteCard(q, t)).join("") : `<div class="col-empty">${D.quotes ? "No open quotes." : "Open quotes appear here after the next daily refresh reads the BuildOps quotes list."}</div>`;
+  $("pc-a").innerHTML = appr.length ? appr.map(x => approvedCard(x, t)).join("") : `<div class="col-empty">No approved jobs waiting to start.</div>`;
+  $("pc-p").innerHTML = prog.length ? prog.map(x => progressCard(x, t)).join("") : `<div class="col-empty">No project jobs in progress.</div>`;
+  setExpandLabel();
+}
+
+/* ---------- completed jobs + job profit (owners) ---------- */
+const effOf = r => r.estHrs > 0 && r.actHrs > 0 ? r.estHrs / r.actHrs * 100 : null;
+const effTag = e => `<span class="eff ${e == null ? "n" : e >= 100 ? "g" : e >= 90 ? "a" : "r"}">${pctTxt(e)}</span>`;
+function doneRows() {
+  const P = (CASH && CASH.profit) || {};
+  const rows = (P.completed || []).map(c => ({ ...c, id: c.job, fin: true }));
+  const seen = new Set(rows.map(r => r.id));
+  (D.jobs || []).filter(isPipe).map(pjob).filter(x => x.stage === "completed" && !seen.has(x.j.id)).forEach(x => {
+    const j = x.j;
+    rows.push({ id: j.id, name: `${j.customer}${j.title ? " — " + j.title : ""}`, po: j.po, quoted: j.quoted, billed: j.billed,
+      estHrs: j.budgetHrs, actHrs: j.actualHrs, estMat: j.matQuoted, actMat: j.matActual, estLab: j.budgetHrs != null ? j.budgetHrs * RATE : null,
+      actLab: j.actualHrs != null ? j.actualHrs * RATE : null, fin: false, notClosed: x.rr < 3, doneAt: (x.S.stageAt || "").slice(0, 10) });
+  });
+  rows.forEach(r => { const j = jobById(r.id); r.url = j && j.url; r.completed = (j && j.completed) || r.doneAt || null; });
+  return rows.sort((a, b) => (b.completed || "").localeCompare(a.completed || ""));
+}
+function costDetail(name, ctx) {
+  const J = ((CASH && CASH.profit && CASH.profit.jobDetail) || {})[name];
+  if (!J) return `<div class="h2-note">No labour, materials or invoice breakdown captured for this job yet.</div>`;
+  const lt = J.labour.reduce((a, b) => a + b.cost, 0), mt = J.materials.reduce((a, b) => a + b.amount, 0), it = J.invoices.reduce((a, b) => a + b.amount, 0), mx = Math.max(1, ...J.labour.map(x => x.cost));
+  let sum = "";
+  if (ctx.estHrs != null) {
+    const dh = lt / RATE - ctx.estHrs, dm = mt - (ctx.estMat || 0), top = J.labour.filter(x => !x.name.startsWith("Not")).slice(0, 2).map(x => `${x.name} ${x.hrs} hrs`).join(", "), tm = J.materials.slice(0, 3).map(x => `${x.vendor} ${fm(x.amount)}`).join(", ");
+    sum = `<div class="summ"><b>Where it went:</b> labour ${dh >= 0 ? "+" : ""}${dh.toFixed(0)} hrs vs quote (${esc(top || "no tech detail")}); materials ${fmS(dm)} vs estimate${tm ? ` (largest: ${esc(tm)})` : ""}${ctx.billDelta ? `; billing ${fmS(ctx.billDelta)} vs quote` : ""}.</div>`;
+  } else if (ctx.note) sum = `<div class="summ">${esc(ctx.note)}</div>`;
+  const dS = s => fmtD(s);
+  return sum + `<div class="dgrid"><div>
+    <h4 style="font-weight:500;margin-bottom:.4rem">Labour by tech (${(lt / RATE).toFixed(1)} hrs, ${fm(lt)})</h4>
+    <table class="mini"><thead><tr><th>Tech</th><th>Hours</th><th>Cost</th><th style="width:35%"></th></tr></thead><tbody>${J.labour.map(x => `<tr><td>${esc(x.name)}</td><td>${x.hrs}</td><td>${fm(x.cost)}</td><td><div class="mbar" style="width:${x.cost / mx * 100}%"></div></td></tr>`).join("") || `<tr><td colspan="4">No labour logged yet</td></tr>`}</tbody></table>
+    <h4 style="font-weight:500;margin:1rem 0 .4rem">Invoices in QuickBooks (${fm(it)})</h4>
+    <table class="mini"><tbody>${J.invoices.map(x => `<tr><td>${esc(x.doc)} · ${dS(x.date)}</td><td>${fm(x.amount)}</td><td>${x.balance > 0 ? '<span class="flag amber">unpaid</span>' : ""}</td></tr>`).join("") || `<tr><td>None on this PO yet</td></tr>`}</tbody></table>
+  </div><div>
+    <h4 style="font-weight:500;margin-bottom:.4rem">Materials and subs by bill (${J.materials.length} bills, ${fm(mt)})</h4>
+    <table class="mini"><thead><tr><th>Vendor</th><th>Date</th><th>Amount</th><th style="text-align:left">QuickBooks memo</th></tr></thead><tbody>${J.materials.slice(0, 15).map(x => `<tr><td>${esc(x.vendor)}</td><td>${dS(x.date)}</td><td>${fm(x.amount)}</td><td class="memo">${esc(x.memo || "—")}</td></tr>`).join("") || `<tr><td colspan="4">No bills on this PO yet</td></tr>`}
+    ${J.materials.length > 15 ? `<tr><td colspan="4" style="text-align:left;color:var(--light-grey)">+ ${J.materials.length - 15} smaller bills (${fm(J.materials.slice(15).reduce((a, b) => a + b.amount, 0))})</td></tr>` : ""}</tbody></table>
+  </div></div>`;
+}
+/* Invoiced: auto-ticked when BuildOps billing status is Fully Invoiced / No Charge / Closed; otherwise a shared manual checkmark (ops_jobs/{jobId}.invoiced). */
+function invCell(r) {
+  const j = jobById(r.id), S = BOARD[r.id] || {};
+  const auto = j && DONE_BILLING.test(j.billingStatus || "");
+  if (auto) return `<label class="invck auto"><input type="checkbox" checked disabled><span>Invoiced<small>BuildOps: ${esc(j.billingStatus)}</small></span></label>`;
+  return `<label class="invck"><input type="checkbox" data-inv="${esc(r.id)}" ${S.invoiced ? "checked" : ""}><span>${S.invoiced ? "Invoiced" : "Not yet"}<small>${S.invoiced ? stampTxt(S.invoicedBy, S.invoicedAt) : j && j.billingStatus ? "BuildOps: " + esc(j.billingStatus) : ""}</small></span></label>`;
+}
+function wireRows(id) { document.querySelectorAll("#" + id + " tr.job").forEach(tr => tr.onclick = e => { if (e.target.closest("a,.invck")) return; const o = tr.classList.toggle("open"); $(tr.dataset.d).classList.toggle("open", o); }); }
+
+function renderProfit() {
+  if (!IS_OWNER || !D) return;
+  const first = $("profit").style.display === "none";
+  $("profit").style.display = "";
+  if (first && location.hash === "#profit") setTimeout(() => $("profit").scrollIntoView(), 50);
+  const R = doneRows();
+  const H = R.filter(r => r.estHrs > 0 && r.actHrs > 0), F = R.filter(r => r.fin);
+  const sE = H.reduce((a, r) => a + r.estHrs, 0), sA = H.reduce((a, r) => a + r.actHrs, 0);
+  const overall = sA ? sE / sA * 100 : null;
+  const prof = F.reduce((a, r) => a + (r.billed - r.actLab - r.actMat), 0), billed = F.reduce((a, r) => a + r.billed, 0);
+  const vsq = F.reduce((a, r) => a + ((r.billed - r.actLab - r.actMat) - (r.quoted - r.estLab - r.estMat)), 0);
+  const labD = H.reduce((a, r) => a + (r.estHrs - r.actHrs), 0);
+  const MF = F.filter(r => r.estMat != null && r.actMat != null), matD = MF.reduce((a, r) => a + (r.estMat - r.actMat), 0);
+  const K = [
+    ["Overall job efficiency", effTag(overall), H.length ? `${H.length} jobs · ${Math.round(sE)} quoted vs ${Math.round(sA)} actual hrs` : "no completed jobs with hours yet"],
+    ["Profit on completed jobs", `<span class="${prof < 0 ? "down" : ""}">${fm(prof)}</span>`, billed ? `${pctTxt(prof / billed * 100)} margin on ${fm(billed)} billed` : "awaiting final costing"],
+    ["Profit vs quote", `<span class="${vsq < 0 ? "down" : "up"}">${fmS(vsq)}</span>`, "actual vs projected at quote"],
+    ["Labour vs quote", `<span class="${labD < 0 ? "down" : "up"}">${labD >= 0 ? "+" : "−"}${Math.abs(Math.round(labD))} hrs</span>`, `${fmS(labD * RATE)} at $${RATE}/hr${labD < 0 ? " (over)" : " (under)"}`],
+    ["Materials vs quote", `<span class="${matD < 0 ? "down" : "up"}">${fmS(matD)}</span>`, `${MF.filter(r => r.actMat > r.estMat).length} of ${MF.length} jobs over estimate`],
+  ];
+  /* Net: completed (final) + in progress (to date) */
+  const IP = (D.jobs || []).filter(isPipe).map(pjob).filter(x => x.stage === "inprogress");
+  const IPh = IP.filter(x => x.pct != null && x.j.budgetHrs > 0 && x.j.actualHrs > 0);
+  const earnedH = IPh.reduce((a, x) => a + x.pct / 100 * x.j.budgetHrs, 0), ipA = IPh.reduce((a, x) => a + x.j.actualHrs, 0);
+  const netEff = (sA + ipA) ? (sE + earnedH) / (sA + ipA) * 100 : null;
+  const WIP = (((CASH && CASH.profit) || {}).wip || []);
+  const wipProf = WIP.reduce((a, w) => a + ((w.earned || 0) - (w.costIncurred || 0)), 0), wipEarned = WIP.reduce((a, w) => a + (w.earned || 0), 0);
+  const netProf = prof + wipProf, netRev = billed + wipEarned;
+  const netHrs = (sE - sA) + (earnedH - ipA);
+  const N = [
+    ["Net job efficiency", effTag(netEff), `${H.length} completed + ${IPh.length} in progress · ${Math.round(sE + earnedH)} earned vs ${Math.round(sA + ipA)} actual hrs${IP.length > IPh.length ? ` · ${IP.length - IPh.length} in progress without a task list or hours left out` : ""}`],
+    ["Net profit", `<span class="${netProf < 0 ? "down" : ""}">${fm(netProf)}</span>`, `${fm(prof)} completed + ${fm(wipProf)} in progress to date`],
+    ["Net margin", pctTxt(netRev ? netProf / netRev * 100 : null), `on ${fm(netRev)} billed (completed) + earned (in progress)`],
+    ["Net hours vs quote", `<span class="${netHrs < 0 ? "down" : "up"}">${netHrs >= 0 ? "+" : "−"}${Math.abs(Math.round(netHrs))} hrs</span>`, `${fmS(netHrs * RATE)} at $${RATE}/hr · ${netHrs < 0 ? "over" : "under"} quote across all jobs`],
+  ];
+  $("net-kpis").innerHTML = `<div class="nb-h">Net, all jobs</div>` + N.map(k => `<div class="kpi"><div class="m-label">${k[0]}</div><div class="m-value">${k[1]}</div><div class="m-sub">${k[2]}</div></div>`).join("");
+  $("eff-kpis").innerHTML = K.map(k => `<div class="kpi"><div class="m-label">${k[0]}</div><div class="m-value">${k[1]}</div><div class="m-sub">${k[2]}</div></div>`).join("");
+  $("done-jobs").innerHTML = `<thead><tr><th>Job</th><th class="num">Quoted / billed</th><th class="num">Profit</th><th class="num">vs quote</th><th class="num">Hours quoted → actual</th><th class="num">Materials quoted → actual</th><th class="num">Efficiency</th><th>Invoiced</th></tr></thead><tbody>` +
+    (R.length ? R.map((r, i) => {
+      const proj = r.quoted != null && r.estLab != null && r.estMat != null ? r.quoted - r.estLab - r.estMat : null;
+      const act = r.fin ? r.billed - r.actLab - r.actMat : null, v = act != null && proj != null ? act - proj : null;
+      const cl = x => x == null ? "" : x < 0 ? "down" : x > 0 ? "up" : "";
+      const ref = r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.id)}</a>` : esc(r.id || "");
+      return `<tr class="job" data-d="dj${i}"><td>${esc(r.name)}${r.notClosed ? '<span class="flag amber">not closed in BuildOps</span>' : ""}${!r.fin ? '<span class="flag amber">final costing pending</span>' : ""}<small>${ref}${r.po ? " · " + esc(r.po) : ""}${r.completed ? " · completed " + fmtD(r.completed) : ""}</small></td><td class="num">${fm(r.quoted)}<small>${r.billed != null ? fm(r.billed) + " billed" : "not billed"}</small></td>
+        <td class="num">${act != null ? `<b class="${act < 0 ? "down" : ""}">${fm(act)}</b><small>${pctTxt(act / Math.max(r.billed, 1) * 100)} margin</small>` : "—"}</td>
+        <td class="num ${cl(v)}">${fmS(v)}</td>
+        <td class="num">${r.estHrs ?? "—"} → <span class="${r.actHrs > r.estHrs ? "down" : ""}">${r.actHrs ?? "—"}</span></td>
+        <td class="num">${fm(r.estMat)} → <span class="${r.actMat > r.estMat ? "down" : ""}">${fm(r.actMat)}</span></td>
+        <td class="num">${effTag(effOf(r))}</td>
+        <td class="inv">${invCell(r)}</td></tr>
+        <tr class="det" id="dj${i}"><td colspan="8">${r.notes ? `<div class="h2-note" style="margin-bottom:.6rem">${esc(r.notes)}</div>` : ""}${r.fin ? costDetail(r.name, { estHrs: r.estHrs, estMat: r.estMat, billDelta: r.billed - r.quoted }) : `<div class="h2-note">Marked complete${r.doneAt ? " " + fmtD(r.doneAt) : ""}. Profit, materials and billing fill in once the cash refresh reconciles ${r.po ? "PO " + esc(r.po) : "this job"} in QuickBooks.</div>${r.notClosed ? `<button class="btn" style="margin-top:.6rem" data-reopen="${esc(r.id)}">Reopen job</button>` : ""}`}</td></tr>`;
+    }).join("") : `<tr><td class="empty-row" colspan="8">${CASH ? "No completed jobs on file yet." : "Loading job profit…"}</td></tr>`) + `</tbody>`;
+  const W = [...(((CASH && CASH.profit) || {}).wip || [])].sort((a, b) => b.underBilled - a.underBilled);
+  $("wip-jobs").innerHTML = `<thead><tr><th>Job</th><th class="num">% complete</th><th class="num">Cost to date vs estimate</th><th class="num">Earned</th><th class="num">Billed</th><th class="num">Earned not billed</th></tr></thead><tbody>` +
+    (W.length ? W.map((w, i) => `<tr class="job" data-d="wj${i}"><td>${esc(w.name)}${w.scopeChanging ? '<span class="flag amber">scope changing</span>' : ""}${w.overBudget ? '<span class="flag red">over budget</span>' : ""}</td><td class="num">${w.pct}%</td><td class="num">${fm(w.costIncurred)} of ${fm(w.costEst)}</td><td class="num">${fm(w.earned)}</td><td class="num">${fm(w.billed)}</td><td class="num ${w.underBilled > 5000 ? "watch" : ""}">${fm(w.underBilled)}</td></tr><tr class="det" id="wj${i}"><td colspan="6">${costDetail(w.name, { note: w.note })}</td></tr>`).join("") : `<tr><td class="empty-row" colspan="6">${CASH ? "No open jobs in the last cash refresh." : "Loading…"}</td></tr>`) + `</tbody>`;
+  wireRows("done-jobs"); wireRows("wip-jobs");
+}
+
+/* ---------- wiring ---------- */
+(() => {
+  const host = $("pipeline");
+  host.addEventListener("change", onBoard);
+  host.addEventListener("click", e => { if (e.target.closest("[data-act]")) onBoard(e); });
+  host.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset.add) { e.preventDefault(); const b = e.target.closest(".jc").querySelector(`[data-act="${/^mat/.test(e.target.dataset.add) ? "mat-add" : "task-add"}"]`); b && b.click(); } });
+  host.addEventListener("focusout", () => setTimeout(() => { if (pendingPipe) renderPipeline(); }, 0));
+  host.addEventListener("toggle", e => { const c = e.target.dataset && e.target.dataset.card; if (c) { if (e.target.open) OPEN_CARDS.add(c); else OPEN_CARDS.delete(c); setExpandLabel(); } }, true);
+})();
+$("profit").addEventListener("click", e => {
+  const ic = e.target.closest(".invck");
+  if (ic) { e.stopPropagation(); const cb = e.target.closest("input[data-inv]"); if (cb) commit(cb.dataset.inv, { invoiced: cb.checked, invoicedBy: cb.checked ? ME : "", invoicedAt: cb.checked ? nowIso() : "" }); return; }
+  const b = e.target.closest("[data-reopen]"); if (!b) return;
+  e.stopPropagation();
+  const j = jobById(b.dataset.reopen); if (!j) return;
+  const P = pjob(j), last = P.tasks.filter(x => x.done).sort((a, b) => (b.at || "").localeCompare(a.at || ""))[0];
+  const patch = { stage: "inprogress", stageBy: ME, stageAt: nowIso() };
+  if (last) patch.tasks = P.tasks.map(x => x.id === last.id ? { ...x, done: false, by: "", at: "" } : x);
+  if (confirm(`Move ${j.id} back to In progress${last ? ` and un-check "${last.name}"` : ""}?`)) commit(j.id, patch);
+});
+function setExpandLabel() { const all = [...document.querySelectorAll("#pipeline details.jc")]; const b = $("expand-all"); if (b) b.textContent = all.length && all.every(d => d.open) ? "Collapse all" : "Expand all"; }
+$("expand-all").addEventListener("click", () => {
+  const all = [...document.querySelectorAll("#pipeline details.jc")], open = !all.every(d => d.open);
+  all.forEach(d => { d.open = open; if (open) OPEN_CARDS.add(d.dataset.card); else OPEN_CARDS.delete(d.dataset.card); });
+  setExpandLabel();
+});
+window.apBoardState = map => { BOARD = map || {}; renderPipeline(); renderProfit(); };
+window.apCashLoaded = data => { CASH = data; renderProfit(); };
+window.apSyncMsg = syncMsg;
+window.apPipeStart = () => { renderPipeline(); renderProfit(); };
 </script>
 
 <script type="module">
-import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import { db, currentUser } from "./ap-firebase.js";
 const main = document.querySelector("main");
 const fail = msg => { document.getElementById("verdict").innerHTML = `<div class="verdict alert"><div class="verdict-line">Field data couldn't load.</div><div class="verdict-sub">${msg}</div></div>`; };
 const user = await currentUser();
 if (!user) { sessionStorage.clear(); window.location.href = "index.html"; }
 else {
-  document.getElementById("update-section").style.display = "";
+  const owner = typeof apIsOwner === "function" && apIsOwner();
+  if (owner) document.getElementById("update-section").style.display = "";
+  // Shared pipeline checklists: live for Jake, Mike and Cole
+  const safeId = id => String(id).replace(/\//g, "_");
+  window.apBoardSave = async (id, patch) => {
+    window.apSyncMsg("Saving…");
+    try { await setDoc(doc(db, "ops_jobs", safeId(id)), { ...patch, jobId: id, updatedAt: serverTimestamp(), updatedBy: user.email }, { merge: true }); window.apSyncMsg("Saved · shared live with Jake, Mike and Cole"); }
+    catch (e) { window.apSyncMsg("Save failed (" + e.code + "). Refresh the page and try again.", true); }
+  };
+  onSnapshot(collection(db, "ops_jobs"), snap => {
+    const m = {}; snap.forEach(d => { const x = d.data(); m[x.jobId || d.id] = x; });
+    window.apBoardState(m); window.apSyncMsg("Live · shared with Jake, Mike and Cole");
+  }, e => window.apSyncMsg("Checklists offline (" + e.code + "). Changes won't save.", true));
+  if (owner) getDoc(doc(db, "cash_dashboard", "latest")).then(s => { if (s.exists()) window.apCashLoaded(JSON.parse(s.data().json)); else window.apCashLoaded({ profit: {} }); }).catch(() => window.apCashLoaded({ profit: {} }));
   try {
     const snap = await getDoc(doc(db, "ops_dashboard", "latest"));
     if (snap.exists()) { const s = snap.data(); window.__apSaved = { at: s.updatedAt && s.updatedAt.toDate ? s.updatedAt.toDate().toISOString() : null, by: s.updatedBy || "" }; window.apOpsStart(JSON.parse(s.json)); }
     else fail("No data saved yet. Paste the first data file under Update data at the bottom of this page.");
-  } catch (e) { fail("Access denied or offline. This page is limited to Jake and Mike. (" + e.code + ")"); }
+  } catch (e) { fail("Access denied or offline. This page is limited to Jake, Mike and Cole. (" + e.code + ")"); }
   document.getElementById("upd-save").addEventListener("click", async () => {
     const msg = document.getElementById("upd-msg");
     let d;

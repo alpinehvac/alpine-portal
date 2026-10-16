@@ -51,6 +51,12 @@ service cloud.firestore {
         'matt.martin@alpinehvac.ca'
       ];
     }
+    // Field Operations job pipeline (shared materials + task checklists): owners + Cole
+    function isFieldOps() {
+      return isOwner() || (signedIn() && email() in [
+        'cole.hamilton@alpinehvac.ca'
+      ]);
+    }
     function isFinance() {
       return signedIn() && email() in [
         'jake.gilmore@alpinehvac.ca',
@@ -67,9 +73,14 @@ service cloud.firestore {
       allow read, write: if isFinance();
     }
 
-    // Field Operations dashboard (daily BuildOps refresh): owners (Jake, Mike) only
+    // Field Operations dashboard (daily BuildOps refresh): Cole can read, only owners save the refresh
     match /ops_dashboard/{doc=**} {
-      allow read, write: if isOwner();
+      allow read: if isFieldOps();
+      allow write: if isOwner();
+    }
+    // Field Operations job pipeline: ordered checkmarks, order notes, tasks, stage moves (one doc per job)
+    match /ops_jobs/{doc=**} {
+      allow read, write: if isFieldOps();
     }
     match /ops_dashboard_history/{doc=**} {
       allow read, write: if isOwner();
