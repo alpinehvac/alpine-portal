@@ -82,6 +82,10 @@ service cloud.firestore {
     match /ops_jobs/{doc=**} {
       allow read, write: if isFieldOps();
     }
+    // Business Context log: one source of truth read by every dashboard refresh: owners only
+    match /portal_context/{doc=**} {
+      allow read, write: if isOwner();
+    }
     match /ops_dashboard_history/{doc=**} {
       allow read, write: if isOwner();
     }

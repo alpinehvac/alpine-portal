@@ -358,7 +358,7 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
       </div>
       <div>
         <h2>Business context in use</h2>
-        <p class="h2-note" style="margin-bottom:1rem">Changes you've told Claude about. Every refresh reads these first.</p>
+        <p class="h2-note" style="margin-bottom:1rem">From the shared <a href="context.html" style="color:#27636C">Business Context</a> log. Both refreshes read it first.</p>
         <div class="panel"><ul class="ctx" id="context"></ul></div>
       </div>
     </div>
@@ -474,7 +474,7 @@ function render() {
 
   renderBoard(); renderJobs(); renderTechLoad(X); renderPMs(X);
   $("questions").innerHTML = (D.questions || []).length ? D.questions.map(q => `<li>${esc(q)}</li>`).join("") : `<li class="dim" style="list-style:none;margin-left:-1.2rem">No open questions this run.</li>`;
-  const ctx = (D.context || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const ctx = (window.__CTX || D.context || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   $("context").innerHTML = ctx.length ? ctx.map(c => `<li><div><span class="tag ${({Personnel:"purple",Operations:"teal",Financial:"amber",Customer:"grey"})[c.area] || "grey"}">${esc(c.area || "Note")}</span><small style="margin-top:.3rem">${fmtD(c.date)}</small></div><div>${esc(c.change)}${c.effective ? `<small>Effective ${fmtD(c.effective)}${c.impact ? " · " + esc(c.impact) : ""}</small>` : c.impact ? `<small>${esc(c.impact)}</small>` : ""}</div></li>`).join("") : `<li><div></div><div class="dim">Nothing logged yet.</div></li>`;
   $("checks").innerHTML = (D.checks || []).map(c => `<li class="${c.ok ? "" : "no"}">${esc(c.text)}</li>`).join("") || `<li class="no">No checks recorded this run.</li>`;
 }
@@ -936,6 +936,7 @@ else {
     const m = {}; snap.forEach(d => { const x = d.data(); m[x.jobId || d.id] = x; });
     window.apBoardState(m); window.apSyncMsg("Live · shared with Jake, Mike and Cole");
   }, e => window.apSyncMsg("Checklists offline (" + e.code + "). Changes won't save.", true));
+  if (owner) getDoc(doc(db, "portal_context", "log")).then(s => { if (s.exists()) { window.__CTX = (s.data().entries || []).filter(e => !e.retired && (e.appliesTo || []).includes("ops")).map(e => ({ ...e, change: (e.job ? e.job + ": " : "") + e.change })); if (typeof D !== "undefined" && D) render(); } }).catch(() => {});
   if (owner) getDoc(doc(db, "cash_dashboard", "latest")).then(s => { if (s.exists()) window.apCashLoaded(JSON.parse(s.data().json)); else window.apCashLoaded({ profit: {} }); }).catch(() => window.apCashLoaded({ profit: {} }));
   try {
     const snap = await getDoc(doc(db, "ops_dashboard", "latest"));

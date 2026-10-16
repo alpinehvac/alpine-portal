@@ -123,6 +123,7 @@ h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weigh
 const TOOL_META = {
   "cash-dashboard":    { icon: "💵", desc: "Cash and profit position: 13-week forecast, billed vs earned profit, break-even targets." },
   "job-profit":        { icon: "🔧", desc: "Profit by job: percent complete, earned vs billed, and quoted vs actual with labour and materials breakdowns." },
+  "context":           { icon: "🗒️", desc: "One log of job dates, holds, staffing and cost changes. Every dashboard refresh reads it first." },
   "ops-dashboard":     { icon: "🚐", desc: "Job pipeline (quoting, approved, in progress), materials ordering, completed job profit and efficiency, dispatch board and PMs." },
   "agreements":        { label: "Agreements", icon: "📑", desc: "Renewals due or overdue, and open agreement quotes.", href: "dashboard.html?cat=agreements" },
   "pl-calculator":     { icon: "📊", desc: "Model P&L outcomes and compensation scenarios." },
@@ -142,8 +143,8 @@ const TOOL_META = {
 // a tool can appear in more than one category if it's relevant to both.
 const TOOL_CATEGORIES = {
   sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "service-agreements", "site-reports", "sales-strategy", "audit-tool", "audit-playbook", "case-studies", "lead-sheets"] },
-  operations: { label: "Operations", icon: "🛠️", desc: "Field operations, agreements, scheduling, and day-to-day ops tools.", tools: ["ops-dashboard", "agreements", "site-reports", "team-hub", "call-log"] },
-  financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["cash-dashboard", "pl-calculator"] },
+  operations: { label: "Operations", icon: "🛠️", desc: "Field operations, agreements, scheduling, and day-to-day ops tools.", tools: ["ops-dashboard", "context", "agreements", "site-reports", "team-hub", "call-log"] },
+  financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["cash-dashboard", "context", "pl-calculator"] },
 };
 // "agreements" is a pseudo-tool: the renewal-alerts view (dashboard.html?cat=agreements),
 // listed under Operations. Visible only to people with Service Agreement Tracker access.

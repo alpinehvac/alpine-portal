@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Business Context</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("context");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ALPINE BUSINESS CONTEXT — the single source of truth for what the data can't show (job timing, holds, staffing, costs).
+     Stored in Firestore portal_context/log (owners only). Every dashboard refresh (cash + field operations) reads this log first
+     and applies each entry; answers Jake or Mike give Claude are added here, so both dashboards always agree. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--purple:#6C5D8D;--black:#EAF2F3;--off-black:#FFFFFF;--grey:#5A7A80;--white:#10444E;--amber:#A9821F;--red:#B83227;--green:#2E7D57;--border:rgba(16,68,78,0.12);--radius-lg:14px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:15px;line-height:1.5}
+nav{position:sticky;top:0;z-index:100}
+.nav-inner{max-width:1100px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.logo-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-wordmark{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;line-height:1}
+.nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;margin-top:2px}
+.back-link{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;border:1px solid;border-radius:6px;padding:8px 14px}
+.wrap{max-width:1100px;margin:0 auto;padding:2rem 2rem 5rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.4rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.35rem}
+.note{font-size:.88rem;color:var(--grey);max-width:80ch;margin:.5rem 0 1.5rem}
+.panel{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.3rem;margin-bottom:1.75rem}
+.filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+.filters button{border:1px solid rgba(16,68,78,.2);background:none;color:var(--grey);font:inherit;font-size:.82rem;padding:.35rem .75rem;border-radius:16px;cursor:pointer}
+.filters button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.log{list-style:none}
+.log li{display:grid;grid-template-columns:7rem 1fr 9rem;gap:1rem;padding:.8rem 0;border-bottom:1px solid var(--border);font-size:.88rem}
+.log li:last-child{border-bottom:none}
+.log li.off{opacity:.55}
+.log small{display:block;color:var(--grey);font-size:.76rem;margin-top:.2rem}
+.tag{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:10px;margin:0 .25rem .25rem 0;white-space:nowrap}
+.tag.teal{background:rgba(42,138,142,.18);color:#27636C}.tag.purple{background:rgba(155,142,196,.2);color:#4E4268}.tag.amber{background:rgba(226,168,69,.18);color:#8A6A12}.tag.grey{background:rgba(16,68,78,.08);color:var(--grey)}.tag.red{background:rgba(224,112,94,.16);color:var(--red)}
+.acts{text-align:right}
+.acts button{border:none;background:none;color:var(--grey);font:inherit;font-size:.76rem;cursor:pointer;text-decoration:underline}
+form .row{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:.75rem}
+label{display:flex;flex-direction:column;gap:.3rem;font-size:.78rem;color:var(--grey)}
+input,select,textarea{font:inherit;font-size:.88rem;color:var(--white);background:var(--black);border:1px solid rgba(16,68,78,.22);border-radius:6px;padding:.45rem .6rem}
+textarea{min-height:4.5rem;resize:vertical}
+.checks{display:flex;gap:1rem;align-items:center;font-size:.85rem}
+.checks label{flex-direction:row;align-items:center;gap:.35rem;color:var(--white)}
+.btn{font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:none;background:var(--teal);color:#fff;border-radius:6px;padding:.55rem 1rem;cursor:pointer}
+.msg{font-size:.82rem;color:var(--grey);margin-left:.75rem}
+.empty{color:var(--grey);font-size:.88rem;padding:.6rem 0}
+@media (max-width:760px){form .row{grid-template-columns:1fr 1fr}.log li{grid-template-columns:1fr}.acts{text-align:left}.wrap{padding:1.5rem 1rem 4rem}.nav-inner{padding:0 1rem}}
+</style>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<nav><div class="nav-inner">
+  <a class="nav-logo" href="dashboard.html"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 15 L16 11 L21 20 Z"/></svg></div><div class="nav-wordmark">Alpine HVAC<small>Internal Portal</small></div></a>
+  <a class="back-link" href="dashboard.html?cat=operations">&larr; Operations</a>
+</div></nav>
+<main class="wrap">
+  <h1>Business Context</h1>
+  <p class="note">One log for everything the data can't show: job start and delivery dates, holds, staffing, recurring costs, one-time payments. Both daily refreshes (Cash Position and Field Operations) read this log first and apply every entry, so the two pages always use the same dates. Tell Claude in any chat, or add an entry here.</p>
+
+  <div class="panel">
+    <h2>Add context</h2>
+    <form id="add">
+      <div class="row">
+        <label>Area<select id="f-area"><option>Operations</option><option>Financial</option><option>Personnel</option><option>Customer</option></select></label>
+        <label>Job # (optional)<input id="f-job" placeholder="JO20261184"></label>
+        <label>Effective date<input id="f-eff" type="date"></label>
+        <label>Status<select id="f-applied"><option value="true">Confirmed</option><option value="false">Undecided</option></select></label>
+      </div>
+      <label style="margin-bottom:.75rem">What changed<textarea id="f-change" placeholder="e.g. 21 Hunter chiller delivered February 2027"></textarea></label>
+      <div class="checks">Applies to:
+        <label><input type="checkbox" id="f-cash" checked> Cash Position</label>
+        <label><input type="checkbox" id="f-ops" checked> Field Operations</label>
+        <button class="btn" type="submit" style="margin-left:auto">Add to log</button><span class="msg" id="msg"></span>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Log</h2>
+    <div class="filters" id="filters"></div>
+    <ul class="log" id="log"></ul>
+  </div>
+
+  <div class="panel" id="bulk" style="display:none">
+    <h2>Bulk update (used by Claude)</h2>
+    <p class="note" style="margin-top:0">Paste a JSON array of entries; entries with an existing id replace it, new ones are added.</p>
+    <textarea id="bulk-json" rows="5" style="width:100%;font:12px/1.4 ui-monospace,monospace"></textarea>
+    <div style="margin-top:.6rem"><button class="btn" id="bulk-save">Save entries</button><span class="msg" id="bulk-msg"></span></div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtD = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? new Date(+m[1], +m[2]-1, +m[3]).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" }) : "—"; };
+let LOG = [], FILTER = "all";
+const AREA = { Operations: "teal", Financial: "amber", Personnel: "purple", Customer: "grey" };
+function render() {
+  const F = [["all", "All"], ["cash", "Cash Position"], ["ops", "Field Operations"], ["open", "Undecided"]];
+  $("filters").innerHTML = F.map(([k, l]) => `<button class="${FILTER === k ? "on" : ""}" data-f="${k}">${l}</button>`).join("");
+  $("filters").querySelectorAll("button").forEach(b => b.onclick = () => { FILTER = b.dataset.f; render(); });
+  const rows = LOG.filter(e => FILTER === "all" || (FILTER === "open" ? e.applied === false : (e.appliesTo || []).includes(FILTER)))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  $("log").innerHTML = rows.length ? rows.map(e => `<li class="${e.retired ? "off" : ""}">
+    <div><span class="tag ${AREA[e.area] || "grey"}">${esc(e.area || "Note")}</span><small>${fmtD(e.date)}${e.source ? " · " + esc(e.source) : ""}</small></div>
+    <div>${e.job ? `<b>${esc(e.job)}</b> · ` : ""}${esc(e.change)}<small>${e.effective ? "Effective " + fmtD(e.effective) : ""}${e.impact ? (e.effective ? " · " : "") + esc(e.impact) : ""}</small></div>
+    <div class="acts">${(e.appliesTo || []).map(a => `<span class="tag ${a === "cash" ? "amber" : "teal"}">${a === "cash" ? "Cash" : "Field Ops"}</span>`).join("")}${e.applied === false ? '<span class="tag red">Undecided</span>' : ""}${e.retired ? '<span class="tag grey">Retired</span>' : ""}<br><button data-id="${esc(e.id)}">${e.retired ? "Restore" : "Retire"}</button></div>
+  </li>`).join("") : `<li class="empty">Nothing logged yet.</li>`;
+  $("log").querySelectorAll("button[data-id]").forEach(b => b.onclick = () => { const e = LOG.find(x => x.id === b.dataset.id); if (e) { e.retired = !e.retired; window.apCtxSave && window.apCtxSave(LOG); render(); } });
+}
+window.apCtxStart = log => { LOG = log || []; render(); };
+$("add").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const change = $("f-change").value.trim(); if (!change) { $("msg").textContent = "Describe what changed."; return; }
+  const appliesTo = [$("f-cash").checked && "cash", $("f-ops").checked && "ops"].filter(Boolean);
+  const S = (typeof apGetSession === "function" && apGetSession()) || {};
+  LOG.push({ id: "c-" + Date.now().toString(36), date: new Date().toISOString().slice(0, 10), area: $("f-area").value, job: $("f-job").value.trim() || null, change, effective: $("f-eff").value || null, applied: $("f-applied").value === "true", appliesTo, source: (S.name || "").split(" ")[0] || "Portal" });
+  $("f-change").value = ""; $("f-job").value = ""; $("f-eff").value = "";
+  window.apCtxSave && window.apCtxSave(LOG); render();
+});
+$("bulk-save").addEventListener("click", () => {
+  let arr; try { arr = JSON.parse($("bulk-json").value); if (!Array.isArray(arr)) throw 0; } catch (e) { $("bulk-msg").textContent = "Paste a JSON array."; return; }
+  arr.forEach(n => { if (!n.change) return; n.id = n.id || "c-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); const i = LOG.findIndex(x => x.id === n.id); if (i >= 0) LOG[i] = { ...LOG[i], ...n }; else LOG.push(n); });
+  window.apCtxSave && window.apCtxSave(LOG); render(); $("bulk-json").value = ""; $("bulk-msg").textContent = arr.length + " entries saved.";
+});
+</script>
+<script type="module">
+import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { db, currentUser } from "./ap-firebase.js";
+const user = await currentUser();
+if (!user) { sessionStorage.clear(); location.href = "index.html"; }
+else {
+  document.getElementById("bulk").style.display = "";
+  const ref = doc(db, "portal_context", "log");
+  window.apCtxSave = async log => {
+    const m = document.getElementById("msg");
+    try { await setDoc(ref, { entries: log, updatedAt: serverTimestamp(), updatedBy: user.email }); m.textContent = "Saved."; }
+    catch (e) { m.textContent = "Save failed (" + e.code + ")."; }
+  };
+  try { const s = await getDoc(ref); window.apCtxStart(s.exists() ? (s.data().entries || []) : []); }
+  catch (e) { document.getElementById("log").innerHTML = `<li class="empty">Couldn't load the log (${e.code}). This page is limited to Jake and Mike.</li>`; }
+}
+</script>
+</body>
+</html>

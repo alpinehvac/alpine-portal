@@ -27,6 +27,7 @@ const AP_TOOLS = {
   "cash-dashboard":     { label: "Financial Position",            roles: ["finance"], strict: true }, // Jake, Mike, Clarissa only
   "job-profit":         { label: "Job Profit",                    roles: ["owner"], strict: true },   // retired: now Field Operations > Completed jobs; page redirects there
   "ops-dashboard":      { label: "Field Operations",              roles: ["owner", "field_ops"], strict: true }, // Jake, Mike + Cole (pipeline + materials); Completed jobs / profit shown to owners only
+  "context":            { label: "Business Context",              roles: ["owner"], strict: true },   // single context log read by every dashboard refresh: Jake, Mike only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
   "team-files":         { label: "Team Files",                    roles: ["owner"], strict: true }, // Team Hub > Team Files + quarterly reviews: Jake, Mike only
