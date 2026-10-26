@@ -172,6 +172,7 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 .pbar{height:8px;background:rgba(16,68,78,0.1);border-radius:4px;overflow:hidden;margin-top:.55rem}
 .pbar i{display:block;height:100%;background:var(--purple);border-radius:4px}
 .pbar i.full{background:var(--green)}
+.pbar i.over{background:var(--red)}
 .pct{font-family:'Oswald',sans-serif;font-size:1.35rem;line-height:1}
 .ck{list-style:none}
 .ck li{display:grid;grid-template-columns:1.2rem 1fr auto;gap:.45rem;align-items:start;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.83rem}
@@ -615,7 +616,8 @@ function pjob(j) {
   const rr = r;
   if (S.stage && RANK[S.stage] > r) r = RANK[S.stage];
   if (pct === 100 && r === 2) r = 3;
-  return { j, S, materials, tasks, totH, doneH, pct, rr, rank: r, stage: STAGE_BY_RANK[r], ordered: materials.filter(m => m.ordered).length };
+  const hrsPct = j.budgetHrs > 0 ? Math.round((j.actualHrs || 0) / j.budgetHrs * 100) : null;
+  return { j, S, materials, tasks, totH, doneH, pct, hrsPct, rr, rank: r, stage: STAGE_BY_RANK[r], ordered: materials.filter(m => m.ordered).length };
 }
 
 /* ---------- writes (optimistic, then Firestore) ---------- */
@@ -741,10 +743,10 @@ function progressCard(P, t) {
     : `<span class="tag amber">No visit scheduled</span>`;
   const manual = P.rr < 2 && P.S.stage === "inprogress";
   return `<details class="jc" data-card="${esc(j.id)}" ${OPEN_CARDS.has(j.id) ? "open" : ""}><summary>
-    <div class="jc-top"><span class="jc-id">${jobRef(j)}${j.po ? ` · PO ${esc(j.po)}` : ""}</span><span class="pct">${P.pct == null ? "—" : P.pct + "%"}</span></div>
+    <div class="jc-top"><span class="jc-id">${jobRef(j)}${j.po ? ` · PO ${esc(j.po)}` : ""}</span><span class="pct${P.hrsPct > 100 ? " bad" : ""}" title="Hours worked ÷ budgeted hours">${P.hrsPct == null ? "—" : P.hrsPct + "%"}</span></div>
     <div class="jc-cust">${esc(j.customer)}</div><div class="jc-site">${esc(j.property || "")}</div>
     <div class="jc-scope">${esc(j.scope || j.title || "")}</div>
-    <div class="pbar"><i class="${P.pct === 100 ? "full" : ""}" style="width:${P.pct || 0}%"></i></div>
+    <div class="pbar"><i class="${P.hrsPct > 100 ? "over" : P.hrsPct === 100 ? "full" : ""}" style="width:${Math.min(100, P.hrsPct || 0)}%"></i></div>
     <div class="jc-meta">${P.tasks.length ? `<span class="tag grey">${P.doneH} of ${P.totH} task hrs done</span>` : `<span class="tag amber">No task list</span>`}${j.budgetHrs || j.actualHrs ? `<span class="tag ${over ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs ?? "?"} hrs used</span>` : ""}${out > 0 ? `<span class="tag amber">${out} item${out > 1 ? "s" : ""} not ordered</span>` : ""}${manual ? `<span class="tag purple">Started manually</span>` : ""}${orderPill(j)}${holdPill(j)}<span class="chev" aria-hidden="true">▾</span></div>
   </summary><div class="jc-body">
     <div class="visit">${visitTxt}${j.nextVisit ? "" : `<label class="dim">Set date <input type="date" data-act="visit" data-job="${esc(j.id)}" value="${esc(P.S.visit || "")}"></label>`}</div>
@@ -769,10 +771,10 @@ function renderPipeline() {
   const appr = P.filter(x => x.stage === "approved").sort((x, y) => (x.j.approved || x.j.created || "").localeCompare(y.j.approved || y.j.created || ""));
   const prog = P.filter(x => x.stage === "inprogress").sort((x, y) => (x.j.nextVisit || x.S.visit || "9999").localeCompare(y.j.nextVisit || y.S.visit || "9999") || (x.pct || 0) - (y.pct || 0));
   const toOrder = appr.reduce((s, x) => s + x.materials.length - x.ordered, 0);
-  const pcts = prog.filter(x => x.pct != null);
+  const pcts = prog.filter(x => x.hrsPct != null);
   colHead("ph-q", "Quoting", quotes.length, quotes.reduce((s, q) => s + (q.amount || 0), 0), `${quotes.filter(q => !/draft/i.test(q.status || "") && days(parseD(q.sent || q.created) || t, t) > 14).length} need follow-up`);
   colHead("ph-a", "Approved", appr.length, appr.reduce((s, x) => s + (x.j.quoted || 0), 0), toOrder ? `${toOrder} item${toOrder > 1 ? "s" : ""} to order` : "nothing to order");
-  colHead("ph-p", "In progress", prog.length, prog.reduce((s, x) => s + (x.j.quoted || 0), 0), pcts.length ? `avg ${Math.round(pcts.reduce((s, x) => s + x.pct, 0) / pcts.length)}% complete` : "");
+  colHead("ph-p", "In progress", prog.length, prog.reduce((s, x) => s + (x.j.quoted || 0), 0), pcts.length ? `avg ${Math.round(pcts.reduce((s, x) => s + x.hrsPct, 0) / pcts.length)}% of budgeted hours used` : "");
   $("pc-q").innerHTML = quotes.length ? quotes.map(q => quoteCard(q, t)).join("") : `<div class="col-empty">${D.quotes ? "No open quotes." : "Open quotes appear here after the next daily refresh reads the BuildOps quotes list."}</div>`;
   $("pc-a").innerHTML = appr.length ? appr.map(x => approvedCard(x, t)).join("") : `<div class="col-empty">No approved jobs waiting to start.</div>`;
   $("pc-p").innerHTML = prog.length ? prog.map(x => progressCard(x, t)).join("") : `<div class="col-empty">No project jobs in progress.</div>`;
