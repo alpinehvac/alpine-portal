@@ -118,6 +118,11 @@ service cloud.firestore {
       allow read, write: if isSales();
     }
 
+    // Outbound territory map (lead sheet copy, targets, claims, geocode cache): sales only
+    match /outbound_data/{doc=**} {
+      allow read, write: if isSales();
+    }
+
     // Service Agreement Tracker: sales only
     match /service_agreements_data/{doc=**} {
       allow read, write: if isSales();
