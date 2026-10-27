@@ -82,8 +82,22 @@ Object.keys(localStorage).filter(k => k.startsWith('st_site_')).forEach(k => add
 const leadNames = new Set(leads.map(l => normName(l.company)).filter(n => n.length > 3));
 const leadAddrs = new Set(leads.map(l => addrKey(l.address)).filter(Boolean));
 const custNames = new Set(customers.map(c => normName(c.customer || c.name)).filter(n => n.length > 3));
-const targetsAll = (targetsDoc.rows || []).map(t => ({ ...t, kind: 'target', gkey: addrKey(t.address) + '|' + addrKey(t.area) }));
-const isCovered = t => leadAddrs.has(addrKey(t.address)) || custSeen.has(addrKey(t.address)) || leadNames.has(normName(t.name)) || custNames.has(normName(t.name));
+// Area for a point: nearest community centre (matches how the lead sheet names areas)
+const CENTROIDS = [['Hamilton', 43.2557, -79.8711], ['Stoney Creek', 43.2177, -79.7600], ['Ancaster', 43.2177, -79.9870], ['Dundas', 43.2650, -79.9550], ['Waterdown', 43.3330, -79.8930], ['Binbrook', 43.1220, -79.8090], ['Mount Hope', 43.1510, -79.9060], ['Burlington', 43.3255, -79.7990], ['Oakville', 43.4675, -79.6877], ['Milton', 43.5183, -79.8774], ['Georgetown', 43.6500, -79.9170], ['Grimsby', 43.2000, -79.5600], ['Beamsville', 43.1650, -79.4760], ['Vineland', 43.1540, -79.3930], ['Jordan', 43.1440, -79.3700], ['Smithville', 43.0940, -79.5490], ['St. Catharines', 43.1594, -79.2469], ['Thorold', 43.1250, -79.1990], ['Niagara-on-the-Lake', 43.2550, -79.0710], ['Niagara Falls', 43.0896, -79.0849], ['Welland', 42.9920, -79.2483], ['Fonthill', 43.0430, -79.2840], ['Port Colborne', 42.8860, -79.2500], ['Fort Erie', 42.9050, -78.9260], ['Wainfleet', 42.9200, -79.3800], ['Caledonia', 43.0730, -79.9530]];
+function nearestArea(p) { let best = null, bd = 1e9; CENTROIDS.forEach(([n, la, ln]) => { const d = km(p, { lat: la, lng: ln }); if (d < bd) { bd = d; best = n; } }); return best; }
+
+// OpenStreetMap building list (compact rows, one key per sector, built by obBuildTargets)
+const OSM_KEYS = ['ob_targets_osm_ind', 'ob_targets_osm_com', 'ob_targets_osm_res', 'ob_targets_osm_inst'];
+const fmtSqft = n => n ? '≈ ' + (Math.round(n / 1000) * 1000).toLocaleString('en-CA') + ' sq ft' : '';
+function fromOsm(r) {
+  return { id: r.i, name: r.n, address: r.a || '', area: r.c || nearestArea({ lat: r.y, lng: r.x }), sector: r.s, type: r.t, sqft: r.q || null, levels: r.l || null,
+    size: r.q ? fmtSqft(r.q) + (r.l > 1 ? ' (' + r.l + ' floors)' : '') : '', why: r.w || '', lat: r.y, lng: r.x, osm: true, source: 'https://www.openstreetmap.org/' + r.i.replace(/^o([nwr])/, (m, k) => ({ n: 'node/', w: 'way/', r: 'relation/' })[k]) };
+}
+const osmDocs = OSM_KEYS.map(k => readJSON(k)).filter(Boolean);
+const targetsAll = (targetsDoc.rows || []).map(t => ({ ...t, sqft: t.sqft || null }))
+  .concat(...osmDocs.map(d => (d.rows || []).map(fromOsm)))
+  .map(t => ({ ...t, kind: 'target', gkey: t.address ? addrKey(t.address) + '|' + addrKey(t.area) : 'n:' + normName(t.name) + '|' + addrKey(t.area) }));
+const isCoveredByName = t => (t.address && (leadAddrs.has(addrKey(t.address)) || custSeen.has(addrKey(t.address)))) || leadNames.has(normName(t.name)) || custNames.has(normName(t.name));
 
 // ── Geocoding (browser-side, cached for everyone in ob_geo) ──────────
 const posOf = x => { if (x.lat != null && x.lng != null) return { lat: +x.lat, lng: +x.lng }; const g = geo[x.gkey]; return g && g.src !== 'fail' ? { lat: g.lat, lng: g.lng } : null; };
@@ -158,7 +172,7 @@ const layers = {
 };
 const LAYER_DEFS = [
   { k: 'customers', label: 'Existing customers', on: true, cls: 'sq', color: '--s-customer' },
-  { k: 'targets', label: 'Targets not yet contacted', on: true, cls: 'dia' },
+  { k: 'targets', label: 'Targets not yet contacted', on: true, cls: 'tgt' },
   { k: 'grid', label: 'Coverage grid (worked areas)', on: false, cls: 'grid' },
   { k: 'rings', label: 'Distance from shop (20 / 40 / 60 km)', on: false, cls: '', color: '--teal' },
 ];
@@ -222,13 +236,13 @@ function targetPopup(t) {
   const c = claims[t.id];
   const p = posOf(t);
   return '<div class="pop"><h4>' + esc(t.name) + '</h4><div class="meta"><span class="chip" style="background:' + css('--s-target') + '">Not yet contacted</span> ' + esc(t.sector || '') + '</div>' +
-    '<dl><dt>Address</dt><dd>' + esc(t.address) + (t.area ? ', ' + esc(t.area) : '') + '</dd>' +
+    '<dl><dt>Address</dt><dd>' + (t.address || (geo['rev:' + t.id] && geo['rev:' + t.id].addr) ? esc(t.address || geo['rev:' + t.id].addr) : '<button class="btn sm ghost" data-revgeo="' + esc(t.id) + '">Look up address</button>') + (t.area ? ', ' + esc(t.area) : '') + '</dd>' +
     (t.type ? '<dt>Type</dt><dd>' + esc(t.type) + '</dd>' : '') +
     (t.size ? '<dt>Size</dt><dd>' + esc(t.size) + '</dd>' : '') +
     (t.why ? '<dt>Why</dt><dd>' + esc(t.why) + '</dd>' : '') +
     (p ? '<dt>From shop</dt><dd>' + km(shopPos(), p).toFixed(0) + ' km</dd>' : '') +
     '<dt>Claimed</dt><dd>' + (c ? esc(c.by) + ' · ' + fmtDate(c.at) : 'No') + '</dd></dl>' +
-    (t.source ? '<div class="meta"><a href="' + esc(t.source) + '" target="_blank" rel="noopener">Source</a></div>' : '') +
+    (t.source ? '<div class="meta"><a href="' + esc(t.source) + '" target="_blank" rel="noopener">' + (t.osm ? 'Building on OpenStreetMap' : 'Source') + '</a></div>' : '') +
     '<div class="acts">' + claimButton(t) + '</div></div>';
 }
 function claimButton(t) {
@@ -250,8 +264,10 @@ function drawMap() {
     const m = L.marker([p.lat, p.lng], { icon: custIcon, title: c.name, zIndexOffset: 500 }).bindPopup(() => custPopup(c));
     m.addTo(layers.customers); markerById['c:' + c.id] = m;
   });
-  spread(openTargets()).forEach(([t, p]) => {
-    const m = L.marker([p.lat, p.lng], { icon: targetIcon(!!claims[t.id]), title: t.name }).bindPopup(() => targetPopup(t), { maxWidth: 320 });
+  openTargets().forEach(t => {
+    const p = posOf(t); if (!p) return;
+    const m = L.circleMarker([p.lat, p.lng], { radius: t.sqft >= 50000 ? 6 : 4.5, color: css('--s-target'), weight: 1.6, fillColor: claims[t.id] ? css('--s-target') : '#fff', fillOpacity: 0.9 })
+      .bindPopup(() => targetPopup(t), { maxWidth: 320 }).bindTooltip(esc(t.name), { direction: 'top', offset: [0, -4] });
     m.addTo(layers.targets); markerById['t:' + t.id] = m;
   });
   spread(leads.filter(leadVisible)).forEach(([l, p]) => {
@@ -290,7 +306,27 @@ function drawGrid() {
   });
 }
 
-function openTargets() { return targetsAll.filter(t => !isCovered(t)); }
+// A target is covered when it's on the sheet / in BuildOps by name or address, or when a lead or
+// customer pin sits within 60 m (same building). OSM buildings next to a researched target are dropped.
+let _open = null;
+function openTargets() {
+  if (_open) return _open;
+  const idx = {}, cellOf = p => Math.round(p.lat * 1500) + ':' + Math.round(p.lng * 1100);
+  const index = (p, tag) => { const k = cellOf(p); (idx[k] = idx[k] || []).push([p, tag]); };
+  const near = (p, m, tag) => { const a = Math.round(p.lat * 1500), b = Math.round(p.lng * 1100); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [q, tg] of (idx[(a + i) + ':' + (b + j)] || [])) if ((!tag || tg === tag) && km(p, q) * 1000 < m) return true; return false; };
+  leads.forEach(l => { const p = posOf(l); if (p) index(p, 'x'); });
+  customers.forEach(c => { const p = posOf(c); if (p) index(p, 'x'); });
+  const curated = targetsAll.filter(t => !t.osm);
+  curated.forEach(t => { const p = posOf(t); if (p) index(p, 'c'); });
+  _open = targetsAll.filter(t => {
+    if (isCoveredByName(t)) return false;
+    const p = posOf(t);
+    if (p && near(p, 60, 'x')) return false;
+    if (t.osm && p && near(p, 60, 'c')) return false;
+    return true;
+  });
+  return _open;
+}
 
 // ── Side panel controls ─────────────────────────────────────────────
 function renderControls() {
@@ -317,7 +353,21 @@ document.addEventListener('click', e => {
   if (place) startPlacing(place.dataset.place);
   const area = e.target.closest('[data-area]');
   if (area) fitArea(area.dataset.area);
+  const rg = e.target.closest('[data-revgeo]');
+  if (rg) reverseAddress(rg.dataset.revgeo, rg);
+  if (e.target.closest('#osm-build')) startOsmBuild();
 });
+async function reverseAddress(id, btn) {
+  const t = targetsAll.find(x => x.id === id); const p = t && posOf(t); if (!p) return;
+  btn.disabled = true; btn.textContent = 'Looking up…';
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=' + p.lat + '&lon=' + p.lng);
+    const j = await r.json(); const a = j.address || {};
+    const addr = [a.house_number, a.road].filter(Boolean).join(' ') || (j.display_name || '').split(',').slice(0, 2).join(',');
+    geo = readJSON('ob_geo') || geo; geo['rev:' + id] = { src: 'rev', addr, t: Date.now() }; saveGeo();
+    btn.outerHTML = esc(addr + (a.house_number ? '' : ' (nearest street)'));
+  } catch (err) { btn.textContent = 'Not found'; }
+}
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.toggles li')) { e.preventDefault(); e.target.click(); } });
 
 function setClaim(id, on) {
@@ -411,10 +461,10 @@ function areaOfCust(c) {
 }
 
 const sortState = { areas: { k: 'targets', d: -1 }, targets: { k: 'dist', d: 1 } };
-function sortable(id, cols, rows, key, render) {
+function sortable(id, cols, rows, key, render, cap) {
   const st = sortState[key];
   rows.sort((a, b) => { const x = a[st.k], y = b[st.k]; if (x === y) return 0; if (x == null || x === '') return 1; if (y == null || y === '') return -1; return (x > y ? 1 : -1) * st.d; });
-  $(id).innerHTML = '<thead><tr>' + cols.map(c => '<th data-sort="' + key + ':' + c[0] + '" class="' + (c[2] || '') + '">' + c[1] + (st.k === c[0] ? (st.d > 0 ? ' ↑' : ' ↓') : '') + '</th>').join('') + '</tr></thead><tbody>' + (rows.length ? rows.map(render).join('') : '<tr><td colspan="' + cols.length + '" class="empty-row">Nothing here yet.</td></tr>') + '</tbody>';
+  $(id).innerHTML = '<thead><tr>' + cols.map(c => '<th data-sort="' + key + ':' + c[0] + '" class="' + (c[2] || '') + '">' + c[1] + (st.k === c[0] ? (st.d > 0 ? ' ↑' : ' ↓') : '') + '</th>').join('') + '</tr></thead><tbody>' + (rows.length ? rows.slice(0, cap || rows.length).map(render).join('') : '<tr><td colspan="' + cols.length + '" class="empty-row">Nothing here yet.</td></tr>') + '</tbody>';
 }
 document.addEventListener('click', e => {
   const th = e.target.closest('th[data-sort]'); if (!th) return;
@@ -458,9 +508,10 @@ function renderTargets() {
     if (q && !(t.name + ' ' + t.address + ' ' + t.type + ' ' + t.why).toLowerCase().includes(q)) return false;
     return true;
   }).map(t => { const p = posOf(t); return { ...t, dist: p ? km(sp, p) : null, claim: claims[t.id] ? claims[t.id].by : '' }; });
-  $('t-count').textContent = rows.length + ' of ' + open.length + ' targets' + (targetsAll.length > open.length ? ' · ' + (targetsAll.length - open.length) + ' already on the sheet or in BuildOps' : '');
-  sortable('t-targets', [['name', 'Building'], ['sector', 'Sector'], ['area', 'Area'], ['why', 'Why it fits', 'nosort'], ['dist', 'From shop', 'num'], ['claim', 'Claimed']], rows, 'targets', t =>
-    '<tr><td><a data-fly="t:' + esc(t.id) + '">' + esc(t.name) + '</a><small>' + esc(t.address) + '</small></td><td>' + esc(t.sector) + '<small>' + esc(t.type || '') + '</small></td><td>' + esc(t.area) + '</td><td><small style="color:inherit">' + esc(t.why || '') + '</small></td><td class="num">' + (t.dist != null ? t.dist.toFixed(0) + ' km' : '…') + '</td><td>' + claimButton(t) + '</td></tr>');
+  const CAP = 300;
+  $('t-count').textContent = rows.length.toLocaleString('en-CA') + ' of ' + open.length.toLocaleString('en-CA') + ' targets' + (rows.length > CAP ? ' · showing ' + CAP + ' (sort or filter to narrow)' : '') + (targetsAll.length > open.length ? ' · ' + (targetsAll.length - open.length).toLocaleString('en-CA') + ' already on the sheet, in BuildOps or beside a lead' : '');
+  sortable('t-targets', [['name', 'Building'], ['sector', 'Sector'], ['area', 'Area'], ['sqft', 'Size', 'num'], ['why', 'Why it fits', 'nosort'], ['dist', 'From shop', 'num'], ['claim', 'Claimed']], rows, 'targets', t =>
+    '<tr><td><a data-fly="t:' + esc(t.id) + '">' + esc(t.name) + '</a><small>' + esc(t.address || (geo['rev:' + t.id] && geo['rev:' + t.id].addr) || 'address: click the pin') + '</small></td><td>' + esc(t.sector) + '<small>' + esc(t.type || '') + '</small></td><td>' + esc(t.area) + '</td><td class="num">' + (t.sqft ? (Math.round(t.sqft / 1000)).toLocaleString('en-CA') + 'k' : '') + (t.levels > 1 ? '<small>' + t.levels + ' floors</small>' : '') + '</td><td><small style="color:inherit">' + esc(t.why || '') + '</small></td><td class="num">' + (t.dist != null ? t.dist.toFixed(0) + ' km' : '…') + '</td><td>' + claimButton(t) + '</td></tr>', CAP);
 }
 function fillTargetFilters() {
   const open = openTargets();
@@ -525,6 +576,7 @@ function renderHeader(unplaced) {
 
 let fitted = false;
 function renderAll(redrawMap) {
+  _open = null;
   renderHeader();
   renderControls();
   drawMap();
@@ -565,8 +617,100 @@ window.obImport = (() => {
     },
   };
 })();
+// ── Building list from OpenStreetMap (owners; runs in this tab, 10–30 min) ──────────
+// Pulls industrial, commercial, residential high-rise and institutional buildings across
+// Hamilton, Halton and Niagara; keeps buildings of 10,000 sq ft and up (footprint × floors).
+const OSM_EPS = ['https://overpass.private.coffee/api/interpreter', 'https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+const OSM_REGIONS = [['Hamilton', '43.05,-80.10,43.40,-79.62'], ['Halton', '43.30,-80.05,43.62,-79.62'], ['Niagara west', '42.84,-79.62,43.30,-79.30'], ['Niagara east', '42.84,-79.30,43.30,-78.90']];
+const OSM_SECTORS = {
+  ind: { label: 'Industrial', q: b => 'way["building"~"^(industrial|warehouse|manufacture|factory)$"](' + b + ');out tags geom qt;' },
+  com: { label: 'Commercial', q: b => 'way["building"~"^(office|commercial|retail|hotel|supermarket)$"](' + b + ');out tags geom qt;' },
+  res: { label: 'Residential high-rise', q: b => 'way["building"~"^(apartments|residential)$"]["building:levels"](if:number(t["building:levels"])>=6)(' + b + ');out tags geom qt;' },
+  inst: { label: 'Institutional', q: b => 'nwr["amenity"~"^(school|college|university|fire_station|hospital|nursing_home|community_centre|library|townhall|police)$"](' + b + ');out tags center qt;' },
+};
+const MIN_SQFT = 10000;
+const INST_TYPE = { school: 'School', college: 'College', university: 'University', fire_station: 'Fire station', hospital: 'Hospital', nursing_home: 'Long-term care', community_centre: 'Community centre', library: 'Library', townhall: 'Municipal building', police: 'Police station' };
+function osmWhy(type, tags) {
+  if (/Factory|Industrial|Warehouse/.test(type)) return 'Owner-operated plant: unit heaters, MUAs, RTUs, process cooling; buys direct';
+  if (/Office/.test(type)) return 'Tenant comfort + BAS; property manager decides';
+  if (/Hotel/.test(type)) return 'Guest comfort drives reviews; PTACs + central plant';
+  if (/Condo/.test(type)) return 'Condo corp via property manager: boilers, MUA, garage exhaust, common areas';
+  if (/Retail|Commercial|Supermarket/.test(type)) return 'RTU fleet; landlord or tenant contracts';
+  if (type === 'School') return /district school board|catholic/i.test(tags.operator || tags.name || '') ? 'School board: bids & tenders' : 'Check board vs independent (independents buy direct)';
+  if (/Fire station|Library|Municipal|Police|Community centre/.test(type)) return 'Municipal: get on the bids & tenders list';
+  if (/Long-term care/.test(type)) return '24/7 occupied; regulated temps; maintenance contracts';
+  return 'Large campus: in-house staff + tendered sub-trade work';
+}
+function footprintM2(g) {
+  if (!g || g.length < 3) return 0;
+  const lat0 = g[0].lat * Math.PI / 180, kx = 111320 * Math.cos(lat0), ky = 110540;
+  let a = 0; for (let i = 0; i < g.length; i++) { const p = g[i], q = g[(i + 1) % g.length]; a += (p.lon * kx) * (q.lat * ky) - (q.lon * kx) * (p.lat * ky); }
+  return Math.abs(a) / 2;
+}
+async function overpass(query) {
+  let last = '';
+  for (let attempt = 0; attempt < 2; attempt++) for (const ep of OSM_EPS) {
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 240000);
+    try {
+      const r = await fetch(ep, { method: 'POST', body: 'data=' + encodeURIComponent('[out:json][timeout:220];' + query), signal: ac.signal });
+      const txt = await r.text();
+      if (r.ok) { const j = JSON.parse(txt); if (j.elements) return j.elements; }
+      last = r.status + ' ' + txt.slice(0, 60);
+    } catch (e) { last = String(e); } finally { clearTimeout(to); }
+    await sleep(3000);
+  }
+  throw new Error('Overpass failed: ' + last);
+}
+function osmRow(e, sector) {
+  const t = e.tags || {};
+  const y = e.center ? e.center.lat : e.lat != null ? e.lat : e.geometry ? e.geometry.reduce((s, g) => s + g.lat, 0) / e.geometry.length : null;
+  const x = e.center ? e.center.lon : e.lon != null ? e.lon : e.geometry ? e.geometry.reduce((s, g) => s + g.lon, 0) / e.geometry.length : null;
+  if (y == null) return null;
+  const lv = Math.max(1, Math.min(60, parseInt(t['building:levels'], 10) || 1));
+  const area = e.geometry ? footprintM2(e.geometry) : 0;
+  const sqft = area ? Math.round(area * lv * 10.764) : 0;
+  let type;
+  if (sector === 'ind') type = /factory|manufacture/.test(t.building) ? 'Factory' : t.building === 'warehouse' ? 'Warehouse' : 'Industrial building';
+  else if (sector === 'com') type = t.building === 'office' ? (lv >= 8 ? 'Office high-rise' : 'Office building') : t.building === 'hotel' || t.tourism === 'hotel' ? 'Hotel' : t.building === 'supermarket' ? 'Supermarket' : t.building === 'retail' ? 'Retail' : 'Commercial building';
+  else if (sector === 'res') type = 'Condo / apartment tower';
+  else type = INST_TYPE[t.amenity] || 'Institutional';
+  if (sector !== 'inst' && sqft < MIN_SQFT) return null;
+  const address = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
+  const name = t.name || t.brand || t.operator || (type + (address ? ' at ' + address : ''));
+  const r = { i: 'o' + e.type[0] + e.id, n: name, a: address, s: OSM_SECTORS[sector].label, t: type, y: +y.toFixed(5), x: +x.toFixed(5), w: osmWhy(type, t) };
+  if (sqft) r.q = sqft; if (lv > 1) r.l = lv;
+  return r;
+}
+let osmBusy = false;
+async function startOsmBuild() {
+  if (osmBusy) return;
+  if (!confirmBuild()) return;
+  osmBusy = true;
+  const btn = $('osm-build'); if (btn) btn.disabled = true;
+  const status = m => { const el = $('osm-status'); if (el) el.textContent = m; window.__obBuild = m; };
+  try {
+    for (const [key, sec] of Object.entries(OSM_SECTORS)) {
+      const rows = {};
+      for (const [rname, bbox] of OSM_REGIONS) {
+        status('Pulling ' + sec.label.toLowerCase() + ' buildings: ' + rname + '… keep this tab open.');
+        const els = await overpass(sec.q(bbox));
+        els.forEach(e => { const r = osmRow(e, key); if (r) rows[r.i] = r; });
+      }
+      const list = Object.values(rows);
+      localStorage.setItem('ob_targets_osm_' + key, JSON.stringify({ builtAt: todayISO(), builtBy: session.name, rows: list }));
+      status(sec.label + ': ' + list.length + ' buildings saved.');
+    }
+    status('Done. Reload the page to see the new list.');
+  } catch (e) { status('Stopped: ' + e.message + '. Sectors already saved are kept; run again later.'); }
+  osmBusy = false; if (btn) btn.disabled = false;
+}
+function confirmBuild() { return true; }
+window.obBuildTargets = startOsmBuild;
+window.obBuildStatus = () => window.__obBuild || 'idle';
+
 window.obGeocodeStatus = () => ({ busy: geoBusy, cached: Object.keys(geo).length, failed: Object.values(geo).filter(g => g.src === 'fail').length });
 
+if (session.roles && session.roles.includes('owner')) { const w = $('osm-wrap'); if (w) w.style.display = ''; const st = $('osm-status'); const d = readJSON('ob_targets_osm_ind'); if (st && d) st.textContent = 'Building list from OpenStreetMap, ' + fmtDate(d.builtAt) + '. Takes 10–30 min; keep the tab open.'; else if (st) st.textContent = 'Pulls buildings from OpenStreetMap. Takes 10–30 min; keep the tab open.'; }
 renderAll(true);
 runGeocoder();
 })();

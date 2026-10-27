@@ -79,6 +79,7 @@ h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spac
 .toggles .n{margin-left:auto;color:var(--grey);font-variant-numeric:tabular-nums;font-size:.78rem}
 .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:2px solid #fff;box-shadow:0 0 0 1px rgba(16,68,78,.35)}
 .dot.sq{border-radius:2px}
+.dot.tgt{background:#fff !important;border:2px solid var(--s-target);box-shadow:none}
 .dot.dia{border-radius:1px;transform:rotate(45deg);width:10px;height:10px;background:#fff !important;border:2px solid var(--s-target);box-shadow:none}
 .dot.grid{border-radius:2px;background:rgba(46,125,87,.35);border:1px solid rgba(46,125,87,.6);box-shadow:none}
 .seg{display:inline-flex;background:rgba(16,68,78,0.056);border-radius:6px;padding:3px;gap:3px;flex-wrap:wrap}
@@ -176,7 +177,8 @@ td a{color:#27636C;text-decoration:none;cursor:pointer}td a:hover{text-decoratio
   </section>
 
   <section>
-    <div class="h2-row"><div><h2>Targets not yet contacted</h2><p class="h2-note">Commercial, industrial and institutional buildings (roughly 20,000 sq ft and up) that aren't on the lead sheet or in BuildOps. Claim one before you go so nobody doubles up; once it's added to the lead sheet it drops off this list on the next refresh.</p></div></div>
+    <div class="h2-row"><div><h2>Targets not yet contacted</h2><p class="h2-note">Factories, warehouses, offices, high-rises, condos, schools, fire stations, long-term care and other buildings of 10,000 sq ft and up that aren't on the lead sheet, in BuildOps, or beside an existing lead. Claim one before you go so nobody doubles up; once it's on the lead sheet it drops off this list on the next refresh. Sizes are footprint × floors from OpenStreetMap, so treat them as estimates.</p></div>
+      <div id="osm-wrap" style="display:none;text-align:right"><button class="btn ghost" id="osm-build">Refresh building list</button><p class="h2-note" id="osm-status" style="margin-top:.4rem"></p></div></div>
     <div class="filters">
       <input id="tq" type="search" placeholder="Search targets">
       <select id="tf-area"><option value="">All areas</option></select>
