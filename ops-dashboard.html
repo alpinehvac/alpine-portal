@@ -1012,6 +1012,15 @@ else {
       if (/^(OFFICE NOTES|-)?$/i.test((d.issue || "").trim())) d.issue = "";
       if (b) { d.board = {}; BOARD_KEYS.forEach(k => { if (b[k] != null) d.board[k] = b[k]; }); }
       const c = { ...(oldC[id] || {}), ...(cst[id] || {}), ...(qb[id] || {}), id };
+      if (qb[id] && qb[id].merge) { // daily refresh sends only recent bills: union with what's stored
+        const o = oldC[id] || {}, bk = b => [b.vendor, b.doc, b.amount].join("|"), B = new Map(), I = new Map();
+        [...(o.bills || []), ...(qb[id].bills || [])].forEach(b => B.set(bk(b), b));
+        [...(o.qbInvoices || []), ...(qb[id].qbInvoices || [])].forEach(x => I.set(x.doc, x));
+        c.bills = [...B.values()].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+        c.qbInvoices = [...I.values()].sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+        c.billedQB = c.qbInvoices.length ? Math.round(c.qbInvoices.reduce((s, x) => s + (x.total || 0), 0) / 1.13 * 100) / 100 : null;
+        delete c.merge;
+      }
       if (em[id]) { // emails accumulate: union with what's stored (by link, else subject+date), newest first, max 60
         const all = [...(em[id].emails || []), ...((oldC[id] || {}).emails || [])], seen = new Set();
         c.emails = all.filter(e => { const k = e.link || (e.subject + "|" + e.date); if (seen.has(k)) return false; seen.add(k); return true; }).sort((x, y) => (y.date || "").localeCompare(x.date || "")).slice(0, 60);

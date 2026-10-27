@@ -2,7 +2,9 @@
 """Alpine HVAC — match QuickBooks bills and invoices to BuildOps jobs (for job.html costs).
 
 Usage:
-  python3 -I job_match.py BILLS.json INVOICES.json JOBS.json > qb.json
+  python3 -I job_match.py BILLS.json INVOICES.json JOBS.json [--merge] > qb.json
+  --merge   daily mode: BILLS.json holds only recent bills; each record is marked merge:true so the
+            portal unions bills/invoices with what it already stores, and jobs with no matches are dropped.
 
   BILLS.json     Windsor get_data (connector "quickbooks") with fields
                  bills__docnumber, bills__txndate, bills__totalamt, bills__vendorref, bills__privatenote, bills__line
@@ -43,7 +45,7 @@ def bill_text(b):
     return "\n".join(parts)
 
 
-def main(bills_p, inv_p, jobs_p):
+def main(bills_p, inv_p, jobs_p, merge=False):
     bills, invs, jobs = rows(bills_p), rows(inv_p), json.load(open(jobs_p))
     key_jobs = {}
     for j in jobs:
@@ -95,11 +97,16 @@ def main(bills_p, inv_p, jobs_p):
             "qbAt": datetime.date.today().isoformat(),
         }
         rec["billedQB"] = round(sum((x["total"] or 0) for x in q_inv) / HST, 2) if q_inv else None
+        if merge:
+            if not (rec["bills"] or rec["qbInvoices"]):
+                continue
+            rec["merge"] = True
         out[jid] = rec
     json.dump({"qb": out}, sys.stdout)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    args = [a for a in sys.argv[1:] if a != "--merge"]
+    if len(args) != 3:
         sys.exit(__doc__)
-    main(*sys.argv[1:])
+    main(*args, merge="--merge" in sys.argv)
