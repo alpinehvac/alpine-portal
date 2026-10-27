@@ -82,6 +82,16 @@ service cloud.firestore {
     match /ops_jobs/{doc=**} {
       allow read, write: if isFieldOps();
     }
+    // Job pages (job.html): visits, tech summaries, hours, materials (one doc per job + _index).
+    // Owners, Cole and field techs read; only owners save the daily refresh.
+    match /ops_job_detail/{doc=**} {
+      allow read: if isFieldOps() || isOps();
+      allow write: if isOwner();
+    }
+    // Job costs, QuickBooks bills/invoices and Outlook emails per job: owners only
+    match /ops_job_costs/{doc=**} {
+      allow read, write: if isOwner();
+    }
     // Business Context log: one source of truth read by every dashboard refresh: owners only
     match /portal_context/{doc=**} {
       allow read, write: if isOwner();
