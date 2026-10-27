@@ -315,7 +315,7 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 
   <section>
     <div class="h2-row">
-      <div><h2>Dispatch board</h2><p class="h2-note">Scheduled visits by tech. Click a visit to open the job in BuildOps.</p></div>
+      <div><h2>Dispatch board</h2><p class="h2-note">Scheduled visits by tech. Click a visit to open the job.</p></div>
       <div class="seg" id="week-seg"><button data-w="-1">Last week</button><button data-w="0" class="on">This week</button><button data-w="1">Next week</button></div>
     </div>
     <div class="board-wrap"><div class="board" id="board"></div></div>
@@ -381,6 +381,16 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
         <span id="upd-msg" style="font-size:.85rem;color:var(--light-grey)"></span>
       </div>
     </div>
+    <h2 id="jobs-import" style="margin-top:2rem">Update job details</h2>
+    <p class="h2-note" style="margin-bottom:1rem">Visit reports, hours and materials for each job page, from the daily refresh. BuildOps details arrive here automatically when the reader in the BuildOps tab finishes. Paste QuickBooks and Outlook matches below (optional), then save. Costs, invoices and emails save to Jake and Mike only.</p>
+    <div class="panel">
+      <div id="jobs-pending" style="font-size:.88rem;margin-bottom:.8rem;color:var(--light-grey)">No BuildOps job read waiting.</div>
+      <textarea id="jobs-json" rows="5" placeholder='{"qb": {"JO20261176": {"bills": [...], "qbInvoices": [...]}}, "emails": {"JO20261176": {"emails": [...]}}}'></textarea>
+      <div style="display:flex;gap:1rem;align-items:center;margin-top:.8rem">
+        <button id="jobs-save" class="back-link" style="background:var(--teal);color:#fff;border-color:var(--teal)">Save job details</button>
+        <span id="jobs-msg" style="font-size:.85rem;color:var(--light-grey)"></span>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -405,9 +415,10 @@ function stageOf(j) {
   if ((j.visitsDone || 0) > 0 || /in progress|on hold|travel|working/i.test(j.status || "")) return "ongoing";
   return "upcoming";
 }
+const jobPage = id => "job.html?id=" + encodeURIComponent(id);
 function jobLink(j, label) {
-  const t = esc(label || j.id);
-  return j && j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener">${t}</a>` : t;
+  const t = esc(label || (j && j.id));
+  return j && j.id ? `<a href="${jobPage(j.id)}">${t}</a>` : t;
 }
 
 /* ---------- derived lists ---------- */
@@ -506,7 +517,7 @@ function renderBoard() {
         const done = /complete|closed/i.test(v.status || "");
         const helper = v.tech !== n ? " (assist)" : "";
         const tip = [v.customer || j.customer, v.property || j.property, v.desc || j.title, v.status].filter(Boolean).join(" — ");
-        return `<a class="chip ${esc(kind)} ${done ? "done" : ""}" ${j.url ? `href="${esc(j.url)}" target="_blank" rel="noopener"` : ""} title="${esc(tip)}"><b>${v.time ? esc(v.time) + " " : ""}${esc(v.job)}</b>${helper}<span>${esc(v.customer || j.customer || "")}</span></a>`;
+        return `<a class="chip ${esc(kind)} ${done ? "done" : ""}" href="${jobPage(v.job)}" title="${esc(tip)}"><b>${v.time ? esc(v.time) + " " : ""}${esc(v.job)}</b>${helper}<span>${esc(v.customer || j.customer || "")}</span></a>`;
       }).join("") + `</div>`;
     });
   });
@@ -672,7 +683,7 @@ function onBoard(e) {
 function colHead(el, title, n, total, sub) {
   $(el).innerHTML = `<h3>${title}<span class="n">${n}</span></h3><div class="tot">${fm(total)}${sub ? `<small>${sub}</small>` : ""}</div>`;
 }
-const jobRef = (j) => j.url ? `<a href="${esc(j.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(j.id)}</a>` : esc(j.id);
+const jobRef = (j) => `<a href="${jobPage(j.id)}" onclick="event.stopPropagation()">${esc(j.id)}</a>`;
 
 function quoteCard(q, t) {
   const draft = /draft/i.test(q.status || "");
@@ -918,7 +929,7 @@ window.apPipeStart = () => { renderPipeline(); renderProfit(); };
 </script>
 
 <script type="module">
-import { doc, getDoc, setDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, collection, onSnapshot, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import { db, currentUser } from "./ap-firebase.js";
 const main = document.querySelector("main");
 const fail = msg => { document.getElementById("verdict").innerHTML = `<div class="verdict alert"><div class="verdict-line">Field data couldn't load.</div><div class="verdict-sub">${msg}</div></div>`; };
@@ -942,7 +953,7 @@ else {
   if (owner) getDoc(doc(db, "cash_dashboard", "latest")).then(s => { if (s.exists()) window.apCashLoaded(JSON.parse(s.data().json)); else window.apCashLoaded({ profit: {} }); }).catch(() => window.apCashLoaded({ profit: {} }));
   try {
     const snap = await getDoc(doc(db, "ops_dashboard", "latest"));
-    if (snap.exists()) { const s = snap.data(); window.__apSaved = { at: s.updatedAt && s.updatedAt.toDate ? s.updatedAt.toDate().toISOString() : null, by: s.updatedBy || "" }; window.apOpsStart(JSON.parse(s.json)); }
+    if (snap.exists()) { const s = snap.data(); window.__apSaved = { at: s.updatedAt && s.updatedAt.toDate ? s.updatedAt.toDate().toISOString() : null, by: s.updatedBy || "" }; window.__opsData = JSON.parse(s.json); window.apOpsStart(window.__opsData); }
     else fail("No data saved yet. Paste the first data file under Update data at the bottom of this page.");
   } catch (e) { fail("Access denied or offline. This page is limited to Jake, Mike and Cole. (" + e.code + ")"); }
   document.getElementById("upd-save").addEventListener("click", async () => {
@@ -956,6 +967,81 @@ else {
       await setDoc(doc(db, "ops_dashboard_history", d.asOf), rec);
       msg.textContent = "Saved. Reloading…"; setTimeout(() => location.reload(), 800);
     } catch (e) { msg.textContent = "Save failed: " + e.code; }
+  });
+
+  /* ---------- job details for job.html ----------
+     BuildOps reader (buildops-jobs.js, alpineJobs.handoff()) navigates its tab here with
+     window.name = "ALPINEJOBS:{asOf, detail, costs, errors}". QuickBooks/Outlook matches are
+     pasted as {"qb": {id: {...}}, "emails": {id: {...}}}. Save merges with what's stored. */
+  const JPFX = "ALPINEJOBS:";
+  let PENDING = null;
+  if (owner && typeof window.name === "string" && window.name.startsWith(JPFX)) {
+    try { PENDING = JSON.parse(window.name.slice(JPFX.length)); } catch (e) { PENDING = null; }
+    window.name = "";
+  }
+  const pendEl = document.getElementById("jobs-pending");
+  if (PENDING) {
+    const n = Object.keys(PENDING.detail || {}).length, nv = Object.values(PENDING.detail || {}).reduce((a, d) => a + (d.visits || []).length, 0);
+    pendEl.innerHTML = `<b style="color:var(--white)">BuildOps read ready: ${n} jobs, ${nv} visit reports</b> (read ${esc(PENDING.asOf || "")}).${(PENDING.errors || []).length ? ` <span style="color:#B83227">${PENDING.errors.length} could not be read: ${esc(PENDING.errors.slice(0, 5).join("; "))}</span>` : ""} Not saved yet.`;
+    setTimeout(() => document.getElementById("jobs-import").scrollIntoView({ block: "start" }), 600);
+  }
+  const BOARD_KEYS = ["status", "billingStatus", "stage", "kind", "title", "type", "created", "completed", "visitsDone", "visitsTotal", "lastVisit", "nextVisit", "actualHrs", "budgetHrs", "techs"];
+  window.apSaveJobDetails = async (extra) => {
+    extra = extra || {};
+    const P = PENDING || {};
+    const det = { ...(P.detail || {}), ...(extra.detail || {}) }, cst = { ...(P.costs || {}), ...(extra.costs || {}) };
+    const qb = extra.qb || {}, em = extra.emails || {};
+    const board = {}; ((window.__opsData || {}).jobs || []).forEach(j => board[j.id] = j);
+    const ids = [...new Set([...Object.keys(det), ...Object.keys(cst), ...Object.keys(qb), ...Object.keys(em)])].filter(id => /^JO\d+$/.test(id));
+    if (!ids.length) throw new Error("Nothing to save: no BuildOps read waiting and no job data pasted.");
+    const asOf = P.asOf || extra.asOf || new Date().toISOString().slice(0, 10);
+    const old = {}, oldC = {};
+    await Promise.all(ids.map(async id => {
+      const [a, b] = await Promise.all([getDoc(doc(db, "ops_job_detail", id)), getDoc(doc(db, "ops_job_costs", id))]);
+      if (a.exists()) old[id] = JSON.parse(a.data().json);
+      if (b.exists()) oldC[id] = JSON.parse(b.data().json);
+    }));
+    const idxSnap = await getDoc(doc(db, "ops_job_detail", "_index"));
+    const index = {}; (idxSnap.exists() ? JSON.parse(idxSnap.data().json) : []).forEach(r => index[r.id] = r);
+    const writes = [];
+    let saved = 0;
+    for (const id of ids) {
+      const d = det[id] || old[id];
+      if (!d) continue;
+      const b = board[id];
+      if (/^(OFFICE NOTES|-)?$/i.test((d.issue || "").trim())) d.issue = "";
+      if (b) { d.board = {}; BOARD_KEYS.forEach(k => { if (b[k] != null) d.board[k] = b[k]; }); }
+      const c = { ...(oldC[id] || {}), ...(cst[id] || {}), ...(qb[id] || {}), id };
+      if (em[id]) { // emails accumulate: union with what's stored (by link, else subject+date), newest first, max 60
+        const all = [...(em[id].emails || []), ...((oldC[id] || {}).emails || [])], seen = new Set();
+        c.emails = all.filter(e => { const k = e.link || (e.subject + "|" + e.date); if (seen.has(k)) return false; seen.add(k); return true; }).sort((x, y) => (y.date || "").localeCompare(x.date || "")).slice(0, 60);
+        c.emailAt = em[id].emailAt || new Date().toISOString().slice(0, 10);
+      }
+      if (b && b.quoted != null) c.quoted = b.quoted;
+      writes.push([doc(db, "ops_job_detail", id), { json: JSON.stringify(d), asOf, updatedAt: serverTimestamp(), updatedBy: user.email }]);
+      writes.push([doc(db, "ops_job_costs", id), { json: JSON.stringify(c), asOf, updatedAt: serverTimestamp(), updatedBy: user.email }]);
+      const db_ = d.board || {};
+      index[id] = { id, customer: d.customer || (b && b.customer) || "", property: d.property || (b && b.property) || "", title: db_.title || (d.issue || "").split("\n")[0].slice(0, 80), po: d.po || (b && b.po) || "", stage: db_.stage || "", status: db_.status || "", visits: (d.visits || []).length, lastVisit: db_.lastVisit || ((d.visits || []).filter(v => /complete|converted/i.test(v.status || "")).map(v => v.date).sort().pop() || null), nextVisit: db_.nextVisit || null, created: db_.created || null, readAt: d.readAt || null };
+      saved++;
+    }
+    // keep index stages current for every job on the board
+    Object.values(index).forEach(r => { const b = board[r.id]; if (b) { r.stage = b.stage || r.stage; r.status = b.status || r.status; r.lastVisit = b.lastVisit || r.lastVisit; r.nextVisit = b.nextVisit || null; } });
+    writes.push([doc(db, "ops_job_detail", "_index"), { json: JSON.stringify(Object.values(index)), asOf, updatedAt: serverTimestamp(), updatedBy: user.email }]);
+    for (let i = 0; i < writes.length; i += 400) {
+      const batch = writeBatch(db);
+      writes.slice(i, i + 400).forEach(([ref, data]) => batch.set(ref, data));
+      await batch.commit();
+    }
+    PENDING = null;
+    return { saved, indexed: Object.keys(index).length };
+  };
+  document.getElementById("jobs-save").addEventListener("click", async () => {
+    const m = document.getElementById("jobs-msg"), raw = document.getElementById("jobs-json").value.trim();
+    let extra = {};
+    if (raw) { try { extra = JSON.parse(raw); } catch (e) { m.textContent = "That isn't valid JSON."; return; } }
+    m.textContent = "Saving…";
+    try { const r = await window.apSaveJobDetails(extra); m.textContent = `Saved ${r.saved} jobs · ${r.indexed} in the job list.`; pendEl.textContent = "Saved. Open any job from the board to see it."; document.getElementById("jobs-json").value = ""; }
+    catch (e) { m.textContent = "Save failed: " + (e.code === "permission-denied" ? "permission denied. Publish the updated Firestore rules (firestore.rules in the repo) first." : (e.code || e.message)); }
   });
 }
 </script>

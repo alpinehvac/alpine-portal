@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Job</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("job");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ALPINE JOB DETAIL — one page per BuildOps job (job.html?id=JO20261176), or the job list (job.html).
+     Contains NO job data: everything loads from Firestore after sign-in.
+       ops_job_detail/{id}   visits, tech summaries, hours, materials  (owners, Cole, field techs)
+       ops_job_detail/_index job list                                   (same)
+       ops_job_costs/{id}    labour $, bills, invoices, emails          (owners only)
+     Written by the daily refresh (skill alpine-ops-dashboard-refresh) through Field Operations > Update job details. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--purple:#6C5D8D;
+  --bg:#EAF2F3;--card:#FFFFFF;--ink:#10444E;--muted:#5A7A80;
+  --amber:#A9821F;--red:#B83227;--green:#2E7D57;
+  --border:rgba(16,68,78,0.12);--radius:8px;--radius-lg:14px;
+}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--teal-light);outline-offset:2px}
+nav{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid rgba(28,107,110,0.35)}
+.nav-inner{max-width:1240px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;gap:1rem}
+.nav-logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.logo-icon{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-wordmark{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;line-height:1}
+.nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;margin-top:2px}
+.back-link,.btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);text-decoration:none;border:1px solid rgba(16,68,78,0.25);border-radius:6px;padding:.5rem .85rem;background:var(--card);cursor:pointer;white-space:nowrap;display:inline-block}
+.btn:hover{border-color:var(--teal)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.primary:hover{background:var(--teal-dark)}
+.wrap{max-width:1240px;margin:0 auto;padding:2rem 2rem 5rem}
+.banner{border-radius:var(--radius);padding:.7rem 1rem;font-size:.85rem;margin-bottom:1.5rem;background:rgba(224,112,94,0.08);border:1px solid rgba(224,112,94,0.4);color:var(--red)}
+.banner.info{background:rgba(42,138,142,0.1);border-color:rgba(42,138,142,0.4);color:var(--teal)}
+.crumb{font-size:.82rem;color:var(--muted);margin-bottom:.4rem}
+.crumb a{color:var(--teal);text-decoration:none}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3.6vw,2.2rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+.sub{color:var(--muted);margin-top:.35rem;font-size:.92rem}
+.sub b{color:var(--ink);font-weight:500}
+.actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.tags{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem}
+.tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.tag.red{background:rgba(224,112,94,0.16);color:var(--red)}
+.tag.amber{background:rgba(226,168,69,0.16);color:#8A6A12}
+.tag.teal{background:rgba(42,138,142,0.2);color:var(--teal)}
+.tag.purple{background:rgba(155,142,196,0.2);color:#4E4268}
+.tag.grey{background:rgba(16,68,78,0.08);color:var(--muted)}
+.tag.green{background:rgba(46,125,87,0.14);color:var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:2rem}
+.kpi{padding:1rem 1rem 1.1rem;border-right:1px solid var(--border)}
+.kpi:last-child{border-right:none}
+.k-label{font-size:.78rem;color:var(--muted);margin-bottom:.3rem}
+.k-value{font-family:'Oswald',sans-serif;font-size:1.55rem;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.k-sub{font-size:.76rem;color:var(--muted);margin-top:.2rem}
+.bad{color:var(--red)}.good{color:var(--green)}.watch{color:var(--amber)}.dim{color:var(--muted)}
+section{margin-bottom:2.5rem}
+h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.3rem}
+h2 .lock{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:500;letter-spacing:0;text-transform:none;color:#4E4268;background:rgba(155,142,196,0.2);border-radius:10px;padding:2px 8px;margin-left:.5rem;vertical-align:2px}
+.h2-row{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}
+.note{font-size:.85rem;color:var(--muted);max-width:80ch}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.3rem}
+.scope{white-space:pre-line;font-size:.92rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+
+/* Visits */
+.vtools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;font-size:.85rem}
+.vtools label{display:flex;gap:.35rem;align-items:center;color:var(--muted)}
+.visit{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:.8rem;overflow:hidden}
+.visit.off{opacity:.55}
+.vh{display:grid;grid-template-columns:auto 6.5rem 1fr auto;gap:1rem;align-items:start;padding:1rem 1.2rem;cursor:pointer}
+.vh input{margin-top:.3rem;width:16px;height:16px;accent-color:var(--teal)}
+.vdate{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:500;line-height:1.15}
+.vdate small{display:block;font-family:'Inter',sans-serif;font-size:.74rem;color:var(--muted);font-weight:400}
+.vtitle{font-weight:600}
+.vtech{font-size:.82rem;color:var(--muted)}
+.vsum{font-size:.88rem;margin-top:.35rem;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.visit.open .vsum{display:none}
+.vright{text-align:right;font-size:.82rem;color:var(--muted);white-space:nowrap}
+.vright b{display:block;font-family:'Oswald',sans-serif;font-size:1.05rem;color:var(--ink);font-weight:500}
+.vb{display:none;border-top:1px solid var(--border);padding:1rem 1.2rem 1.2rem 3.4rem}
+.visit.open .vb{display:block}
+.blk{margin-bottom:1rem}
+.blk:last-child{margin-bottom:0}
+.blk h4{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem}
+.blk h4 .tag{margin-left:.4rem;letter-spacing:0;text-transform:none;font-weight:500}
+.sumtxt{white-space:pre-line;font-size:.9rem}
+.sumtxt+.sumtxt{margin-top:.5rem;padding-top:.5rem;border-top:1px dashed var(--border)}
+.by{font-size:.75rem;color:var(--muted);margin-top:.15rem}
+ul.plain{list-style:none;font-size:.88rem}
+ul.plain li{padding:.2rem 0}
+.empty{color:var(--muted);font-size:.88rem}
+
+/* Tables */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--card)}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{font-weight:500;color:var(--muted);text-align:left;padding:.65rem .8rem;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:.6rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tfoot td{font-weight:600;border-top:1px solid var(--border)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td small{display:block;color:var(--muted);font-size:.76rem}
+td a{color:var(--teal);text-decoration:none}td a:hover{text-decoration:underline}
+.bar{height:8px;background:rgba(16,68,78,0.1);border-radius:4px;overflow:hidden;min-width:80px}
+.bar i{display:block;height:100%;background:var(--teal-light)}
+.bar i.over{background:var(--red)}
+.hbig{display:flex;gap:1rem;align-items:center;margin-bottom:1rem}
+.hbig .bar{flex:1;height:12px}
+
+/* Job list */
+.filters{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.9rem}
+.filters input,.filters select{background:var(--card);color:var(--ink);border:1px solid rgba(16,68,78,0.25);border-radius:6px;padding:.45rem .6rem;font:inherit;font-size:.86rem}
+.filters input{min-width:16rem}
+tr.go{cursor:pointer}tr.go:hover td{background:rgba(16,68,78,0.035)}
+
+/* Report builder */
+.overlay{position:fixed;inset:0;background:rgba(10,42,48,.55);z-index:200;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:2rem 1rem}
+.overlay.on{display:flex}
+.dlg{background:var(--card);border-radius:var(--radius-lg);width:min(560px,100%);padding:1.4rem;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.dlg h3{font-family:'Oswald',sans-serif;font-size:1.2rem;text-transform:uppercase;margin-bottom:.8rem}
+.opt{margin-bottom:1rem}
+.opt>b{display:block;font-size:.78rem;color:var(--muted);font-weight:500;margin-bottom:.35rem}
+.seg{display:inline-flex;background:rgba(16,68,78,0.06);border-radius:6px;padding:3px;gap:3px}
+.seg button{border:none;background:none;color:var(--muted);font:inherit;font-size:.84rem;padding:.4rem .9rem;border-radius:4px;cursor:pointer}
+.seg button.on{background:var(--teal);color:#fff}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.chk{display:flex;gap:.45rem;align-items:center;font-size:.88rem;padding:.2rem 0}
+.chk input{accent-color:var(--teal)}
+.dlg-foot{display:flex;justify-content:space-between;gap:.5rem;margin-top:1.2rem;align-items:center}
+.sheet-wrap{width:min(860px,100%)}
+.sheet-bar{display:flex;justify-content:space-between;gap:.5rem;margin-bottom:.8rem;color:#fff;align-items:center;font-size:.85rem}
+
+/* Printed report (customer + internal) */
+.sheet{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;color:#111110;font-family:'Inter',system-ui,sans-serif;font-size:10.5pt;line-height:1.45;padding:14mm 14mm 16mm;border-radius:4px}
+.rp-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1A6B6B;padding-bottom:10px;margin-bottom:14px}
+.rp-brand{display:flex;gap:10px;align-items:center}
+.rp-mark{width:40px;height:40px;background:#1A6B6B;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.rp-mark svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rp-name{font-family:'Oswald',sans-serif;font-weight:700;font-size:15pt;letter-spacing:.06em;line-height:1;color:#111110}
+.rp-tag{font-size:8pt;color:#9B8EC4;letter-spacing:.08em;margin-top:3px;font-weight:600}
+.rp-co{font-size:8pt;color:#555;text-align:right;line-height:1.5}
+.rp-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.rp-title h1{font-family:'Oswald',sans-serif;font-size:17pt;color:#1A6B6B;text-transform:uppercase;letter-spacing:.03em}
+.rp-title span{font-size:9pt;color:#555}
+.rp-info{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;font-size:9.5pt;margin-bottom:14px;background:#F3F7F7;border-radius:4px;padding:10px 12px}
+.rp-info div{display:grid;grid-template-columns:96px 1fr;gap:6px}
+.rp-info div b{color:#555;font-weight:500}
+.rp-h2{font-family:'Oswald',sans-serif;font-size:11.5pt;text-transform:uppercase;letter-spacing:.04em;color:#1A6B6B;border-bottom:1px solid #CFDCDC;padding-bottom:3px;margin:16px 0 8px}
+.rp-visit{border-left:3px solid #9B8EC4;padding:2px 0 2px 10px;margin-bottom:12px;page-break-inside:avoid;break-inside:avoid}
+.rp-vh{display:flex;justify-content:space-between;gap:10px;font-weight:600}
+.rp-vh span{font-weight:400;color:#555;font-size:9pt;white-space:nowrap}
+.rp-vt{font-size:9pt;color:#555;margin-bottom:4px}
+.rp-txt{white-space:pre-line}
+.rp-txt+.rp-txt{margin-top:4px}
+.rp-mini{font-size:9pt;margin-top:4px}
+.rp-mini b{color:#555;font-weight:500}
+.rp-int{background:#F5F2FA;border-radius:3px;padding:4px 6px;margin-top:4px;font-size:9pt}
+.rp-int b{color:#4E4268}
+.sheet table{font-size:9pt;margin-bottom:6px;break-inside:avoid;page-break-inside:avoid}
+.sheet th{color:#555;padding:4px 6px;border-bottom:1px solid #CFDCDC}
+.sheet td{padding:4px 6px;border-bottom:1px solid #E6EEEE}
+.sheet tfoot td{border-top:1px solid #9FB5B5}
+.rp-recs li{margin:0 0 4px 16px}
+.rp-foot{margin-top:18px;padding-top:8px;border-top:1px solid #CFDCDC;font-size:8pt;color:#777;display:flex;justify-content:space-between;gap:12px}
+.rp-sign{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:22px;font-size:9pt;color:#555}
+.rp-sign div{border-top:1px solid #999;padding-top:4px}
+.rp-badge{display:inline-block;font-size:8pt;background:#F5F2FA;color:#4E4268;border-radius:8px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+
+@media (max-width:860px){ .two{grid-template-columns:1fr} .vh{grid-template-columns:auto 5.5rem 1fr} .vright{display:none} .vb{padding-left:1.2rem} }
+@media (max-width:560px){ .wrap{padding:1.5rem 1rem 4rem}.nav-inner{padding:0 1rem} .rp-info{grid-template-columns:1fr} }
+@page{size:Letter;margin:10mm}
+@media print{
+  body{background:#fff !important}
+  body.printing > *:not(#overlay-sheet){display:none !important}
+  body.printing #overlay-sheet{display:block !important;position:static;background:#fff;padding:0;overflow:visible}
+  body.printing .sheet-bar{display:none !important}
+  body.printing .sheet-wrap{width:auto}
+  body.printing .sheet{padding:0;border-radius:0}
+}
+</style>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<nav><div class="nav-inner">
+  <a class="nav-logo" href="dashboard.html"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 15 L16 11 L21 20 Z"/></svg></div>
+  <div class="nav-wordmark">Alpine HVAC<small>Internal Portal</small></div></a>
+  <a class="back-link" id="back" href="dashboard.html?cat=operations">&larr; Operations</a>
+</div></nav>
+
+<main class="wrap" id="main">
+  <div id="banner"></div>
+  <div id="view"><p class="dim">Loading…</p></div>
+</main>
+
+<div class="overlay" id="overlay-opts" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+  <div class="dlg">
+    <h3 id="dlg-title">Job report</h3>
+    <div class="opt"><b>Version</b><div class="seg" id="r-mode"><button type="button" data-v="customer" class="on">Customer</button><button type="button" data-v="internal">Internal</button></div>
+      <p class="note" id="r-mode-note" style="margin-top:.4rem">Customer: work performed, techs, materials and recommendations. No costs, margins or internal notes.</p></div>
+    <div class="opt"><b>Visits</b><div class="seg" id="r-scope"><button type="button" data-v="sel" class="on">Selected (<span id="r-nsel">0</span>)</button><button type="button" data-v="all">All visits</button><button type="button" data-v="last">Most recent</button></div></div>
+    <div class="opt"><b>Include</b>
+      <label class="chk"><input type="checkbox" id="r-hours"> Hours on site per visit</label>
+      <label class="chk"><input type="checkbox" id="r-mats" checked> Materials supplied</label>
+      <label class="chk"><input type="checkbox" id="r-recs" checked> Recommendations</label>
+      <label class="chk"><input type="checkbox" id="r-sign"> Signature lines</label>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="r-build">Preview report</button></div>
+  </div>
+</div>
+<div class="overlay" id="overlay-sheet">
+  <div class="sheet-wrap">
+    <div class="sheet-bar"><span id="sheet-name"></span><span style="display:flex;gap:.5rem"><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" id="r-print">Print / Save PDF</button></span></div>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const parseD = s => { if (!s || !/^\d{4}-\d{2}-\d{2}/.test(s)) return null; const [y, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(y, m - 1, d); };
+const fmtD = s => { const d = parseD(s); return d ? d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined }) : "—"; };
+const fmtLong = s => { const d = parseD(s); return d ? d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "—"; };
+const money = n => n == null || isNaN(n) ? "—" : (n < 0 ? "−$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-CA");
+const money2 = n => n == null || isNaN(n) ? "—" : (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const hrsTxt = n => n == null ? "—" : (Math.round(n * 10) / 10).toLocaleString("en-CA") + " h";
+const todayIso = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const sum = (a, f) => a.reduce((s, x) => s + (f(x) || 0), 0);
+const DONE = /complete|converted|closed/i;
+const OWNER = typeof apIsOwner === "function" && apIsOwner();
+const SESSION = typeof apGetSession === "function" ? apGetSession() : null;
+const CAN_BOARD = SESSION && (SESSION.roles.includes("owner") || SESSION.roles.includes("field_ops"));
+if (!CAN_BOARD) $("back").outerHTML = '<a class="back-link" href="job.html">&larr; All jobs</a>';
+else $("back").href = "ops-dashboard.html", $("back").innerHTML = "&larr; Field Operations";
+
+let J = null, C = null, SEL = new Set();
+
+/* ---------- job list (job.html with no id) ---------- */
+window.apJobList = function (list, asOf) {
+  document.title = "Alpine HVAC — Jobs";
+  const v = $("view");
+  v.innerHTML = `<div class="head"><div><h1>Jobs</h1><p class="sub">Every job on the Field Operations board, with visit reports, hours and materials from BuildOps. Updated daily${asOf ? ` · as of <b>${esc(fmtD(asOf))}</b>` : ""}.</p></div></div>
+    <div class="filters"><input id="q" type="search" placeholder="Search job, customer, site, PO" aria-label="Search jobs">
+    <select id="st" aria-label="Stage"><option value="">All stages</option><option value="ongoing">In progress</option><option value="upcoming">Upcoming</option><option value="completed">Completed</option></select></div>
+    <div class="table-wrap"><table><thead><tr><th>Job</th><th>Customer / site</th><th>Stage</th><th class="num">Visits</th><th>Last visit</th><th>Next visit</th></tr></thead><tbody id="jl"></tbody></table></div>`;
+  const stageTag = s => s === "completed" ? '<span class="tag green">Completed</span>' : s === "ongoing" ? '<span class="tag teal">In progress</span>' : '<span class="tag grey">Upcoming</span>';
+  const draw = () => {
+    const q = $("q").value.trim().toLowerCase(), st = $("st").value;
+    const rows = list.filter(j => (!st || j.stage === st) && (!q || [j.id, j.customer, j.property, j.title, j.po].join(" ").toLowerCase().includes(q)))
+      .sort((a, b) => (b.lastVisit || b.created || "").localeCompare(a.lastVisit || a.created || ""));
+    $("jl").innerHTML = rows.length ? rows.map(j => `<tr class="go" data-id="${esc(j.id)}"><td><a href="job.html?id=${encodeURIComponent(j.id)}">${esc(j.id)}</a>${j.po ? `<small>PO ${esc(j.po)}</small>` : ""}</td><td>${esc(j.customer)}<small>${esc(j.property || "")}${j.title ? " · " + esc(j.title) : ""}</small></td><td>${stageTag(j.stage)}</td><td class="num">${j.visits ?? 0}</td><td>${fmtD(j.lastVisit)}</td><td>${fmtD(j.nextVisit)}</td></tr>`).join("")
+      : `<tr><td colspan="6" class="empty" style="text-align:center;padding:1.5rem">No jobs match.</td></tr>`;
+    document.querySelectorAll("#jl tr.go").forEach(tr => tr.onclick = e => { if (!e.target.closest("a")) location.href = "job.html?id=" + encodeURIComponent(tr.dataset.id); });
+  };
+  $("q").oninput = draw; $("st").onchange = draw; draw();
+};
+
+/* ---------- job page ---------- */
+const visitHrs = v => sum(v.labour || [], l => l.hrs);
+const visitTechs = v => [v.tech, ...(v.others || [])].filter(Boolean);
+const doneVisits = () => (J.visits || []).filter(v => DONE.test(v.status || ""));
+
+window.apJobStart = function (detail, costs) {
+  J = detail; C = costs;
+  const B = J.board || {};
+  document.title = `${J.id} — ${J.customer || "Job"}`;
+  const visits = (J.visits || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.n || 0) - (a.n || 0));
+  visits.filter(v => DONE.test(v.status || "") || (v.summaries || []).length).forEach(v => SEL.add(v.id));
+  const actual = sum(J.visits || [], visitHrs) || B.actualHrs || 0, budget = J.budgetHrs || B.budgetHrs || null;
+  const pct = budget ? Math.round(actual / budget * 100) : null;
+  const stage = B.stage === "completed" ? '<span class="tag green">Completed</span>' : B.stage === "ongoing" ? '<span class="tag teal">In progress</span>' : B.stage ? '<span class="tag grey">Upcoming</span>' : "";
+  const billing = B.billingStatus ? `<span class="tag ${/fully|paid/i.test(B.billingStatus) ? "green" : /partial|ready/i.test(B.billingStatus) ? "amber" : /do not/i.test(B.billingStatus) ? "grey" : "red"}">${esc(B.billingStatus)}</span>` : "";
+  const title = B.title || (J.issue || "").split("\n")[0].slice(0, 90);
+  const costK = OWNER && C ? costKpis() : "";
+
+  $("view").innerHTML = `
+  <div class="crumb">${CAN_BOARD ? '<a href="ops-dashboard.html">Field Operations</a> · ' : ""}<a href="job.html">Jobs</a> · ${esc(J.id)}</div>
+  <div class="head">
+    <div>
+      <h1>${esc(J.customer || J.id)}</h1>
+      <p class="sub"><b>${esc(J.id)}</b>${J.po ? ` · PO <b>${esc(J.po)}</b>` : ""}${J.type ? ` · ${esc(J.type)}` : ""}${title ? ` · ${esc(title)}` : ""}</p>
+      <p class="sub">${esc(J.property || "")}${J.address ? ` · ${esc(J.address.replace(/,\s*CA$/, ""))}` : ""}</p>
+      <div class="tags">${stage}${B.status ? `<span class="tag grey">BuildOps: ${esc(B.status)}</span>` : ""}${billing}${J.department ? `<span class="tag purple">${esc(J.department)}</span>` : ""}</div>
+    </div>
+    <div class="actions"><button class="btn primary" id="open-report" type="button">Job report</button>${J.url ? `<a class="btn" href="${esc(J.url)}" target="_blank" rel="noopener">BuildOps ↗</a>` : ""}</div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="k-label">Visits</div><div class="k-value">${doneVisits().length}<span class="dim" style="font-size:1rem"> / ${(J.visits || []).length}</span></div><div class="k-sub">completed / logged</div></div>
+    <div class="kpi"><div class="k-label">Hours on site</div><div class="k-value ${pct > 100 ? "bad" : ""}">${hrsTxt(actual)}</div><div class="k-sub">${budget ? `of ${hrsTxt(budget)} budgeted · ${pct}%` : "no budgeted hours"}</div></div>
+    <div class="kpi"><div class="k-label">Last visit</div><div class="k-value" style="font-size:1.2rem">${fmtD(B.lastVisit || (doneVisits().slice(-1)[0] || {}).date)}</div><div class="k-sub">${esc(((J.visits || []).filter(v => DONE.test(v.status)).slice(-1)[0] || {}).tech || "")}</div></div>
+    <div class="kpi"><div class="k-label">Next visit</div><div class="k-value" style="font-size:1.2rem">${fmtD(B.nextVisit)}</div><div class="k-sub">${B.nextVisit ? "" : "nothing scheduled"}</div></div>
+    ${costK}
+  </div>
+
+  ${J.issue ? `<section><h2>Scope</h2><div class="panel scope">${esc(J.issue)}</div></section>` : ""}
+
+  <section>
+    <div class="h2-row"><div><h2>Visits</h2><p class="note">From each visit's BuildOps report: what the tech wrote, who was there and the hours they logged. Tick the visits to include in a report.</p></div>
+      <div class="vtools"><button class="btn" type="button" id="v-all">Select all</button><button class="btn" type="button" id="v-none">Clear</button><button class="btn" type="button" id="v-exp">Expand all</button></div></div>
+    <div id="visits">${visits.length ? visits.map(visitCard).join("") : '<div class="panel empty">No visit reports yet.</div>'}</div>
+  </section>
+
+  <section>
+    <h2>Hours</h2>
+    <p class="note" style="margin-bottom:.9rem">Time submitted by each tech in BuildOps.</p>
+    ${hoursBlock(actual, budget)}
+  </section>
+
+  <section>
+    <h2>Materials</h2>
+    <p class="note" style="margin-bottom:.9rem">Items on the BuildOps invoice and parts logged on visits.${OWNER ? " Supplier bills against this PO are in Costs below." : ""}</p>
+    ${materialsBlock()}
+  </section>
+
+  ${OWNER ? ownerSections() : ""}
+
+  <p class="note" style="margin-top:2rem">BuildOps read ${J.readAt ? esc(new Date(J.readAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })) : "—"}${OWNER && C && C.qbAt ? ` · QuickBooks ${esc(fmtD(C.qbAt))}` : ""}${OWNER && C && C.emailAt ? ` · Outlook ${esc(fmtD(C.emailAt))}` : ""}. Refreshed daily by Claude.</p>`;
+
+  wireVisits();
+  $("open-report").onclick = openOpts;
+};
+
+function visitCard(v) {
+  const h = visitHrs(v), techs = visitTechs(v);
+  const first = (v.summaries || [])[0];
+  const done = DONE.test(v.status || "");
+  const st = done ? (v.review && /review/i.test(v.review) ? `<span class="tag green">${esc(v.review)}</span>` : "") : `<span class="tag ${/schedul|dispatch/i.test(v.status) ? "teal" : "amber"}">${esc(v.status || "")}</span>`;
+  const blocks = [];
+  blocks.push(`<div class="blk"><h4>Work planned</h4><div class="sumtxt">${esc(v.desc || "—")}</div></div>`);
+  blocks.push(`<div class="blk"><h4>Visit summary</h4>${(v.summaries || []).length ? v.summaries.map(s => `<div class="sumtxt">${esc(s.text)}<div class="by">${esc(s.by || "")}${s.at ? " · " + esc(s.at) : ""}</div></div>`).join("") : '<div class="empty">No summary written.</div>'}</div>`);
+  if ((v.recs || []).length) blocks.push(`<div class="blk"><h4>Recommendations</h4><ul class="plain">${v.recs.map(r => `<li><b>${esc(r.title || r.asset || "Recommendation")}</b>${r.text ? " — " + esc(r.text) : ""}${r.priority ? ` <span class="tag amber">${esc(r.priority)}</span>` : ""}${r.status ? ` <span class="tag grey">${esc(r.status)}</span>` : ""}</li>`).join("")}</ul></div>`);
+  if ((v.techNotes || []).length) blocks.push(`<div class="blk"><h4>Technician notes <span class="tag purple">internal</span></h4>${v.techNotes.map(n => `<div class="sumtxt">${n.subject ? `<b>${esc(n.subject)}</b> ` : ""}${esc(n.text)}<div class="by">${esc(n.by || "")}${n.at ? " · " + esc(n.at) : ""}</div></div>`).join("")}</div>`);
+  if ((v.labour || []).length) blocks.push(`<div class="blk"><h4>Labour</h4><ul class="plain">${v.labour.map(l => `<li>${esc(l.tech)} <span class="dim">${esc(l.role || "")}</span> — ${hrsTxt(l.hrs)}${l.type && !/regular/i.test(l.type) ? ` <span class="tag amber">${esc(l.type)}</span>` : ""}</li>`).join("")}</ul></div>`);
+  if ((v.parts || []).length) blocks.push(`<div class="blk"><h4>Parts used</h4><ul class="plain">${v.parts.map(p => `<li>${p.qty != null ? esc(p.qty) + (p.uom ? " " + esc(p.uom) : "") + " × " : ""}${esc(p.name)}${p.desc && p.desc !== p.name ? ` <span class="dim">${esc(p.desc)}</span>` : ""}</li>`).join("")}</ul></div>`);
+  if ((v.fieldPOs || []).length || (v.receipts || []).length) blocks.push(`<div class="blk"><h4>Field purchases</h4><ul class="plain">${(v.fieldPOs || []).map(p => `<li>PO ${esc(p.po)} · ${esc(p.vendor)}${p.desc ? " — " + esc(p.desc) : ""}</li>`).join("")}${(v.receipts || []).map(p => `<li>Receipt ${esc(p.receipt)} · ${esc(p.vendor)}${p.desc ? " — " + esc(p.desc) : ""}</li>`).join("")}</ul></div>`);
+  if ((v.tasks || []).length) blocks.push(`<div class="blk"><h4>Tasks</h4><ul class="plain">${v.tasks.map(t => `<li>${esc(t.task)}${t.desc ? " — " + esc(t.desc) : ""}${t.completedBy ? ` <span class="tag green">done · ${esc(t.completedBy)}</span>` : ""}${t.note ? `<div class="by">${esc(t.note)}</div>` : ""}</li>`).join("")}</ul></div>`);
+  if ((v.assets || []).length) blocks.push(`<div class="blk"><h4>Equipment worked on</h4><div class="sumtxt">${esc(v.assets.join(", "))}</div></div>`);
+  if ((v.photos || []).length) blocks.push(`<div class="blk"><h4>Photos</h4><div class="sumtxt">${v.photos.length} photo${v.photos.length > 1 ? "s" : ""} in BuildOps${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}/visit/${esc(v.id)}" target="_blank" rel="noopener" style="color:var(--teal)">view visit report ↗</a>` : ""}</div></div>`);
+  return `<article class="visit" data-v="${esc(v.id)}">
+    <div class="vh"><input type="checkbox" aria-label="Include visit ${esc(v.n)} in report" data-sel="${esc(v.id)}" ${SEL.has(v.id) ? "checked" : ""}>
+      <div class="vdate">${fmtD(v.date)}<small>Visit #${esc(v.n)}</small></div>
+      <div><div class="vtitle">${esc(v.desc || "Visit")} ${st}</div><div class="vtech">${esc(techs.join(", ") || "No tech assigned")}</div>${first ? `<div class="vsum">${esc(first.text)}</div>` : ""}</div>
+      <div class="vright"><b>${h ? hrsTxt(h) : "—"}</b>${(v.photos || []).length ? v.photos.length + " photos" : ""}</div>
+    </div>
+    <div class="vb">${blocks.join("")}</div>
+  </article>`;
+}
+
+function wireVisits() {
+  const upd = () => { document.querySelectorAll(".visit").forEach(a => a.classList.toggle("off", !SEL.has(a.dataset.v))); const n = $("r-nsel"); if (n) n.textContent = SEL.size; };
+  document.querySelectorAll(".visit .vh").forEach(h => h.onclick = e => { if (e.target.closest("input,a")) return; h.parentElement.classList.toggle("open"); });
+  document.querySelectorAll("[data-sel]").forEach(c => c.onchange = () => { c.checked ? SEL.add(c.dataset.sel) : SEL.delete(c.dataset.sel); upd(); });
+  $("v-all").onclick = () => { document.querySelectorAll("[data-sel]").forEach(c => { c.checked = true; SEL.add(c.dataset.sel); }); upd(); };
+  $("v-none").onclick = () => { document.querySelectorAll("[data-sel]").forEach(c => { c.checked = false; SEL.delete(c.dataset.sel); }); upd(); };
+  $("v-exp").onclick = () => { const all = document.querySelectorAll(".visit"); const open = [...all].some(a => !a.classList.contains("open")); all.forEach(a => a.classList.toggle("open", open)); $("v-exp").textContent = open ? "Collapse all" : "Expand all"; };
+  upd();
+}
+
+function techTotals(visits) {
+  const m = {};
+  visits.forEach(v => (v.labour || []).forEach(l => { const k = l.tech || "Unknown"; m[k] = m[k] || { tech: k, role: l.role, hrs: 0, visits: new Set(), ot: 0 }; m[k].hrs += l.hrs || 0; m[k].visits.add(v.id); if (l.type && !/regular/i.test(l.type)) m[k].ot += l.hrs || 0; }));
+  return Object.values(m).sort((a, b) => b.hrs - a.hrs);
+}
+function hoursBlock(actual, budget) {
+  const T = techTotals(J.visits || []);
+  if (!T.length) return '<div class="panel empty">No time submitted yet.</div>';
+  const top = Math.max(...T.map(t => t.hrs));
+  const pct = budget ? actual / budget * 100 : null;
+  return `${budget ? `<div class="panel" style="margin-bottom:1rem"><div class="hbig"><b style="font-family:Oswald,sans-serif;font-size:1.2rem" class="${pct > 100 ? "bad" : ""}">${hrsTxt(actual)} of ${hrsTxt(budget)}</b><div class="bar"><i class="${pct > 100 ? "over" : ""}" style="width:${Math.min(100, pct)}%"></i></div><b class="${pct > 100 ? "bad" : ""}">${Math.round(pct)}%</b></div><div class="note">${pct > 100 ? `${hrsTxt(actual - budget)} over the budgeted hours.` : `${hrsTxt(budget - actual)} of budgeted hours left.`}</div></div>` : ""}
+  <div class="two">
+    <div class="table-wrap"><table><thead><tr><th>Tech</th><th class="num">Hours</th><th class="num">Visits</th><th style="width:30%"></th></tr></thead><tbody>
+      ${T.map(t => `<tr><td>${esc(t.tech)}<small>${esc(t.role || "")}${t.ot ? ` · ${hrsTxt(t.ot)} overtime` : ""}</small></td><td class="num">${hrsTxt(t.hrs)}</td><td class="num">${t.visits.size}</td><td><div class="bar"><i style="width:${top ? t.hrs / top * 100 : 0}%"></i></div></td></tr>`).join("")}
+    </tbody><tfoot><tr><td>Total</td><td class="num">${hrsTxt(sum(T, t => t.hrs))}</td><td class="num">${(J.visits || []).filter(v => (v.labour || []).length).length}</td><td></td></tr></tfoot></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Visit</th><th>Techs</th><th class="num">Hours</th></tr></thead><tbody>
+      ${(J.visits || []).filter(v => (v.labour || []).length).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(v => `<tr><td>${fmtD(v.date)}<small>#${esc(v.n)} · ${esc((v.desc || "").slice(0, 40))}</small></td><td>${v.labour.map(l => esc(l.tech.split(" ")[0]) + " " + hrsTxt(l.hrs)).join(", ")}</td><td class="num">${hrsTxt(visitHrs(v))}</td></tr>`).join("")}
+    </tbody></table></div>
+  </div>`;
+}
+
+function materialsList() {
+  const out = [];
+  (J.invoiceItems || []).forEach(m => out.push({ name: m.name, desc: m.desc && m.desc !== m.name ? m.desc : "", qty: null, src: "Invoice " + (m.invoice || "") }));
+  (J.materials || []).forEach(m => out.push({ name: m.name, desc: m.desc && m.desc !== m.name ? m.desc : "", qty: m.qty, uom: m.uom, src: m.source + (m.po ? " · PO " + m.po : "") }));
+  (J.visits || []).forEach(v => (v.parts || []).forEach(p => out.push({ name: p.name, desc: p.desc && p.desc !== p.name ? p.desc : "", qty: p.qty, uom: p.uom, src: "Visit #" + v.n + " · " + fmtD(v.date) })));
+  const seen = new Set();
+  return out.filter(m => { const k = (m.name + "|" + m.qty).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+function materialsBlock() {
+  const L = materialsList();
+  if (!L.length) return '<div class="panel empty">No materials logged in BuildOps for this job yet.</div>';
+  return `<div class="table-wrap"><table><thead><tr><th>Item</th><th class="num">Qty</th><th>Source</th></tr></thead><tbody>${L.map(m => `<tr><td>${esc(m.name)}${m.desc ? `<small>${esc(m.desc)}</small>` : ""}</td><td class="num">${m.qty != null ? esc(m.qty) + (m.uom ? " " + esc(m.uom) : "") : "—"}</td><td><small style="display:inline">${esc(m.src)}</small></td></tr>`).join("")}</tbody></table></div>`;
+}
+
+/* ---------- owner-only: costs, invoices, emails ---------- */
+function costNumbers() {
+  const RATE = 70;
+  const labHrs = sum(J.visits || [], visitHrs);
+  const labCost = C && (C.labour || []).length ? sum(C.labour, l => l.cost) : labHrs * RATE;
+  const bills = (C && C.bills) || [];
+  const billCost = sum(bills, b => b.amount);
+  const partsCost = C ? sum(C.inventory || [], x => x.cost) + sum(C.purchased || [], x => x.cost) + sum(C.fieldPOs || [], x => x.cost) + sum(C.receipts || [], x => x.cost) : 0;
+  const matCost = billCost + partsCost;
+  const quoted = (C && (C.quoteSubtotal ?? C.quoted)) ?? null;
+  const inv = (C && C.invoices) || [];
+  const billed = (C && C.billedQB != null) ? C.billedQB : sum(inv.filter(i => !/draft|void/i.test(i.status || "")), i => i.amount) / 1.13; // pre-HST
+  const cost = labCost + matCost;
+  return { labHrs, labCost, billCost, partsCost, matCost, quoted, billed, cost, margin: billed ? (billed - cost) / billed * 100 : null };
+}
+function costKpis() {
+  const N = costNumbers();
+  return `<div class="kpi"><div class="k-label">Quoted (pre-HST)</div><div class="k-value">${money(N.quoted)}</div><div class="k-sub">${C && C.estCost ? `est. cost ${money(C.estCost)}` : "&nbsp;"}</div></div>
+    <div class="kpi"><div class="k-label">Cost to date</div><div class="k-value">${money(N.cost)}</div><div class="k-sub">labour ${money(N.labCost)} · materials ${money(N.matCost)}</div></div>
+    <div class="kpi"><div class="k-label">Billed (pre-HST)</div><div class="k-value">${money(N.billed)}</div><div class="k-sub">${N.margin != null ? `<span class="${N.margin < 20 ? "bad" : N.margin < 35 ? "watch" : "good"}">${Math.round(N.margin)}% margin to date</span>` : "nothing billed yet"}</div></div>`;
+}
+function ownerSections() {
+  if (!C) return `<section><h2>Costs, invoices and emails<span class="lock">Jake &amp; Mike only</span></h2><div class="panel empty">Not loaded yet. The next daily refresh adds costs, QuickBooks bills, invoices and emails for this job.</div></section>`;
+  const N = costNumbers();
+  const lab = C.labour || [];
+  const bills = C.bills || [];
+  const inv = C.invoices || [];
+  const qbi = C.qbInvoices || [];
+  const em = (C.emails || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const labByTech = {}; lab.forEach(l => { const k = l.tech; labByTech[k] = labByTech[k] || { hrs: 0, cost: 0 }; labByTech[k].hrs += l.hrs || 0; labByTech[k].cost += l.cost || 0; });
+  return `
+  <section>
+    <h2>Costs<span class="lock">Jake &amp; Mike only</span></h2>
+    <p class="note" style="margin-bottom:.9rem">Labour from BuildOps time at the tech's costed rate. Materials from QuickBooks supplier bills that carry this job's PO${C.poKeys && C.poKeys.length ? ` (${esc(C.poKeys.join(", "))})` : ""}, plus any parts logged in BuildOps.${(C.poSharedWith || []).length ? ` <b>PO shared with ${C.poSharedWith.map(x => `<a href="job.html?id=${encodeURIComponent(x)}" style="color:var(--teal)">${esc(x)}</a>`).join(", ")}</b>: these bills cover both jobs.` : ""}</p>
+    <div class="two">
+      <div class="table-wrap"><table><thead><tr><th>Labour by tech</th><th class="num">Hours</th><th class="num">Cost</th></tr></thead><tbody>
+        ${Object.keys(labByTech).length ? Object.entries(labByTech).sort((a, b) => b[1].cost - a[1].cost).map(([k, x]) => `<tr><td>${esc(k)}</td><td class="num">${hrsTxt(x.hrs)}</td><td class="num">${money(x.cost)}</td></tr>`).join("") : `<tr><td colspan="3" class="empty">No costed time in BuildOps.</td></tr>`}
+      </tbody><tfoot><tr><td>Labour</td><td class="num">${hrsTxt(N.labHrs)}</td><td class="num">${money(N.labCost)}</td></tr></tfoot></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Supplier bills (QuickBooks)</th><th>Date</th><th class="num">Amount</th></tr></thead><tbody>
+        ${bills.length ? bills.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "")).map(b => `<tr><td>${esc(b.vendor)}<small>${esc(b.memo || "")}${b.doc ? " · #" + esc(b.doc) : ""}</small></td><td>${fmtD(b.date)}</td><td class="num">${money2(b.amount)}</td></tr>`).join("") : `<tr><td colspan="3" class="empty">No supplier bills found against this PO.</td></tr>`}
+        ${N.partsCost ? `<tr><td>BuildOps parts, field POs and receipts</td><td></td><td class="num">${money2(N.partsCost)}</td></tr>` : ""}
+      </tbody><tfoot><tr><td>Materials</td><td></td><td class="num">${money2(N.matCost)}</td></tr></tfoot></table></div>
+    </div>
+    <div class="table-wrap" style="margin-top:1rem"><table><tbody>
+      <tr><td>Quoted, pre-HST</td><td class="num">${money2(N.quoted)}</td></tr>
+      <tr><td>Cost to date (labour + materials)</td><td class="num">${money2(N.cost)}</td></tr>
+      <tr><td>Billed to date, pre-HST</td><td class="num">${money2(N.billed)}</td></tr>
+      <tr><td><b>Gross profit to date</b></td><td class="num"><b class="${N.billed - N.cost < 0 ? "bad" : ""}">${money2(N.billed - N.cost)}</b>${N.margin != null ? `<small>${Math.round(N.margin)}% margin</small>` : ""}</td></tr>
+      ${N.quoted ? `<tr><td>Projected at quote (quoted − cost to date)</td><td class="num">${money2(N.quoted - N.cost)}</td></tr>` : ""}
+    </tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Invoices<span class="lock">Jake &amp; Mike only</span></h2>
+    <div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Issued</th><th>BuildOps status</th><th>QuickBooks</th><th class="num">Amount</th></tr></thead><tbody>
+      ${inv.length || qbi.length ? mergeInvoices(inv, qbi).map(i => `<tr><td>${esc(i.no)}</td><td>${fmtD(i.issued)}</td><td>${i.status ? `<span class="tag ${/draft/i.test(i.status) ? "amber" : "grey"}">${esc(i.status)}</span>` : "—"}</td><td>${i.qb ? (i.qb.balance === 0 ? '<span class="tag green">Paid</span>' : `<span class="tag amber">${money2(i.qb.balance)} open</span>`) : '<span class="tag red">Not in QuickBooks</span>'}</td><td class="num">${money2(i.amount ?? (i.qb && i.qb.total))}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">No invoices yet.</td></tr>`}
+    </tbody></table></div>
+    <p class="note" style="margin-top:.5rem">Amounts include HST. BuildOps "Draft" with a paid QuickBooks invoice means the BuildOps copy was never posted.</p>
+  </section>
+
+  <section>
+    <h2>Emails<span class="lock">Jake &amp; Mike only</span></h2>
+    <p class="note" style="margin-bottom:.9rem">Threads in Jake's Outlook that mention ${esc(J.id)}${J.po ? `, PO ${esc(J.po)}` : ""} or the site name. Read-only.</p>
+    ${em.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>From</th><th>Subject</th></tr></thead><tbody>${em.map(e => `<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td>${esc(e.from)}</td><td>${e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(e.subject)}</a>` : esc(e.subject)}${e.summary ? `<small>${esc(e.summary)}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>` : '<div class="panel empty">No matching emails found.</div>'}
+  </section>`;
+}
+function mergeInvoices(inv, qbi) {
+  const key = s => String(s || "").replace(/\D/g, "");
+  const rows = inv.map(i => ({ ...i, qb: qbi.find(q => key(q.doc) === key(i.no)) }));
+  qbi.filter(q => !rows.some(r => r.qb === q)).forEach(q => rows.push({ no: "QB " + q.doc, issued: q.date, amount: q.total, qb: q }));
+  return rows.sort((a, b) => (a.issued || "").localeCompare(b.issued || ""));
+}
+
+/* ---------- report ---------- */
+let RMODE = "customer", RSCOPE = "sel";
+function openOpts() {
+  const isTM = /t\s*&\s*m|time/i.test(J.type || "");
+  $("r-hours").checked = isTM;
+  const ib = document.querySelector('#r-mode [data-v="internal"]');
+  ib.disabled = !OWNER; ib.title = OWNER ? "" : "Internal version: Jake and Mike only";
+  if (!OWNER) RMODE = "customer";
+  segSet("r-mode", RMODE); segSet("r-scope", RSCOPE);
+  $("r-nsel").textContent = SEL.size;
+  $("overlay-opts").classList.add("on");
+}
+function segSet(id, v) { document.querySelectorAll("#" + id + " button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); }
+document.querySelectorAll("#r-mode button").forEach(b => b.onclick = () => { if (b.disabled) return; RMODE = b.dataset.v; segSet("r-mode", RMODE); $("r-mode-note").textContent = RMODE === "customer" ? "Customer: work performed, techs, materials and recommendations. No costs, margins or internal notes." : "Internal: adds technician notes, hours vs budget, labour cost, supplier bills, invoices and margin. Not for customers."; });
+document.querySelectorAll("#r-scope button").forEach(b => b.onclick = () => { RSCOPE = b.dataset.v; segSet("r-scope", RSCOPE); });
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest(".overlay").classList.remove("on"));
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".overlay.on").forEach(o => o.classList.remove("on")); });
+$("r-build").onclick = () => {
+  let V = (J.visits || []).filter(v => DONE.test(v.status || "") || (v.summaries || []).length);
+  if (RSCOPE === "sel") V = V.filter(v => SEL.has(v.id));
+  if (RSCOPE === "last") V = V.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 1);
+  V = V.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.n || 0) - (b.n || 0));
+  if (!V.length) { alertNoVisits(); return; }
+  const internal = RMODE === "internal" && OWNER;
+  $("sheet").innerHTML = reportHtml(V, { internal, hours: $("r-hours").checked || internal, mats: $("r-mats").checked, recs: $("r-recs").checked, sign: $("r-sign").checked });
+  const name = `${J.id} ${V.length === 1 ? "Service Report" : "Job Report"}${internal ? " (Internal)" : ""} ${todayIso()}`;
+  $("sheet-name").textContent = name + " · " + V.length + " visit" + (V.length > 1 ? "s" : "");
+  $("sheet").dataset.name = name;
+  $("overlay-opts").classList.remove("on");
+  $("overlay-sheet").classList.add("on");
+};
+function alertNoVisits() { $("r-nsel").parentElement.style.outline = "2px solid var(--red)"; setTimeout(() => $("r-nsel").parentElement.style.outline = "", 1500); }
+$("r-print").onclick = () => {
+  const t = document.title; document.title = $("sheet").dataset.name || t;
+  document.body.classList.add("printing");
+  const done = () => { document.body.classList.remove("printing"); document.title = t; window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  window.print();
+  setTimeout(done, 1500);
+};
+
+function reportHtml(V, o) {
+  const single = V.length === 1;
+  const period = single ? fmtLong(V[0].date) : `${fmtD(V[0].date)} – ${fmtD(V[V.length - 1].date)}`;
+  const totalHrs = sum(V, visitHrs);
+  const techs = [...new Set(V.flatMap(visitTechs))];
+  const recs = V.flatMap(v => (v.recs || []).map(r => ({ ...r, date: v.date })));
+  const mats = o.mats ? reportMaterials(V) : [];
+  const issueFirst = (J.issue || "").trim();
+  const B = J.board || {};
+  const prepared = SESSION ? SESSION.name : "";
+  let h = `
+  <div class="rp-head">
+    <div class="rp-brand"><div class="rp-mark"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 15 L16 11 L21 20 Z"/></svg></div>
+      <div><div class="rp-name">ALPINE HVAC SERVICE INC.</div><div class="rp-tag">HYDRONICS · CONTROLS · BUILDING SYSTEMS</div></div></div>
+    <div class="rp-co">4241 Victoria Avenue, Vineland Station, ON L0R 2E0<br>alpinehvac.ca · TSSA Reg. FS-R-51098</div>
+  </div>
+  <div class="rp-title"><h1>${single ? "Service Report" : "Job Report"}${o.internal ? '<span class="rp-badge">Internal — not for customer</span>' : ""}</h1><span>${esc(period)}</span></div>
+  <div class="rp-info">
+    <div><b>Customer</b> ${esc(J.customer || "")}</div><div><b>Job #</b> ${esc(J.id)}</div>
+    <div><b>Site</b> ${esc(J.property || "")}</div><div><b>Customer PO</b> ${esc(J.po || "—")}</div>
+    <div><b>Address</b> ${esc((J.address || "").replace(/,\s*CA$/, ""))}</div><div><b>Visits</b> ${V.length}${o.hours ? ` · ${hrsTxt(totalHrs)} on site` : ""}</div>
+    ${J.billTo && J.billTo !== J.customer ? `<div><b>Bill to</b> ${esc(J.billTo)}</div>` : ""}${J.authorizedBy ? `<div><b>Authorized by</b> ${esc(J.authorizedBy)}</div>` : ""}
+    <div><b>Technicians</b> ${esc(techs.join(", "))}</div><div><b>Report date</b> ${esc(fmtLong(todayIso()))}</div>
+  </div>`;
+  if (issueFirst) h += `<div class="rp-h2">Scope of work</div><div class="rp-txt">${esc(issueFirst)}</div>`;
+  h += `<div class="rp-h2">${single ? "Work performed" : "Work performed by visit"}</div>`;
+  h += V.map(v => {
+    const sums = (v.summaries || []).map(s => `<div class="rp-txt">${esc(s.text)}</div>`).join("");
+    const lab = o.hours && (v.labour || []).length ? `<div class="rp-mini"><b>Time on site:</b> ${v.labour.map(l => esc(l.tech) + " " + hrsTxt(l.hrs)).join(", ")} · ${hrsTxt(visitHrs(v))}</div>` : "";
+    const parts = o.mats && (v.parts || []).length ? `<div class="rp-mini"><b>Parts:</b> ${v.parts.map(p => (p.qty != null ? esc(p.qty) + " × " : "") + esc(p.name)).join("; ")}</div>` : "";
+    const eq = (v.assets || []).length ? `<div class="rp-mini"><b>Equipment:</b> ${esc(v.assets.join(", "))}</div>` : "";
+    const notes = o.internal && (v.techNotes || []).length ? `<div class="rp-int"><b>Tech notes:</b> ${v.techNotes.map(n => esc((n.subject ? n.subject + ": " : "") + n.text)).join(" · ")}</div>` : "";
+    return `<div class="rp-visit"><div class="rp-vh">${esc(v.desc || "Visit")}<span>${esc(fmtLong(v.date))} · Visit #${esc(v.n)}</span></div><div class="rp-vt">${esc(visitTechs(v).join(", "))}</div>${sums}${lab}${parts}${eq}${notes}</div>`;
+  }).join("");
+  if (o.hours && !single) {
+    const T = techTotals(V);
+    if (T.length) h += `<div class="rp-h2">Labour summary</div><table><thead><tr><th>Technician</th><th class="num">Visits</th><th class="num">Hours</th>${o.internal ? '<th class="num">Cost</th>' : ""}</tr></thead><tbody>${T.map(t => `<tr><td>${esc(t.tech)}</td><td class="num">${t.visits.size}</td><td class="num">${hrsTxt(t.hrs)}</td>${o.internal ? `<td class="num">${money(sum((C && C.labour || []).filter(l => l.tech === t.tech && V.some(v => v.n === l.visit)), l => l.cost))}</td>` : ""}</tr>`).join("")}</tbody><tfoot><tr><td>Total</td><td></td><td class="num">${hrsTxt(totalHrs)}</td>${o.internal ? `<td class="num">${money(sum((C && C.labour || []).filter(l => V.some(v => v.n === l.visit)), l => l.cost))}</td>` : ""}</tr></tfoot></table>`;
+  }
+  if (mats.length) h += `<div class="rp-h2">Materials supplied</div><table><thead><tr><th>Item</th><th class="num">Qty</th></tr></thead><tbody>${mats.map(m => `<tr><td>${esc(m.name)}${m.desc ? ` <span style="color:#777">— ${esc(m.desc)}</span>` : ""}</td><td class="num">${m.qty != null ? esc(m.qty) + (m.uom ? " " + esc(m.uom) : "") : ""}</td></tr>`).join("")}</tbody></table>`;
+  if (o.recs && recs.length) h += `<div class="rp-h2">Recommendations</div><ul class="rp-recs">${recs.map(r => `<li><b>${esc(r.title || r.asset || "Recommendation")}</b>${r.text ? " — " + esc(r.text) : ""}${r.priority ? ` (${esc(r.priority)} priority)` : ""}</li>`).join("")}</ul>`;
+  if (o.internal) h += internalReport(V, totalHrs);
+  if (o.sign) h += `<div class="rp-sign"><div>Alpine HVAC — ${esc(prepared)}</div><div>Customer signature / date</div></div>`;
+  h += `<div class="rp-foot"><span>Questions about this report? Contact your Alpine account manager or reply to the email it came with.</span><span>${esc(J.id)} · ${esc(todayIso())}</span></div>`;
+  return h;
+}
+function reportMaterials(V) {
+  const all = V.length === (J.visits || []).filter(v => DONE.test(v.status || "") || (v.summaries || []).length).length;
+  const out = [];
+  if (all) (J.invoiceItems || []).forEach(m => out.push({ name: m.name, desc: m.desc && m.desc !== m.name ? m.desc : "" }));
+  if (all) (J.materials || []).forEach(m => out.push({ name: m.name, desc: m.desc && m.desc !== m.name ? m.desc : "", qty: m.qty, uom: m.uom }));
+  V.forEach(v => (v.parts || []).forEach(p => out.push({ name: p.name, desc: p.desc && p.desc !== p.name ? p.desc : "", qty: p.qty, uom: p.uom })));
+  const seen = new Set();
+  return out.filter(m => { const k = (m.name + "|" + (m.qty ?? "")).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+function internalReport(V, totalHrs) {
+  const N = costNumbers();
+  const budget = J.budgetHrs || (J.board || {}).budgetHrs;
+  const allHrs = sum(J.visits || [], visitHrs);
+  let h = `<div class="rp-h2">Internal: job position to date</div><table><tbody>
+    <tr><td>Hours, whole job</td><td class="num">${hrsTxt(allHrs)}${budget ? ` of ${hrsTxt(budget)} budgeted (${Math.round(allHrs / budget * 100)}%)` : ""}</td></tr>
+    <tr><td>Hours, visits in this report</td><td class="num">${hrsTxt(totalHrs)}</td></tr>
+    <tr><td>Quoted, pre-HST</td><td class="num">${money2(N.quoted)}</td></tr>
+    <tr><td>Labour cost</td><td class="num">${money2(N.labCost)}</td></tr>
+    <tr><td>Materials cost (QuickBooks bills + BuildOps parts)</td><td class="num">${money2(N.matCost)}</td></tr>
+    <tr><td>Billed to date, pre-HST</td><td class="num">${money2(N.billed)}</td></tr>
+    <tr><td><b>Gross profit to date</b></td><td class="num"><b>${money2(N.billed - N.cost)}</b>${N.margin != null ? ` · ${Math.round(N.margin)}%` : ""}</td></tr>
+  </tbody></table>`;
+  const bills = (C && C.bills) || [];
+  if (bills.length) h += `<div class="rp-h2">Internal: supplier bills</div><table><thead><tr><th>Date</th><th>Vendor</th><th>Memo</th><th class="num">Amount</th></tr></thead><tbody>${bills.map(b => `<tr><td>${fmtD(b.date)}</td><td>${esc(b.vendor)}</td><td>${esc(b.memo || "")}</td><td class="num">${money2(b.amount)}</td></tr>`).join("")}</tbody></table>`;
+  const inv = mergeInvoices((C && C.invoices) || [], (C && C.qbInvoices) || []);
+  if (inv.length) h += `<div class="rp-h2">Internal: invoices</div><table><thead><tr><th>Invoice</th><th>Issued</th><th>Status</th><th class="num">Amount</th></tr></thead><tbody>${inv.map(i => `<tr><td>${esc(i.no)}</td><td>${fmtD(i.issued)}</td><td>${esc(i.status || "")}${i.qb ? (i.qb.balance === 0 ? " · paid" : " · " + money2(i.qb.balance) + " open") : " · not in QuickBooks"}</td><td class="num">${money2(i.amount ?? (i.qb && i.qb.total))}</td></tr>`).join("")}</tbody></table>`;
+  return h;
+}
+</script>
+
+<script type="module">
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { db, currentUser } from "./ap-firebase.js";
+const show = (msg, info) => { document.getElementById("banner").innerHTML = `<div class="banner ${info ? "info" : ""}">${msg}</div>`; };
+const user = await currentUser();
+if (!user) { sessionStorage.clear(); window.location.href = "index.html"; }
+else {
+  const id = (new URLSearchParams(location.search).get("id") || "").trim().toUpperCase();
+  const owner = typeof apIsOwner === "function" && apIsOwner();
+  const denied = e => e && /permission/i.test(e.code || e.message || "");
+  try {
+    if (!id) {
+      const s = await getDoc(doc(db, "ops_job_detail", "_index"));
+      if (!s.exists()) { document.getElementById("view").innerHTML = ""; show("No job details saved yet. They're added by the daily Field Operations refresh."); }
+      else window.apJobList(JSON.parse(s.data().json), s.data().asOf);
+    } else {
+      const s = await getDoc(doc(db, "ops_job_detail", id));
+      if (!s.exists()) {
+        document.getElementById("view").innerHTML = `<div class="head"><div><h1>${id.replace(/[^A-Z0-9]/g, "")}</h1><p class="sub">No visit details saved for this job yet. The daily refresh adds every job on the Field Operations board.</p></div><div class="actions"><a class="btn" href="https://live.buildops.com/job/view/${id.replace(/\D/g, "")}" target="_blank" rel="noopener">Open in BuildOps ↗</a></div></div>`;
+      } else {
+        let costs = null;
+        if (owner) { try { const c = await getDoc(doc(db, "ops_job_costs", id)); if (c.exists()) costs = JSON.parse(c.data().json); } catch (e) { if (!denied(e)) throw e; } }
+        window.apJobStart(JSON.parse(s.data().json), costs);
+      }
+    }
+  } catch (e) {
+    document.getElementById("view").innerHTML = "";
+    show(denied(e) ? "You don't have access to job details yet. If you should, ask Jake to add you; if you're Jake, publish the updated Firestore rules (firestore.rules in the portal repo)." : "Job details couldn't load: " + (e.code || e.message));
+  }
+}
+</script>
+</body>
+</html>
