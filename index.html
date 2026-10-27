@@ -76,7 +76,12 @@ function showInfo(msg) { const i = $("info"); i.textContent = msg; i.style.displ
 // Already signed in on this device: skip the form.
 const existing = await currentUser();
 if (existing) {
-  if (apSessionFromEmail(existing.email)) window.location.href = "dashboard.html";
+  if (apSessionFromEmail(existing.email)) {
+    // Signed in already: go back to the page that sent us here (portal pages only), else the dashboard.
+    const next = sessionStorage.getItem("ap_redirect") || "";
+    sessionStorage.removeItem("ap_redirect");
+    window.location.href = /^[a-z0-9-]+\.html([?#][\w\-=&#.%]*)?$/i.test(next) ? next : "dashboard.html";
+  }
   else await signOut(auth);
 }
 

@@ -115,7 +115,7 @@ async function allTables() {
   for (const c of conts) {
     const H = [...c.querySelectorAll("[role=columnheader], th")].map(x => x.innerText.trim());
     const R = [], keys = new Set();
-    const add = () => rowsIn(c).forEach(r => { const k = r.join("\u0001"); if (!keys.has(k)) { keys.add(k); R.push(r); } });
+    const add = () => { rowsIn(c).forEach(r => { const k = r.join("\u0001"); if (!keys.has(k)) { keys.add(k); R.push(r); } }); try { harvest(c); } catch (e) {} };
     add();
     for (let pg = 0; pg < 30; pg++) {
       const btn = pagerOf(c, conts);
@@ -128,6 +128,24 @@ async function allTables() {
     out.push({ H, R });
   }
   return out;
+}
+// Photo attachments: the grid rows carry each file's Cloudinary path and BuildOps' "include in job report"
+// flag in their React props (not in the cell text). Collected while grids are paged; keyed visit|file.
+let ATT = new Map();
+function harvest(c) {
+  for (const row of c.querySelectorAll("[role=row]")) {
+    const fk = Object.keys(row).find(k => k.startsWith("__reactFiber"));
+    let f = fk ? row[fk] : null;
+    for (let i = 0; i < 6 && f; i++, f = f.return) {
+      const r = f.memoizedProps && f.memoizedProps.row;
+      if (r && r.fileUrl && (r.fileName || r.customFileName)) {
+        const n = r.visit && r.visit.visitNumber;
+        ATT.set(n + "|" + (r.customFileName || r.fileName), { src: String(r.fileUrl), rep: r.includeInJobReport !== false });
+        if (r.fileName && r.customFileName && r.fileName !== r.customFileName) ATT.set(n + "|" + r.fileName, { src: String(r.fileUrl), rep: r.includeInJobReport !== false });
+        break;
+      }
+    }
+  }
 }
 const vnum = s => { const m = String(s || "").match(/Visit\s+(\d+)/i); return m ? +m[1] : null; };
 const vdate = s => { const m = String(s || "").match(/Visit\s+\d+\s*-\s*(.*)$/i); return m ? iso(m[1]) : null; };
@@ -171,6 +189,7 @@ function issueText() {
 // The job report overview lists every visit's description, summary notes, recommendations,
 // technician notes, labour, field POs, parts, receipts, photos and tasks, each in its own paged grid.
 async function readOverview(rid) {
+  ATT = new Map();
   nav("/jobreport/" + rid);
   const ok = await waitFor(() => /Costs\s*\n\s*Labor/i.test(mainText()) || mainText().includes("Invoice Items"));
   if (!ok) throw new Error("job report did not load");
@@ -201,7 +220,7 @@ async function readOverview(rid) {
   rowsOf(T, ["Visit", "Purchase Order", "PO Type"]).forEach(r => { const n = vnum(r["Visit"]); if (n == null || !clean(r["Purchase Order"])) return; V(n).fieldPOs.push({ po: clean(r["Purchase Order"]), status: clean(r["Status"]), vendor: clean(r["Vendor"]), desc: clean(r["Description"]), cost: num(r["Subtotal"]) }); });
   rowsOf(T, ["Visit", "Item Name", "Unit Cost", "Qty"]).forEach(r => { const n = vnum(r["Visit"]); if (n == null || !clean(r["Item Name"])) return; V(n).parts.push({ name: r["Item Name"], desc: clean(r["Description"]), qty: num(r["Qty"]), uom: clean(r["UOM"]), cost: num(r["Subtotal"]) }); });
   rowsOf(T, ["Visit", "Receipt", "Vendor"]).forEach(r => { const n = vnum(r["Visit"]); if (n == null || !clean(r["Receipt"])) return; V(n).receipts.push({ receipt: clean(r["Receipt"]), po: clean(r["Purchase Order"]), vendor: clean(r["Vendor"]), desc: clean(r["Description"]), cost: num(r["Subtotal"]) }); });
-  rowsOf(T, ["Visit", "File Name", "Added By"]).forEach(r => { const n = vnum(r["Visit"]); if (n == null) return; V(n).photos.push({ file: r["File Name"], type: clean(r["Type"]), by: r["Added By"], at: r["Date Added"], comment: clean(r["Comment"]) }); });
+  rowsOf(T, ["Visit", "File Name", "Added By"]).forEach(r => { const n = vnum(r["Visit"]); if (n == null) return; const a = ATT.get(n + "|" + r["File Name"]) || {}; V(n).photos.push({ file: r["File Name"], type: clean(r["Type"]), by: r["Added By"], at: r["Date Added"], comment: clean(r["Comment"]), src: a.src || null, rep: a.rep !== false }); });
   rowsOf(T, ["Task", "Task Description"]).forEach(r => { const x = { asset: clean(r["Asset"]), task: clean(r["Task"]), desc: clean(r["Task Description"]), note: mask(clean(r["Task Note"])), completedBy: clean(r["Completed By"]) }; if (!(x.task && x.task !== "Default Section") && !x.desc) return; const n = vnum(r["Visit"]); if (n != null) V(n).tasks.push(x); else (visits._jobTasks = visits._jobTasks || []).push(x); });
   const assets = rowsOf(T, ["Asset Name"]).map(r => ({ name: clean(r["Asset Name"]), make: clean(r["Make"]), model: clean(r["Model"]), serial: clean(r["Serial Number"]), location: clean(r["Location"]) })).filter(a => a.name);
   const inventory = rowsOf(T, ["Source", "Item Name", "Unit Cost", "Qty"]).map(r => ({ source: r["Source"], name: r["Item Name"], desc: clean(r["Description"]), qty: num(r["Qty"]), uom: clean(r["UOM"]), unit: num(r["Unit Cost"]), cost: num(r["Subtotal"]) }));

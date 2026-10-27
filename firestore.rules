@@ -88,9 +88,10 @@ service cloud.firestore {
       allow read: if isFieldOps() || isOps();
       allow write: if isOwner();
     }
-    // Job costs, QuickBooks bills/invoices and Outlook emails per job: owners only
+    // Job costs, QuickBooks bills/invoices and Outlook emails per job: Jake, Mike and Cole read; owners save
     match /ops_job_costs/{doc=**} {
-      allow read, write: if isOwner();
+      allow read: if isFieldOps();
+      allow write: if isOwner();
     }
     // Business Context log: one source of truth read by every dashboard refresh: owners only
     match /portal_context/{doc=**} {

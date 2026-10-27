@@ -12,7 +12,8 @@
      Contains NO job data: everything loads from Firestore after sign-in.
        ops_job_detail/{id}   visits, tech summaries, hours, materials  (owners, Cole, field techs)
        ops_job_detail/_index job list                                   (same)
-       ops_job_costs/{id}    labour $, bills, invoices, emails          (owners only)
+       ops_job_costs/{id}    labour $, bills, invoices, emails          (Jake, Mike, Cole)
+     Photos load from BuildOps' image host (res.cloudinary.com/gobuildops) by the path the reader saves.
      Written by the daily refresh (skill alpine-ops-dashboard-refresh) through Field Operations > Update job details. -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -90,6 +91,10 @@ h2 .lock{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:500;letter-s
 .visit.open .vb{display:block}
 .blk{margin-bottom:1rem}
 .blk:last-child{margin-bottom:0}
+.ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.5rem}
+.ph-grid figure{margin:0}
+.ph-grid img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:rgba(16,68,78,.06)}
+.ph-grid figcaption{font-size:.7rem;color:var(--muted);margin-top:.2rem}
 .blk h4{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem}
 .blk h4 .tag{margin-left:.4rem;letter-spacing:0;text-transform:none;font-weight:500}
 .sumtxt{white-space:pre-line;font-size:.9rem}
@@ -161,6 +166,10 @@ tr.go{cursor:pointer}tr.go:hover td{background:rgba(16,68,78,0.035)}
 .rp-txt{white-space:pre-line}
 .rp-txt+.rp-txt{margin-top:4px}
 .rp-mini{font-size:9pt;margin-top:4px}
+.rp-ph{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.rp-ph figure{margin:0;break-inside:avoid;page-break-inside:avoid}
+.rp-ph img{display:block;width:100%;height:46mm;object-fit:cover;border:1px solid #ddd;border-radius:2px}
+.rp-ph figcaption{font-size:7.5pt;color:#666;margin-top:2px}
 .rp-mini b{color:#555;font-weight:500}
 .rp-int{background:#F5F2FA;border-radius:3px;padding:4px 6px;margin-top:4px;font-size:9pt}
 .rp-int b{color:#4E4268}
@@ -210,6 +219,7 @@ tr.go{cursor:pointer}tr.go:hover td{background:rgba(16,68,78,0.035)}
       <label class="chk"><input type="checkbox" id="r-hours"> Hours on site per visit</label>
       <label class="chk"><input type="checkbox" id="r-mats" checked> Materials supplied</label>
       <label class="chk"><input type="checkbox" id="r-recs" checked> Recommendations</label>
+      <label class="chk"><input type="checkbox" id="r-photos" checked> Photos <span class="dim">(customer version: photos marked "include in job report" in BuildOps)</span></label>
       <label class="chk"><input type="checkbox" id="r-sign"> Signature lines</label>
     </div>
     <div class="dlg-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="r-build">Preview report</button></div>
@@ -238,6 +248,15 @@ const DONE = /complete|converted|closed/i;
 const OWNER = typeof apIsOwner === "function" && apIsOwner();
 const SESSION = typeof apGetSession === "function" ? apGetSession() : null;
 const CAN_BOARD = SESSION && (SESSION.roles.includes("owner") || SESSION.roles.includes("field_ops"));
+// Costs, invoices, emails and the internal report: Jake, Mike and Cole (field_ops). Firestore ops_job_costs enforces the same.
+const COSTS = OWNER || !!(SESSION && SESSION.roles.includes("field_ops"));
+
+/* ---------- photos (BuildOps stores them on Cloudinary; the reader saves each photo's path) ---------- */
+const PH_OK = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpe?g|png|heic|heif|webp|gif)$/i;
+const phUrl = (p, w) => p && PH_OK.test(p.src || "") ? `https://res.cloudinary.com/gobuildops/image/upload/c_limit,w_${w},q_auto,f_jpg/public/${p.src}` : null;
+const PH_ORDER = { before: 0, during: 1, after: 3 };
+const phSort = a => a.slice().sort((x, y) => (PH_ORDER[(x.type || "").toLowerCase()] ?? 2) - (PH_ORDER[(y.type || "").toLowerCase()] ?? 2));
+const phCap = p => [p.type ? p.type[0].toUpperCase() + p.type.slice(1) : "", p.comment || ""].filter(Boolean).join(" · ");
 if (!CAN_BOARD) $("back").outerHTML = '<a class="back-link" href="job.html">&larr; All jobs</a>';
 else $("back").href = "ops-dashboard.html", $("back").innerHTML = "&larr; Field Operations";
 
@@ -279,7 +298,7 @@ window.apJobStart = function (detail, costs) {
   const stage = B.stage === "completed" ? '<span class="tag green">Completed</span>' : B.stage === "ongoing" ? '<span class="tag teal">In progress</span>' : B.stage ? '<span class="tag grey">Upcoming</span>' : "";
   const billing = B.billingStatus ? `<span class="tag ${/fully|paid/i.test(B.billingStatus) ? "green" : /partial|ready/i.test(B.billingStatus) ? "amber" : /do not/i.test(B.billingStatus) ? "grey" : "red"}">${esc(B.billingStatus)}</span>` : "";
   const title = B.title || (J.issue || "").split("\n")[0].slice(0, 90);
-  const costK = OWNER && C ? costKpis() : "";
+  const costK = COSTS && C ? costKpis() : "";
 
   $("view").innerHTML = `
   <div class="crumb">${CAN_BOARD ? '<a href="ops-dashboard.html">Field Operations</a> · ' : ""}<a href="job.html">Jobs</a> · ${esc(J.id)}</div>
@@ -316,7 +335,7 @@ window.apJobStart = function (detail, costs) {
 
   <section>
     <h2>Materials</h2>
-    <p class="note" style="margin-bottom:.9rem">Items on the BuildOps invoice and parts logged on visits.${OWNER ? " Supplier bills against this PO are in Costs below." : ""}</p>
+    <p class="note" style="margin-bottom:.9rem">Items on the BuildOps invoice and parts logged on visits.${COSTS ? " Supplier bills against this PO are in Costs below." : ""}</p>
     ${materialsBlock()}
   </section>
 
@@ -325,9 +344,9 @@ window.apJobStart = function (detail, costs) {
     <div class="panel">${(J.jobRecs || []).length ? `<ul class="plain">${J.jobRecs.map(r => `<li><b>${esc(r.title || r.asset || "Recommendation")}</b>${r.text ? " — " + esc(r.text) : ""}${r.priority ? ` <span class="tag amber">${esc(r.priority)}</span>` : ""}</li>`).join("")}</ul>` : '<div class="empty">No job-level recommendations.</div>'}</div>
   </div></section>` : ""}
 
-  ${OWNER ? ownerSections() : ""}
+  ${COSTS ? ownerSections() : ""}
 
-  <p class="note" style="margin-top:2rem">BuildOps read ${J.readAt ? esc(new Date(J.readAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })) : "—"}${OWNER && C && C.qbAt ? ` · QuickBooks ${esc(fmtD(C.qbAt))}` : ""}${OWNER && C && C.emailAt ? ` · Outlook ${esc(fmtD(C.emailAt))}` : ""}. Refreshed daily by Claude.</p>`;
+  <p class="note" style="margin-top:2rem">BuildOps read ${J.readAt ? esc(new Date(J.readAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })) : "—"}${COSTS && C && C.qbAt ? ` · QuickBooks ${esc(fmtD(C.qbAt))}` : ""}${COSTS && C && C.emailAt ? ` · Outlook ${esc(fmtD(C.emailAt))}` : ""}. Refreshed daily by Claude.</p>`;
 
   wireVisits();
   $("open-report").onclick = openOpts;
@@ -348,7 +367,10 @@ function visitCard(v) {
   if ((v.fieldPOs || []).length || (v.receipts || []).length) blocks.push(`<div class="blk"><h4>Field purchases</h4><ul class="plain">${(v.fieldPOs || []).map(p => `<li>PO ${esc(p.po)} · ${esc(p.vendor)}${p.desc ? " — " + esc(p.desc) : ""}</li>`).join("")}${(v.receipts || []).map(p => `<li>Receipt ${esc(p.receipt)} · ${esc(p.vendor)}${p.desc ? " — " + esc(p.desc) : ""}</li>`).join("")}</ul></div>`);
   if ((v.tasks || []).length) blocks.push(`<div class="blk"><h4>Tasks</h4><ul class="plain">${v.tasks.map(t => `<li>${esc(t.task)}${t.desc ? " — " + esc(t.desc) : ""}${t.completedBy ? ` <span class="tag green">done · ${esc(t.completedBy)}</span>` : ""}${t.note ? `<div class="by">${esc(t.note)}</div>` : ""}</li>`).join("")}</ul></div>`);
   if ((v.assets || []).length) blocks.push(`<div class="blk"><h4>Equipment worked on</h4><div class="sumtxt">${esc(v.assets.join(", "))}</div></div>`);
-  if ((v.photos || []).length) blocks.push(`<div class="blk"><h4>Photos</h4><div class="sumtxt">${v.photos.length} photo${v.photos.length > 1 ? "s" : ""} in BuildOps${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">view in BuildOps ↗</a>` : ""}</div></div>`);
+  if ((v.photos || []).length) {
+    const P = phSort(v.photos).filter(p => phUrl(p, 360));
+    blocks.push(`<div class="blk"><h4>Photos</h4>${P.length ? `<div class="ph-grid">${P.map(p => `<figure><a href="${esc(phUrl(p, 2000))}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(phUrl(p, 360))}" alt="${esc(phCap(p) || "Visit photo")}"></a><figcaption>${esc(phCap(p))}${p.rep === false ? ' <span class="tag grey">not in customer report</span>' : ""}</figcaption></figure>`).join("")}</div>` : ""}${P.length < v.photos.length ? `<div class="sumtxt">${v.photos.length - P.length} photo${v.photos.length - P.length > 1 ? "s" : ""} not loaded yet (added by the next daily refresh)${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">view in BuildOps ↗</a>` : ""}</div>` : ""}</div>`);
+  }
   return `<article class="visit" data-v="${esc(v.id)}">
     <div class="vh"><input type="checkbox" aria-label="Include visit ${esc(v.n)} in report" data-sel="${esc(v.id)}" ${SEL.has(v.id) ? "checked" : ""}>
       <div class="vdate">${fmtD(v.date)}<small>Visit #${esc(v.n)}</small></div>
@@ -483,8 +505,8 @@ function openOpts() {
   const isTM = /t\s*&\s*m|time/i.test(J.type || "");
   $("r-hours").checked = isTM;
   const ib = document.querySelector('#r-mode [data-v="internal"]');
-  ib.disabled = !OWNER; ib.title = OWNER ? "" : "Internal version: Jake and Mike only";
-  if (!OWNER) RMODE = "customer";
+  ib.disabled = !COSTS; ib.title = COSTS ? "" : "Internal version: Jake, Mike and Cole only";
+  if (!COSTS) RMODE = "customer";
   segSet("r-mode", RMODE); segSet("r-scope", RSCOPE);
   $("r-nsel").textContent = SEL.size;
   $("overlay-opts").classList.add("on");
@@ -500,8 +522,8 @@ $("r-build").onclick = () => {
   if (RSCOPE === "last") V = V.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 1);
   V = V.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.n || 0) - (b.n || 0));
   if (!V.length) { alertNoVisits(); return; }
-  const internal = RMODE === "internal" && OWNER;
-  $("sheet").innerHTML = reportHtml(V, { internal, hours: $("r-hours").checked || internal, mats: $("r-mats").checked, recs: $("r-recs").checked, sign: $("r-sign").checked });
+  const internal = RMODE === "internal" && COSTS;
+  $("sheet").innerHTML = reportHtml(V, { internal, hours: $("r-hours").checked || internal, mats: $("r-mats").checked, recs: $("r-recs").checked, sign: $("r-sign").checked, photos: $("r-photos").checked });
   const name = `${J.id} ${V.length === 1 ? "Service Report" : "Job Report"}${internal ? " (Internal)" : ""} ${todayIso()}`;
   $("sheet-name").textContent = name + " · " + V.length + " visit" + (V.length > 1 ? "s" : "");
   $("sheet").dataset.name = name;
@@ -509,7 +531,9 @@ $("r-build").onclick = () => {
   $("overlay-sheet").classList.add("on");
 };
 function alertNoVisits() { $("r-nsel").parentElement.style.outline = "2px solid var(--red)"; setTimeout(() => $("r-nsel").parentElement.style.outline = "", 1500); }
-$("r-print").onclick = () => {
+$("r-print").onclick = async () => {
+  const imgs = [...$("sheet").querySelectorAll("img")].filter(i => !i.complete);
+  if (imgs.length) { $("r-print").textContent = "Loading photos…"; await Promise.race([Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; }))), new Promise(r => setTimeout(r, 15000))]); $("r-print").textContent = "Print / Save PDF"; }
   const t = document.title; document.title = $("sheet").dataset.name || t;
   document.body.classList.add("printing");
   const done = () => { document.body.classList.remove("printing"); document.title = t; window.removeEventListener("afterprint", done); };
@@ -550,7 +574,9 @@ function reportHtml(V, o) {
     const parts = o.mats && (v.parts || []).length ? `<div class="rp-mini"><b>Parts:</b> ${v.parts.map(p => (p.qty != null ? esc(p.qty) + " × " : "") + esc(p.name)).join("; ")}</div>` : "";
     const eq = (v.assets || []).length ? `<div class="rp-mini"><b>Equipment:</b> ${esc(v.assets.join(", "))}</div>` : "";
     const notes = o.internal && (v.techNotes || []).length ? `<div class="rp-int"><b>Tech notes:</b> ${v.techNotes.map(n => esc((n.subject ? n.subject + ": " : "") + n.text)).join(" · ")}</div>` : "";
-    return `<div class="rp-visit"><div class="rp-vh">${esc(v.desc || "Visit")}<span>${esc(fmtLong(v.date))} · Visit #${esc(v.n)}</span></div><div class="rp-vt">${esc(visitTechs(v).join(", "))}</div>${sums}${lab}${parts}${eq}${notes}</div>`;
+    const PH = o.photos ? phSort(v.photos || []).filter(p => phUrl(p, 900) && (o.internal || p.rep !== false)) : [];
+    const ph = PH.length ? `<div class="rp-ph">${PH.slice(0, 12).map(p => `<figure><img src="${esc(phUrl(p, 900))}" alt=""><figcaption>${esc(phCap(p))}</figcaption></figure>`).join("")}</div>${PH.length > 12 ? `<div class="rp-mini">${PH.length - 12} more photos on file.</div>` : ""}` : "";
+    return `<div class="rp-visit"><div class="rp-vh">${esc(v.desc || "Visit")}<span>${esc(fmtLong(v.date))} · Visit #${esc(v.n)}</span></div><div class="rp-vt">${esc(visitTechs(v).join(", "))}</div>${sums}${lab}${parts}${eq}${notes}</div>${ph}`;
   }).join("");
   if (o.hours && !single) {
     const T = techTotals(V);
@@ -602,7 +628,8 @@ const user = await currentUser();
 if (!user) { sessionStorage.clear(); window.location.href = "index.html"; }
 else {
   const id = (new URLSearchParams(location.search).get("id") || "").trim().toUpperCase();
-  const owner = typeof apIsOwner === "function" && apIsOwner();
+  const sess = typeof apGetSession === "function" ? apGetSession() : null;
+  const owner = (typeof apIsOwner === "function" && apIsOwner()) || !!(sess && sess.roles.includes("field_ops"));
   const denied = e => e && /permission/i.test(e.code || e.message || "");
   try {
     if (!id) {
