@@ -593,7 +593,7 @@ function reportHtml(V, o) {
 function reportMaterials(V) {
   const all = V.length === (J.visits || []).filter(v => DONE.test(v.status || "") || (v.summaries || []).length).length;
   const out = [];
-  if (all) (J.invoiceItems || []).forEach(m => out.push({ name: m.name, desc: m.desc && m.desc !== m.name ? m.desc : "" }));
+  if (all) (J.invoiceItems || []).filter(m => !/^\s*(discount|credit|deposit|holdback|progress billing)\b/i.test(m.name || "")).forEach(m => out.push({ name: m.name, desc: m.desc && m.desc !== m.name ? m.desc : "" }));
   if (all) (J.materials || []).forEach(m => out.push({ name: m.name, desc: m.desc && m.desc !== m.name ? m.desc : "", qty: m.qty, uom: m.uom }));
   V.forEach(v => (v.parts || []).forEach(p => out.push({ name: p.name, desc: p.desc && p.desc !== p.name ? p.desc : "", qty: p.qty, uom: p.uom })));
   const seen = new Set();
