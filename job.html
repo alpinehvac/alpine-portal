@@ -320,6 +320,11 @@ window.apJobStart = function (detail, costs) {
     ${materialsBlock()}
   </section>
 
+  ${(J.assets || []).length || (J.jobRecs || []).length ? `<section><h2>Equipment and recommendations</h2><p class="note" style="margin-bottom:.9rem">Equipment logged on this job and recommendations not tied to one visit.</p><div class="two">
+    <div class="table-wrap"><table><thead><tr><th>Equipment</th><th>Make / model</th><th>Serial</th></tr></thead><tbody>${(J.assets || []).length ? J.assets.map(a => `<tr><td>${esc(a.name)}${a.location ? `<small>${esc(a.location)}</small>` : ""}</td><td>${esc([a.make, a.model].filter(Boolean).join(" "))}</td><td>${esc(a.serial || "")}</td></tr>`).join("") : '<tr><td colspan="3" class="empty">None logged.</td></tr>'}</tbody></table></div>
+    <div class="panel">${(J.jobRecs || []).length ? `<ul class="plain">${J.jobRecs.map(r => `<li><b>${esc(r.title || r.asset || "Recommendation")}</b>${r.text ? " — " + esc(r.text) : ""}${r.priority ? ` <span class="tag amber">${esc(r.priority)}</span>` : ""}</li>`).join("")}</ul>` : '<div class="empty">No job-level recommendations.</div>'}</div>
+  </div></section>` : ""}
+
   ${OWNER ? ownerSections() : ""}
 
   <p class="note" style="margin-top:2rem">BuildOps read ${J.readAt ? esc(new Date(J.readAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })) : "—"}${OWNER && C && C.qbAt ? ` · QuickBooks ${esc(fmtD(C.qbAt))}` : ""}${OWNER && C && C.emailAt ? ` · Outlook ${esc(fmtD(C.emailAt))}` : ""}. Refreshed daily by Claude.</p>`;
@@ -343,7 +348,7 @@ function visitCard(v) {
   if ((v.fieldPOs || []).length || (v.receipts || []).length) blocks.push(`<div class="blk"><h4>Field purchases</h4><ul class="plain">${(v.fieldPOs || []).map(p => `<li>PO ${esc(p.po)} · ${esc(p.vendor)}${p.desc ? " — " + esc(p.desc) : ""}</li>`).join("")}${(v.receipts || []).map(p => `<li>Receipt ${esc(p.receipt)} · ${esc(p.vendor)}${p.desc ? " — " + esc(p.desc) : ""}</li>`).join("")}</ul></div>`);
   if ((v.tasks || []).length) blocks.push(`<div class="blk"><h4>Tasks</h4><ul class="plain">${v.tasks.map(t => `<li>${esc(t.task)}${t.desc ? " — " + esc(t.desc) : ""}${t.completedBy ? ` <span class="tag green">done · ${esc(t.completedBy)}</span>` : ""}${t.note ? `<div class="by">${esc(t.note)}</div>` : ""}</li>`).join("")}</ul></div>`);
   if ((v.assets || []).length) blocks.push(`<div class="blk"><h4>Equipment worked on</h4><div class="sumtxt">${esc(v.assets.join(", "))}</div></div>`);
-  if ((v.photos || []).length) blocks.push(`<div class="blk"><h4>Photos</h4><div class="sumtxt">${v.photos.length} photo${v.photos.length > 1 ? "s" : ""} in BuildOps${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}/visit/${esc(v.id)}" target="_blank" rel="noopener" style="color:var(--teal)">view visit report ↗</a>` : ""}</div></div>`);
+  if ((v.photos || []).length) blocks.push(`<div class="blk"><h4>Photos</h4><div class="sumtxt">${v.photos.length} photo${v.photos.length > 1 ? "s" : ""} in BuildOps${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">view in BuildOps ↗</a>` : ""}</div></div>`);
   return `<article class="visit" data-v="${esc(v.id)}">
     <div class="vh"><input type="checkbox" aria-label="Include visit ${esc(v.n)} in report" data-sel="${esc(v.id)}" ${SEL.has(v.id) ? "checked" : ""}>
       <div class="vdate">${fmtD(v.date)}<small>Visit #${esc(v.n)}</small></div>
@@ -403,7 +408,7 @@ function materialsBlock() {
 function costNumbers() {
   const RATE = 70;
   const labHrs = sum(J.visits || [], visitHrs);
-  const labCost = C && (C.labour || []).length ? sum(C.labour, l => l.cost) : labHrs * RATE;
+  const labCost = C && (C.labour || []).length ? sum(C.labour, l => l.cost != null ? l.cost : (l.hrs || 0) * RATE) : labHrs * RATE; // BuildOps cost; $70/hr where BuildOps shows no cost
   const bills = (C && C.bills) || [];
   const billCost = sum(bills, b => b.amount);
   const partsCost = C ? sum(C.inventory || [], x => x.cost) + sum(C.purchased || [], x => x.cost) + sum(C.fieldPOs || [], x => x.cost) + sum(C.receipts || [], x => x.cost) : 0;
@@ -428,7 +433,7 @@ function ownerSections() {
   const inv = C.invoices || [];
   const qbi = C.qbInvoices || [];
   const em = (C.emails || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  const labByTech = {}; lab.forEach(l => { const k = l.tech; labByTech[k] = labByTech[k] || { hrs: 0, cost: 0 }; labByTech[k].hrs += l.hrs || 0; labByTech[k].cost += l.cost || 0; });
+  const labByTech = {}; lab.forEach(l => { const k = l.tech; labByTech[k] = labByTech[k] || { hrs: 0, cost: 0 }; labByTech[k].hrs += l.hrs || 0; labByTech[k].cost += l.cost != null ? l.cost : (l.hrs || 0) * 70; });
   return `
   <section>
     <h2>Costs<span class="lock">Jake &amp; Mike only</span></h2>
@@ -518,7 +523,7 @@ function reportHtml(V, o) {
   const period = single ? fmtLong(V[0].date) : `${fmtD(V[0].date)} – ${fmtD(V[V.length - 1].date)}`;
   const totalHrs = sum(V, visitHrs);
   const techs = [...new Set(V.flatMap(visitTechs))];
-  const recs = V.flatMap(v => (v.recs || []).map(r => ({ ...r, date: v.date })));
+  const recs = V.flatMap(v => (v.recs || []).map(r => ({ ...r, date: v.date }))).concat(J.jobRecs || []);
   const mats = o.mats ? reportMaterials(V) : [];
   const issueFirst = (J.issue || "").trim();
   const B = J.board || {};
@@ -551,6 +556,7 @@ function reportHtml(V, o) {
     const T = techTotals(V);
     if (T.length) h += `<div class="rp-h2">Labour summary</div><table><thead><tr><th>Technician</th><th class="num">Visits</th><th class="num">Hours</th>${o.internal ? '<th class="num">Cost</th>' : ""}</tr></thead><tbody>${T.map(t => `<tr><td>${esc(t.tech)}</td><td class="num">${t.visits.size}</td><td class="num">${hrsTxt(t.hrs)}</td>${o.internal ? `<td class="num">${money(sum((C && C.labour || []).filter(l => l.tech === t.tech && V.some(v => v.n === l.visit)), l => l.cost))}</td>` : ""}</tr>`).join("")}</tbody><tfoot><tr><td>Total</td><td></td><td class="num">${hrsTxt(totalHrs)}</td>${o.internal ? `<td class="num">${money(sum((C && C.labour || []).filter(l => V.some(v => v.n === l.visit)), l => l.cost))}</td>` : ""}</tr></tfoot></table>`;
   }
+  if ((J.assets || []).length && V.length === (J.visits || []).filter(v => DONE.test(v.status || "") || (v.summaries || []).length).length) h += `<div class="rp-h2">Equipment serviced</div><table><thead><tr><th>Equipment</th><th>Make / model</th><th>Serial</th></tr></thead><tbody>${J.assets.map(a => `<tr><td>${esc(a.name)}</td><td>${esc([a.make, a.model].filter(Boolean).join(" "))}</td><td>${esc(a.serial || "")}</td></tr>`).join("")}</tbody></table>`;
   if (mats.length) h += `<div class="rp-h2">Materials supplied</div><table><thead><tr><th>Item</th><th class="num">Qty</th></tr></thead><tbody>${mats.map(m => `<tr><td>${esc(m.name)}${m.desc ? ` <span style="color:#777">— ${esc(m.desc)}</span>` : ""}</td><td class="num">${m.qty != null ? esc(m.qty) + (m.uom ? " " + esc(m.uom) : "") : ""}</td></tr>`).join("")}</tbody></table>`;
   if (o.recs && recs.length) h += `<div class="rp-h2">Recommendations</div><ul class="rp-recs">${recs.map(r => `<li><b>${esc(r.title || r.asset || "Recommendation")}</b>${r.text ? " — " + esc(r.text) : ""}${r.priority ? ` (${esc(r.priority)} priority)` : ""}</li>`).join("")}</ul>`;
   if (o.internal) h += internalReport(V, totalHrs);
