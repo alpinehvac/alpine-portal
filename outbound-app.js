@@ -150,9 +150,8 @@ async function runGeocoder() {
 
 // ── Map ─────────────────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: true, preferCanvas: true }).setView(HAMILTON, 10);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  subdomains: 'abcd', maxZoom: 19
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19
 }).addTo(map);
 const layers = {
   grid: L.layerGroup(), rings: L.layerGroup(), customers: L.layerGroup(), targets: L.layerGroup(), leads: L.layerGroup(),
