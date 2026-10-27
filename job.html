@@ -448,7 +448,7 @@ function costKpis() {
     <div class="kpi"><div class="k-label">Billed (pre-HST)</div><div class="k-value">${money(N.billed)}</div><div class="k-sub">${N.margin != null ? `<span class="${N.margin < 20 ? "bad" : N.margin < 35 ? "watch" : "good"}">${Math.round(N.margin)}% margin to date</span>` : "nothing billed yet"}</div></div>`;
 }
 function ownerSections() {
-  if (!C) return `<section><h2>Costs, invoices and emails<span class="lock">Jake &amp; Mike only</span></h2><div class="panel empty">Not loaded yet. The next daily refresh adds costs, QuickBooks bills, invoices and emails for this job.</div></section>`;
+  if (!C) return `<section><h2>Costs, invoices and emails<span class="lock">Jake, Mike &amp; Cole</span></h2><div class="panel empty">Not loaded yet. The next daily refresh adds costs, QuickBooks bills, invoices and emails for this job.</div></section>`;
   const N = costNumbers();
   const lab = C.labour || [];
   const bills = C.bills || [];
@@ -458,7 +458,7 @@ function ownerSections() {
   const labByTech = {}; lab.forEach(l => { const k = l.tech; labByTech[k] = labByTech[k] || { hrs: 0, cost: 0 }; labByTech[k].hrs += l.hrs || 0; labByTech[k].cost += l.cost != null ? l.cost : (l.hrs || 0) * 70; });
   return `
   <section>
-    <h2>Costs<span class="lock">Jake &amp; Mike only</span></h2>
+    <h2>Costs<span class="lock">Jake, Mike &amp; Cole</span></h2>
     <p class="note" style="margin-bottom:.9rem">Labour from BuildOps time at the tech's costed rate. Materials from QuickBooks supplier bills that carry this job's PO${C.poKeys && C.poKeys.length ? ` (${esc(C.poKeys.join(", "))})` : ""}, plus any parts logged in BuildOps.${(C.poSharedWith || []).length ? ` <b>PO shared with ${C.poSharedWith.map(x => `<a href="job.html?id=${encodeURIComponent(x)}" style="color:var(--teal)">${esc(x)}</a>`).join(", ")}</b>: these bills cover both jobs.` : ""}</p>
     <div class="two">
       <div class="table-wrap"><table><thead><tr><th>Labour by tech</th><th class="num">Hours</th><th class="num">Cost</th></tr></thead><tbody>
@@ -479,7 +479,7 @@ function ownerSections() {
   </section>
 
   <section>
-    <h2>Invoices<span class="lock">Jake &amp; Mike only</span></h2>
+    <h2>Invoices<span class="lock">Jake, Mike &amp; Cole</span></h2>
     <div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Issued</th><th>BuildOps status</th><th>QuickBooks</th><th class="num">Amount</th></tr></thead><tbody>
       ${inv.length || qbi.length ? mergeInvoices(inv, qbi).map(i => `<tr><td>${esc(i.no)}</td><td>${fmtD(i.issued)}</td><td>${i.status ? `<span class="tag ${/draft/i.test(i.status) ? "amber" : "grey"}">${esc(i.status)}</span>` : "—"}</td><td>${i.qb ? (i.qb.balance === 0 ? '<span class="tag green">Paid</span>' : `<span class="tag amber">${money2(i.qb.balance)} open</span>`) : '<span class="tag red">Not in QuickBooks</span>'}</td><td class="num">${money2(i.amount ?? (i.qb && i.qb.total))}</td></tr>`).join("") : `<tr><td colspan="5" class="empty">No invoices yet.</td></tr>`}
     </tbody></table></div>
@@ -487,7 +487,7 @@ function ownerSections() {
   </section>
 
   <section>
-    <h2>Emails<span class="lock">Jake &amp; Mike only</span></h2>
+    <h2>Emails<span class="lock">Jake, Mike &amp; Cole</span></h2>
     <p class="note" style="margin-bottom:.9rem">Threads in Jake's Outlook that mention ${esc(J.id)}${J.po ? `, PO ${esc(J.po)}` : ""} or the site name. Read-only.</p>
     ${em.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>From</th><th>Subject</th></tr></thead><tbody>${em.map(e => `<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td>${esc(e.from)}</td><td>${e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(e.subject)}</a>` : esc(e.subject)}${e.summary ? `<small>${esc(e.summary)}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>` : '<div class="panel empty">No matching emails found.</div>'}
   </section>`;
