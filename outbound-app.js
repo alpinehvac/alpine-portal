@@ -256,7 +256,7 @@ function targetPopup(t) {
     (p ? '<dt>From shop</dt><dd>' + km(shopPos(), p).toFixed(0) + ' km</dd>' : '') +
     '<dt>Claimed</dt><dd>' + (c ? esc(c.by) + ' · ' + fmtDate(c.at) : 'No') + '</dd></dl>' +
     (t.source ? '<div class="meta"><a href="' + esc(t.source) + '" target="_blank" rel="noopener">' + (t.osm ? 'Building on OpenStreetMap' : 'Source') + '</a></div>' : '') +
-    knockHTML(knocksFor('target', t.id)) +
+    contactHTML(t.id, 'meta') + knockHTML(knocksFor('target', t.id)) +
     '<div class="acts">' + claimButton(t) + '</div></div>';
 }
 function claimButton(t) {
@@ -564,6 +564,16 @@ function renderUnplaced() {
 // Monday "100 new knocks" task. A building counts as knocked when a Fireflies conversation is filed
 // against it (targetId) or names the same street address or building.
 const weeksDoc = readJSON('ob_knock_weeks') || { rows: [] };
+// Public contact details found online per target: { rows: { <targetId>: { phone, email, website, note, src, at } } }
+const contactsDoc = readJSON('ob_target_contacts') || { rows: {} };
+function contactHTML(id, cls) {
+  const c = (contactsDoc.rows || {})[id]; if (!c) return '';
+  const tel = c.phone ? '<a href="tel:' + esc(c.phone.replace(/[^0-9+]/g, '')) + '">' + esc(c.phone) + '</a>' : '';
+  const em = c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '';
+  const web = c.website ? '<a href="' + esc(c.website) + '" target="_blank" rel="noopener">website</a>' : '';
+  const parts = [tel, em, web].filter(Boolean);
+  return parts.length || c.note ? '<div class="' + (cls || 'wk-sub') + '">☎ ' + parts.join(' · ') + (c.note ? (parts.length ? ' · ' : '') + esc(c.note) : '') + '</div>' : '';
+}
 const targetById = {}; targetsAll.forEach(t => { targetById[t.id] = t; });
 const CHAINS = /walmart|no frills|food basics|zehrs|home depot|dollarama|value village|shoppers|wholesale club|canadian tire/i;
 const TOWERS = /marriott|hilton|sheraton|crowne|embassy|fallsview casino|doubletree/i;
@@ -610,7 +620,6 @@ function renderFollowReq() {
     items.push({ src: 'lead', due: l.followUp, text: (l.notes || '').split(/\n/)[0].slice(0, 160) || 'Follow up', who: l.rep || '', company: l.company, sub: [l.contact, l.phone].filter(Boolean).join(' · '), ref: 'l:' + l.id }); });
   items.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
   const od = items.filter(x => x.due && x.due < today).length;
-  $('fr-note').textContent = items.length ? items.length + ' open · ' + od + ' overdue' + (stale ? ' · ' + stale + ' lead-sheet follow-ups older than 45 days not shown (update or close them on the sheet)' : '') : '';
   const row = x => {
     const late = x.due && x.due < today, dueTxt = x.due ? fmtDate(x.due) : 'No date';
     return '<li><div class="wk-top"><span class="fr-due' + (late ? ' late' : x.due === today ? ' today' : '') + '">' + dueTxt + '</span>' +
@@ -620,9 +629,15 @@ function renderFollowReq() {
       (x.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(x.k.id) + '" data-i="' + x.i + '">Done</button>' : '') + '</div>' +
       '<div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + '</div>' : '') + '</li>';
   };
-  const kn = items.filter(x => x.src === 'knock'), ld = items.filter(x => x.src === 'lead');
-  el.innerHTML = '<h3 class="wk-h">From door knocks (' + kn.length + ')</h3>' + (kn.length ? '<ol class="wk fr">' + kn.map(row).join('') + '</ol>' : '<p class="hint">No open actions from knock recordings.</p>') +
-    '<h3 class="wk-h">Lead-sheet follow-ups, last 45 days to next 7 (' + ld.length + ')</h3>' + (ld.length ? '<ol class="wk fr">' + ld.map(row).join('') + '</ol>' : '<p class="hint">None due.</p>');
+  // Each person sees their own first; everyone else's sits in a collapsed "Team" section.
+  const mine = x => x.src === 'knock' ? (x.k.rep || 'Jake') === myName || new RegExp('\\b' + myName + '\\b', 'i').test(x.k.rep || 'Jake') : repOf(x.who).includes(myName);
+  const my = items.filter(mine), team = items.filter(x => !mine(x));
+  const kn = my.filter(x => x.src === 'knock'), ld = my.filter(x => x.src === 'lead');
+  const teamNames = [...new Set(team.map(x => x.src === 'knock' ? (x.k.rep || '') : repOf(x.who).filter(n => n !== myName).join('/') || x.who).filter(Boolean))].join(', ');
+  $('fr-note').textContent = my.length + ' yours open · ' + my.filter(x => x.due && x.due < today).length + ' overdue' + (stale ? ' · ' + stale + ' older lead-sheet follow-ups not shown (update or close them on the sheet)' : '');
+  el.innerHTML = '<h3 class="wk-h">From your door knocks (' + kn.length + ')</h3>' + (kn.length ? '<ol class="wk fr">' + kn.map(row).join('') + '</ol>' : '<p class="hint">No open actions from your knock recordings.</p>') +
+    '<h3 class="wk-h">Your lead-sheet follow-ups, last 45 days to next 7 (' + ld.length + ')</h3>' + (ld.length ? '<ol class="wk fr">' + ld.map(row).join('') + '</ol>' : '<p class="hint">None due.</p>') +
+    (team.length ? '<details class="fr-team"><summary>Team follow-ups' + (teamNames ? ' (' + esc(teamNames) + ')' : '') + ' · ' + team.length + '</summary><ol class="wk fr">' + team.map(row).join('') + '</ol></details>' : '');
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('.fr-done'); if (!b) return;
@@ -652,7 +667,7 @@ function renderWeek() {
     const k = r.k[0];
     return '<li class="done"><div class="wk-top"><span class="wk-n">' + r.n + '</span><a class="wk-name" data-fly="t:' + esc(r.t.id) + '">' + esc(r.t.name) + '</a>' +
       (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '<span class="wk-date">' + fmtDate(k.date) + '</span></div>' +
-      '<div class="wk-sub">' + mapLink(r.t) + (r.t.area ? ', ' + esc(r.t.area) : '') + sz(r.t) + '</div>' +
+      '<div class="wk-sub">' + mapLink(r.t) + (r.t.area ? ', ' + esc(r.t.area) : '') + sz(r.t) + '</div>' + contactHTML(r.t.id) +
       '<div class="wk-sum">' + esc(k.summary || '') + (k.nextStep ? ' <b>Next:</b> ' + esc(k.nextStep) + (k.followUp ? ' (' + fmtDate(k.followUp) + ')' : '') : '') + (k.url ? ' <a href="' + esc(k.url) + '" target="_blank" rel="noopener">Recording ↗</a>' : '') + '</div></li>';
   }).join('') + '</ol>' : '<p class="hint">Nothing knocked from this list yet. Record each knock in Fireflies; it lands here the same evening.</p>');
   h += '<h3 class="wk-h">Next up, in route order (' + next.length + ')</h3>';
@@ -661,7 +676,7 @@ function renderWeek() {
     const a = r.t.area || 'Other', head = a !== area ? (area === null ? '' : '</ol>') + '<div class="wk-area">' + esc(a) + '</div><ol class="wk">' : '';
     area = a;
     return head + '<li><div class="wk-top"><span class="wk-n">' + r.n + '</span><a class="wk-name" data-fly="t:' + esc(r.t.id) + '">' + esc(r.t.name) + '</a><span class="wk-type">' + esc(r.t.type || '') + '</span></div>' +
-      '<div class="wk-sub">' + mapLink(r.t) + sz(r.t) + '</div><div class="wk-note">' + esc(fieldNote(r.t)) + '</div></li>';
+      '<div class="wk-sub">' + mapLink(r.t) + sz(r.t) + '</div>' + contactHTML(r.t.id) + '<div class="wk-note">' + esc(fieldNote(r.t)) + '</div></li>';
   }).join('') + (next.length ? '</ol>' : '');
   el.innerHTML = h;
   const sel = $('wk-sel'); if (sel) sel.onchange = () => { weekSel = +sel.value; renderWeek(); };
@@ -737,6 +752,13 @@ function renderAll(redrawMap) {
 // Knocks merge by Fireflies id; automatic touch counts merge by week + rep + source.
 // Nothing already saved is dropped, so a partial run can never erase history.
 async function mergeImport(P) {
+  if (P.kind === 'contacts') {           // rows: { <targetId>: {phone, email, website, note, src} }
+    const cur = readJSON('ob_target_contacts') || { rows: {} }; let n = 0;
+    Object.entries(P.data.rows || {}).forEach(([id, c]) => { cur.rows[id] = { ...(cur.rows[id] || {}), ...c, at: todayISO() }; n++; });
+    localStorage.setItem('ob_target_contacts', JSON.stringify(cur));
+    await new Promise(r => setTimeout(r, 2500));
+    return 'contacts: ' + n + ' rows merged to the cloud.';
+  }
   if (!P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
   let n = 0;
   if (P.kind === 'knocks') {
@@ -778,7 +800,7 @@ window.obImport = (() => {
       parts = [];
       const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
       const P = JSON.parse(text);
-      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks') return mergeImport(P);
+      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks' || P.kind === 'contacts') return mergeImport(P);
       const key = { leads: 'ob_leads', customers: 'ob_customers', targets: 'ob_targets' }[P.kind];
       if (!key || !P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
       if (P.kind === 'leads' && P.data.rows.length < 0.8 * ((readJSON('ob_leads') || { rows: [] }).rows.length)) throw new Error('Refusing: new lead list is more than 20% shorter than the current one (' + P.data.rows.length + ' rows). Check the sheet read.');
