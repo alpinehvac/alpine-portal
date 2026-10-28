@@ -592,6 +592,43 @@ function knocksForTarget(t) {
   const ak = numKey(t.address || (geo['rev:' + t.id] || {}).addr), nn = normName(t.name);
   return knocks.filter(k => k.targetId === t.id || (!k.targetId && !k.leadId && ((ak && numKey(k.address) === ak) || (nn.length > 5 && normName(k.company) === nn))));
 }
+// ── Follow-ups required: open actions from knock conversations + lead-sheet follow-ups due ──
+// Knock rows carry actions [{text, due}] flagged from the Fireflies transcript; "Done" stamps doneAt
+// on the knock (saved to the cloud for everyone) and the next transcript refresh never clears it.
+function knockActions(k) {
+  if (Array.isArray(k.actions) && k.actions.length) return k.actions;  // done ones are kept but skipped below
+  return k.nextStep ? [{ text: k.nextStep, due: k.followUp || null }] : [];
+}
+function renderFollowReq() {
+  const el = $('fr-list'); if (!el) return;
+  const today = todayISO(), wk = new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10);
+  const items = [];
+  knocks.forEach(k => { if (k.doneAt) return; knockActions(k).forEach((a, i) => !a.done && items.push({ src: 'knock', k, i, due: a.due || k.followUp || '', text: a.text, who: 'Jake', company: k.company, sub: (k.contact ? k.contact + ' · ' : '') + (k.address || ''), interest: k.interest, ref: k.leadId ? 'l:' + k.leadId : k.targetId ? 't:' + k.targetId : '' })); });
+  leads.forEach(l => { if (!l.followUp || ['Dead', 'Converted'].includes(l.status) || (l.lastTouch && l.lastTouch >= l.followUp) || l.followUp > wk) return;
+    items.push({ src: 'lead', due: l.followUp, text: (l.notes || '').split(/\n/)[0].slice(0, 160) || 'Follow up', who: l.rep || '', company: l.company, sub: [l.contact, l.phone].filter(Boolean).join(' · '), ref: 'l:' + l.id }); });
+  items.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+  const od = items.filter(x => x.due && x.due < today).length;
+  $('fr-note').textContent = items.length ? items.length + ' open · ' + od + ' overdue' : '';
+  el.innerHTML = items.length ? '<ol class="wk fr">' + items.map(x => {
+    const late = x.due && x.due < today, dueTxt = x.due ? fmtDate(x.due) : 'No date';
+    return '<li><div class="wk-top"><span class="fr-due' + (late ? ' late' : x.due === today ? ' today' : '') + '">' + dueTxt + '</span>' +
+      (x.ref ? '<a class="wk-name" data-fly="' + esc(x.ref) + '">' + esc(x.company || '—') + '</a>' : '<b>' + esc(x.company || '—') + '</b>') +
+      (x.interest ? '<span class="chip" style="background:' + (INTEREST[x.interest] || '#5A7A80') + '">' + esc(x.interest) + '</span>' : '') +
+      '<span class="wk-type">' + (x.src === 'knock' ? 'Door knock' : 'Lead sheet') + (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
+      (x.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(x.k.id) + '" data-i="' + x.i + '">Done</button>' : '') + '</div>' +
+      '<div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + '</div>' : '') + '</li>';
+  }).join('') + '</ol>' : '<p class="hint">Nothing owed. Actions from knock recordings and lead-sheet follow-ups due this week show here.</p>';
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.fr-done'); if (!b) return;
+  const cur = readJSON('ob_knocks') || { rows: [] }, k = (cur.rows || []).find(r => r.id === b.dataset.k); if (!k) return;
+  const acts = knockActions(k).map((a, i) => i === +b.dataset.i ? { ...a, done: todayISO(), doneBy: session.name } : a);
+  k.actions = acts; if (acts.every(a => a.done)) { k.doneAt = todayISO(); k.doneBy = session.name; }
+  localStorage.setItem('ob_knocks', JSON.stringify(cur));
+  const mem = knocks.find(r => r.id === k.id); if (mem) Object.assign(mem, k);
+  renderFollowReq();
+});
+
 let weekSel = null;
 function renderWeek() {
   const el = $('wk-list'); if (!el) return;
@@ -684,6 +721,7 @@ function renderAll(redrawMap) {
   renderMetrics(fu, un);
   renderKnocks();
   renderWeek();
+  renderFollowReq();
   if (!fitted) {
     const pts = leads.concat(customers).map(posOf).filter(Boolean).filter(p => km({ lat: HAMILTON[0], lng: HAMILTON[1] }, p) < 90).map(p => [p.lat, p.lng]);
     pts.push([shopPos().lat, shopPos().lng]);
@@ -699,7 +737,11 @@ async function mergeImport(P) {
   if (P.kind === 'knocks') {
     const cur = readJSON('ob_knocks') || { rows: [] }, by = {};
     (cur.rows || []).forEach(r => by[r.id] = r);
-    P.data.rows.forEach(r => { if (!r.id) return; by[r.id] = { ...(by[r.id] || {}), ...r }; n++; });
+    P.data.rows.forEach(r => { if (!r.id) return; const old = by[r.id] || {};
+      const m = { ...old, ...r };
+      if (old.doneAt) { m.doneAt = old.doneAt; m.doneBy = old.doneBy; }           // a re-import never reopens finished work
+      if (Array.isArray(old.actions) && Array.isArray(r.actions)) m.actions = r.actions.map(a => { const o = old.actions.find(x => x.text === a.text); return o && o.done ? { ...a, done: o.done, doneBy: o.doneBy } : a; });
+      by[r.id] = m; n++; });
     localStorage.setItem('ob_knocks', JSON.stringify({ rows: Object.values(by), importedAt: Date.now(), importedBy: session.name }));
   } else if (P.kind === 'weeks') {
     const cur = readJSON('ob_knock_weeks') || { rows: [] }, by = {};

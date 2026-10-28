@@ -164,6 +164,10 @@ ol.wk li:last-child{border-bottom:0}
 .wk-sub{font-size:.8rem;color:var(--light-grey);margin:.15rem 0 0 2.3rem}.wk-sub a{color:var(--teal-light)}
 .wk-note,.wk-sum{font-size:.82rem;margin:.2rem 0 0 2.3rem;line-height:1.45}
 ol.wk li.done{background:rgba(46,125,87,.05)}
+.fr-due{font-family:'Oswald',sans-serif;font-size:.8rem;min-width:4.6rem;color:var(--light-grey)}
+.fr-due.late{color:#B83227;font-weight:600}.fr-due.today{color:#A9821F;font-weight:600}
+ol.fr .wk-note,ol.fr .wk-sub{margin-left:5.1rem}
+.fr-done{margin-left:auto}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -178,6 +182,11 @@ ol.wk li.done{background:rgba(46,125,87,.05)}
   <div class="head"><h1>Outbound</h1><div class="asof" id="asof">Loading…</div></div>
   <div id="banners"></div>
   <div class="metrics" id="metrics"></div>
+
+  <section id="fr-section">
+    <div class="h2-row"><div><h2>Follow-ups required</h2><p class="h2-note">What's owed, oldest first: actions flagged from door-knock recordings plus lead-sheet follow-ups due this week. Tick Done when it's handled. <span id="fr-note"></span></p></div></div>
+    <div class="wk-wrap" id="fr-list" style="max-height:520px"></div>
+  </section>
 
   <section id="wk-section">
     <div class="h2-row"><div><h2>This week's knock list</h2><p class="h2-note">Live field sheet: the Monday list of 100 buildings in route order. Knocks recorded in Fireflies move to the top with their summary the same evening. Tap a name to see it on the map, an address to open Maps.</p></div></div>
