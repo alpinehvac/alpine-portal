@@ -44,6 +44,19 @@ const AP_TOOLS = {
   "call-log":           { label: "Alpine Call Log / On-Call",     roles: ["ops"] },
 };
 
+// Where each person lands after signing in (dashboard.html with no view).
+// Anyone not listed lands on Home.
+const AP_START = {
+  "jake.gilmore@alpinehvac.ca":     "dashboard.html?view=home",       // owner overview
+  "mike.launder@alpinehvac.ca":     "dashboard.html?view=operations",
+  "cole.hamilton@alpinehvac.ca":    "dashboard.html?view=operations",
+  "natalie.townsend@alpinehvac.ca": "dashboard.html?view=sales",
+};
+function apStartPage(session) {
+  const s = session || apGetSession();
+  return (s && AP_START[s.email]) || "dashboard.html?view=home";
+}
+
 const AP_SESSION_KEY = "ap_session";
 
 // Builds the per-tab session after Firebase has verified the sign-in.
@@ -107,3 +120,15 @@ function apVisibleTools() {
   if (!session) return [];
   return Object.keys(AP_TOOLS).filter(id => apHasAccess(session, id));
 }
+
+// Left sidebar navigation (sidebar.js) on every page except the login page.
+(function () {
+  const f = (location.pathname.split("/").pop() || "").toLowerCase();
+  if (f === "" || f === "index.html" || window.__apSidebarLoading) return;
+  window.__apSidebarLoading = true;
+  // ?embed=<view>: this page is a block inside a dashboard, so no sidebar.
+  const embed = new URLSearchParams(location.search).get("embed");
+  if (embed) document.documentElement.classList.add("ap-embed", "ap-embed-" + embed.replace(/[^a-z0-9-]/gi, ""));
+  const s = document.createElement("script"); s.src = embed ? "ap-embed.js" : "sidebar.js";
+  (document.head || document.documentElement).appendChild(s);
+})();

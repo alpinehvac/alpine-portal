@@ -124,6 +124,15 @@ service cloud.firestore {
       allow read, write: if isSales();
     }
 
+    // Sales dashboard metrics (QuickBooks-derived CAC, LTV, ticket, growth): sales read, owners save
+    match /sales_dashboard/{doc=**} {
+      allow read: if isSales();
+      allow write: if isOwner();
+    }
+    match /sales_dashboard_history/{doc=**} {
+      allow read, write: if isOwner();
+    }
+
     // Service Agreement Tracker: sales only
     match /service_agreements_data/{doc=**} {
       allow read, write: if isSales();

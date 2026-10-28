@@ -3,305 +3,373 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alpine HVAC — Internal Portal</title>
+<title>Alpine HVAC — Dashboard</title>
 <script src="auth.js"></script>
 <script>
-const __session = apGetSession();
-if (!__session) window.location.href = "index.html";
+// ── Routing ──────────────────────────────────────────────────────────
+// dashboard.html                 → the signed-in person's start page (AP_START in auth.js)
+// dashboard.html?view=home       → owner overview (owners) or "Your Tools" (everyone else)
+// dashboard.html?view=sales|operations|financials → section dashboards
+// dashboard.html?cat=…           → old links: mapped to the new views
+(function () {
+  const s = apGetSession();
+  if (!s) { location.replace("index.html"); return; }
+  const p = new URLSearchParams(location.search);
+  const cat = p.get("cat");
+  if (cat === "agreements") { location.replace("service-agreements.html"); return; }
+  if (cat) { location.replace("dashboard.html?view=" + encodeURIComponent(cat)); return; }
+  if (!p.get("view")) { location.replace(apStartPage(s)); return; }
+})();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;
-  --black:#EAF2F3;--off-black:#FFFFFF;--charcoal:#E4F0F1;
-  --grey:#5A7A80;--light-grey:#5A7A80;--white:#10444E;
-  --border:rgba(16,68,78,0.12);--radius:8px;--radius-lg:14px;
+  --teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--ink:#10444E;--muted:#5A7A80;
+  --card:#FFFFFF;--border:rgba(16,68,78,0.12);--red:#B83227;--amber:#A9821F;--green:#2E7D57;
+  --radius:10px;--radius-lg:14px;
 }
-html,body{height:100%}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);min-height:100vh}
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:var(--off-black)}
-::-webkit-scrollbar-thumb{background:var(--teal);color:#FFFFFF}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);min-height:100vh}
+.wrap{max-width:1320px;margin:0 auto;padding:1.75rem 2rem 4rem}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem}
+.eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.35rem;display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:'';width:22px;height:1px;background:var(--teal)}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3vw,2.1rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+.date{font-size:.85rem;color:var(--muted)}
+h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin:0}
+.sec{margin:0 0 1.6rem}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin:0 0 .65rem}
+.sec-h a{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);text-decoration:none}
+.sec-h a:hover{color:var(--teal-dark)}
+.note{font-size:.78rem;color:var(--muted);line-height:1.45}
+iframe.emb{display:block;width:100%;border:0;min-height:120px;background:transparent}
+.loading{font-size:.85rem;color:var(--muted);padding:1rem 0}
 
-nav{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid rgba(28,107,110,0.35)}
-.nav-inner{max-width:1040px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px}
-.nav-logo{display:flex;align-items:center;gap:12px}
-.logo-icon{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#FFFFFF}
-.logo-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.nav-wordmark{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--white);line-height:1}
-.nav-wordmark small{display:block;font-size:9px;font-weight:400;letter-spacing:.18em;color:var(--teal-light);margin-top:2px}
-.nav-right{display:flex;align-items:center;gap:1.5rem}
-.nav-user{font-size:12px;color:var(--light-grey)}
-.nav-user b{color:var(--white);font-weight:600}
-.logout-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(16,68,78,0.65);background:none;border:1px solid rgba(16,68,78,0.21);border-radius:6px;padding:8px 16px;cursor:pointer;transition:all .2s}
-.logout-btn:hover{color:var(--white);border-color:rgba(16,68,78,0.455)}
+/* KPI tiles */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(16,68,78,.06);min-width:0}
+.kpi .l{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi .v{font-family:'Oswald',sans-serif;font-size:1.65rem;font-weight:600;line-height:1.2;margin:.2rem 0 .1rem}
+.kpi .s{font-size:.78rem;color:var(--muted);line-height:1.35}
+.kpi.red .v{color:var(--red)}.kpi.amber .v{color:var(--amber)}.kpi.green .v{color:var(--green)}
+.kpi.hero{border-left:4px solid var(--teal)}
 
-.wrap{max-width:1040px;margin:0 auto;padding:3.5rem 2rem 5rem}
-.eyebrow{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.75rem;display:flex;align-items:center;gap:10px}
-.eyebrow::before{content:'';width:22px;height:1px;background:var(--teal);flex-shrink:0;color:#FFFFFF}
-h1{font-family:'Oswald',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700;text-transform:uppercase;line-height:1.1;margin-bottom:.5rem}
-.sub{font-size:.9375rem;color:rgba(16,68,78,0.65);margin-bottom:3rem}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(16,68,78,.06)}
+.panel h3{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin:0 0 .55rem}
+.list{list-style:none}
+.list li{display:flex;align-items:center;gap:10px;padding:.5rem 0;border-bottom:1px solid rgba(16,68,78,.07);font-size:.86rem}
+.list li:last-child{border-bottom:0}
+.list a{color:var(--ink);text-decoration:none}.list a:hover{color:var(--teal)}
+.list .grow{flex:1;min-width:0}
+.list small{display:block;color:var(--muted);font-size:.75rem}
+.badge{font-size:.72rem;font-weight:600;border-radius:99px;padding:2px 9px;white-space:nowrap}
+.badge.red{background:rgba(224,112,95,.18);color:var(--red)}
+.badge.amber{background:rgba(217,164,65,.17);color:var(--amber)}
+.badge.teal{background:rgba(61,129,138,.14);color:var(--teal)}
+.empty{font-size:.85rem;color:var(--muted);padding:.4rem 0}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem}
-.card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.75rem;text-decoration:none;color:var(--white);transition:border-color .2s,transform .2s;display:flex;flex-direction:column;gap:.75rem}
-.card:hover{border-color:rgba(28,107,110,0.5);transform:translateY(-2px)}
-.card-icon{width:40px;height:40px;background:rgba(28,107,110,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--teal-light)}
-.card-title{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
-.card-desc{font-size:.8125rem;color:rgba(16,68,78,0.585);line-height:1.6}
+/* touch log */
+.tl-form{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:8px;align-items:end;margin:.4rem 0 .8rem}
+.tl-form label{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;display:flex;flex-direction:column;gap:4px}
+.tl-form input,.tl-form select{font:500 14px 'Inter',sans-serif;color:var(--ink);border:1px solid rgba(16,68,78,.2);border-radius:8px;padding:8px 10px;background:#fff;width:100%}
+.btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:8px;padding:10px 14px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;white-space:nowrap}
+.btn:disabled{opacity:.5;cursor:default}
+table.tl{width:100%;border-collapse:collapse;font-size:.82rem}
+table.tl th{text-align:right;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:.35rem .5rem;border-bottom:1px solid var(--border)}
+table.tl th:first-child,table.tl td:first-child{text-align:left}
+table.tl td{text-align:right;padding:.4rem .5rem;border-bottom:1px solid rgba(16,68,78,.06)}
+details.upd{margin-top:1.5rem}
+details.upd summary{cursor:pointer;font-size:.8rem;color:var(--muted)}
+details.upd textarea{width:100%;margin:.6rem 0;font:12px ui-monospace,monospace;border:1px solid rgba(16,68,78,.2);border-radius:8px;padding:8px}
 
-.empty{background:var(--off-black);border:1px dashed rgba(16,68,78,0.14);border-radius:var(--radius-lg);padding:4rem 2rem;text-align:center;color:rgba(16,68,78,0.455);font-size:.9rem}
+/* tools grid (Home for people without an overview) */
+.tgroup{margin-bottom:1.8rem}
+.tgroup h2{margin-bottom:.7rem}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.2rem 1.3rem;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;gap:.45rem;transition:border-color .2s,transform .2s}
+.tcard:hover{border-color:rgba(28,107,110,.5);transform:translateY(-2px)}
+.tcard .ti{font-size:20px}
+.tcard .tt{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+.tcard .td{font-size:.8rem;color:rgba(16,68,78,.6);line-height:1.5}
 
-.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem}
-.cat-card{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2.25rem 1.75rem;text-decoration:none;color:var(--white);transition:border-color .2s,transform .2s;display:flex;flex-direction:column;align-items:flex-start;gap:.6rem;cursor:pointer}
-.cat-card:hover{border-color:rgba(28,107,110,0.5);transform:translateY(-2px)}
-.cat-icon{width:48px;height:48px;background:rgba(28,107,110,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--teal-light)}
-.cat-title{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
-.cat-desc{font-size:.825rem;color:rgba(16,68,78,0.585);line-height:1.6}
-.back-link{display:inline-flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-light);text-decoration:none;margin-bottom:1.5rem}
-.back-link:hover{color:var(--white)}
-
-.agr-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1.5rem}
-.agr-kpi{background:var(--off-black);padding:1rem 1.2rem}
-.agr-kpi b{display:block;font-family:'Oswald',sans-serif;font-size:1.7rem;font-weight:600;line-height:1.2}
-.agr-kpi span{font-size:.76rem;color:rgba(16,68,78,0.585)}
-.agr-kpi.alert b{color:#B83227}
-.agr-list{border:1px solid var(--border);border-radius:var(--radius);background:var(--off-black);overflow:hidden;margin-bottom:1.5rem}
-.agr-row{display:grid;grid-template-columns:90px 1fr 140px 150px;gap:1rem;align-items:center;padding:.75rem 1.1rem;border-bottom:1px solid rgba(16,68,78,0.07);text-decoration:none;color:var(--white);font-size:.88rem}
-.agr-row:last-child{border-bottom:none}
-.agr-row:hover{background:rgba(28,107,110,0.08)}
-.agr-row .id{font-family:'Oswald',sans-serif;color:var(--teal-light)}
-.agr-row .muted{color:rgba(16,68,78,0.546);font-size:.8rem}
-.agr-badge{justify-self:start;font-size:.72rem;font-weight:600;border-radius:99px;padding:2px 9px;white-space:nowrap}
-.agr-badge.od{background:rgba(224,112,95,0.18);color:#B83227}
-.agr-badge.d30{background:rgba(224,112,95,0.12);color:#C0503F}
-.agr-badge.d60{background:rgba(217,164,65,0.15);color:#A9821F}
-.agr-badge.d90{background:rgba(155,142,196,0.16);color:#6C5D8D}
-.agr-badge.q{background:rgba(217,164,65,0.15);color:#A9821F}
-.agr-h{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin:0 0 .6rem}
-.agr-empty{padding:1.25rem;color:rgba(16,68,78,0.585);font-size:.86rem}
-.agr-open{display:inline-block;margin-top:.25rem}
-@media (max-width:700px){.agr-kpis{grid-template-columns:1fr 1fr}.agr-row{grid-template-columns:70px 1fr;}.agr-row .hide-sm{display:none}}
-.renew-strip{display:none;align-items:center;gap:1.25rem;flex-wrap:wrap;background:var(--off-black);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:var(--radius);padding:.9rem 1.25rem;margin-bottom:2rem;text-decoration:none;color:var(--white);font-size:.85rem}
-.renew-strip.alert{border-left-color:#B83227}
-.renew-strip:hover{border-color:rgba(28,107,110,0.5)}
-.renew-strip b{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;margin-right:4px}
-.renew-strip .rs-title{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal-light)}
-.renew-strip .rs-od b{color:#B83227}
-.renew-strip .rs-go{margin-left:auto;font-size:.78rem;color:rgba(16,68,78,0.585)}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
+@media (max-width:900px){.wrap{padding:4rem 1rem 3rem}}
+@media (max-width:640px){.tl-form{grid-template-columns:1fr 1fr}}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
-<nav>
-  <div class="nav-inner">
-    <div class="nav-logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      </div>
-      <div class="nav-wordmark">Alpine HVAC<small>Internal Portal</small></div>
-    </div>
-    <div class="nav-right">
-      <span class="nav-user">Signed in as <b id="nav-user-name"></b></span>
-      <button class="logout-btn" onclick="apLogout()">Sign Out</button>
-    </div>
-  </div>
-</nav>
-
-<div class="wrap">
-  <div class="eyebrow" id="page-eyebrow">Dashboard</div>
-  <div id="back-link-wrap"></div>
-  <h1 id="page-h1">Your Tools</h1>
-  <p class="sub" id="page-sub">Select a tool below. You'll only see what's relevant to your role.</p>
-  <div id="agr-panel" style="display:none"></div>
-  <div class="cat-grid" id="cat-grid" style="display:none"></div>
-  <div class="grid" id="tool-grid"></div>
-</div>
+<main class="wrap" id="app"><p class="loading">Loading…</p></main>
 
 <script>
+// ── Shared helpers ───────────────────────────────────────────────────
+const session = apGetSession() || { name: "", roles: [], email: "" };
+const VIEW = new URLSearchParams(location.search).get("view") || "home";
+const can = id => apHasAccess(session, id);
+const has = r => session.roles.includes(r);
+const $ = id => document.getElementById(id);
+const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = n => n == null || isNaN(n) ? "—" : (n < 0 ? "−$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-CA");
+const moneyK = n => n == null || isNaN(n) ? "—" : (n < 0 ? "−$" : "$") + (Math.abs(n) >= 1e6 ? (Math.abs(n) / 1e6).toFixed(2) + "M" : Math.abs(n) >= 1e4 ? Math.round(Math.abs(n) / 1000) + "K" : (Math.abs(n) / 1000).toFixed(1) + "K");
+const pd = s => { if (!s || !/^\d{4}-\d{2}-\d{2}/.test(s)) return null; const [y, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(y, m - 1, d); };
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const T = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); })();
+const fmtD = d => d ? d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: d.getFullYear() !== T.getFullYear() ? "numeric" : undefined }) : "—";
+const monday = d => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+const kpi = (cls, l, v, s) => `<div class="kpi ${cls || ""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s || ""}</div></div>`;
+const frame = (src, title) => `<iframe class="emb" src="${src}" title="${esc(title)}"></iframe>`;
+
+// Embedded blocks report their height; fit each frame to its content.
+window.addEventListener("message", e => {
+  if (e.origin !== location.origin || !e.data || !e.data.apEmbed) return;
+  document.querySelectorAll("iframe.emb").forEach(f => { if (f.contentWindow === e.source) f.style.height = e.data.height + "px"; });
+});
+
+// Tool descriptions for the "Your Tools" home (people without an overview dashboard).
 const TOOL_META = {
   "cash-dashboard":    { icon: "💵", desc: "Cash and profit position: 13-week forecast, billed vs earned profit, break-even targets." },
-  "job-profit":        { icon: "🔧", desc: "Profit by job: percent complete, earned vs billed, and quoted vs actual with labour and materials breakdowns." },
-  "job":               { label: "Jobs", icon: "🧾", desc: "Every job with visit reports, tech summaries, hours and materials. Build a customer or internal job report for any visits.", href: "job.html" },
+  "ops-dashboard":     { icon: "🚐", desc: "Job pipeline, materials ordering, completed job profit, dispatch board and PMs. Search any job at the top." },
+  "job":               { icon: "🧾", desc: "Every job with visit reports, tech summaries, hours and materials. Build a customer or internal job report." },
   "context":           { icon: "🗒️", desc: "One log of job dates, holds, staffing and cost changes. Every dashboard refresh reads it first." },
-  "ops-dashboard":     { icon: "🚐", desc: "Job pipeline (quoting, approved, in progress), materials ordering, completed job profit and efficiency, dispatch board and PMs." },
-  "agreements":        { label: "Agreements", icon: "📑", desc: "Renewals due or overdue, and open agreement quotes.", href: "dashboard.html?cat=agreements" },
   "pl-calculator":     { icon: "📊", desc: "Model P&L outcomes and compensation scenarios." },
   "team-hub":          { icon: "🧭", desc: "Recruiting, onboarding, and team management in one place." },
   "service-agreement": { icon: "🧮", desc: "Calculate man-hours and pricing for service agreements." },
-  "service-agreements":{ icon: "📑", desc: "Active agreements, renewal pipeline, and win-back outreach to past customers." },
+  "service-agreements":{ icon: "📑", desc: "Active agreements, renewals due, open quotes, and win-back outreach to past customers." },
   "site-reports":      { icon: "🗂️", desc: "Quarterly maintenance checklists and customer service summaries." },
   "sales-strategy":    { icon: "🎯", desc: "A living playbook for uncovering value and closing sales." },
   "case-studies":      { icon: "📖", desc: "Real customer wins to reference during sales conversations." },
-  "audit-tool":        { icon: "📋", desc: "Run a Building Performance Audit: asset register, scoring, findings with photos, PDF report, CLEAR handoff." },
+  "audit-tool":        { icon: "📋", desc: "Run a Building Performance Audit: asset register, scoring, findings with photos, PDF report." },
   "audit-playbook":    { icon: "🔎", desc: "Zero-Risk Building Performance Audit: offer, scripts, checklists, scorecard and handoff." },
   "outbound":          { icon: "🗺️", desc: "Territory map: every lead by status, customer sites, areas worked, and buildings not yet contacted." },
   "lead-sheets":       { icon: "📋", desc: "Track and manage inbound sales leads.", external: "https://netorg13787440-my.sharepoint.com/:x:/g/personal/natalie_townsend_alpinehvac_ca/IQDFyXX0JO36RaKmRK5rUj8TATpMgjfqE_WIuufYkn7YIIw?e=cX7qOq" },
   "call-log":          { icon: "📞", desc: "Log on-call coverage and incoming customer calls.", external: "https://docs.google.com/spreadsheets/d/1IaDmMURNjVWhIQZ0eVhDRFjUFVhevVXNHTJ0-BW3ZvM/edit?usp=sharing" },
 };
-
-// Owner "tool belt" categories. Adjust freely as tools are added/moved —
-// a tool can appear in more than one category if it's relevant to both.
-const TOOL_CATEGORIES = {
-  sales:      { label: "Sales",      icon: "💼", desc: "Estimating, quoting, and customer-facing tools.", tools: ["service-agreement", "service-agreements", "site-reports", "sales-strategy", "audit-tool", "audit-playbook", "case-studies", "outbound", "lead-sheets"] },
-  operations: { label: "Operations", icon: "🛠️", desc: "Field operations, agreements, scheduling, and day-to-day ops tools.", tools: ["ops-dashboard", "job", "context", "agreements", "site-reports", "team-hub", "call-log"] },
-  financials: { label: "Financials", icon: "📊", desc: "P&L, compensation, and financial reporting.",       tools: ["cash-dashboard", "context", "pl-calculator"] },
-};
-// "agreements" is a pseudo-tool: the renewal-alerts view (dashboard.html?cat=agreements),
-// listed under Operations. Visible only to people with Service Agreement Tracker access.
-const canSeeAgreements = () => apHasAccess(session, "service-agreements");
-
-const session = apGetSession();
-document.getElementById("nav-user-name").textContent = session.name;
-
-const isOwner = session.roles.includes("super_admin");
-const isPureSales = session.roles.includes("sales") && !isOwner;
-
-const catGrid = document.getElementById("cat-grid");
-const toolGrid = document.getElementById("tool-grid");
-const eyebrow = document.getElementById("page-eyebrow");
-const h1 = document.getElementById("page-h1");
-const sub = document.getElementById("page-sub");
-const backWrap = document.getElementById("back-link-wrap");
-
-const params = new URLSearchParams(window.location.search);
-const cat = params.get("cat");
-
-function renderToolGrid(toolIds, emptyMsg) {
-  catGrid.style.display = "none";
-  toolGrid.style.display = "";
-  if (toolIds.length === 0) {
-    toolGrid.outerHTML = `<div class="empty">${emptyMsg}</div>`;
-    return;
-  }
-  toolGrid.innerHTML = "";
-  toolIds.forEach(id => {
-    const meta = TOOL_META[id] || {};
-    const label = meta.label || (typeof AP_TOOLS !== "undefined" && AP_TOOLS[id] && AP_TOOLS[id].label) || id;
-    const a = document.createElement("a");
-    a.className = "card";
-    if (meta.external) {
-      a.href = meta.external;
-      a.target = "_blank";
-      a.rel = "noopener";
-    } else {
-      a.href = meta.href || (id + ".html");
-    }
-    a.innerHTML = `
-      <div class="card-icon">${meta.icon || "🔧"}</div>
-      <div class="card-title">${label}</div>
-      <div class="card-desc">${meta.desc || ""}</div>
-    `;
-    toolGrid.appendChild(a);
-  });
-}
-
-function renderCategoryGrid() {
-  toolGrid.style.display = "none";
-  catGrid.style.display = "";
-  catGrid.innerHTML = "";
-  Object.keys(TOOL_CATEGORIES).forEach(key => {
-    const c = TOOL_CATEGORIES[key];
-    const a = document.createElement("a");
-    a.className = "cat-card";
-    a.href = "dashboard.html?cat=" + key;
-    a.innerHTML = `
-      <div class="cat-icon">${c.icon}</div>
-      <div class="cat-title">${c.label}</div>
-      <div class="cat-desc">${c.desc}</div>
-    `;
-    catGrid.appendChild(a);
-  });
-}
-
-const visible = apVisibleTools().concat(canSeeAgreements() ? ["agreements"] : []);
-
-if (cat === "agreements" && canSeeAgreements()) {
-  eyebrow.textContent = isOwner ? "Dashboard · Operations · Agreements" : "Dashboard · Agreements";
-  h1.textContent = "Agreements";
-  sub.textContent = "Renewals that need attention and open quotes. Click any agreement to open it.";
-  backWrap.innerHTML = isOwner ? '<a class="back-link" href="dashboard.html?cat=operations">&larr; Operations</a>' : '<a class="back-link" href="dashboard.html">&larr; Your Tools</a>';
-  catGrid.style.display = "none";
-  toolGrid.style.display = "none";
-  document.getElementById("agr-panel").style.display = "";
-  document.getElementById("agr-panel").innerHTML = '<p class="agr-empty">Loading agreements…</p>';
-  window.addEventListener("ap-cloud-ready", renderAgreementsTab);
-  window.AP_SYNC_COLLECTION = "service_agreements_data";
-  const cs = document.createElement("script");
-  cs.type = "module"; cs.src = "cloud-sync.js";
-  document.body.appendChild(cs);
-} else if (isPureSales) {
-  // Sales team members skip the category picker entirely and land straight
-  // on their tools.
-  eyebrow.textContent = "Dashboard";
-  h1.textContent = "Your Tools";
-  sub.textContent = "Select a tool below.";
-  renderToolGrid(visible.includes("agreements") ? ["agreements", ...visible.filter(id => id !== "agreements")] : visible, "No tools are assigned to your account yet. Contact your administrator.");
-} else if (isOwner && !cat) {
-  // Owners land on the 3-category homepage first.
-  eyebrow.textContent = "Dashboard";
-  h1.textContent = "Your Tool Belts";
-  sub.textContent = "Choose a category to see the tools inside it.";
-  renderCategoryGrid();
-} else if (isOwner && cat && TOOL_CATEGORIES[cat]) {
-  const c = TOOL_CATEGORIES[cat];
-  eyebrow.textContent = "Dashboard · " + c.label;
-  h1.textContent = c.label + " Tools";
-  sub.textContent = c.desc;
-  backWrap.innerHTML = '<a class="back-link" href="dashboard.html">&larr; All Categories</a>';
-  const catTools = c.tools.filter(id => visible.includes(id));
-  renderToolGrid(catTools, "No tools in this category are assigned to your account yet.");
-} else {
-  // Support, ops, or anyone else not covered above: flat list, unchanged.
-  eyebrow.textContent = "Dashboard";
-  h1.textContent = "Your Tools";
-  sub.textContent = "Select a tool below. You'll only see what's relevant to your role.";
-  renderToolGrid(visible, "No tools are assigned to your account yet. Contact your administrator.");
-}
-
-// ── Agreements tab: renewal alerts (replaces the old banner) ──
-function renderAgreementsTab() {
-  const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const pd = s => { if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null; const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
-  const ruleEnd = s => { const d = pd(s); return d ? new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1) : null; };
-  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const fmt = d => d ? M[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() : "—";
-  const money = n => n ? "$" + Number(n).toLocaleString("en-CA", { maximumFractionDigits: 0 }) : "—";
-  const t = new Date(); const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-  const due = [], quotes = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k.startsWith("sa_agr_")) continue;
-    let a; try { a = JSON.parse(localStorage.getItem(k)); } catch (e) { continue; }
-    if (!a || a.deleted) continue;
-    if (a.status === "Draft") { const q = pd(a.draftDate); quotes.push({ a, days: q ? Math.round((today - q) / 86400000) : null }); continue; }
-    if (a.status !== "Active") continue;
-    const end = pd(a.endDate) || ruleEnd(a.startDate);
-    if (!end) continue;
-    const days = Math.round((end - today) / 86400000);
-    if (days <= 90 || (a.renewalStage && a.renewalStage !== "Not Started")) due.push({ a, end, days });
-  }
-  due.sort((x, y) => x.days - y.days);
-  quotes.sort((x, y) => (y.days || 0) - (x.days || 0));
-  const od = due.filter(x => x.days < 0), d30 = due.filter(x => x.days >= 0 && x.days <= 30), d90 = due.filter(x => x.days > 30 && x.days <= 90);
-  const acv = list => money(list.reduce((s, x) => s + (Number(x.a.acv) || 0), 0));
-  const badge = d => d < 0 ? '<span class="agr-badge od">Overdue ' + (-d) + 'd</span>' : d <= 30 ? '<span class="agr-badge d30">' + d + ' days</span>' : d <= 60 ? '<span class="agr-badge d60">' + d + ' days</span>' : '<span class="agr-badge d90">' + d + ' days</span>';
-  let h = '<div class="agr-kpis">' +
-    '<div class="agr-kpi' + (od.length ? ' alert' : '') + '"><b>' + od.length + '</b><span>overdue · ' + acv(od) + ' ACV</span></div>' +
-    '<div class="agr-kpi"><b>' + d30.length + '</b><span>within 30 days · ' + acv(d30) + '</span></div>' +
-    '<div class="agr-kpi"><b>' + d90.length + '</b><span>within 31–90 days · ' + acv(d90) + '</span></div>' +
-    '<div class="agr-kpi"><b>' + quotes.length + '</b><span>open quotes</span></div></div>';
-  h += '<div class="agr-h">Renewals needing attention</div><div class="agr-list">' + (due.length ? due.map(x =>
-    '<a class="agr-row" href="agreement.html?id=' + encodeURIComponent(x.a.id) + '"><span class="id">' + esc(x.a.id) + '</span>' +
-    '<span>' + esc(x.a.name) + '<br><span class="muted">' + esc(String(x.a.customer || "").replace(/^\*+/, "")) + (x.a.renewalStage && x.a.renewalStage !== "Not Started" ? " · " + esc(x.a.renewalStage) : "") + (x.a.renewalOwner ? " · " + esc(x.a.renewalOwner) : "") + '</span></span>' +
-    '<span class="muted hide-sm">Ends ' + fmt(x.end) + '<br>' + money(x.a.acv) + ' ACV</span>' + badge(x.days) + '</a>').join("") : '<p class="agr-empty">Nothing due in the next 90 days.</p>') + '</div>';
-  h += '<div class="agr-h">Open quotes</div><div class="agr-list">' + (quotes.length ? quotes.map(x =>
-    '<a class="agr-row" href="agreement.html?id=' + encodeURIComponent(x.a.id) + '"><span class="id">' + esc(x.a.id) + '</span><span>' + esc(x.a.name) + '</span>' +
-    '<span class="muted hide-sm">' + (x.days != null ? x.days + ' days open' : '') + '</span><span class="agr-badge q">Quote</span></a>').join("") : '<p class="agr-empty">No open quotes.</p>') + '</div>';
-  h += '<a class="back-link agr-open" href="service-agreements.html">Open the full agreement tracker &rarr;</a>';
-  document.getElementById("agr-panel").innerHTML = h;
-}
+const TOOL_GROUPS = [
+  ["Sales", ["service-agreement", "sales-strategy", "audit-tool", "audit-playbook", "case-studies", "outbound", "lead-sheets"]],
+  ["Operations", ["ops-dashboard", "job", "service-agreements", "site-reports", "team-hub", "call-log"]],
+  ["Financials", ["cash-dashboard", "pl-calculator"]],
+  ["Business Context", ["context"]],
+];
 </script>
+
+<script type="module">
+import { doc, getDoc, getDocs, setDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { db, currentUser } from "./ap-firebase.js";
+
+const app = $("app");
+const user = await currentUser();
+if (!user) { sessionStorage.clear(); location.href = "index.html"; }
+
+// ── Data loaders (each fails soft: a block shows "not available" instead of breaking the page) ──
+const json = async (coll, id, field = "json") => { try { const s = await getDoc(doc(db, coll, id)); return s.exists() ? JSON.parse(s.data()[field]) : null; } catch (e) { console.warn("dashboard:", coll, id, e.code || e); return undefined; } };
+async function agreements() {
+  try {
+    const snap = await getDocs(collection(db, "service_agreements_data"));
+    const out = []; snap.forEach(d => { if (!d.id.startsWith("sa_agr_")) return; try { const a = JSON.parse(d.data().value); if (a && !a.deleted) out.push(a); } catch (e) {} });
+    return out;
+  } catch (e) { console.warn("dashboard: agreements", e.code || e); return null; }
+}
+const outbound = async key => { try { const s = await getDoc(doc(db, "outbound_data", key)); return s.exists() ? JSON.parse(s.data().value) : null; } catch (e) { return undefined; } };
+
+// ── Header ──
+const firstName = (session.name || "").split(" ")[0];
+const hour = new Date().getHours();
+const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+const today = T.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+const header = (eyebrow, title) => `<div class="top"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1></div><div class="date">${esc(today)}</div></div>`;
+
+// ═══════════ Agreements: renewals due + open quotes ═══════════
+function agreementStats(list) {
+  const ruleEnd = s => { const d = pd(s); return d ? new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1) : null; };
+  const due = [], quotes = [];
+  let active = 0, activeAcv = 0, renewed = 0, lost = 0;
+  const yearAgo = new Date(T); yearAgo.setFullYear(T.getFullYear() - 1);
+  (list || []).forEach(a => {
+    if (a.status === "Draft") { quotes.push(a); return; }
+    const end = pd(a.endDate) || ruleEnd(a.startDate);
+    if (a.renewalStage === "Renewed" && (!end || end >= yearAgo)) renewed++;
+    else if ((a.renewalStage === "Lost" || a.status === "Ended") && end && end >= yearAgo && end <= T) lost++;
+    if (a.status !== "Active") return;
+    active++; activeAcv += Number(a.acv) || 0;
+    if (!end) return;
+    const days = Math.round((end - T) / 864e5);
+    if (days <= 90 && a.renewalStage !== "Renewed") due.push({ a, end, days });
+  });
+  due.sort((x, y) => x.days - y.days);
+  return { due, quotes, active, activeAcv, renewed, lost, quoteAcv: quotes.reduce((s, a) => s + (Number(a.acv) || 0), 0) };
+}
+function renewalsPanel(st, limit = 6) {
+  if (!st) return `<div class="panel"><h3>Renewals due</h3><p class="empty">Agreement data isn't available for this account.</p></div>`;
+  const badge = d => d < 0 ? `<span class="badge red">Overdue ${-d}d</span>` : d <= 30 ? `<span class="badge red">${d} days</span>` : d <= 60 ? `<span class="badge amber">${d} days</span>` : `<span class="badge teal">${d} days</span>`;
+  const rows = st.due.slice(0, limit).map(x => `<li><a class="grow" href="agreement.html?id=${encodeURIComponent(x.a.id)}">${esc(x.a.name || x.a.id)}<small>${esc(String(x.a.customer || "").replace(/^\*+/, ""))} · ends ${fmtD(x.end)} · ${money(x.a.acv)} ACV${x.a.renewalStage && x.a.renewalStage !== "Not Started" ? " · " + esc(x.a.renewalStage) : ""}</small></a>${badge(x.days)}</li>`).join("");
+  return `<div class="panel"><div class="sec-h"><h3>Renewals due · 90 days</h3><a href="service-agreements.html">Tracker →</a></div>
+    ${st.due.length ? `<ul class="list">${rows}</ul>${st.due.length > limit ? `<p class="note" style="margin-top:.4rem">+ ${st.due.length - limit} more in the tracker</p>` : ""}` : `<p class="empty">Nothing renewing in the next 90 days.</p>`}
+    <p class="note" style="margin-top:.6rem">${st.active} active agreements · ${moneyK(st.activeAcv)} ACV · ${st.quotes.length} open quote${st.quotes.length === 1 ? "" : "s"} (${moneyK(st.quoteAcv)})</p></div>`;
+}
+
+// ═══════════ Sales metrics ═══════════
+const TOUCH_CH = [["knocks", "Door knocks"], ["calls", "Calls"], ["emails", "Emails"], ["meetings", "Site visits / meetings"]];
+function touchStats(log, leads) {
+  const wk0 = monday(T), weeks = [];
+  for (let i = 7; i >= 0; i--) { const d = new Date(wk0); d.setDate(d.getDate() - i * 7); weeks.push(iso(d)); }
+  const rows = (log || []).filter(r => weeks.includes(r.wk));
+  const tot = r => TOUCH_CH.reduce((s, [k]) => s + (Number(r[k]) || 0), 0);
+  if (rows.length) {
+    const first = weeks.findIndex(w => rows.some(r => r.wk === w));
+    const span = weeks.length - first;                          // weeks since logging started (max 8)
+    const total = rows.reduce((s, r) => s + tot(r), 0);
+    const by = {}; TOUCH_CH.forEach(([k]) => by[k] = rows.reduce((s, r) => s + (Number(r[k]) || 0), 0));
+    return { avg: total / span, span, by, src: "log" };
+  }
+  // No log yet: leads whose last touch on the lead sheet fell in the last 8 weeks.
+  const since = new Date(wk0); since.setDate(since.getDate() - 49);
+  const n = ((leads && leads.rows) || []).filter(l => { const d = pd(l.lastTouch); return d && d >= since; }).length;
+  return { avg: n / 8, span: 8, by: null, src: "sheet" };
+}
+function salesKpis(M, ag, touches, leads, compact) {
+  const st = ag ? agreementStats(ag) : null;
+  // Retention: agreements renewed ÷ agreements that came up for renewal in the last 12 months.
+  // Until 3+ renewals have been decided, the QuickBooks repeat-customer rate is used.
+  const decided = st ? st.renewed + st.lost : 0;
+  const agrRet = decided >= 3 ? st.renewed / decided * 100 : null;
+  const ret = agrRet != null ? agrRet : M && M.retentionInvoice;
+  const retSub = agrRet != null ? `${st.renewed} of ${decided} agreements renewed, last 12 mo${M && M.retentionInvoice != null ? ` · repeat customers ${M.retentionInvoice}%` : ""}`
+    : M && M.retentionInvoice != null ? `Customers billed in the prior 12 months who were billed again (${M.retentionBase} customers). Switches to agreement renewals once 3+ have come up` : "";
+  let ltv = null, life = null;
+  if (M && M.revPerCustomer && ret != null) { const churn = Math.max(0.1, 1 - ret / 100); life = Math.min(10, 1 / churn); ltv = M.revPerCustomer * (M.grossMargin / 100) * life; }
+  const ratio = ltv && M.cac ? ltv / M.cac : null;
+  const followDue = ((leads && leads.rows) || []).filter(l => l.followUp && !["Dead", "Converted"].includes(l.status) && l.followUp <= iso(T) && !(l.lastTouch && l.lastTouch >= l.followUp)).length;
+  const tiles = [
+    kpi(ratio == null ? "" : ratio >= 3 ? "green hero" : ratio >= 1 ? "amber hero" : "red hero", "CAC : LTV", ratio == null ? "—" : "1 : " + ratio.toFixed(ratio >= 10 ? 0 : 1),
+      M ? `CAC ${money(M.cac)} (BDR + marketing ${moneyK(M.bdrCostTTM + M.marketingTTM)} ÷ ${M.newCustomersTTM} new customers) · LTV ${moneyK(ltv)} (${moneyK(M.revPerCustomer)}/yr × ${M.grossMargin}% GM × ${life ? life.toFixed(1) : "—"} yrs)` : "Waiting for the first sales metrics update"),
+    kpi("", "Touches per week", touches ? Math.round(touches.avg) : "—",
+      touches ? (touches.src === "log" ? `Avg over ${touches.span} wk${touches.span === 1 ? "" : "s"} · ${TOUCH_CH.map(([k, l]) => `${l.split(" ")[0].toLowerCase()} ${touches.by[k]}`).join(" · ")}` : "Leads touched per week (lead sheet last-touch dates). Log touches on the Sales dashboard for the full count by channel") : ""),
+    kpi("", "Average ticket", M ? money(M.avgTicket) : "—", M ? `${M.invoicesTTM} invoices, last 12 mo, contracts + jobs + projects, before HST · median ${money(M.medianTicket)}` : ""),
+    kpi(ret == null ? "" : ret >= 80 ? "green" : ret >= 60 ? "amber" : "red", "Customer retention", ret == null ? "—" : Math.round(ret) + "%", retSub),
+    kpi(M && M.growthYoY != null ? (M.growthYoY >= 0 ? "green" : "red") : "", "Revenue growth YoY", M && M.growthYoY != null ? (M.growthYoY >= 0 ? "+" : "") + M.growthYoY + "%" : "—", M ? `${moneyK(M.revenueTTM)} last 12 mo vs ${moneyK(M.revenuePrevTTM)} the 12 before` : ""),
+  ];
+  if (!compact) tiles.push(
+    kpi("", "New customers · 12 mo", M ? M.newCustomersTTM : "—", M ? `${M.customersTTM} customers billed in the last 12 months · ${moneyK(M.revPerCustomer)} each on average` : ""),
+    kpi("", "Open agreement quotes", st ? st.quotes.length : "—", st ? `${moneyK(st.quoteAcv)} quoted ACV · ${st.active} active agreements (${moneyK(st.activeAcv)})` : ""),
+    kpi(followDue ? "amber" : "green", "Follow-ups due", leads ? followDue : "—", "Leads past their follow-up date with no touch since"),
+  );
+  else tiles.push(kpi("", "Open agreement quotes", st ? st.quotes.length : "—", st ? `${moneyK(st.quoteAcv)} quoted ACV` : ""), kpi(followDue ? "amber" : "green", "Follow-ups due", leads ? followDue : "—", "Leads past their follow-up date"), kpi("", "New customers · 12 mo", M ? M.newCustomersTTM : "—", M ? `${M.customersTTM} customers billed, last 12 mo` : ""));
+  return `<div class="kpis">${tiles.join("")}</div>${M ? `<p class="note" style="margin-top:.5rem">Sales metrics as of ${fmtD(pd(M.asOf))} · ${esc(M.source)}.</p>` : ""}`;
+}
+
+// Touch log: one row per rep per week. Saved to outbound_data (sales only).
+function touchLogHTML(log) {
+  const reps = ["Natalie", "Jake", "Mike", "Cole"];
+  const me = reps.find(r => r === firstName) || reps[0];
+  const wkOpts = [0, 1, 2, 3].map(i => { const d = monday(T); d.setDate(d.getDate() - i * 7); return `<option value="${iso(d)}">Week of ${fmtD(d)}</option>`; }).join("");
+  const recent = (log || []).slice().sort((a, b) => b.wk.localeCompare(a.wk) || a.rep.localeCompare(b.rep)).slice(0, 10);
+  return `<div class="panel"><div class="sec-h"><h3>Log touches</h3><span class="note">Weekly totals per rep. Saving the same week again replaces it.</span></div>
+    <div class="tl-form">
+      <label>Week<select id="tl-wk">${wkOpts}</select></label>
+      <label>Rep<select id="tl-rep">${reps.map(r => `<option${r === me ? " selected" : ""}>${r}</option>`).join("")}</select></label>
+      ${TOUCH_CH.map(([k, l]) => `<label>${l.replace("Site visits / meetings", "Meetings")}<input type="number" min="0" step="1" id="tl-${k}" placeholder="0"></label>`).join("")}
+      <button class="btn" id="tl-save" type="button">Save</button>
+    </div>
+    <p class="note" id="tl-msg"></p>
+    ${recent.length ? `<table class="tl"><thead><tr><th>Week</th><th>Rep</th>${TOUCH_CH.map(([, l]) => `<th>${l.split(" ")[0]}</th>`).join("")}<th>Total</th></tr></thead><tbody>${recent.map(r => `<tr><td>${fmtD(pd(r.wk))}</td><td style="text-align:left">${esc(r.rep)}</td>${TOUCH_CH.map(([k]) => `<td>${Number(r[k]) || 0}</td>`).join("")}<td><b>${TOUCH_CH.reduce((s, [k]) => s + (Number(r[k]) || 0), 0)}</b></td></tr>`).join("")}</tbody></table>` : ""}
+  </div>`;
+}
+function wireTouchLog() {
+  const btn = $("tl-save"); if (!btn) return;
+  const fill = async () => { const log = (await outbound("ob_touch_log")) || []; const r = log.find(x => x.wk === $("tl-wk").value && x.rep === $("tl-rep").value) || {}; TOUCH_CH.forEach(([k]) => $("tl-" + k).value = r[k] != null ? r[k] : ""); };
+  $("tl-wk").onchange = fill; $("tl-rep").onchange = fill; fill();
+  btn.onclick = async () => {
+    btn.disabled = true; $("tl-msg").textContent = "Saving…";
+    try {
+      const log = (await outbound("ob_touch_log")) || [];          // re-read right before saving
+      const row = { wk: $("tl-wk").value, rep: $("tl-rep").value, by: session.email, at: new Date().toISOString() };
+      TOUCH_CH.forEach(([k]) => row[k] = Math.max(0, parseInt($("tl-" + k).value, 10) || 0));
+      const next = log.filter(x => !(x.wk === row.wk && x.rep === row.rep)).concat([row]);
+      await setDoc(doc(db, "outbound_data", "ob_touch_log"), { value: JSON.stringify(next), updatedAt: Date.now() });
+      $("tl-msg").textContent = "Saved."; setTimeout(() => location.reload(), 600);
+    } catch (e) { $("tl-msg").textContent = "Save failed (" + (e.code || e) + "). Nothing was changed."; btn.disabled = false; }
+  };
+}
+// Owners paste the output of sales-metrics.py (QuickBooks) here.
+function salesUpdateHTML() {
+  if (!has("owner")) return "";
+  return `<details class="upd"><summary>Update sales metrics (owners)</summary>
+    <textarea id="sm-json" rows="5" placeholder='{"asOf": "...", "revenueTTM": ..., "cac": ...}'></textarea>
+    <button class="btn" id="sm-save" type="button">Save metrics</button> <span class="note" id="sm-msg"></span></details>`;
+}
+function wireSalesUpdate() {
+  const b = $("sm-save"); if (!b) return;
+  b.onclick = async () => {
+    let d; try { d = JSON.parse($("sm-json").value); } catch (e) { $("sm-msg").textContent = "That isn't valid JSON."; return; }
+    if (!d.asOf || d.revenueTTM == null) { $("sm-msg").textContent = "Missing asOf or revenueTTM. Not saved."; return; }
+    const rec = { json: JSON.stringify(d), asOf: d.asOf, updatedAt: serverTimestamp(), updatedBy: user.email };
+    try { await setDoc(doc(db, "sales_dashboard", "latest"), rec); await setDoc(doc(db, "sales_dashboard_history", d.asOf), rec); $("sm-msg").textContent = "Saved. Reloading…"; setTimeout(() => location.reload(), 700); }
+    catch (e) { $("sm-msg").textContent = "Save failed: " + (e.code || e); }
+  };
+}
+
+// ═══════════ Views ═══════════
+async function viewSales() {
+  app.innerHTML = header("Sales", "Sales Dashboard") + `<div class="sec" id="s-kpis"><p class="loading">Loading sales metrics…</p></div>
+    <div class="sec"><div class="sec-h"><h2>Territory</h2><a href="outbound.html">Open Outbound →</a></div>${frame("outbound.html?embed=map", "Territory map")}</div>
+    <div class="sec" id="s-touch"></div>${salesUpdateHTML()}`;
+  const [M, ag, log, leads] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads")]);
+  $("s-kpis").innerHTML = salesKpis(M || null, ag, touchStats(log, leads), leads, false);
+  $("s-touch").innerHTML = touchLogHTML(log);
+  wireTouchLog(); wireSalesUpdate();
+}
+
+async function viewOps() {
+  app.innerHTML = header("Operations", "Operations Dashboard") + `
+    <div data-job-search data-placeholder="Search any job: job #, customer, site or PO"></div>
+    <div class="grid2">
+      <div>${frame("ops-dashboard.html?embed=ops", "Field operations summary")}</div>
+      <div id="o-renew"><p class="loading">Loading agreements…</p></div>
+    </div>`;
+  window.apJobSearchMount && window.apJobSearchMount();
+  const ag = can("service-agreements") ? await agreements() : null;
+  $("o-renew").innerHTML = can("service-agreements") ? renewalsPanel(ag ? agreementStats(ag) : null, 8) : "";
+}
+
+function viewFin() {
+  app.innerHTML = header("Financials", "Financial Dashboard") + frame("cash-dashboard.html?embed=fin", "Cash and profit") +
+    `<p class="note" style="margin-top:.6rem">Same numbers as <a href="cash-dashboard.html" style="color:var(--teal)">Financial Position</a>, refreshed daily.</p>`;
+}
+
+async function viewOwner() {
+  app.innerHTML = header("Home", `${greet}, ${firstName}`) + `
+    <div class="sec"><div class="sec-h"><h2>Financial</h2><a href="dashboard.html?view=financials">Financial dashboard →</a></div>${frame("cash-dashboard.html?embed=fin", "Cash and profit")}</div>
+    <div class="sec"><div class="sec-h"><h2>Sales</h2><a href="dashboard.html?view=sales">Sales dashboard →</a></div><div id="h-sales"><p class="loading">Loading…</p></div></div>
+    <div class="sec"><div class="sec-h"><h2>Operations</h2><a href="dashboard.html?view=operations">Operations dashboard →</a></div>
+      <div data-job-search></div>
+      <div class="grid2"><div>${frame("ops-dashboard.html?embed=ops-lite", "Field operations summary")}</div><div id="h-renew"><p class="loading">Loading…</p></div></div></div>`;
+  window.apJobSearchMount && window.apJobSearchMount();
+  const [M, ag, log, leads] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads")]);
+  $("h-sales").innerHTML = salesKpis(M || null, ag, touchStats(log, leads), leads, true);
+  $("h-renew").innerHTML = renewalsPanel(ag ? agreementStats(ag) : null, 5);
+}
+
+function viewTools() {
+  const visible = apVisibleTools();
+  const groups = TOOL_GROUPS.map(([label, ids]) => [label, ids.filter(id => visible.includes(id) && !(id === "job" && visible.includes("ops-dashboard")))]).filter(g => g[1].length);
+  app.innerHTML = header("Home", `${greet}${firstName ? ", " + firstName : ""}`) + (groups.length ? groups.map(([label, ids]) => `<div class="tgroup"><h2>${label}</h2><div class="tgrid">${ids.map(id => {
+    const m = TOOL_META[id] || {}, lbl = (AP_TOOLS[id] && AP_TOOLS[id].label) || id;
+    return `<a class="tcard" href="${m.external || id + ".html"}"${m.external ? ' target="_blank" rel="noopener"' : ""}><span class="ti">${m.icon || "🔧"}</span><span class="tt">${esc(lbl)}</span><span class="td">${esc(m.desc || "")}</span></a>`; }).join("")}</div></div>`).join("")
+    : `<p class="empty">No tools are assigned to your account yet. Contact your administrator.</p>`);
+}
+
+// Pick the view this person is allowed to see; anything else falls back to Home.
+const ALLOWED = { sales: has("sales"), operations: can("ops-dashboard"), financials: can("cash-dashboard") };
+document.title = "Alpine HVAC — " + ({ sales: "Sales", operations: "Operations", financials: "Financial" }[VIEW] || "Home");
+if (VIEW === "sales" && ALLOWED.sales) await viewSales();
+else if (VIEW === "operations" && ALLOWED.operations) await viewOps();
+else if (VIEW === "financials" && ALLOWED.financials) viewFin();
+else if (has("owner")) await viewOwner();
+else viewTools();
+</script>
+<script type="module" src="job-search.js"></script>
 </body>
 </html>

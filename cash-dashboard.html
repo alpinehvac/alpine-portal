@@ -191,6 +191,25 @@ tr.detail td{background:rgba(16,68,78,0.028);text-align:left;padding:.9rem 1rem 
 #alloc-table td,#alloc-table th{white-space:nowrap}
 @media (max-width:700px){.mix-grid{grid-template-columns:1fr}}
 </style>
+<style>
+/* ── Embedded view (dashboard.html Financial / Home): KPIs + cash chart + profit chart only ── */
+html.ap-embed-fin main>*{display:none!important}
+html.ap-embed-fin main>#ap-emb-kpis,html.ap-embed-fin main>#ap-emb-charts{display:grid!important}
+#ap-emb-kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 14px}
+.emb-k{background:#fff;border:1px solid rgba(16,68,78,.12);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(16,68,78,.06)}
+.emb-k .l{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#5A7A80;font-weight:600}
+.emb-k .v{font-family:'Oswald',sans-serif;font-size:1.65rem;font-weight:600;line-height:1.2;margin:.2rem 0 .1rem}
+.emb-k .s{font-size:.78rem;color:#5A7A80;line-height:1.35}
+.emb-k.red .v{color:#B83227}.emb-k.amber .v{color:#A9821F}.emb-k.green .v{color:#2E7D57}
+#ap-emb-charts{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+#ap-emb-charts>section{background:#fff;border:1px solid rgba(16,68,78,.12);border-radius:12px;padding:14px 16px 8px;margin:0!important;display:block!important}
+#ap-emb-charts h2{font-size:1rem!important;margin:0 0 .4rem!important}
+#ap-emb-charts .h2-note,#ap-emb-charts #levers,#ap-emb-charts #chart-note,#ap-emb-charts #view-toggle,#ap-emb-charts #profit-cards,#ap-emb-charts #mix-wrap,#ap-emb-charts #alloc-wrap{display:none!important}
+#ap-emb-charts .chart-box{border:0!important;box-shadow:none!important;padding:0!important;background:none!important}
+#ap-emb-charts .legend{font-size:.7rem!important;gap:.3rem .8rem!important}
+@media (max-width:1100px){#ap-emb-charts{grid-template-columns:1fr}}
+@media (max-width:700px){#ap-emb-kpis{grid-template-columns:1fr 1fr}}
+</style>
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -855,7 +874,36 @@ function drawChart(weeks,floor,target,locLine){
   svg.innerHTML=g;
   svg.querySelectorAll(".hit").forEach(r=>{const w=weeks[+r.dataset.i];const show=e=>{tip.innerHTML=`<b>Week of ${dShort(w.start)}</b><br>In ${fmt(w.cin)}<br>Out ${fmt(w.cout)}<br>Closing ${fmt(w.close)}`+(w.driver?`<br><span style="color:#5A7A80">${esc(w.driver)}</span>`:"");tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
 }
-window.apCashStart = d => { DATA = d; render(); apTabs(); };
+window.apCashStart = d => { DATA = d; render(); apTabs(); if (document.documentElement.classList.contains("ap-embed-fin")) apEmbedFin(); };
+// Condensed view for the Financial and Home dashboards (?embed=fin). Same numbers as this page.
+function apEmbedFin(){
+  const main=document.querySelector("main");
+  const A=DATA.accounts, burn=DATA.burn, floor=4*burn, target=8*burn;
+  const opCash=A.operating.reduce((s,a)=>s+a[1],0), wks=opCash/burn;
+  let bal=opCash; const weeks=DATA.weeks.map(w=>{bal+=sum(w.in)-sum(w.out);return {start:w.start,close:bal};});
+  const low=weeks.reduce((a,b)=>b.close<a.close?b:a);
+  const P=DATA.profit||{}, t=new Date(DATA.asOf+"T12:00:00"), fy=new Date(t.getMonth()>=9?t.getFullYear():t.getFullYear()-1,9,1);
+  const fyS=fy.toISOString().slice(0,10), fyLabel="FY"+(fy.getFullYear()+1);
+  const ytd=(P.past||[]).filter(w=>w.week>=fyS), yRev=ytd.reduce((a,w)=>a+(w.revenue||0),0), yProf=ytd.reduce((a,w)=>a+(w.profit||0),0);
+  // Target: a dollar FY profit target if the data file sets one (fyProfitTarget, prorated), otherwise 10% net margin.
+  const elapsed=Math.max(1,ytd.length), tgt=DATA.fyProfitTarget?DATA.fyProfitTarget*elapsed/52:yRev*0.10;
+  const cls=(v,r,a)=>v<r?"red":v<a?"amber":"green";
+  const k=(c,l,v,s)=>`<div class="emb-k ${c}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  const box=document.createElement("div"); box.id="ap-emb-kpis";
+  box.innerHTML=
+    k(cls(opCash,floor,target),"Operating cash",fmtK(opCash),`Floor ${fmtK(floor)} · target ${fmtK(target)} · ${opCash>=floor?fmtK(opCash-floor)+" above floor":fmtK(floor-opCash)+" below floor"}`)+
+    k(cls(wks,4,8),"Runway",wks.toFixed(1)+" wks",`Weeks of core burn covered (${fmtK(burn)}/wk). Floor 4, target 8`)+
+    k(cls(low.close,floor,target),"Lowest projected week",fmtK(low.close),`Week of ${dShort(low.start)} · 13-week forecast, committed money`)+
+    (ytd.length?k(yProf>=tgt?"green":yProf>=0?"amber":"red",fyLabel+" profit to date",fmtK(yProf),`${yRev?pct(yProf/yRev*100,1):"—"} on ${fmtK(yRev)} revenue · target ${fmtK(tgt)}${DATA.fyProfitTarget?"":" (10% margin)"}`)
+      :k("","FY profit to date","—","No weeks in the new fiscal year yet"));
+  const charts=document.createElement("div"); charts.id="ap-emb-charts";
+  const cashSec=document.getElementById("chart").closest("section"), profSec=document.getElementById("profit-section");
+  charts.appendChild(cashSec); if(profSec&&profSec.style.display!=="none") charts.appendChild(profSec);
+  if(profSec) [...profSec.children].forEach(el=>{ if(el.tagName!=="H2"&&!el.querySelector("#profit-chart")) el.style.display="none"; });
+  main.prepend(charts); main.prepend(box);
+  document.getElementById("chart-title").textContent="Cash: last 13 weeks and next 13";
+  if(profSec) profSec.querySelector("h2").textContent="Profit: last 13 weeks and next 13";
+}
 function apTabs(){
   const main=document.querySelector("main"), tc=document.getElementById("tab-cash"), tp=document.getElementById("tab-profit");
   if(tc.childElementCount) return;

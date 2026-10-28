@@ -137,6 +137,14 @@ td a{color:#27636C;text-decoration:none;cursor:pointer}td a:hover{text-decoratio
   .filters input{min-width:0;flex:1}
 }
 </style>
+<style>
+/* ── Embedded view (dashboard.html Sales / Home): territory map only (?embed=map) ── */
+html.ap-embed-map main>*{display:none!important}
+html.ap-embed-map main>section:has(#map){display:block!important;margin:0!important}
+html.ap-embed-map main>section:has(#map)>.h2-row{display:none!important}
+html.ap-embed-map #map{height:480px}
+html.ap-embed-map .side>div:has(#tg-rep),html.ap-embed-map .side>div:has(#tg-age),html.ap-embed-map #geo-hint{display:none!important}
+</style>
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>

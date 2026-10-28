@@ -266,6 +266,31 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
   .tload{grid-template-columns:6rem 1fr 3.5rem}
 }
 </style>
+<style>
+/* ── Embedded view (dashboard.html Operations / Home) ──
+   ?embed=ops:      job pipeline counts, this week's dispatch, maintenance due
+   ?embed=ops-lite: job pipeline counts, maintenance due                      */
+html.ap-embed-ops main>*,html.ap-embed-ops-lite main>*{display:none!important}
+html.ap-embed-ops main>#pipeline,html.ap-embed-ops-lite main>#pipeline,
+html.ap-embed-ops main>section:has(#board),
+html.ap-embed-ops main>section:has(#pm-panel),html.ap-embed-ops-lite main>section:has(#pm-panel){display:block!important;margin:0 0 14px!important}
+html.ap-embed main>section{background:#fff;border:1px solid rgba(16,68,78,.12);border-radius:12px;padding:14px 16px}
+html.ap-embed #pc-q,html.ap-embed #pc-a,html.ap-embed #pc-p,html.ap-embed #expand-all,html.ap-embed #sync-state,html.ap-embed main .h2-note{display:none!important}
+html.ap-embed #pipeline h2,html.ap-embed main section h2{font-size:1rem!important;margin:0 0 .5rem!important}
+html.ap-embed .pipe{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:.7rem!important}
+html.ap-embed .pipe .col{min-height:0!important;padding:.6rem .7rem .1rem!important}
+html.ap-embed .pipe .col-h{cursor:pointer;flex-direction:column;align-items:flex-start;margin-bottom:.4rem!important}
+html.ap-embed .pipe .col-h .tot{font-size:1.35rem}html.ap-embed .pipe .col-h .tot small{text-align:left}
+html.ap-embed .flags li{grid-template-columns:7.5rem 1fr!important;gap:.8rem!important}
+html.ap-embed .pipe .col-h:hover{filter:brightness(.97)}
+html.ap-embed .two:has(#pm-panel){grid-template-columns:1fr!important}
+html.ap-embed .two>div:has(#tech-load){display:none!important}
+html.ap-embed #pm-panel{max-height:290px;overflow:auto}
+html.ap-embed .board-wrap{max-height:420px;overflow:auto}
+html.ap-embed .board{min-width:0!important;grid-template-columns:minmax(6.5rem,8rem) repeat(5,minmax(0,1fr))!important}
+html.ap-embed .board .chip span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.ap-embed .board:has(>.bh:nth-child(7)){grid-template-columns:minmax(6.5rem,8rem) repeat(6,minmax(0,1fr))!important}
+</style>
 <link rel="stylesheet" href="theme.css">
 </head>
 <body>
@@ -278,6 +303,7 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 <main class="wrap">
   <div id="banner"></div>
   <div class="head"><h1>Field Operations</h1><div class="asof" id="asof"></div></div>
+  <div data-job-search></div>
 
   <section id="pipeline">
     <div class="pipe-head">
@@ -576,6 +602,8 @@ function renderPMs(X) {
 document.querySelectorAll("#week-seg button").forEach(b => b.onclick = () => { WEEK = +b.dataset.w; renderBoard(); });
 ["f-q", "f-kind", "f-tech"].forEach(id => $(id).addEventListener("input", renderJobs));
 window.apOpsStart = data => { D = data; render(); if (window.apPipeStart) window.apPipeStart(); };
+// Embedded: a pipeline column header opens the full board in the main window.
+if (document.documentElement.classList.contains("ap-embed")) document.addEventListener("click", e => { if (e.target.closest(".pipe .col-h")) top.location.href = "ops-dashboard.html#pipeline"; });
 </script>
 <script>
 /* ===== Job pipeline: Quoting → Approved → In progress → Completed =====
@@ -1054,5 +1082,6 @@ else {
   });
 }
 </script>
+<script type="module" src="job-search.js"></script>
 </body>
 </html>
