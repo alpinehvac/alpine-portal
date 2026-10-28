@@ -884,7 +884,9 @@ function apEmbedFin(){
   const low=weeks.reduce((a,b)=>b.close<a.close?b:a);
   const P=DATA.profit||{}, t=new Date(DATA.asOf+"T12:00:00"), fy=new Date(t.getMonth()>=9?t.getFullYear():t.getFullYear()-1,9,1);
   const fyS=fy.toISOString().slice(0,10), fyLabel="FY"+(fy.getFullYear()+1);
-  const ytd=(P.past||[]).filter(w=>w.week>=fyS), yRev=ytd.reduce((a,w)=>a+(w.revenue||0),0), yProf=ytd.reduce((a,w)=>a+(w.profit||0),0);
+  // Actual weeks (QuickBooks) since the fiscal year started, plus forecast weeks already under way (QuickBooks hasn't closed the month yet).
+  const act=(P.past||[]).filter(w=>w.week>=fyS), proj=(P.future||[]).filter(w=>w.week>=fyS&&w.week<=DATA.asOf&&!act.some(a=>a.week===w.week));
+  const ytd=act.concat(proj), yRev=ytd.reduce((a,w)=>a+(w.revenue||0),0), yProf=ytd.reduce((a,w)=>a+(w.profit||0),0);
   // Target: a dollar FY profit target if the data file sets one (fyProfitTarget, prorated), otherwise 10% net margin.
   const elapsed=Math.max(1,ytd.length), tgt=DATA.fyProfitTarget?DATA.fyProfitTarget*elapsed/52:yRev*0.10;
   const cls=(v,r,a)=>v<r?"red":v<a?"amber":"green";
@@ -894,7 +896,7 @@ function apEmbedFin(){
     k(cls(opCash,floor,target),"Operating cash",fmtK(opCash),`Floor ${fmtK(floor)} · target ${fmtK(target)} · ${opCash>=floor?fmtK(opCash-floor)+" above floor":fmtK(floor-opCash)+" below floor"}`)+
     k(cls(wks,4,8),"Runway",wks.toFixed(1)+" wks",`Weeks of core burn covered (${fmtK(burn)}/wk). Floor 4, target 8`)+
     k(cls(low.close,floor,target),"Lowest projected week",fmtK(low.close),`Week of ${dShort(low.start)} · 13-week forecast, committed money`)+
-    (ytd.length?k(yProf>=tgt?"green":yProf>=0?"amber":"red",fyLabel+" profit to date",fmtK(yProf),`${yRev?pct(yProf/yRev*100,1):"—"} on ${fmtK(yRev)} revenue · target ${fmtK(tgt)}${DATA.fyProfitTarget?"":" (10% margin)"}`)
+    (ytd.length?k(yProf>=tgt?"green":yProf>=0?"amber":"red",fyLabel+" profit to date",fmtK(yProf),`${yRev?pct(yProf/yRev*100,1):"—"} on ${fmtK(yRev)} revenue · target ${fmtK(tgt)}${DATA.fyProfitTarget?"":" (10% margin)"}${proj.length?` · ${act.length?"":"all "}${proj.length} wk${proj.length>1?"s":""} earned-basis estimate until QuickBooks closes the month`:""}`)
       :k("","FY profit to date","—","No weeks in the new fiscal year yet"));
   const charts=document.createElement("div"); charts.id="ap-emb-charts";
   const cashSec=document.getElementById("chart").closest("section"), profSec=document.getElementById("profit-section");

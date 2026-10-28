@@ -13,7 +13,7 @@
 // dashboard.html?cat=…           → old links: mapped to the new views
 (function () {
   const s = apGetSession();
-  if (!s) { location.replace("index.html"); return; }
+  if (!s) { try { sessionStorage.setItem("ap_redirect", "dashboard.html" + location.search); } catch (e) {} location.replace("index.html"); return; }
   const p = new URLSearchParams(location.search);
   const cat = p.get("cat");
   if (cat === "agreements") { location.replace("service-agreements.html"); return; }
