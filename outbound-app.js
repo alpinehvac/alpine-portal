@@ -601,15 +601,17 @@ function knockActions(k) {
 }
 function renderFollowReq() {
   const el = $('fr-list'); if (!el) return;
-  const today = todayISO(), wk = new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10);
+  const today = todayISO(), wk = new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10), old = new Date(Date.now() - 45 * DAY).toISOString().slice(0, 10);
+  let stale = 0;
   const items = [];
   knocks.forEach(k => { if (k.doneAt) return; knockActions(k).forEach((a, i) => !a.done && items.push({ src: 'knock', k, i, due: a.due || k.followUp || '', text: a.text, who: 'Jake', company: k.company, sub: (k.contact ? k.contact + ' · ' : '') + (k.address || ''), interest: k.interest, ref: k.leadId ? 'l:' + k.leadId : k.targetId ? 't:' + k.targetId : '' })); });
   leads.forEach(l => { if (!l.followUp || ['Dead', 'Converted'].includes(l.status) || (l.lastTouch && l.lastTouch >= l.followUp) || l.followUp > wk) return;
+    if (l.followUp < old) { stale++; return; }   // same 45-day window as the Monday email; older ones are counted, not listed
     items.push({ src: 'lead', due: l.followUp, text: (l.notes || '').split(/\n/)[0].slice(0, 160) || 'Follow up', who: l.rep || '', company: l.company, sub: [l.contact, l.phone].filter(Boolean).join(' · '), ref: 'l:' + l.id }); });
   items.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
   const od = items.filter(x => x.due && x.due < today).length;
-  $('fr-note').textContent = items.length ? items.length + ' open · ' + od + ' overdue' : '';
-  el.innerHTML = items.length ? '<ol class="wk fr">' + items.map(x => {
+  $('fr-note').textContent = items.length ? items.length + ' open · ' + od + ' overdue' + (stale ? ' · ' + stale + ' lead-sheet follow-ups older than 45 days not shown (update or close them on the sheet)' : '') : '';
+  const row = x => {
     const late = x.due && x.due < today, dueTxt = x.due ? fmtDate(x.due) : 'No date';
     return '<li><div class="wk-top"><span class="fr-due' + (late ? ' late' : x.due === today ? ' today' : '') + '">' + dueTxt + '</span>' +
       (x.ref ? '<a class="wk-name" data-fly="' + esc(x.ref) + '">' + esc(x.company || '—') + '</a>' : '<b>' + esc(x.company || '—') + '</b>') +
@@ -617,7 +619,10 @@ function renderFollowReq() {
       '<span class="wk-type">' + (x.src === 'knock' ? 'Door knock' : 'Lead sheet') + (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
       (x.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(x.k.id) + '" data-i="' + x.i + '">Done</button>' : '') + '</div>' +
       '<div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + '</div>' : '') + '</li>';
-  }).join('') + '</ol>' : '<p class="hint">Nothing owed. Actions from knock recordings and lead-sheet follow-ups due this week show here.</p>';
+  };
+  const kn = items.filter(x => x.src === 'knock'), ld = items.filter(x => x.src === 'lead');
+  el.innerHTML = '<h3 class="wk-h">From door knocks (' + kn.length + ')</h3>' + (kn.length ? '<ol class="wk fr">' + kn.map(row).join('') + '</ol>' : '<p class="hint">No open actions from knock recordings.</p>') +
+    '<h3 class="wk-h">Lead-sheet follow-ups, last 45 days to next 7 (' + ld.length + ')</h3>' + (ld.length ? '<ol class="wk fr">' + ld.map(row).join('') + '</ol>' : '<p class="hint">None due.</p>');
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('.fr-done'); if (!b) return;
