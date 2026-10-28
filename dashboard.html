@@ -326,9 +326,10 @@ async function viewOps() {
   app.innerHTML = header("Operations", "Operations Dashboard") + `
     <div data-job-search data-placeholder="Search any job: job #, customer, site or PO"></div>
     <div class="grid2">
-      <div>${frame("ops-dashboard.html?embed=ops", "Field operations summary")}</div>
+      <div>${frame("ops-dashboard.html?embed=ops-pipe", "Job pipeline")}</div>
       <div id="o-renew"><p class="loading">Loading agreements…</p></div>
-    </div>`;
+    </div>
+    <div class="sec" style="margin-top:14px">${frame("ops-dashboard.html?embed=ops-board", "Dispatch board and maintenance due")}</div>`;
   window.apJobSearchMount && window.apJobSearchMount();
   const ag = can("service-agreements") ? await agreements() : null;
   $("o-renew").innerHTML = can("service-agreements") ? renewalsPanel(ag ? agreementStats(ag) : null, 8) : "";

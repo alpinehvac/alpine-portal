@@ -269,11 +269,17 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 <style>
 /* ── Embedded view (dashboard.html Operations / Home) ──
    ?embed=ops:      job pipeline counts, this week's dispatch, maintenance due
-   ?embed=ops-lite: job pipeline counts, maintenance due                      */
-html.ap-embed-ops main>*,html.ap-embed-ops-lite main>*{display:none!important}
-html.ap-embed-ops main>#pipeline,html.ap-embed-ops-lite main>#pipeline,
-html.ap-embed-ops main>section:has(#board),
-html.ap-embed-ops main>section:has(#pm-panel),html.ap-embed-ops-lite main>section:has(#pm-panel){display:block!important;margin:0 0 14px!important}
+   ?embed=ops-lite: job pipeline counts, maintenance due
+   ?embed=ops-pipe:  job pipeline counts only
+   ?embed=ops-board: this week's dispatch (full width) + maintenance due   */
+html.ap-embed-ops main>*,html.ap-embed-ops-lite main>*,html.ap-embed-ops-pipe main>*,html.ap-embed-ops-board main>*{display:none!important}
+html.ap-embed-ops main>#pipeline,html.ap-embed-ops-lite main>#pipeline,html.ap-embed-ops-pipe main>#pipeline,
+html.ap-embed-ops main>section:has(#board),html.ap-embed-ops-board main>section:has(#board),
+html.ap-embed-ops main>section:has(#pm-panel),html.ap-embed-ops-lite main>section:has(#pm-panel),html.ap-embed-ops-board main>section:has(#pm-panel){display:block!important;margin:0 0 14px!important}
+html.ap-embed-ops-pipe main>#pipeline{margin:0!important}
+html.ap-embed-ops-board .board{grid-template-columns:minmax(9rem,11rem) repeat(5,minmax(0,1fr))!important}
+html.ap-embed-ops-board .board:has(>.bh:nth-child(7)){grid-template-columns:minmax(9rem,11rem) repeat(6,minmax(0,1fr))!important}
+html.ap-embed-ops-board .board-wrap{max-height:none}
 html.ap-embed main>section{background:#fff;border:1px solid rgba(16,68,78,.12);border-radius:12px;padding:14px 16px}
 html.ap-embed #pc-q,html.ap-embed #pc-a,html.ap-embed #pc-p,html.ap-embed #expand-all,html.ap-embed #sync-state,html.ap-embed main .h2-note{display:none!important}
 html.ap-embed #pipeline h2,html.ap-embed main section h2{font-size:1rem!important;margin:0 0 .5rem!important}
