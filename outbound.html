@@ -144,6 +144,10 @@ html.ap-embed-map main>section:has(#map){display:block!important;margin:0!import
 html.ap-embed-map main>section:has(#map)>.h2-row{display:none!important}
 html.ap-embed-map #map{height:480px}
 html.ap-embed-map .side>div:has(#tg-rep),html.ap-embed-map .side>div:has(#tg-age),html.ap-embed-map #geo-hint{display:none!important}
+.pop .knocks{margin-top:.6rem;border-top:1px solid var(--border);padding-top:.5rem;max-height:220px;overflow:auto}
+.pop .knocks .kh{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--light-grey);margin-bottom:.3rem}
+.pop .kn{font-size:.8rem;margin-bottom:.55rem}.pop .kn p{margin:.2rem 0}
+#t-knocks td{vertical-align:top;font-size:.84rem}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -195,6 +199,11 @@ html.ap-embed-map .side>div:has(#tg-rep),html.ap-embed-map .side>div:has(#tg-age
       <span class="count" id="t-count"></span>
     </div>
     <div class="table-wrap"><table id="t-targets"></table></div>
+  </section>
+
+  <section>
+    <div class="h2-row"><div><h2>Door-knock conversations</h2><p class="h2-note">Transcribed and summarized from Jake's Fireflies recordings by the daily refresh, and filed against the lead or target. Start each recording by saying the company and address. <span id="knock-note"></span></p></div></div>
+    <div class="table-wrap" style="max-height:520px"><table id="t-knocks"></table></div>
   </section>
 
   <section class="two">

@@ -212,10 +212,21 @@ function renewalsPanel(st, limit = 6) {
 
 // ═══════════ Sales metrics ═══════════
 const TOUCH_CH = [["knocks", "Door knocks"], ["calls", "Calls"], ["emails", "Emails"], ["meetings", "Site visits / meetings"]];
-function touchStats(log, leads) {
+// Touches per rep per week come from three sources: the manual log, automatic counts
+// (Outlook emails/meetings, src "auto") and Fireflies door-knock recordings. For each rep,
+// week and channel the highest source wins, so nothing is counted twice.
+function mergedTouches(log, knocks) {
+  const cell = {};
+  const put = (wk, rep, k, v) => { const id = wk + "|" + rep; cell[id] = cell[id] || { wk, rep }; cell[id][k] = Math.max(cell[id][k] || 0, Number(v) || 0); };
+  (log || []).forEach(r => TOUCH_CH.forEach(([k]) => put(r.wk, r.rep, k, r[k])));
+  const kn = {}; ((knocks && knocks.rows) || []).forEach(k => { const d = pd(k.date); if (!d) return; const id = iso(monday(d)) + "|" + (k.rep || "Jake"); kn[id] = (kn[id] || 0) + 1; });
+  Object.entries(kn).forEach(([id, n]) => { const [wk, rep] = id.split("|"); put(wk, rep, "knocks", n); });
+  return Object.values(cell);
+}
+function touchStats(log, leads, knocks) {
   const wk0 = monday(T), weeks = [];
   for (let i = 7; i >= 0; i--) { const d = new Date(wk0); d.setDate(d.getDate() - i * 7); weeks.push(iso(d)); }
-  const rows = (log || []).filter(r => weeks.includes(r.wk));
+  const rows = mergedTouches(log, knocks).filter(r => weeks.includes(r.wk));
   const tot = r => TOUCH_CH.reduce((s, [k]) => s + (Number(r[k]) || 0), 0);
   if (rows.length) {
     const first = weeks.findIndex(w => rows.some(r => r.wk === w));
@@ -261,12 +272,13 @@ function salesKpis(M, ag, touches, leads, compact) {
 }
 
 // Touch log: one row per rep per week. Saved to outbound_data (sales only).
-function touchLogHTML(log) {
+function touchLogHTML(log, knocks) {
   const reps = ["Natalie", "Jake", "Mike", "Cole"];
   const me = reps.find(r => r === firstName) || reps[0];
   const wkOpts = [0, 1, 2, 3].map(i => { const d = monday(T); d.setDate(d.getDate() - i * 7); return `<option value="${iso(d)}">Week of ${fmtD(d)}</option>`; }).join("");
-  const recent = (log || []).slice().sort((a, b) => b.wk.localeCompare(a.wk) || a.rep.localeCompare(b.rep)).slice(0, 10);
-  return `<div class="panel"><div class="sec-h"><h3>Log touches</h3><span class="note">Weekly totals per rep. Saving the same week again replaces it.</span></div>
+  const recent = (log || []).filter(r => TOUCH_CH.some(([k]) => r[k])).slice().sort((a, b) => b.wk.localeCompare(a.wk) || a.rep.localeCompare(b.rep)).slice(0, 10);
+  const nk = ((knocks && knocks.rows) || []).length;
+  return `<div class="panel"><div class="sec-h"><h3>Touches by week</h3><span class="note">Filled automatically: door knocks from Fireflies (${nk} recorded), Jake's prospect emails and meetings from Outlook. Add anything the automation can't see (Natalie's calls and emails) below; the higher number per week wins, never both.</span></div>
     <div class="tl-form">
       <label>Week<select id="tl-wk">${wkOpts}</select></label>
       <label>Rep<select id="tl-rep">${reps.map(r => `<option${r === me ? " selected" : ""}>${r}</option>`).join("")}</select></label>
@@ -279,7 +291,7 @@ function touchLogHTML(log) {
 }
 function wireTouchLog() {
   const btn = $("tl-save"); if (!btn) return;
-  const fill = async () => { const log = (await outbound("ob_touch_log")) || []; const r = log.find(x => x.wk === $("tl-wk").value && x.rep === $("tl-rep").value) || {}; TOUCH_CH.forEach(([k]) => $("tl-" + k).value = r[k] != null ? r[k] : ""); };
+  const fill = async () => { const log = (await outbound("ob_touch_log")) || []; const r = log.find(x => !x.src && x.wk === $("tl-wk").value && x.rep === $("tl-rep").value) || {}; TOUCH_CH.forEach(([k]) => $("tl-" + k).value = r[k] != null ? r[k] : ""); };
   $("tl-wk").onchange = fill; $("tl-rep").onchange = fill; fill();
   btn.onclick = async () => {
     btn.disabled = true; $("tl-msg").textContent = "Saving…";
@@ -287,7 +299,7 @@ function wireTouchLog() {
       const log = (await outbound("ob_touch_log")) || [];          // re-read right before saving
       const row = { wk: $("tl-wk").value, rep: $("tl-rep").value, by: session.email, at: new Date().toISOString() };
       TOUCH_CH.forEach(([k]) => row[k] = Math.max(0, parseInt($("tl-" + k).value, 10) || 0));
-      const next = log.filter(x => !(x.wk === row.wk && x.rep === row.rep)).concat([row]);
+      const next = log.filter(x => x.src || !(x.wk === row.wk && x.rep === row.rep)).concat([row]);   // only replaces the manual row; automatic rows are kept
       await setDoc(doc(db, "outbound_data", "ob_touch_log"), { value: JSON.stringify(next), updatedAt: Date.now() });
       $("tl-msg").textContent = "Saved."; setTimeout(() => location.reload(), 600);
     } catch (e) { $("tl-msg").textContent = "Save failed (" + (e.code || e) + "). Nothing was changed."; btn.disabled = false; }
@@ -316,9 +328,9 @@ async function viewSales() {
   app.innerHTML = header("Sales", "Sales Dashboard") + `<div class="sec" id="s-kpis"><p class="loading">Loading sales metrics…</p></div>
     <div class="sec"><div class="sec-h"><h2>Territory</h2><a href="outbound.html">Open Outbound →</a></div>${frame("outbound.html?embed=map", "Territory map")}</div>
     <div class="sec" id="s-touch"></div>${salesUpdateHTML()}`;
-  const [M, ag, log, leads] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads")]);
-  $("s-kpis").innerHTML = salesKpis(M || null, ag, touchStats(log, leads), leads, false);
-  $("s-touch").innerHTML = touchLogHTML(log);
+  const [M, ag, log, leads, knocks] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks")]);
+  $("s-kpis").innerHTML = salesKpis(M || null, ag, touchStats(log, leads, knocks), leads, false);
+  $("s-touch").innerHTML = touchLogHTML(mergedTouches(log, knocks), knocks);
   wireTouchLog(); wireSalesUpdate();
 }
 
@@ -348,8 +360,8 @@ async function viewOwner() {
       <div data-job-search></div>
       <div class="grid2"><div>${frame("ops-dashboard.html?embed=ops-lite", "Field operations summary")}</div><div id="h-renew"><p class="loading">Loading…</p></div></div></div>`;
   window.apJobSearchMount && window.apJobSearchMount();
-  const [M, ag, log, leads] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads")]);
-  $("h-sales").innerHTML = salesKpis(M || null, ag, touchStats(log, leads), leads, true);
+  const [M, ag, log, leads, knocks] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks")]);
+  $("h-sales").innerHTML = salesKpis(M || null, ag, touchStats(log, leads, knocks), leads, true);
   $("h-renew").innerHTML = renewalsPanel(ag ? agreementStats(ag) : null, 5);
 }
 

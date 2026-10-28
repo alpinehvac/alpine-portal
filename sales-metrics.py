@@ -7,14 +7,54 @@ Input : Windsor quickbooks get_data JSON with fields invoices__txndate,
 Output: sales-metrics.json -> paste into Sales dashboard > Update data (owners).
 
 Amounts are before HST. Contains no data itself (safe in a public repo).
-Usage: python3 sales-metrics.py invoices.json <asOf YYYY-MM-DD> <bdrCostTTM> <marketingTTM> <grossMarginPct> [out.json]
+Usage (fully automatic, used by the weekly scheduled task):
+  python3 sales-metrics.py --auto invoices.json gl-sales.json pl.json <asOf YYYY-MM-DD> [out.json]
+    invoices.json : invoices__txndate, invoices__customerref, invoices__totalamt, invoices__txntaxdetail (last 24 months)
+    gl-sales.json : general ledger lines (account_name, split_acc, debt_amt, credit_amt, name, line_id, tx_date)
+                    filtered to split_acc ~ "arketing"/"dvertis" or name ~ "Townsend" (last 12 months)
+    pl.json       : date, profitandloss__income, profitandloss__cogs (daily, last 12 months)
+  BDR cost   = Natalie's net pay + source deductions + expense reimbursements (QuickBooks)
+  Marketing  = 60000 Advertising & Promotion, excluding recruiting ads (Indeed)
+  Gross margin = (income - COGS) / income, last 12 months
+Manual form (old): python3 sales-metrics.py invoices.json <asOf> <bdrCostTTM> <marketingTTM> <grossMarginPct> [out.json]
 """
 import json, sys, statistics
 from datetime import date, timedelta
 from collections import defaultdict
 
-src, as_of, bdr, mkt, gm = sys.argv[1], date.fromisoformat(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5]) / 100
-out = sys.argv[6] if len(sys.argv) > 6 else "sales-metrics.json"
+RECRUITING = ("indeed",)  # job ads booked to Advertising: not customer acquisition
+
+def auto_costs(gl_path, pl_path, as_of):
+    y1 = as_of - timedelta(days=365)
+    seen, bdr, mkt = set(), 0.0, 0.0
+    for r in json.load(open(gl_path))["data"]:
+        lid = r.get("generalledger__item__line_id")
+        if lid in seen: continue
+        seen.add(lid)
+        d = (r.get("generalledger__item__tx_date") or "")[:10]
+        if not d or not (y1 < date.fromisoformat(d) <= as_of): continue
+        acc, split = r.get("generalledger__item__account_name") or "", r.get("generalledger__item__split_acc") or ""
+        name = (r.get("generalledger__item__name") or "").lower()
+        amt = (r.get("generalledger__item__credit_amt") or 0) - (r.get("generalledger__item__debt_amt") or 0)
+        if "townsend" in name:
+            if acc.startswith("10000") and split.startswith("21990"): bdr += amt          # net pay
+            elif acc.startswith("24000") and split.startswith("21990"): bdr += amt        # source deductions
+            elif acc.startswith("10000") and split.startswith("20000"): bdr += amt        # reimbursements paid
+        if split.startswith("60000") and not any(k in name for k in RECRUITING): mkt += amt
+    inc = cogs = 0.0
+    for r in json.load(open(pl_path))["data"]:
+        d = (r.get("date") or "")[:10]
+        if d and y1 < date.fromisoformat(d) <= as_of:
+            inc += r.get("profitandloss__income") or 0; cogs += r.get("profitandloss__cogs") or 0
+    return bdr, mkt, ((inc - cogs) / inc if inc else 0)
+
+if sys.argv[1] == "--auto":
+    src, as_of = sys.argv[2], date.fromisoformat(sys.argv[5])
+    bdr, mkt, gm = auto_costs(sys.argv[3], sys.argv[4], as_of)
+    out = sys.argv[6] if len(sys.argv) > 6 else "sales-metrics.json"
+else:
+    src, as_of, bdr, mkt, gm = sys.argv[1], date.fromisoformat(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5]) / 100
+    out = sys.argv[6] if len(sys.argv) > 6 else "sales-metrics.json"
 rows = json.load(open(src))["data"]
 
 def net(r):

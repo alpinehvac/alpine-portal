@@ -62,6 +62,18 @@ const custDoc = readJSON('ob_customers') || { rows: [] };
 const targetsDoc = readJSON('ob_targets') || { rows: [] };
 let claims = readJSON('ob_claims') || {};
 let geo = readJSON('ob_geo') || {};
+// Door-knock conversations from Jake's Fireflies recordings (daily refresh): { rows: [ … ] }
+const knocks = ((readJSON('ob_knocks') || {}).rows || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+const knocksFor = (kind, id) => knocks.filter(k => kind === 'lead' ? k.leadId === id : k.targetId === id);
+const INTEREST = { Hot: '#B83227', Warm: '#D9A441', Cold: '#5A7A80', 'Not interested': '#8A8A8A' };
+function knockHTML(list) {
+  if (!list.length) return '';
+  return '<div class="knocks"><div class="kh">Door-knock conversations</div>' + list.map(k =>
+    '<div class="kn"><b>' + fmtDate(k.date) + '</b>' + (k.interest ? ' <span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') +
+    (k.contact ? ' · ' + esc(k.contact) + (k.role ? ' (' + esc(k.role) + ')' : '') : '') +
+    '<p>' + esc(k.summary || '') + '</p>' + (k.nextStep ? '<p><i>Next:</i> ' + esc(k.nextStep) + (k.followUp ? ' · ' + fmtDate(k.followUp) : '') + '</p>' : '') +
+    (k.url ? '<a href="' + esc(k.url) + '" target="_blank" rel="noopener">Recording ↗</a>' : '') + '</div>').join('') + '</div>';
+}
 
 const leads = (leadsDoc.rows || []).map(r => ({ ...r, kind: 'lead', reps: repOf(r.rep), gkey: r.mappable ? addrKey(r.address) + '|' + addrKey(r.city) : 'id:' + r.id }));
 
@@ -225,6 +237,7 @@ function leadPopup(l) {
     '<dt>Last touch</dt><dd>' + (l.lastTouch ? fmtDate(l.lastTouch) + ' (' + d + ' days ago)' : esc(l.lastTouchRaw || '—')) + '</dd>' +
     (l.followUp || l.followUpRaw ? '<dt>Follow-up</dt><dd>' + (l.followUp ? fmtDate(l.followUp) : esc(l.followUpRaw)) + '</dd>' : '') +
     '</dl>' + (l.notes ? '<div class="notes">' + esc(l.notes) + '</div>' : '') +
+    knockHTML(knocksFor('lead', l.id)) +
     '<div class="acts"><a class="btn sm" href="' + SHEET_URL + '" target="_blank" rel="noopener">Open lead sheet (row ' + l.row + ')</a></div></div>';
 }
 function custPopup(c) {
@@ -243,6 +256,7 @@ function targetPopup(t) {
     (p ? '<dt>From shop</dt><dd>' + km(shopPos(), p).toFixed(0) + ' km</dd>' : '') +
     '<dt>Claimed</dt><dd>' + (c ? esc(c.by) + ' · ' + fmtDate(c.at) : 'No') + '</dd></dl>' +
     (t.source ? '<div class="meta"><a href="' + esc(t.source) + '" target="_blank" rel="noopener">' + (t.osm ? 'Building on OpenStreetMap' : 'Source') + '</a></div>' : '') +
+    knockHTML(knocksFor('target', t.id)) +
     '<div class="acts">' + claimButton(t) + '</div></div>';
 }
 function claimButton(t) {
@@ -545,6 +559,22 @@ function renderUnplaced() {
   return rows.length;
 }
 
+// Door-knock conversations table (Fireflies). Clicking a matched row flies to its pin.
+function renderKnocks() {
+  const el = $('t-knocks'); if (!el) return;
+  const note = $('knock-note');
+  if (note) note.textContent = knocks.length ? knocks.length + ' conversation' + (knocks.length === 1 ? '' : 's') + ' · ' + knocks.filter(k => !k.leadId && !k.targetId).length + ' not matched to a lead or target' : '';
+  el.innerHTML = '<thead><tr><th class="nosort">Date</th><th class="nosort">Company</th><th class="nosort">Contact</th><th class="nosort">Interest</th><th class="nosort">Summary</th><th class="nosort">Next step</th><th class="nosort"></th></tr></thead><tbody>' +
+    (knocks.length ? knocks.slice(0, 200).map(k => {
+      const ref = k.leadId ? 'l:' + k.leadId : k.targetId ? 't:' + k.targetId : '';
+      return '<tr><td>' + fmtDate(k.date) + '</td><td>' + (ref ? '<a data-fly="' + esc(ref) + '">' + esc(k.company || '—') + '</a>' : esc(k.company || '—') + ' <span class="due" title="Not on the lead sheet or target list yet">new</span>') +
+        '<small style="display:block;color:var(--light-grey)">' + esc(k.address || '') + '</small></td><td>' + esc(k.contact || '') + (k.role ? '<small style="display:block;color:var(--light-grey)">' + esc(k.role) + '</small>' : '') + '</td>' +
+        '<td>' + (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '</td>' +
+        '<td style="max-width:420px">' + esc(k.summary || '') + '</td><td>' + esc(k.nextStep || '') + (k.followUp ? '<small style="display:block">' + fmtDate(k.followUp) + '</small>' : '') + '</td>' +
+        '<td>' + (k.url ? '<a href="' + esc(k.url) + '" target="_blank" rel="noopener">Recording ↗</a>' : '') + '</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="none" style="padding:1rem;color:var(--light-grey)">No door-knock recordings yet. Record each knock in the Fireflies app; the daily refresh transcribes, summarizes and files it here.</td></tr>') + '</tbody>';
+}
+
 function renderMetrics(fu, unplaced) {
   const n = leads.length, c = s => leads.filter(l => l.status === s).length;
   const worked = leads.filter(l => l.status !== 'Not contacted').length;
@@ -586,6 +616,7 @@ function renderAll(redrawMap) {
   const fu = renderFollow();
   const un = renderUnplaced();
   renderMetrics(fu, un);
+  renderKnocks();
   if (!fitted) {
     const pts = leads.concat(customers).map(posOf).filter(Boolean).filter(p => km({ lat: HAMILTON[0], lng: HAMILTON[1] }, p) < 90).map(p => [p.lat, p.lng]);
     pts.push([shopPos().lat, shopPos().lng]);
@@ -593,9 +624,31 @@ function renderAll(redrawMap) {
   }
 }
 
+// Knocks merge by Fireflies id; automatic touch counts merge by week + rep + source.
+// Nothing already saved is dropped, so a partial run can never erase history.
+async function mergeImport(P) {
+  if (!P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
+  let n = 0;
+  if (P.kind === 'knocks') {
+    const cur = readJSON('ob_knocks') || { rows: [] }, by = {};
+    (cur.rows || []).forEach(r => by[r.id] = r);
+    P.data.rows.forEach(r => { if (!r.id) return; by[r.id] = { ...(by[r.id] || {}), ...r }; n++; });
+    localStorage.setItem('ob_knocks', JSON.stringify({ rows: Object.values(by), importedAt: Date.now(), importedBy: session.name }));
+  } else {
+    const cur = readJSON('ob_touch_log') || [], key = r => r.wk + '|' + r.rep + '|' + (r.src || '');
+    const by = {}; cur.forEach(r => by[key(r)] = r);
+    P.data.rows.forEach(r => { if (!r.wk || !r.rep) return; r.src = r.src || 'auto'; by[key(r)] = { ...r, at: new Date().toISOString() }; n++; });
+    localStorage.setItem('ob_touch_log', JSON.stringify(Object.values(by)));
+  }
+  await new Promise(r => setTimeout(r, 2500));
+  const k = P.kind === 'knocks' ? 'ob_knocks' : 'ob_touch_log';
+  const st = typeof apSyncStatus === 'function' ? apSyncStatus() : { unsynced: [] };
+  return P.kind + ': ' + n + ' rows merged' + (st.unsynced.includes(k) ? ' locally; cloud save still pending' : ' to the cloud') + '.';
+}
+
 // ── Import (used by the daily refresh via Claude in Chrome) ──────────
 // obImport.start(); obImport.add(base64Chunk) ...; await obImport.finish()
-// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets', data}).
+// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches', data}).
 window.obImport = (() => {
   let parts = [];
   return {
@@ -606,6 +659,7 @@ window.obImport = (() => {
       parts = [];
       const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
       const P = JSON.parse(text);
+      if (P.kind === 'knocks' || P.kind === 'touches') return mergeImport(P);
       const key = { leads: 'ob_leads', customers: 'ob_customers', targets: 'ob_targets' }[P.kind];
       if (!key || !P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
       if (P.kind === 'leads' && P.data.rows.length < 0.8 * ((readJSON('ob_leads') || { rows: [] }).rows.length)) throw new Error('Refusing: new lead list is more than 20% shorter than the current one (' + P.data.rows.length + ' rows). Check the sheet read.');
