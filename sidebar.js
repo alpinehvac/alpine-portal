@@ -145,7 +145,7 @@
   #ap-sb-scrim{display:none;position:fixed;inset:0;background:rgba(10,42,48,.4);z-index:899}
   @media (max-width:900px){
     html.ap-sb body,html.ap-sb.ap-sb-c body{padding-left:0!important}
-    html.ap-sb body{padding-top:0}
+    html.ap-sb body{padding-top:58px!important}
     #ap-sb,html.ap-sb-c #ap-sb{width:var(--ap-sb-w);transform:translateX(-105%)}
     html.ap-sb-m #ap-sb{transform:none}
     html.ap-sb-m #ap-sb-scrim{display:block}

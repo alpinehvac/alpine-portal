@@ -559,6 +559,72 @@ function renderUnplaced() {
   return rows.length;
 }
 
+// ── This week's knock list (live field sheet) ───────────────────────
+// ob_knock_weeks: { rows: [ { week, sent, areas, ids: [target ids in route order] } ] }, written by the
+// Monday "100 new knocks" task. A building counts as knocked when a Fireflies conversation is filed
+// against it (targetId) or names the same street address or building.
+const weeksDoc = readJSON('ob_knock_weeks') || { rows: [] };
+const targetById = {}; targetsAll.forEach(t => { targetById[t.id] = t; });
+const CHAINS = /walmart|no frills|food basics|zehrs|home depot|dollarama|value village|shoppers|wholesale club|canadian tire/i;
+const TOWERS = /marriott|hilton|sheraton|crowne|embassy|fallsview casino|doubletree/i;
+function fieldNote(t) {
+  const ty = (t.type || '') + ' ' + (t.sector || ''), n = t.name || '', big = (t.sqft || 0) >= 100000;
+  if (/municipal|tender|region/i.test(ty + ' ' + n)) return 'Public owner: buys by tender. Get the facilities contact and onto the bid list.';
+  if (/long-term|nursing|senior|lodge|manor|retirement|care/i.test(ty + ' ' + n)) return 'Long-term care, occupied 24/7: boilers, make-up air, comfort complaints. Ask for the administrator or maintenance lead.';
+  if (/hotel|motel|inn\b/i.test(ty + ' ' + n)) {
+    if (TOWERS.test(n) || big) return 'Tower hotel: central plant, chillers and boilers, likely a BAS. Ask for the chief engineer; lead with BAS + mechanical.';
+    if (/motel|inn\b|lodge/i.test(n) && (t.sqft || 0) < 25000) return 'Motel: owner-operated, wall units and a hot-water boiler. Owner decides on the spot.';
+    return 'Hotel: PTACs or rooftops, hot-water boilers. Ask for the chief engineer or GM; guest complaints cost them rooms.';
+  }
+  if (CHAINS.test(n)) return 'National chain: HVAC bought by head office or a facilities firm. Ask who services the rooftops and get the FM company name.';
+  if (/supermarket|grocery/i.test(ty)) return 'Grocery: rooftops plus refrigeration. Ask the store manager who they call for HVAC.';
+  if (/shopping|mall|centre/i.test(ty + ' ' + n) && /retail|shopping|mall/i.test(ty)) return 'Shopping centre: go to the management office; ask for the operations manager.';
+  if (/factory|plant|steel|forge|casting|manufactur/i.test(ty + ' ' + n)) return 'Plant: unit heaters, make-up air, process cooling. Ask for the plant or maintenance manager.';
+  if (/warehouse|logistics|delivery|distribution/i.test(ty + ' ' + n)) return 'Warehouse: gas unit heaters, dock-door heat loss. Ask for the operations manager.';
+  if (/industrial/i.test(ty)) return 'Industrial: unit heaters, rooftops, shop exhaust. Ask for the owner or plant manager.';
+  if (/office/i.test(ty)) return 'Office: rooftops or a BAS. Ask who manages the building.';
+  if (/retail/i.test(ty)) return 'Retail: one landlord for the plaza. Get the property manager\'s name from a tenant.';
+  if (/school|church|court|government|hydro|utility/i.test(ty + ' ' + n)) return 'Institutional: may buy by tender or central contract. Ask for facilities.';
+  return 'Find the owner or property manager (tenant board, front desk); ask who services the rooftops.';
+}
+const numKey = a => { const m = cleanAddr(a || '').toLowerCase().match(/^(\d+)\s+([a-z]+)/); return m ? m[1] + ' ' + m[2] : ''; };
+function knocksForTarget(t) {
+  const ak = numKey(t.address || (geo['rev:' + t.id] || {}).addr), nn = normName(t.name);
+  return knocks.filter(k => k.targetId === t.id || (!k.targetId && !k.leadId && ((ak && numKey(k.address) === ak) || (nn.length > 5 && normName(k.company) === nn))));
+}
+let weekSel = null;
+function renderWeek() {
+  const el = $('wk-list'); if (!el) return;
+  const weeks = (weeksDoc.rows || []).slice().sort((a, b) => b.week - a.week);
+  if (!weeks.length) { el.innerHTML = '<p class="hint">No weekly knock list saved yet. The Monday "100 new knocks" run saves it here.</p>'; return; }
+  const W = weeks.find(w => w.week === weekSel) || weeks[0]; weekSel = W.week;
+  const rows = W.ids.map((id, i) => ({ n: i + 1, t: targetById[id] })).filter(r => r.t);
+  rows.forEach(r => { r.k = knocksForTarget(r.t); });
+  const done = rows.filter(r => r.k.length).sort((a, b) => (b.k[0].date || '').localeCompare(a.k[0].date || ''));
+  const next = rows.filter(r => !r.k.length);
+  const mapLink = t => { const a = t.address || (geo['rev:' + t.id] || {}).addr; return a ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(a + ', ' + (t.area || '') + ', ON') + '" target="_blank" rel="noopener">' + esc(a) + '</a>' : (t.lat != null ? '<a href="https://maps.google.com/?q=' + t.lat + ',' + t.lng + '" target="_blank" rel="noopener">map pin</a>' : ''); };
+  const sz = t => t.sqft ? ' · ' + fmtSqft(t.sqft) : '';
+  let h = '<div class="wk-head">' + (weeks.length > 1 ? '<select id="wk-sel">' + weeks.map(w => '<option value="' + w.week + '"' + (w.week === W.week ? ' selected' : '') + '>Week ' + w.week + ' · ' + fmtDate(w.sent) + '</option>').join('') + '</select>' : '<b>Week ' + W.week + '</b> · sent ' + fmtDate(W.sent)) +
+    ' <span class="wk-count">' + done.length + ' knocked · ' + next.length + ' to go</span></div>';
+  h += '<h3 class="wk-h">Knocked (' + done.length + ')</h3>' + (done.length ? '<ol class="wk">' + done.map(r => {
+    const k = r.k[0];
+    return '<li class="done"><div class="wk-top"><span class="wk-n">' + r.n + '</span><a class="wk-name" data-fly="t:' + esc(r.t.id) + '">' + esc(r.t.name) + '</a>' +
+      (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '<span class="wk-date">' + fmtDate(k.date) + '</span></div>' +
+      '<div class="wk-sub">' + mapLink(r.t) + (r.t.area ? ', ' + esc(r.t.area) : '') + sz(r.t) + '</div>' +
+      '<div class="wk-sum">' + esc(k.summary || '') + (k.nextStep ? ' <b>Next:</b> ' + esc(k.nextStep) + (k.followUp ? ' (' + fmtDate(k.followUp) + ')' : '') : '') + (k.url ? ' <a href="' + esc(k.url) + '" target="_blank" rel="noopener">Recording ↗</a>' : '') + '</div></li>';
+  }).join('') + '</ol>' : '<p class="hint">Nothing knocked from this list yet. Record each knock in Fireflies; it lands here the same evening.</p>');
+  h += '<h3 class="wk-h">Next up, in route order (' + next.length + ')</h3>';
+  let area = null;
+  h += next.map(r => {
+    const a = r.t.area || 'Other', head = a !== area ? (area === null ? '' : '</ol>') + '<div class="wk-area">' + esc(a) + '</div><ol class="wk">' : '';
+    area = a;
+    return head + '<li><div class="wk-top"><span class="wk-n">' + r.n + '</span><a class="wk-name" data-fly="t:' + esc(r.t.id) + '">' + esc(r.t.name) + '</a><span class="wk-type">' + esc(r.t.type || '') + '</span></div>' +
+      '<div class="wk-sub">' + mapLink(r.t) + sz(r.t) + '</div><div class="wk-note">' + esc(fieldNote(r.t)) + '</div></li>';
+  }).join('') + (next.length ? '</ol>' : '');
+  el.innerHTML = h;
+  const sel = $('wk-sel'); if (sel) sel.onchange = () => { weekSel = +sel.value; renderWeek(); };
+}
+
 // Door-knock conversations table (Fireflies). Clicking a matched row flies to its pin.
 function renderKnocks() {
   const el = $('t-knocks'); if (!el) return;
@@ -617,6 +683,7 @@ function renderAll(redrawMap) {
   const un = renderUnplaced();
   renderMetrics(fu, un);
   renderKnocks();
+  renderWeek();
   if (!fitted) {
     const pts = leads.concat(customers).map(posOf).filter(Boolean).filter(p => km({ lat: HAMILTON[0], lng: HAMILTON[1] }, p) < 90).map(p => [p.lat, p.lng]);
     pts.push([shopPos().lat, shopPos().lng]);
@@ -634,6 +701,11 @@ async function mergeImport(P) {
     (cur.rows || []).forEach(r => by[r.id] = r);
     P.data.rows.forEach(r => { if (!r.id) return; by[r.id] = { ...(by[r.id] || {}), ...r }; n++; });
     localStorage.setItem('ob_knocks', JSON.stringify({ rows: Object.values(by), importedAt: Date.now(), importedBy: session.name }));
+  } else if (P.kind === 'weeks') {
+    const cur = readJSON('ob_knock_weeks') || { rows: [] }, by = {};
+    (cur.rows || []).forEach(r => by[r.week] = r);
+    P.data.rows.forEach(r => { if (!r.week || !Array.isArray(r.ids)) return; by[r.week] = r; n++; });
+    localStorage.setItem('ob_knock_weeks', JSON.stringify({ rows: Object.values(by).sort((a, b) => a.week - b.week) }));
   } else {
     const cur = readJSON('ob_touch_log') || [], key = r => r.wk + '|' + r.rep + '|' + (r.src || '');
     const by = {}; cur.forEach(r => by[key(r)] = r);
@@ -641,14 +713,14 @@ async function mergeImport(P) {
     localStorage.setItem('ob_touch_log', JSON.stringify(Object.values(by)));
   }
   await new Promise(r => setTimeout(r, 2500));
-  const k = P.kind === 'knocks' ? 'ob_knocks' : 'ob_touch_log';
+  const k = { knocks: 'ob_knocks', weeks: 'ob_knock_weeks' }[P.kind] || 'ob_touch_log';
   const st = typeof apSyncStatus === 'function' ? apSyncStatus() : { unsynced: [] };
   return P.kind + ': ' + n + ' rows merged' + (st.unsynced.includes(k) ? ' locally; cloud save still pending' : ' to the cloud') + '.';
 }
 
 // ── Import (used by the daily refresh via Claude in Chrome) ──────────
 // obImport.start(); obImport.add(base64Chunk) ...; await obImport.finish()
-// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches', data}).
+// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches'|'weeks', data}).
 window.obImport = (() => {
   let parts = [];
   return {
@@ -659,7 +731,7 @@ window.obImport = (() => {
       parts = [];
       const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
       const P = JSON.parse(text);
-      if (P.kind === 'knocks' || P.kind === 'touches') return mergeImport(P);
+      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks') return mergeImport(P);
       const key = { leads: 'ob_leads', customers: 'ob_customers', targets: 'ob_targets' }[P.kind];
       if (!key || !P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
       if (P.kind === 'leads' && P.data.rows.length < 0.8 * ((readJSON('ob_leads') || { rows: [] }).rows.length)) throw new Error('Refusing: new lead list is more than 20% shorter than the current one (' + P.data.rows.length + ' rows). Check the sheet read.');

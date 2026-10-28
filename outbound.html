@@ -148,6 +148,22 @@ html.ap-embed-map .side>div:has(#tg-rep),html.ap-embed-map .side>div:has(#tg-age
 .pop .knocks .kh{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--light-grey);margin-bottom:.3rem}
 .pop .kn{font-size:.8rem;margin-bottom:.55rem}.pop .kn p{margin:.2rem 0}
 #t-knocks td{vertical-align:top;font-size:.84rem}
+.wk-wrap{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.2rem;max-height:720px;overflow:auto}
+.wk-head{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;font-size:.9rem;margin-bottom:.4rem}
+.wk-head select{font:inherit;padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border)}
+.wk-count{color:var(--light-grey);font-size:.82rem}
+.wk-h{font-family:'Oswald',sans-serif;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;margin:1rem 0 .4rem;color:var(--teal-light)}
+.wk-area{font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--light-grey);margin:.9rem 0 .2rem;border-bottom:1px solid var(--border);padding-bottom:.2rem}
+ol.wk{list-style:none;margin:0;padding:0}
+ol.wk li{padding:.55rem 0;border-bottom:1px solid rgba(16,68,78,.07)}
+ol.wk li:last-child{border-bottom:0}
+.wk-top{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}
+.wk-n{font-family:'Oswald',sans-serif;color:var(--light-grey);min-width:1.8rem;font-size:.85rem}
+.wk-name{font-weight:600;cursor:pointer;color:var(--white);text-decoration:none}.wk-name:hover{color:var(--teal-light)}
+.wk-type,.wk-date{font-size:.75rem;color:var(--light-grey)}.wk-date{margin-left:auto}
+.wk-sub{font-size:.8rem;color:var(--light-grey);margin:.15rem 0 0 2.3rem}.wk-sub a{color:var(--teal-light)}
+.wk-note,.wk-sum{font-size:.82rem;margin:.2rem 0 0 2.3rem;line-height:1.45}
+ol.wk li.done{background:rgba(46,125,87,.05)}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -162,6 +178,11 @@ html.ap-embed-map .side>div:has(#tg-rep),html.ap-embed-map .side>div:has(#tg-age
   <div class="head"><h1>Outbound</h1><div class="asof" id="asof">Loading…</div></div>
   <div id="banners"></div>
   <div class="metrics" id="metrics"></div>
+
+  <section id="wk-section">
+    <div class="h2-row"><div><h2>This week's knock list</h2><p class="h2-note">Live field sheet: the Monday list of 100 buildings in route order. Knocks recorded in Fireflies move to the top with their summary the same evening. Tap a name to see it on the map, an address to open Maps.</p></div></div>
+    <div class="wk-wrap" id="wk-list"></div>
+  </section>
 
   <section>
     <div class="h2-row"><div><h2>Territory map</h2><p class="h2-note">Every lead on the sheet, every customer site, and buildings not yet contacted. Search before you knock: if it's already on the map, someone has it.</p></div></div>
