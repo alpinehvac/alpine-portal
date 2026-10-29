@@ -788,7 +788,29 @@
   .tier-compare:empty{ display:none; }
 
   body.svc-semi .tier-card.tier-premium{ display:none; }
-  body.svc-semi .tier-grid{ grid-template-columns:repeat(2, 1fr); }
+  body.pkg-hide-min .tier-card.tier-min,
+  body.pkg-hide-core .tier-card.tier-core,
+  body.pkg-hide-premium .tier-card.tier-premium{ display:none; }
+  .tier-grid.pkg-cols-1{ grid-template-columns:minmax(0, 440px); justify-content:center; }
+  .tier-grid.pkg-cols-2{ grid-template-columns:repeat(2, 1fr); }
+  /* Package controls (rep only) */
+  .pkg-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:-6px 0 14px; font-family:'Inter',sans-serif; font-size:12px; color:var(--slate-mid); }
+  .pkg-row label{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none; font-weight:600; }
+  .pkg-row input[type="checkbox"]{ width:15px; height:15px; accent-color:var(--glacier); cursor:pointer; }
+  .pkg-row select{ font-family:'Inter',sans-serif; font-size:12px; padding:4px 6px; border:1px solid var(--mist); border-radius:4px; color:var(--slate); background:#fff; }
+  .pkg-sep{ width:1px; height:18px; background:var(--mist); }
+  body.svc-onetime .pkg-row{ display:none !important; }
+  /* Recommended package badge */
+  .tier-card{ position:relative; }
+  .tier-rec-badge{ display:none; position:absolute; top:-11px; left:50%; transform:translateX(-50%); font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.8px; text-transform:uppercase; color:#fff; padding:3px 10px; border-radius:10px; white-space:nowrap; }
+  .tier-card.is-rec .tier-rec-badge{ display:block; }
+  .tier-card.tier-min.is-rec{ box-shadow:0 0 0 2px var(--pine), 0 6px 22px rgba(28,45,63,0.13); }
+  .tier-card.tier-core.is-rec{ box-shadow:0 0 0 2px var(--ridge), 0 6px 22px rgba(28,45,63,0.13); }
+  .tier-card.tier-premium.is-rec{ box-shadow:0 0 0 2px var(--summit), 0 6px 22px rgba(28,45,63,0.13); }
+  @media(max-width:680px){ .tier-grid.pkg-cols-1, .tier-grid.pkg-cols-2{ grid-template-columns:1fr; } }
+  .tier-card.tier-min .tier-rec-badge{ background:var(--pine); }
+  .tier-card.tier-core .tier-rec-badge{ background:var(--ridge); }
+  .tier-card.tier-premium .tier-rec-badge{ background:var(--summit); }
   .tier-card.tier-onetime{ display:none; border-top:4px solid var(--glacier-dk); }
   body.svc-onetime .tier-grid .tier-card{ display:none; }
   body.svc-onetime .tier-grid .tier-card.tier-onetime{ display:flex; }
@@ -819,7 +841,8 @@
     .panel:has(#addBtn){ display:none !important; }
     .panel{ box-shadow:none !important; border:1px solid #ddd !important; margin-bottom:10px !important; break-inside:avoid; }
     .tier-grid{ grid-template-columns:repeat(3,1fr) !important; }
-    body.svc-semi .tier-grid{ grid-template-columns:repeat(2,1fr) !important; }
+    .tier-grid.pkg-cols-2{ grid-template-columns:repeat(2,1fr) !important; }
+    .tier-grid.pkg-cols-1{ grid-template-columns:minmax(0,440px) !important; }
     body.svc-onetime .tier-grid{ grid-template-columns:minmax(0,440px) !important; }
     .tier-card{ break-inside:avoid; box-shadow:none !important; }
     .total-plate{ break-inside:avoid; }
@@ -1016,12 +1039,27 @@
         <label><input type="radio" name="svcMode" value="onetime"><span>One-Time Service</span></label>
       </div>
     </div>
+    <div class="pkg-row rep-only">
+      <span class="svc-mode-lbl">Show Packages</span>
+      <label><input type="checkbox" id="pkgShowMin" checked> Base</label>
+      <label><input type="checkbox" id="pkgShowCore" checked> Core</label>
+      <label id="pkgShowPremiumWrap"><input type="checkbox" id="pkgShowPremium" checked> Premium</label>
+      <span class="pkg-sep"></span>
+      <span class="svc-mode-lbl">Recommend</span>
+      <select id="pkgRec">
+        <option value="">None</option>
+        <option value="min">Base</option>
+        <option value="core">Core</option>
+        <option value="premium">Premium</option>
+      </select>
+    </div>
     <div class="svc-mode-badge" id="svcModeBadge"></div>
     <div class="annual-toggle-wrap customer-only">
       <button class="annual-toggle-btn" id="btnToggleAnnual" type="button">Show Annual Cost</button>
     </div>
-    <div class="tier-grid">
+    <div class="tier-grid" id="tierGrid">
       <div class="tier-card tier-min">
+        <div class="tier-rec-badge">Recommended</div>
         <div class="tier-top">
           <div class="tier-top-header">
             <div class="tier-visual">
@@ -1050,6 +1088,7 @@
         <ul class="tier-features" id="tierMinFeatures"></ul>
       </div>
       <div class="tier-card tier-core">
+        <div class="tier-rec-badge">Recommended</div>
         <div class="tier-top">
           <div class="tier-top-header">
             <div class="tier-visual">
@@ -1080,6 +1119,7 @@
         <ul class="tier-features" id="tierCoreFeatures"></ul>
       </div>
       <div class="tier-card tier-premium">
+        <div class="tier-rec-badge">Recommended</div>
         <div class="tier-top">
           <div class="tier-top-header">
             <div class="tier-visual">

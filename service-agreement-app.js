@@ -115,6 +115,7 @@
       { rate: 900, hoursId: 'tierPremiumHours', monthlyId: 'tierPremiumMonthly', annualId: 'tierPremiumAnnual', bufferNoteId: 'tierPremiumBufferNote', key: 'premium' }
     ];
     const tierHrs = mode === 'semi' ? modeTotal('semi') : total;
+    syncPkgUI(mode);
     tiers.forEach(t => {
       const cap = t.key.charAt(0).toUpperCase() + t.key.slice(1);
       document.getElementById(t.hoursId).textContent = fmt(tierHrs) + (mode === 'semi' ? ' semi-annual' : '');
@@ -223,6 +224,44 @@
   }
   function modeLineTotal(l, mode){ return l.qty * unitHrs(l, mode); }
   function modeTotal(mode){ return lines.reduce((s, l) => s + modeLineTotal(l, mode), 0); }
+  // ---- Package visibility + recommended package (per proposal) ----
+  const PKG_KEYS = ['min', 'core', 'premium'];
+  const PKG_IDS = { min: 'pkgShowMin', core: 'pkgShowCore', premium: 'pkgShowPremium' };
+  function getPkgShow(){
+    const o = {};
+    PKG_KEYS.forEach(k => { const el = document.getElementById(PKG_IDS[k]); o[k] = el ? el.checked : true; });
+    return o;
+  }
+  function setPkgShow(o){
+    PKG_KEYS.forEach(k => { const el = document.getElementById(PKG_IDS[k]); if(el) el.checked = !o || o[k] !== false; });
+  }
+  function getPkgRec(){ const el = document.getElementById('pkgRec'); return el ? el.value : ''; }
+  // Packages actually offered in the current mode (Premium is never offered semi-annually)
+  function visiblePkgs(mode){
+    const show = getPkgShow();
+    const vis = PKG_KEYS.filter(k => show[k] && !(mode === 'semi' && k === 'premium'));
+    // Semi-annual with only Premium ticked would leave nothing to offer — fall back to Base + Core
+    return vis.length ? vis : PKG_KEYS.filter(k => k !== 'premium');
+  }
+  function syncPkgUI(mode){
+    const show = getPkgShow();
+    const vis = visiblePkgs(mode);
+    PKG_KEYS.forEach(k => document.body.classList.toggle('pkg-hide-' + k, !vis.includes(k)));
+    const grid = document.getElementById('tierGrid');
+    if(grid){
+      grid.classList.toggle('pkg-cols-1', mode !== 'onetime' && vis.length === 1);
+      grid.classList.toggle('pkg-cols-2', mode !== 'onetime' && vis.length === 2);
+    }
+    const pw = document.getElementById('pkgShowPremiumWrap');
+    if(pw) pw.style.opacity = mode === 'semi' ? '0.45' : '';
+    if(pw) pw.title = mode === 'semi' ? 'Premium is not offered semi-annually' : '';
+    const rec = getPkgRec();
+    PKG_KEYS.forEach(k => {
+      const card = document.querySelector('.tier-card.tier-' + k);
+      if(card) card.classList.toggle('is-rec', rec === k && vis.includes(k));
+    });
+  }
+
   function syncServiceModeClass(){
     const mode = getServiceMode();
     document.body.classList.toggle('svc-semi', mode === 'semi');
@@ -459,6 +498,21 @@
 
   document.getElementById('bufferToggle').addEventListener('change', render);
   document.querySelectorAll('input[name="svcMode"]').forEach(r => r.addEventListener('change', render));
+  PKG_KEYS.forEach(k => {
+    const el = document.getElementById(PKG_IDS[k]);
+    if(!el) return;
+    el.addEventListener('change', function(){
+      const show = getPkgShow(), m = getServiceMode();
+      const offered = PKG_KEYS.filter(x => show[x] && !(m === 'semi' && x === 'premium'));
+      if(offered.length === 0 && !el.checked){
+        el.checked = true;
+        alert('At least one package must be shown.');
+        return;
+      }
+      render();
+    });
+  });
+  document.getElementById('pkgRec').addEventListener('change', render);
 
   const btnToggleAnnual = document.getElementById('btnToggleAnnual');
   btnToggleAnnual.addEventListener('click', function(){
@@ -554,7 +608,9 @@
       { name:'Core',    rate:300, color:'#b83227', tagline:'Consistent Results at a Predictable Cost', key:'core' },
       { name:'Premium', rate:900, color:'#b8962e', tagline:'All-In Coverage & Peace of Mind', key:'premium' }
     ];
-    const tiers = mode === 'semi' ? allTiers.filter(t => t.key !== 'premium') : allTiers;
+    const vis = visiblePkgs(mode);
+    const tiers = allTiers.filter(t => vis.includes(t.key));
+    const recKey = getPkgRec();
     const oneTimeAmt = total * RETAIL_RATE * bufferMult;
 
     const oneTimeCard = `
@@ -580,7 +636,8 @@
         ? `<div style="font-size:10.5px;color:#666;margin-top:2px;">$${fmtCurrency(annualAmt)} / yr + Applicable Taxes</div>`
         : '';
       return `
-        <div style="border:1px solid #c9b8d4;border-top:4px solid ${t.color};border-radius:4px;padding:14px;display:flex;flex-direction:column;">
+        <div style="position:relative;border:${t.key === recKey ? '2px solid ' + t.color : '1px solid #c9b8d4'};border-top:4px solid ${t.color};border-radius:4px;padding:14px;display:flex;flex-direction:column;">
+          ${t.key === recKey ? `<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:${t.color};color:#fff;font-size:8.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:2px 9px;border-radius:9px;white-space:nowrap;">Recommended</div>` : ''}
           <div style="font-family:sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:${t.color}">${t.name}</div>
           <div style="font-size:10px;color:#666;font-style:italic;margin-top:3px;margin-bottom:8px;">${t.tagline}</div>
           ${rateRow}
@@ -642,7 +699,7 @@
               <div style="font-size:11.5px;color:#333;">☐ One-Time Service</div>
               <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(oneTimeAmt * 1.13)} after tax (HST 13%)</div>
             </div>` : tiers.map(t => `<div>
-              <div style="font-size:11.5px;color:#333;">☐ ${t.name}${mode === 'semi' ? ' — Semi-Annual' : ''}</div>
+              <div style="font-size:11.5px;color:#333;">☐ ${t.name}${mode === 'semi' ? ' — Semi-Annual' : ''}${t.key === recKey ? ' <span style="font-size:9.5px;color:#666;">(Recommended)</span>' : ''}</div>
               <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(total * t.rate * bufferMult * 1.13)} / yr after tax (HST 13%)</div>
             </div>`).join('')}
           </div>
@@ -679,7 +736,7 @@
     const docKind = oneTime ? 'Alpine HVAC One-Time Service' : ('Alpine HVAC Service Agreement' + (mode === 'semi' ? ' (Semi-Annual)' : ''));
     const docTitle = (facName ? escapeHtml(facName) + ' — ' : '') + docKind + ' ' + new Date().toISOString().slice(0,10);
     const headerKind = oneTime ? 'One-Time Service Estimate' : ('Service Agreement Estimate' + (mode === 'semi' ? ' — Semi-Annual' : ''));
-    const tierCols = oneTime ? 'minmax(0,260px)' : 'repeat(' + tiers.length + ',1fr)';
+    const tierCols = (oneTime || tiers.length === 1) ? 'minmax(0,260px)' : 'repeat(' + tiers.length + ',1fr)';
 
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + docTitle + '</title>'
       + '<style>'
@@ -769,6 +826,8 @@ function saSnapshot(){
     quoteRep: g('quoteRep'),
     specialConsiderations: g('specialConsiderations'),
     serviceMode: getServiceMode(),
+    pkgShow: getPkgShow(),
+    pkgRec: getPkgRec(),
     lines: JSON.parse(JSON.stringify(lines))
   };
 }
@@ -788,6 +847,8 @@ function saApplySnapshot(snap){
   idCounter = lines.reduce((m,l) => Math.max(m, l.id || 0), 0) + 1;
   if (typeof syncRestaurantExclusion === 'function') syncRestaurantExclusion();
   setServiceMode(snap.serviceMode);
+  setPkgShow(snap.pkgShow);
+  const recEl = document.getElementById('pkgRec'); if (recEl) recEl.value = snap.pkgRec || '';
   render();
 }
 
