@@ -741,14 +741,26 @@ function renderWeek() {
   const W = weeks.find(w => w.week === weekSel) || weeks[0]; weekSel = W.week;
   const rows = W.ids.map((id, i) => ({ n: i + 1, t: targetById[id] })).filter(r => r.t);
   rows.forEach(r => { r.k = knocksForTarget(r.t); });
-  const done = rows.filter(r => r.k.length).sort((a, b) => (b.k[0].date || '').localeCompare(a.k[0].date || ''));
   const next = rows.filter(r => !r.k.length);
+  // Knocks outside the list (off-list buildings, or leads not on this week's route) dated within this
+  // week's window join the Knocked group, so the list shows every door knocked that week.
+  const nextSent = (weeks.filter(w => (w.sent || '') > (W.sent || '')).map(w => w.sent).sort()[0]) || '9999';
+  const onList = new Set(rows.flatMap(r => r.k.map(k => k.id)));
+  const extra = knocks.filter(k => k.date && k.date >= (W.sent || '').slice(0, 10) && k.date < nextSent.slice(0, 10) && !onList.has(k.id))
+    .map(k => ({ x: true, k: [k], ref: knockRef(k) }));
+  const done = rows.filter(r => r.k.length).concat(extra).sort((a, b) => (b.k[0].date || '').localeCompare(a.k[0].date || ''));
   const mapLink = t => { const a = t.address || (geo['rev:' + t.id] || {}).addr; return a ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(a + ', ' + (t.area || '') + ', ON') + '" target="_blank" rel="noopener">' + esc(a) + '</a>' : (t.lat != null ? '<a href="https://maps.google.com/?q=' + t.lat + ',' + t.lng + '" target="_blank" rel="noopener">map pin</a>' : ''); };
   const sz = t => t.sqft ? ' · ' + fmtSqft(t.sqft) : '';
   let h = '<div class="wk-head">' + (weeks.length > 1 ? '<select id="wk-sel">' + weeks.map(w => '<option value="' + w.week + '"' + (w.week === W.week ? ' selected' : '') + '>Week ' + w.week + ' · ' + fmtDate(w.sent) + '</option>').join('') + '</select>' : '<b>Week ' + W.week + '</b> · sent ' + fmtDate(W.sent)) +
-    ' <span class="wk-count">' + done.length + ' knocked · ' + next.length + ' to go</span></div>';
+    ' <span class="wk-count">' + done.length + ' knocked' + (extra.length ? ' (' + extra.length + ' off the list)' : '') + ' · ' + next.length + ' to go</span></div>';
   h += '<h3 class="wk-h">Knocked (' + done.length + ')</h3>' + (done.length ? '<ol class="wk">' + done.map(r => {
     const k = r.k[0];
+    if (r.x) return '<li class="done"><div class="wk-top"><span class="wk-n" title="Not on this week\'s list">+</span>' +
+      (r.ref ? '<a class="wk-name" data-fly="' + esc(r.ref) + '">' + esc(k.company || '—') + '</a>' : '<b class="wk-name">' + esc(k.company || '—') + '</b>') +
+      '<span class="wk-type">' + (r.ref.startsWith('l:') ? 'Lead, off this week\'s list' : 'Off the list') + '</span>' +
+      (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '<span class="wk-date">' + fmtDate(k.date) + '</span></div>' +
+      '<div class="wk-sub">' + (k.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(k.address + ', ON') + '" target="_blank" rel="noopener">' + esc(k.address) + '</a>' : 'No address in the recording') + (k.contact ? ' · ' + esc(k.contact) + (k.role ? ' (' + esc(k.role) + ')' : '') : '') + '</div>' +
+      '<div class="wk-sum">' + esc(k.summary || '') + (k.nextStep ? ' <b>Next:</b> ' + esc(k.nextStep) + (k.followUp ? ' (' + fmtDate(k.followUp) + ')' : '') : '') + (k.url ? ' <a href="' + esc(k.url) + '" target="_blank" rel="noopener">Recording ↗</a>' : '') + '</div></li>';
     return '<li class="done"><div class="wk-top"><span class="wk-n">' + r.n + '</span><a class="wk-name" data-fly="t:' + esc(r.t.id) + '">' + esc(r.t.name) + '</a>' +
       (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '<span class="wk-date">' + fmtDate(k.date) + '</span></div>' +
       '<div class="wk-sub">' + mapLink(r.t) + (r.t.area ? ', ' + esc(r.t.area) : '') + sz(r.t) + '</div>' + contactHTML(r.t.id) +
