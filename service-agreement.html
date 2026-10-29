@@ -771,6 +771,43 @@
   .buffer-row input[type="checkbox"]{ width:15px; height:15px; accent-color:var(--glacier); cursor:pointer; }
   .buffer-row label{ cursor:pointer; user-select:none; }
 
+
+  /* ── Service option (Quarterly+ / Semi-Annual / One-Time) ─────────── */
+  .svc-mode-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:-2px 0 14px; }
+  .svc-mode-lbl{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.5px; text-transform:uppercase; color:var(--stone); }
+  .svc-mode{ display:inline-flex; border:1px solid var(--glacier); border-radius:5px; overflow:hidden; }
+  .svc-mode label{ position:relative; cursor:pointer; user-select:none; }
+  .svc-mode input{ position:absolute; opacity:0; pointer-events:none; }
+  .svc-mode span{ display:block; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; color:var(--glacier-dk); padding:7px 14px; border-left:1px solid var(--glacier); background:#fff; }
+  .svc-mode label:first-child span{ border-left:none; }
+  .svc-mode input:checked + span{ background:var(--glacier); color:#fff; }
+  .svc-mode input:focus-visible + span{ outline:2px solid var(--glacier-dk); outline-offset:-3px; }
+  .svc-mode-badge{ display:none; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.6px; text-transform:uppercase; color:var(--glacier-dk); background:var(--glacier-lt); border-radius:4px; padding:6px 10px; margin:0 0 14px; }
+  body.svc-semi .svc-mode-badge, body.svc-onetime .svc-mode-badge{ display:block; }
+  .tier-compare{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--stone); margin-top:3px; }
+  .tier-compare:empty{ display:none; }
+
+  body.svc-semi .tier-card.tier-premium{ display:none; }
+  body.svc-semi .tier-grid{ grid-template-columns:repeat(2, 1fr); }
+  .tier-card.tier-onetime{ display:none; border-top:4px solid var(--glacier-dk); }
+  body.svc-onetime .tier-grid .tier-card{ display:none; }
+  body.svc-onetime .tier-grid .tier-card.tier-onetime{ display:flex; }
+  body.svc-onetime .tier-grid{ grid-template-columns:minmax(0, 440px); justify-content:center; }
+  body.svc-onetime .annual-toggle-wrap{ display:none !important; }
+  @media(max-width:680px){ body.svc-semi .tier-grid, body.svc-onetime .tier-grid{ grid-template-columns:1fr; } }
+  .tier-card.tier-onetime .tier-label,
+  .tier-card.tier-onetime .tier-visual,
+  .tier-card.tier-onetime .price-block .price-primary,
+  .tier-card.tier-onetime .tier-features li.feat-yes,
+  .tier-card.tier-onetime .tier-features li::before{ color:var(--glacier-dk); }
+  .tier-card.tier-onetime .price-secondary.onetime-tax{ display:block !important; }
+
+  /* Agreement-only terms are hidden for one-time service; one-time-only terms are hidden otherwise */
+  .onetime-only{ display:none; }
+  body.svc-onetime .agr-only{ display:none !important; }
+  body.svc-onetime .onetime-only{ display:list-item; }
+  body.svc-onetime span.onetime-only, body.svc-onetime div.onetime-only{ display:inline; }
+
   /* ── Print styles ───────────────────────────────────────────────────── */
   @media print{
     body{ background:none !important; padding:0 !important; color:#1a1a1a !important; }
@@ -782,6 +819,8 @@
     .panel:has(#addBtn){ display:none !important; }
     .panel{ box-shadow:none !important; border:1px solid #ddd !important; margin-bottom:10px !important; break-inside:avoid; }
     .tier-grid{ grid-template-columns:repeat(3,1fr) !important; }
+    body.svc-semi .tier-grid{ grid-template-columns:repeat(2,1fr) !important; }
+    body.svc-onetime .tier-grid{ grid-template-columns:minmax(0,440px) !important; }
     .tier-card{ break-inside:avoid; box-shadow:none !important; }
     .total-plate{ break-inside:avoid; }
     .rep-only{ display:block !important; }
@@ -955,20 +994,29 @@
 
   <div class="total-plate rep-only">
     <div>
-      <div class="lbl">Total Annual Man Hours</div>
+      <div class="lbl" id="totalLabel">Total Annual Man Hours</div>
       <div class="sub" id="lineCount">0 line items</div>
     </div>
-    <div class="big"><span id="totalHours">0</span><span class="unit">hrs / yr</span></div>
+    <div class="big"><span id="totalHours">0</span><span class="unit" id="totalUnit">hrs / yr</span></div>
   </div>
   <div class="footnote rep-only" id="daysNote"></div>
 
   <div class="panel">
-    <h2>On-Going Cost Calculator
+    <h2><span id="costTitle">On-Going Cost Calculator</span>
       <span class="buffer-row rep-only" style="margin-left:auto; text-transform:none; letter-spacing:0;">
         <input type="checkbox" id="bufferToggle" checked>
         <label for="bufferToggle">Include 5% Safety Buffer</label>
       </span>
     </h2>
+    <div class="svc-mode-row rep-only">
+      <span class="svc-mode-lbl">Service Option</span>
+      <div class="svc-mode" role="radiogroup" aria-label="Service option">
+        <label><input type="radio" name="svcMode" value="standard" checked><span>Quarterly+</span></label>
+        <label><input type="radio" name="svcMode" value="semi"><span>Semi-Annual</span></label>
+        <label><input type="radio" name="svcMode" value="onetime"><span>One-Time Service</span></label>
+      </div>
+    </div>
+    <div class="svc-mode-badge" id="svcModeBadge"></div>
     <div class="annual-toggle-wrap customer-only">
       <button class="annual-toggle-btn" id="btnToggleAnnual" type="button">Show Annual Cost</button>
     </div>
@@ -995,6 +1043,7 @@
               <div class="price-secondary annual-only">$<span id="tierMinAnnual">0</span> / yr + Applicable Taxes</div>
             </div>
             <div class="tier-formula rep-only"><span id="tierMinHours">0</span> hrs &times; $150 <span id="tierMinBufferNote"></span></div>
+            <div class="tier-compare rep-only" id="tierMinCompare"></div>
           </div>
         </div>
         <div class="tier-divider"></div>
@@ -1024,6 +1073,7 @@
               <div class="price-secondary annual-only">$<span id="tierCoreAnnual">0</span> / yr + Applicable Taxes</div>
             </div>
             <div class="tier-formula rep-only"><span id="tierCoreHours">0</span> hrs &times; $300 <span id="tierCoreBufferNote"></span></div>
+            <div class="tier-compare rep-only" id="tierCoreCompare"></div>
           </div>
         </div>
         <div class="tier-divider"></div>
@@ -1052,10 +1102,38 @@
               <div class="price-secondary annual-only">$<span id="tierPremiumAnnual">0</span> / yr + Applicable Taxes</div>
             </div>
             <div class="tier-formula rep-only"><span id="tierPremiumHours">0</span> hrs &times; $900 <span id="tierPremiumBufferNote"></span></div>
+            <div class="tier-compare rep-only" id="tierPremiumCompare"></div>
           </div>
         </div>
         <div class="tier-divider"></div>
         <ul class="tier-features" id="tierPremiumFeatures"></ul>
+      </div>
+      <div class="tier-card tier-onetime" id="oneTimeCard">
+        <div class="tier-top">
+          <div class="tier-top-header">
+            <div class="tier-visual">
+              <svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg" fill="none">
+                <path d="M8 60 L50 16 L92 60 Z" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+                <circle cx="50" cy="40" r="10" stroke="currentColor" stroke-width="1.4"/>
+                <line x1="57" y1="47" x2="66" y2="56" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="0" y1="60" x2="100" y2="60" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="tier-label">One-Time Service</div>
+            <div class="tier-tagline">Comprehensive Inspection. No Commitment</div>
+          </div>
+          <div class="tier-top-price">
+            <div class="tier-rate rep-only">$200 / hr (retail)</div>
+            <div class="price-block">
+              <div class="price-primary">$<span id="oneTimeTotal">0</span><span class="per">one-time</span></div>
+              <div class="price-secondary onetime-tax">+ Applicable Taxes</div>
+            </div>
+            <div class="tier-formula rep-only"><span id="oneTimeHours">0</span> hrs &times; $200 <span id="oneTimeBufferNote"></span></div>
+            <div class="tier-compare rep-only" id="oneTimeCompare"></div>
+          </div>
+        </div>
+        <div class="tier-divider"></div>
+        <ul class="tier-features" id="oneTimeFeatures"></ul>
       </div>
     </div>
   </div>
@@ -1084,20 +1162,21 @@
     <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; color:var(--purple); margin:2px 0 6px;">This Quote</div>
     <ul style="margin:0 0 14px; padding-left:16px; font-family:'Inter',sans-serif; font-size:11.5px; color:var(--slate-mid); line-height:1.7;">
       <li><strong>This quote is valid for 20 days from the date issued.</strong> Pricing presented after this period is not guaranteed and is subject to review and revision.</li>
-      <li><strong>Pricing is not fixed until a full maintenance visit has been performed and all equipment and components have been physically verified on site.</strong> Final agreement pricing will be adjusted to reflect the actual equipment count, condition, and scope confirmed during the initial visit.</li>
+      <li class="onetime-only"><strong>One-time service pricing reflects the equipment listed above.</strong> Any additional equipment identified on site, and any repairs, parts, or materials, are billed separately at retail rates.</li>
+      <li class="agr-only"><strong>Pricing is not fixed until a full maintenance visit has been performed and all equipment and components have been physically verified on site.</strong> Final agreement pricing will be adjusted to reflect the actual equipment count, condition, and scope confirmed during the initial visit.</li>
     </ul>
-    <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; color:var(--purple); margin:2px 0 6px;">Service Agreement Terms</div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.6px; color:var(--purple); margin:2px 0 6px;"><span class="agr-only">Service Agreement Terms</span><span class="onetime-only">Service Terms</span></div>
     <ul style="margin:0; padding-left:16px; font-family:'Inter',sans-serif; font-size:11.5px; color:var(--slate-mid); line-height:1.7;">
       <li><strong>Scope of Work:</strong> Work is limited to the equipment and systems identified within the facility at the time of agreement. Any work outside the defined scope, including upgrades, retrofits, or additional systems, will be quoted separately.</li>
-      <li><strong>Service Coverage:</strong> Full Service Coverage includes labour required to maintain and repair existing equipment under normal operating conditions. Replacement Coverage applies only to components deemed failed under normal wear and tear. Coverage does not include pre-existing deficiencies, code violations, abuse, neglect, improper use, acts of God, or third-party damage or unauthorized modifications.</li>
-      <li><strong>Preventative Maintenance:</strong> Client agrees to allow scheduled maintenance visits at the agreed frequency. Missed or delayed visits due to restricted access or client scheduling may impact performance outcomes and coverage guarantees.</li>
-      <li><strong>Emergency &amp; After-Hours Service:</strong> 24/7 on-call service is included; however, response times are target-based, not guaranteed, and emergency calls outside normal business hours may be prioritized based on severity and system impact.</li>
-      <li><strong>Building Automation Systems:</strong> Where BAS monitoring or operation is included, system access, network connectivity, and permissions must be provided by the client. Alpine is not responsible for failures caused by IT/network outages, third-party software issues, or manufacturer limitations.</li>
-      <li><strong>Consumables &amp; Materials:</strong> Base package — all consumables billed separately. Core package — discounted markup applied. Premium package — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
+      <li class="agr-only"><strong>Service Coverage:</strong> Full Service Coverage includes labour required to maintain and repair existing equipment under normal operating conditions. Replacement Coverage applies only to components deemed failed under normal wear and tear. Coverage does not include pre-existing deficiencies, code violations, abuse, neglect, improper use, acts of God, or third-party damage or unauthorized modifications.</li>
+      <li class="agr-only"><strong>Preventative Maintenance:</strong> Client agrees to allow scheduled maintenance visits at the agreed frequency. Missed or delayed visits due to restricted access or client scheduling may impact performance outcomes and coverage guarantees.</li>
+      <li class="agr-only"><strong>Emergency &amp; After-Hours Service:</strong> 24/7 on-call service is included; however, response times are target-based, not guaranteed, and emergency calls outside normal business hours may be prioritized based on severity and system impact.</li>
+      <li class="agr-only"><strong>Building Automation Systems:</strong> Where BAS monitoring or operation is included, system access, network connectivity, and permissions must be provided by the client. Alpine is not responsible for failures caused by IT/network outages, third-party software issues, or manufacturer limitations.</li>
+      <li class="agr-only"><strong>Consumables &amp; Materials:</strong> Base package — all consumables billed separately. Core package — discounted markup applied. Premium package — covered as outlined. Material availability and pricing are subject to supplier conditions and market fluctuations.</li>
       <li><strong>Client Responsibilities:</strong> Client agrees to provide safe and timely access to equipment, maintain appropriate operating conditions, notify Alpine of issues promptly, and ensure utilities (power, gas, water) are operational. Unsafe conditions may result in suspension of service until corrected.</li>
       <li><strong>Payment Terms:</strong> Invoices are due within 15 days. Late payments may result in suspension of service, removal of coverage benefits, and interest charges of 2% per month.</li>
-      <li><strong>Trial Period:</strong> Client will not be charged if unsatisfied after the initial service visit, provided concerns are communicated within 5 business days.</li>
-      <li><strong>Term &amp; Cancellation:</strong> This agreement remains in effect until cancelled by either party. Client may cancel at any time with written notice. No cancellation penalties apply; however, services performed up to the cancellation date remain payable.</li>
+      <li class="agr-only"><strong>Trial Period:</strong> Client will not be charged if unsatisfied after the initial service visit, provided concerns are communicated within 5 business days.</li>
+      <li class="agr-only"><strong>Term &amp; Cancellation:</strong> This agreement remains in effect until cancelled by either party. Client may cancel at any time with written notice. No cancellation penalties apply; however, services performed up to the cancellation date remain payable.</li>
       <li><strong>Liability Limitation:</strong> Alpine's liability is limited to the value of services provided under this agreement. Alpine is not liable for loss of business or revenue, tenant disruption, or secondary or consequential damages.</li>
       <li><strong>Warranty Disclaimer:</strong> Alpine does not warranty manufacturer equipment unless explicitly stated. Any warranties provided are limited to workmanship for a period of 90 days.</li>
       <li><strong>Force Majeure:</strong> Alpine is not liable for delays or failure to perform due to circumstances beyond reasonable control, including labour shortages, supply chain issues, or extreme weather events.</li>

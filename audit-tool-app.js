@@ -162,7 +162,7 @@ function catBand(v) { return v >= 17 ? 'Strong' : v >= 13 ? 'Stable' : v >= 9 ? 
 function catColor(v) { return v >= 17 ? '#2E7D57' : v >= 13 ? '#27636C' : v >= 9 ? '#A9821F' : '#9B2C2C'; }
 function recTier(a, sc) {
   if (sc.cnt.crit > 0 || sc.cats.bas <= 8 || a.client.critical) return { t: 'Premium', why: sc.cnt.crit > 0 ? 'Critical-risk equipment on site' : sc.cats.bas <= 8 ? 'Controls & BAS scored Critical' : 'Critical occupancy' };
-  if (sc.total >= 85) return { t: 'Minimum', why: 'Building scored 85+ with no critical assets — protect what’s working' };
+  if (sc.total >= 85) return { t: 'Base', why: 'Building scored 85+ with no critical assets — protect what’s working' };
   return { t: 'Core', why: 'Stable building that needs consistent maintenance and reporting' };
 }
 function actionable(a) { return a.findings.filter(f => f.agreed !== false && (f.title || f.observation)).length; }
@@ -546,7 +546,7 @@ function reportHtml(sc) {
     '<h2 class="pb">12–24 month prioritized plan</h2><table><thead><tr><th>Priority</th><th>Action</th><th>Category</th><th>Budget range</th></tr></thead><tbody>' +
     ['now', 'next', 'plan'].map((k, pi) => a.findings.filter(f => (f.timing || 'plan') === k).map(f => '<tr><td>' + (pi + 1) + ' — ' + TIMING[k] + '</td><td>' + esc(f.action || f.title) + '</td><td>' + esc((CATS.find(x => x.n == f.category) || CATS[0]).short) + '</td><td>' + rng(num(f.costLow), num(f.costHigh)) + '</td></tr>').join('')).join('') +
     '<tr><td colspan="3"><b>Total</b> (Now ' + rng(pt.now[0], pt.now[1]) + ' · Next ' + rng(pt.next[0], pt.next[1]) + ' · Plan ' + rng(pt.plan[0], pt.plan[1]) + ')</td><td><b>' + rng(tot[0], tot[1]) + '</b></td></tr></tbody></table>' +
-    '<p style="color:#55666b;font-size:11px">Low end = repair / optimize; high end = replace. Labour at Alpine agreement rates ($130/hr Core &amp; Premium, $150/hr Minimum) vs $200/hr retail.</p>' +
+    '<p style="color:#55666b;font-size:11px">Low end = repair / optimize; high end = replace. Labour at Alpine agreement rates ($130/hr Core &amp; Premium, $150/hr Base) vs $200/hr retail.</p>' +
 
     (a.energyNotes ? '<h2>Energy opportunities</h2><p>' + esc(a.energyNotes) + '</p>' : '') +
     (a.complianceNotes ? '<h2>Vendor &amp; compliance notes</h2><p>' + esc(a.complianceNotes) + '</p>' : '') +
@@ -571,14 +571,14 @@ function tabHandoff(sc) {
   const annual = num(cur.outcome.annualValue);
   const credit = annual == null ? null : Math.min(num(cur.fee) || 0, annual);
   return '<h2>Recommendation</h2><div class="card"><div style="font-family:Oswald;font-size:1.5rem;color:var(--teal)">' + rt.t + '</div><div>' + esc(rt.why) + '.</div>' +
-    '<div class="note" style="margin-top:.4rem">Premium: any Critical asset, Controls & BAS ≤ 8, or critical occupancy · Core: overall 55–84, no Critical · Minimum: 85+, low criticality</div></div>' +
+    '<div class="note" style="margin-top:.4rem">Premium: any Critical asset, Controls & BAS ≤ 8, or critical occupancy · Core: overall 55–84, no Critical · Base: 85+, low criticality</div></div>' +
     '<h2>Credit window</h2><div class="card">' + (dl
       ? '<div>Credit deadline <b>' + fmtD(dl) + '</b> ' + (left < 0 ? '<span class="badge b-grey">expired</span>' : '<span class="badge ' + (left <= 7 ? 'b-crit' : 'b-teal') + '">' + left + ' days left</span>') + '</div>' +
         '<h3 style="margin-top:.9rem">Follow-up cadence</h3>' + fu.map(([d, l]) => chk('Day ' + d + ' (' + fmtD(addDays(cur.debriefDate, d)) + ') — ' + l, 'followups.d' + d)).join('')
       : '<div class="muted">Set the debrief date on Setup to start the 45-day credit clock.</div>') + '</div>' +
     '<h2>Outcome</h2><div class="card"><div class="grid">' +
     fld('Status', 'status', { options: Object.keys(STATUS).map(k => [k, STATUS[k].label]), rr: true }) +
-    fld('Signed tier', 'outcome.signedTier', { options: ['', 'Minimum', 'Core', 'Premium'] }) +
+    fld('Signed tier', 'outcome.signedTier', { options: ['', ['Minimum', 'Base'], 'Core', 'Premium'] }) +
     fld('Signed date', 'outcome.signedDate', { type: 'date', rr: true }) +
     fld('First-year agreement value ($)', 'outcome.annualValue', { num: true, rr: true }) +
     fld('Lost reason', 'outcome.lostReason') + '</div>' +
