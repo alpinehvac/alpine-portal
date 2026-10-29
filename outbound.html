@@ -142,6 +142,7 @@ td a{color:#27636C;text-decoration:none;cursor:pointer}td a:hover{text-decoratio
   .metrics{grid-template-columns:repeat(2,1fr)}.metric{border-bottom:1px solid var(--border)}
   .filters input{min-width:0;flex:1}
 }
+body.focus .team-only{display:none!important}
 </style>
 <style>
 /* ── Embedded view (dashboard.html Sales / Home): territory map only (?embed=map) ── */
@@ -197,25 +198,8 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
 </div></nav>
 
 <main class="wrap">
-  <div class="head"><h1>Outbound</h1><div class="asof" id="asof">Loading…</div></div>
-  <div id="banners"></div>
-  <section id="fly-section">
-    <div class="h2-row"><div><h2>Leave-behind flyers</h2><p class="h2-note">Double-sided, letter size: page 1 is the sector flyer, page 2 is "What we service". Print two-sided, flip on long edge, 100% scale. Hand one out with your business card at every knock.</p></div></div>
-    <div class="fly-grid">
-      <a class="fly" href="flyers/Alpine-Flyer-Industrial.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-industrial.png" alt="Industrial flyer, front page"><b>Industrial</b><span>Plants, warehouses, process sites · PDF</span></a>
-      <a class="fly" href="flyers/Alpine-Flyer-Commercial-Condo.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-commercial-condo.png" alt="Commercial and condo flyer, front page"><b>Commercial &amp; condo</b><span>Office towers, condos, multi-tenant · PDF</span></a>
-      <a class="fly" href="flyers/Alpine-Flyer-Institutional.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-institutional.png" alt="Institutional flyer, front page"><b>Institutional</b><span>Fire, police, churches, municipal · PDF</span></a>
-      <div class="fly"><img src="flyers/thumb-back.png" alt="Back page: What we service"><b>Back page</b><span>Included in every PDF above</span></div>
-    </div>
-  </section>
-
-  <div class="metrics" id="metrics"></div>
-
-  <section id="fr-section">
-    <div class="h2-row"><div><h2>Follow-ups required</h2><p class="h2-note">What's owed, oldest first: actions flagged from door-knock recordings plus lead-sheet follow-ups due this week. Tick Done when it's handled. <span id="fr-note"></span></p></div></div>
-    <div class="wk-wrap" id="fr-list" style="max-height:520px"></div>
-  </section>
-
+  <div class="head"><h1>Outbound</h1><div class="asof"><div id="asof">Loading…</div><button class="btn sm ghost" id="view-toggle" style="margin-top:.5rem"></button></div></div>
+  <div id="banners" class="team-only"></div>
   <section id="wk-section">
     <div class="h2-row"><div><h2>This week's knock list</h2><p class="h2-note">Live field sheet: the Monday list of 100 buildings in route order. Knocks recorded in Fireflies move to the top with their summary the same evening. Tap a name to see it on the map, an address to open Maps.</p></div></div>
     <div class="wk-wrap" id="wk-list"></div>
@@ -241,12 +225,19 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
     </div>
   </section>
 
-  <section>
+  <section id="fr-section">
+    <div class="h2-row"><div><h2>Follow-ups required</h2><p class="h2-note">What's owed, oldest first: actions flagged from your door-knock recordings<span class="team-only"> plus lead-sheet follow-ups due this week</span>. The same actions go out in the Tue/Fri Follow-up Radar email. Tick Done when it's handled. <span id="fr-note"></span></p></div></div>
+    <div class="wk-wrap" id="fr-list" style="max-height:520px"></div>
+  </section>
+
+  <div class="metrics team-only" id="metrics"></div>
+
+  <section class="team-only">
     <div class="h2-row"><div><h2>Coverage by area</h2><p class="h2-note">How hard each area has been worked, and what's left. Sorted by targets remaining, so the top rows are where to go next.</p></div></div>
     <div class="table-wrap"><table id="t-areas"></table></div>
   </section>
 
-  <section>
+  <section class="team-only">
     <div class="h2-row"><div><h2>Targets not yet contacted</h2><p class="h2-note">Factories, warehouses, offices, high-rises, condos, schools, fire stations, long-term care and other buildings of 10,000 sq ft and up that aren't on the lead sheet, in BuildOps, or beside an existing lead. Claim one before you go so nobody doubles up; once it's on the lead sheet it drops off this list on the next refresh. Sizes are footprint × floors from OpenStreetMap, so treat them as estimates.</p></div>
       <div id="osm-wrap" style="display:none;text-align:right"><button class="btn ghost" id="osm-build">Refresh building list</button><p class="h2-note" id="osm-status" style="margin-top:.4rem"></p></div></div>
     <div class="filters">
@@ -259,17 +250,17 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
     <div class="table-wrap"><table id="t-targets"></table></div>
   </section>
 
-  <section>
+  <section class="team-only">
     <div class="h2-row"><div><h2>Door-knock conversations</h2><p class="h2-note">Transcribed and summarized from Jake's Fireflies recordings by the daily refresh, and filed against the lead or target. Start each recording by saying the company and address. <span id="knock-note"></span></p></div></div>
     <div class="table-wrap" style="max-height:520px"><table id="t-knocks"></table></div>
   </section>
 
-  <section id="nr-section">
+  <section class="team-only" id="nr-section">
     <div class="h2-row"><div><h2>Natalie's daily reports</h2><p class="h2-note">From the daily report emails Natalie sends Jake, filed by the morning refresh: what she worked on each day, and the opportunities she flagged. Tap a company to see it on the map. <span id="nr-note"></span></p></div></div>
     <div class="wk-wrap" id="nr-list" style="max-height:560px"></div>
   </section>
 
-  <section class="two">
+  <section class="team-only two">
     <div>
       <div class="h2-row"><div><h2>Follow-ups due</h2><p class="h2-note">From the Follow-up column: overdue first, then the next 14 days.</p></div></div>
       <div class="table-wrap" style="max-height:440px"><table id="t-follow"></table></div>
@@ -277,6 +268,16 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
     <div>
       <div class="h2-row"><div><h2>Not on the map</h2><p class="h2-note">Leads whose address couldn't be found. Fix the address in the sheet, or place the pin by hand.</p></div></div>
       <div class="table-wrap" style="max-height:440px"><table id="t-unplaced"></table></div>
+    </div>
+  </section>
+
+  <section id="fly-section">
+    <div class="h2-row"><div><h2>Leave-behind flyers</h2><p class="h2-note">Double-sided, letter size: page 1 is the sector flyer, page 2 is "What we service". Print two-sided, flip on long edge, 100% scale. Hand one out with your business card at every knock.</p></div></div>
+    <div class="fly-grid">
+      <a class="fly" href="flyers/Alpine-Flyer-Industrial.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-industrial.png" alt="Industrial flyer, front page"><b>Industrial</b><span>Plants, warehouses, process sites · PDF</span></a>
+      <a class="fly" href="flyers/Alpine-Flyer-Commercial-Condo.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-commercial-condo.png" alt="Commercial and condo flyer, front page"><b>Commercial &amp; condo</b><span>Office towers, condos, multi-tenant · PDF</span></a>
+      <a class="fly" href="flyers/Alpine-Flyer-Institutional.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-institutional.png" alt="Institutional flyer, front page"><b>Institutional</b><span>Fire, police, churches, municipal · PDF</span></a>
+      <div class="fly"><img src="flyers/thumb-back.png" alt="Back page: What we service"><b>Back page</b><span>Included in every PDF above</span></div>
     </div>
   </section>
 </main>

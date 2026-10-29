@@ -55,6 +55,18 @@ function km(a, b) {
 }
 const repOf = r => { const s = (r || '').toLowerCase(); const out = []; if (/nat/.test(s)) out.push('Natalie'); if (/jake/.test(s)) out.push('Jake'); if (/mike/.test(s)) out.push('Mike'); return out; };
 const myName = session.name ? session.name.split(' ')[0] : 'Me';
+// Focus view (default for everyone but Natalie): only the knock list, map and your door-knock follow-ups.
+// Lead-sheet sections stay one click away under "Show full team view". Remembered per browser.
+let focusView = (() => { try { const v = localStorage.getItem('ob_focus_view'); if (v !== null) return v === '1'; } catch (e) {} return myName !== 'Natalie'; })();
+function applyFocus() {
+  document.body.classList.toggle('focus', focusView);
+  const b = document.getElementById('view-toggle'); if (b) b.textContent = focusView ? 'Show full team view' : 'Back to my focus view';
+}
+document.getElementById('view-toggle')?.addEventListener('click', () => {
+  focusView = !focusView; try { localStorage.setItem('ob_focus_view', focusView ? '1' : '0'); } catch (e) {}
+  applyFocus(); renderFollowReq();
+});
+applyFocus();
 
 // ── Data ────────────────────────────────────────────────────────────
 const leadsDoc = readJSON('ob_leads') || { rows: [] };
@@ -638,6 +650,11 @@ function renderFollowReq() {
   const kn = my.filter(x => x.src === 'knock'), ld = my.filter(x => x.src === 'lead');
   const teamNames = [...new Set(team.map(x => x.src === 'knock' ? (x.k.rep || '') : repOf(x.who).filter(n => n !== myName).join('/') || x.who).filter(Boolean))].join(', ');
   $('fr-note').textContent = my.length + ' yours open · ' + my.filter(x => x.due && x.due < today).length + ' overdue' + (stale ? ' · ' + stale + ' older lead-sheet follow-ups not shown (update or close them on the sheet)' : '');
+  if (focusView) {
+    $('fr-note').textContent = kn.length + ' open · ' + kn.filter(x => x.due && x.due < today).length + ' overdue';
+    el.innerHTML = kn.length ? '<ol class="wk fr">' + kn.map(row).join('') + '</ol>' : '<p class="hint">No open actions from your knock recordings.</p>';
+    return;
+  }
   el.innerHTML = '<h3 class="wk-h">From your door knocks (' + kn.length + ')</h3>' + (kn.length ? '<ol class="wk fr">' + kn.map(row).join('') + '</ol>' : '<p class="hint">No open actions from your knock recordings.</p>') +
     '<h3 class="wk-h">Your lead-sheet follow-ups, last 45 days to next 7 (' + ld.length + ')</h3>' + (ld.length ? '<ol class="wk fr">' + ld.map(row).join('') + '</ol>' : '<p class="hint">None due.</p>') +
     (team.length ? '<details class="fr-team"><summary>Team follow-ups' + (teamNames ? ' (' + esc(teamNames) + ')' : '') + ' · ' + team.length + '</summary><ol class="wk fr">' + team.map(row).join('') + '</ol></details>' : '');
