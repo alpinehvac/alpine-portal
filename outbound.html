@@ -104,6 +104,11 @@ h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spac
 /* Buttons */
 .btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:5px;padding:.45rem .8rem;cursor:pointer;border:1px solid #27636C;background:#27636C;color:#fff;text-decoration:none;display:inline-block}
 .btn.ghost{background:none;border-color:rgba(16,68,78,0.28);color:#10444E}
+.fly-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:1rem}
+.fly{border:1px solid var(--border);border-radius:var(--radius);background:var(--off-black);padding:.75rem;display:flex;flex-direction:column;gap:.55rem;text-decoration:none}
+.fly img{width:100%;aspect-ratio:8.5/11;object-fit:cover;border-radius:4px;border:1px solid var(--border);display:block}
+.fly b{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.fly span{font-size:.8rem;color:var(--grey)}
 .btn.sm{padding:.3rem .55rem;font-size:10px}
 .btn:disabled{opacity:.45;cursor:default}
 
@@ -183,6 +188,16 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
 <main class="wrap">
   <div class="head"><h1>Outbound</h1><div class="asof" id="asof">Loading…</div></div>
   <div id="banners"></div>
+  <section id="fly-section">
+    <div class="h2-row"><div><h2>Leave-behind flyers</h2><p class="h2-note">Double-sided, letter size: page 1 is the sector flyer, page 2 is "What we service". Print two-sided, flip on long edge, 100% scale. Hand one out with your business card at every knock.</p></div></div>
+    <div class="fly-grid">
+      <a class="fly" href="flyers/Alpine-Flyer-Industrial.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-industrial.png" alt="Industrial flyer, front page"><b>Industrial</b><span>Plants, warehouses, process sites · PDF</span></a>
+      <a class="fly" href="flyers/Alpine-Flyer-Commercial-Condo.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-commercial-condo.png" alt="Commercial and condo flyer, front page"><b>Commercial &amp; condo</b><span>Office towers, condos, multi-tenant · PDF</span></a>
+      <a class="fly" href="flyers/Alpine-Flyer-Institutional.pdf" target="_blank" rel="noopener"><img src="flyers/thumb-institutional.png" alt="Institutional flyer, front page"><b>Institutional</b><span>Fire, police, churches, municipal · PDF</span></a>
+      <div class="fly"><img src="flyers/thumb-back.png" alt="Back page: What we service"><b>Back page</b><span>Included in every PDF above</span></div>
+    </div>
+  </section>
+
   <div class="metrics" id="metrics"></div>
 
   <section id="fr-section">
