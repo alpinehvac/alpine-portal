@@ -13,7 +13,8 @@
 <!-- ALPINE OUTBOUND — portal version. Contains NO lead data: everything loads from Firestore (outbound_data) after sign-in.
      Leads: ob_leads, written by the daily refresh from Natalie's "Alpine Leads 2026" sheet (outbound-build.py).
      Customers: ob_customers (BuildOps property list, daily) + st_site_* (agreement sites, site_data).
-     Targets: ob_targets (researched, not yet contacted). Claims: ob_claims. Geocode cache: ob_geo. Access: sales role. -->
+     Targets: ob_targets (researched, not yet contacted). Claims: ob_claims. Geocode cache: ob_geo.
+     Natalie's daily reports: ob_reports (from her daily report emails to Jake, filed by the morning door-knock sync). Access: sales role. -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -174,6 +175,16 @@ ol.wk li.done{background:rgba(46,125,87,.05)}
 ol.fr .wk-note,ol.fr .wk-sub{margin-left:5.1rem}
 .fr-done{margin-left:auto}
 details.fr-team{margin-top:1rem;border-top:1px solid var(--border);padding-top:.6rem}
+.nr-row{border-bottom:1px solid var(--border);padding:.75rem 0;display:grid;grid-template-columns:7.5rem 1fr;gap:.2rem 1rem}
+.nr-row:last-child{border-bottom:none}
+.nr-date{font-family:'Oswald',sans-serif;font-size:.85rem;color:var(--teal-light);letter-spacing:.04em}
+.nr-date small{display:block;font-family:inherit;color:var(--light-grey);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}
+.nr-items{margin:0;padding-left:1.1rem;font-size:.88rem;line-height:1.5}
+.nr-hl{margin:.4rem 0 0;display:flex;flex-direction:column;gap:.25rem}
+.nr-hl div{font-size:.84rem}.nr-hl b{color:var(--white)}.nr-hl a{color:var(--teal-light);cursor:pointer}
+.nr-next{font-size:.8rem;color:var(--light-grey);margin-top:.35rem}
+.nr-meta{color:var(--light-grey);font-size:.82rem}
+@media(max-width:640px){.nr-row{grid-template-columns:1fr}}
 details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--light-grey)}
 </style>
 <link rel="stylesheet" href="theme.css">
@@ -251,6 +262,11 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
   <section>
     <div class="h2-row"><div><h2>Door-knock conversations</h2><p class="h2-note">Transcribed and summarized from Jake's Fireflies recordings by the daily refresh, and filed against the lead or target. Start each recording by saying the company and address. <span id="knock-note"></span></p></div></div>
     <div class="table-wrap" style="max-height:520px"><table id="t-knocks"></table></div>
+  </section>
+
+  <section id="nr-section">
+    <div class="h2-row"><div><h2>Natalie's daily reports</h2><p class="h2-note">From the daily report emails Natalie sends Jake, filed by the morning refresh: what she worked on each day, and the opportunities she flagged. Tap a company to see it on the map. <span id="nr-note"></span></p></div></div>
+    <div class="wk-wrap" id="nr-list" style="max-height:560px"></div>
   </section>
 
   <section class="two">

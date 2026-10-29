@@ -65,6 +65,9 @@ let geo = readJSON('ob_geo') || {};
 // Door-knock conversations from Jake's Fireflies recordings (daily refresh): { rows: [ … ] }
 const knocks = ((readJSON('ob_knocks') || {}).rows || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 const knocksFor = (kind, id) => knocks.filter(k => kind === 'lead' ? k.leadId === id : k.targetId === id);
+// ob_reports: { rows: [ { id, rep, sent, subject, days: [{date, items: [..]}], highlights: [{company, note}], next } ] }
+// written by the morning refresh from the daily report emails reps send Jake (merged by email id).
+const reports = ((readJSON('ob_reports') || {}).rows || []).slice().sort((a, b) => (b.sent || '').localeCompare(a.sent || ''));
 const INTEREST = { Hot: '#B83227', Warm: '#D9A441', Cold: '#5A7A80', 'Not interested': '#8A8A8A' };
 function knockHTML(list) {
   if (!list.length) return '';
@@ -698,6 +701,23 @@ function renderKnocks() {
     }).join('') : '<tr><td colspan="7" class="none" style="padding:1rem;color:var(--light-grey)">No door-knock recordings yet. Record each knock in the Fireflies app; the daily refresh transcribes, summarizes and files it here.</td></tr>') + '</tbody>';
 }
 
+function renderReports() {
+  const el = $('nr-list'); if (!el) return;
+  const rows = reports.filter(r => (r.rep || 'Natalie') === 'Natalie');
+  const note = $('nr-note');
+  const last = rows[0], since = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().slice(0, 10); };
+  if (note) note.textContent = rows.length ? rows.filter(r => (r.sent || '') >= since(14)).length + ' report' + (rows.filter(r => (r.sent || '') >= since(14)).length === 1 ? '' : 's') + ' in the last 14 days · last ' + fmtDate((last.sent || '').slice(0, 10)) : '';
+  const leadBy = {}; leads.forEach(l => { const n = normName(l.company); if (n.length > 3) leadBy[n] = l; });
+  const co = c => { const l = leadBy[normName(c)]; return l ? '<a data-fly="l:' + esc(l.id) + '">' + esc(c) + '</a>' : '<b>' + esc(c) + '</b>'; };
+  const dayLbl = d => { const x = new Date(d + 'T12:00:00'); return '<small>' + x.toLocaleDateString('en-CA', { weekday: 'short' }) + '</small>' + x.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }); };
+  el.innerHTML = rows.length ? rows.slice(0, 120).map(r => (r.days || []).map((d, i) => '<div class="nr-row"><div class="nr-date">' + dayLbl(d.date) + '</div><div>' +
+      '<ul class="nr-items">' + (d.items || []).map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' +
+      (i === (r.days.length - 1) && (r.highlights || []).length ? '<div class="nr-hl">' + r.highlights.map(h => '<div>' + co(h.company) + ' — ' + esc(h.note) + '</div>').join('') + '</div>' : '') +
+      (i === (r.days.length - 1) && r.next ? '<div class="nr-next">Next: ' + esc(r.next) + '</div>' : '') +
+      '</div></div>').reverse().join('')).join('')
+    : '<p class="nr-meta">No daily reports filed yet. The morning refresh files each report Natalie emails Jake.</p>';
+}
+
 function renderMetrics(fu, unplaced) {
   const n = leads.length, c = s => leads.filter(l => l.status === s).length;
   const worked = leads.filter(l => l.status !== 'Not contacted').length;
@@ -740,6 +760,7 @@ function renderAll(redrawMap) {
   const un = renderUnplaced();
   renderMetrics(fu, un);
   renderKnocks();
+  renderReports();
   renderWeek();
   renderFollowReq();
   if (!fitted) {
@@ -770,6 +791,11 @@ async function mergeImport(P) {
       if (Array.isArray(old.actions) && Array.isArray(r.actions)) m.actions = r.actions.map(a => { const o = old.actions.find(x => x.text === a.text); return o && o.done ? { ...a, done: o.done, doneBy: o.doneBy } : a; });
       by[r.id] = m; n++; });
     localStorage.setItem('ob_knocks', JSON.stringify({ rows: Object.values(by), importedAt: Date.now(), importedBy: session.name }));
+  } else if (P.kind === 'reports') {
+    const cur = readJSON('ob_reports') || { rows: [] }, by = {};
+    (cur.rows || []).forEach(r => by[r.id] = r);
+    P.data.rows.forEach(r => { if (!r.id || !Array.isArray(r.days)) return; by[r.id] = { rep: 'Natalie', ...r }; n++; });
+    localStorage.setItem('ob_reports', JSON.stringify({ rows: Object.values(by), importedAt: Date.now(), importedBy: session.name }));
   } else if (P.kind === 'weeks') {
     const cur = readJSON('ob_knock_weeks') || { rows: [] }, by = {};
     (cur.rows || []).forEach(r => by[r.week] = r);
@@ -782,14 +808,14 @@ async function mergeImport(P) {
     localStorage.setItem('ob_touch_log', JSON.stringify(Object.values(by)));
   }
   await new Promise(r => setTimeout(r, 2500));
-  const k = { knocks: 'ob_knocks', weeks: 'ob_knock_weeks' }[P.kind] || 'ob_touch_log';
+  const k = { knocks: 'ob_knocks', weeks: 'ob_knock_weeks', reports: 'ob_reports' }[P.kind] || 'ob_touch_log';
   const st = typeof apSyncStatus === 'function' ? apSyncStatus() : { unsynced: [] };
   return P.kind + ': ' + n + ' rows merged' + (st.unsynced.includes(k) ? ' locally; cloud save still pending' : ' to the cloud') + '.';
 }
 
 // ── Import (used by the daily refresh via Claude in Chrome) ──────────
 // obImport.start(); obImport.add(base64Chunk) ...; await obImport.finish()
-// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches'|'weeks', data}).
+// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches'|'weeks'|'contacts'|'reports', data}).
 window.obImport = (() => {
   let parts = [];
   return {
@@ -800,7 +826,7 @@ window.obImport = (() => {
       parts = [];
       const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
       const P = JSON.parse(text);
-      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks' || P.kind === 'contacts') return mergeImport(P);
+      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks' || P.kind === 'contacts' || P.kind === 'reports') return mergeImport(P);
       const key = { leads: 'ob_leads', customers: 'ob_customers', targets: 'ob_targets' }[P.kind];
       if (!key || !P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
       if (P.kind === 'leads' && P.data.rows.length < 0.8 * ((readJSON('ob_leads') || { rows: [] }).rows.length)) throw new Error('Refusing: new lead list is more than 20% shorter than the current one (' + P.data.rows.length + ' rows). Check the sheet read.');
