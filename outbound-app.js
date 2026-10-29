@@ -76,7 +76,7 @@ let claims = readJSON('ob_claims') || {};
 let geo = readJSON('ob_geo') || {};
 // Door-knock conversations from Jake's Fireflies recordings (daily refresh): { rows: [ … ] }
 const knocks = ((readJSON('ob_knocks') || {}).rows || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-const knocksFor = (kind, id) => knocks.filter(k => kind === 'lead' ? k.leadId === id : k.targetId === id);
+const knocksFor = (kind, id) => (kind === 'lead' ? knockIdx().byLead : knockIdx().byTarget)[id] || [];
 // ob_reports: { rows: [ { id, rep, sent, subject, days: [{date, items: [..]}], highlights: [{company, note}], next } ] }
 // written by the morning refresh from the daily report emails reps send Jake (merged by email id).
 const reports = ((readJSON('ob_reports') || {}).rows || []).slice().sort((a, b) => (b.sent || '').localeCompare(a.sent || ''));
@@ -151,7 +151,7 @@ function attemptsFor(x) {
     out.push(a + ', Ontario');
   }
   const name = x.company || x.name;
-  if (name && city) out.push(name + ', ' + city + ', Ontario');
+  if (name && city && x.kind !== 'knock') out.push(name + ', ' + city + ', Ontario');
   return [...new Set(out)];
 }
 async function runGeocoder() {
@@ -160,12 +160,13 @@ async function runGeocoder() {
   const want = (x) => {
     if (x.lat != null) return;
     if (x.kind === 'lead' && !x.mappable) return;
+    if (x.kind === 'knock' && !x.address) return;
     const g = geo[x.gkey];
     if (g && (g.src !== 'fail' || Date.now() - (g.t || 0) < 14 * DAY)) return;
     if (!queue.some(q => q.gkey === x.gkey)) queue.push(x);
   };
   if (!geo.__shop) queue.push({ kind: 'shop', gkey: '__shop', address: '4241 Victoria Ave', area: 'Lincoln', name: '' });
-  leads.forEach(want); customers.forEach(want); targetsAll.forEach(want);
+  leads.forEach(want); customers.forEach(want); targetsAll.forEach(want); knockSites().forEach(want);
   if (!queue.length) { $('geo-hint').textContent = ''; return; }
   geoBusy = true;
   let done = 0, failed = 0;
@@ -195,11 +196,12 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19
 }).addTo(map);
 const layers = {
-  grid: L.layerGroup(), rings: L.layerGroup(), customers: L.layerGroup(), targets: L.layerGroup(), leads: L.layerGroup(),
+  grid: L.layerGroup(), rings: L.layerGroup(), customers: L.layerGroup(), targets: L.layerGroup(), knocks: L.layerGroup(), leads: L.layerGroup(),
 };
 const LAYER_DEFS = [
   { k: 'customers', label: 'Existing customers', on: true, cls: 'sq', color: '--s-customer' },
   { k: 'targets', label: 'Targets not yet contacted', on: true, cls: 'tgt' },
+  { k: 'knocks', label: 'Door knocks off the list', on: true, cls: 'kn' },
   { k: 'grid', label: 'Coverage grid (worked areas)', on: false, cls: 'grid' },
   { k: 'rings', label: 'Distance from shop (20 / 40 / 60 km)', on: false, cls: '', color: '--teal' },
 ];
@@ -207,6 +209,7 @@ const state = { status: new Set(STATUSES.map(s => s.k)), layers: new Set(LAYER_D
 const shopIcon = L.divIcon({ className: '', html: '<div class="shop-pin" title="Alpine HVAC shop"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 15 L16 11 L21 20 Z"/></svg></div>', iconSize: [34, 34], iconAnchor: [17, 17] });
 const custIcon = L.divIcon({ className: '', html: '<div class="cust-pin"></div>', iconSize: [13, 13], iconAnchor: [6, 6] });
 const targetIcon = (claimed) => L.divIcon({ className: '', html: '<div class="dot dia" style="' + (claimed ? 'background:var(--s-target) !important' : '') + '"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
+const knockIcon = interest => L.divIcon({ className: '', html: '<div class="knock-pin" style="background:' + (INTEREST[interest] || css('--s-contacted')) + '"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
 let shopMarker = null;
 const markerById = {};
 
@@ -263,7 +266,8 @@ function custPopup(c) {
 function targetPopup(t) {
   const c = claims[t.id];
   const p = posOf(t);
-  return '<div class="pop"><h4>' + esc(t.name) + '</h4><div class="meta"><span class="chip" style="background:' + css('--s-target') + '">Not yet contacted</span> ' + esc(t.sector || '') + '</div>' +
+  const tk = knocksForTarget(t);
+  return '<div class="pop"><h4>' + esc(t.name) + '</h4><div class="meta">' + (tk.length ? '<span class="chip" style="background:' + css('--s-contacted') + '">Knocked ' + fmtDate(tk[0].date) + '</span> ' : '<span class="chip" style="background:' + css('--s-target') + '">Not yet contacted</span> ') + esc(t.sector || '') + '</div>' +
     '<dl><dt>Address</dt><dd>' + (t.address || (geo['rev:' + t.id] && geo['rev:' + t.id].addr) ? esc(t.address || geo['rev:' + t.id].addr) : '<button class="btn sm ghost" data-revgeo="' + esc(t.id) + '">Look up address</button>') + (t.area ? ', ' + esc(t.area) : '') + '</dd>' +
     (t.type ? '<dt>Type</dt><dd>' + esc(t.type) + '</dd>' : '') +
     (t.size ? '<dt>Size</dt><dd>' + esc(t.size) + '</dd>' : '') +
@@ -271,8 +275,19 @@ function targetPopup(t) {
     (p ? '<dt>From shop</dt><dd>' + km(shopPos(), p).toFixed(0) + ' km</dd>' : '') +
     '<dt>Claimed</dt><dd>' + (c ? esc(c.by) + ' · ' + fmtDate(c.at) : 'No') + '</dd></dl>' +
     (t.source ? '<div class="meta"><a href="' + esc(t.source) + '" target="_blank" rel="noopener">' + (t.osm ? 'Building on OpenStreetMap' : 'Source') + '</a></div>' : '') +
-    contactHTML(t.id, 'meta') + knockHTML(knocksFor('target', t.id)) +
+    contactHTML(t.id, 'meta') + knockHTML(tk) +
     '<div class="acts">' + claimButton(t) + '</div></div>';
+}
+function knockPopup(s) {
+  const p = posOf(s), g = geo[s.gkey] || {};
+  return '<div class="pop"><h4>' + esc(s.name) + '</h4><div class="meta"><span class="chip" style="background:' + css('--s-customer') + '">Door knock · off the list</span></div>' +
+    '<dl><dt>Address</dt><dd>' + esc(s.address || '—') + (g.src === 'osm' && g.exact === false ? ' <i>(pin is approximate)</i>' : g.src === 'manual' ? ' <i>(pin placed by hand)</i>' : '') + '</dd>' +
+    '<dt>Knocked by</dt><dd>' + esc(s.rep) + '</dd>' +
+    '<dt>Last knock</dt><dd>' + fmtDate(s.date) + (s.knocks.length > 1 ? ' · ' + s.knocks.length + ' visits' : '') + '</dd>' +
+    (p ? '<dt>From shop</dt><dd>' + km(shopPos(), p).toFixed(0) + ' km</dd>' : '') + '</dl>' +
+    '<div class="notes">Not on the lead sheet or the target list. If it\'s worth working, add it to the lead sheet; it becomes a lead pin on the next refresh.</div>' +
+    knockHTML(s.knocks) +
+    '<div class="acts"><a class="btn sm" href="' + SHEET_URL + '" target="_blank" rel="noopener">Open lead sheet</a><button class="btn sm ghost" data-place="' + esc(s.gkey) + '">Move pin</button></div></div>';
 }
 function claimButton(t) {
   const c = claims[t.id];
@@ -295,9 +310,15 @@ function drawMap() {
   });
   openTargets().forEach(t => {
     const p = posOf(t); if (!p) return;
-    const m = L.circleMarker([p.lat, p.lng], { radius: t.sqft >= 50000 ? 6 : 4.5, color: css('--s-target'), weight: 1.6, fillColor: claims[t.id] ? css('--s-target') : '#fff', fillOpacity: 0.9 })
+    const tk = knocksForTarget(t), kc = tk.length ? (INTEREST[(tk.find(k => k.interest) || {}).interest] || css('--s-contacted')) : null;
+    const m = L.circleMarker([p.lat, p.lng], { radius: t.sqft >= 50000 ? 6 : 4.5, color: css('--s-target'), weight: 1.6, fillColor: kc || (claims[t.id] ? css('--s-target') : '#fff'), fillOpacity: 0.9 })
       .bindPopup(() => targetPopup(t), { maxWidth: 320 }).bindTooltip(esc(t.name), { direction: 'top', offset: [0, -4] });
     m.addTo(layers.targets); markerById['t:' + t.id] = m;
+  });
+  spread(knockSites()).forEach(([s, p]) => {
+    const m = L.marker([p.lat, p.lng], { icon: knockIcon(s.interest), title: s.name, zIndexOffset: 800 })
+      .bindPopup(() => knockPopup(s), { maxWidth: 340 }).bindTooltip(esc(s.name), { direction: 'top', offset: [0, -8] });
+    m.addTo(layers.knocks); markerById['k:' + s.id] = m;
   });
   spread(leads.filter(leadVisible)).forEach(([l, p]) => {
     const m = L.circleMarker([p.lat, p.lng], { radius: 6.5, color: '#fff', weight: 1.6, fillColor: COLOR[l.status], fillOpacity: 0.95 })
@@ -320,9 +341,10 @@ function drawMap() {
 function drawGrid() {
   const H = 0.0145, W = 0.0195, cells = {};
   const cell = p => Math.floor(p.lat / H) + ':' + Math.floor(p.lng / W);
-  const bump = (p, f) => { const k = cell(p); const c = cells[k] = cells[k] || { worked: 0, leads: 0, cust: 0, targets: 0 }; f(c); };
+  const bump = (p, f) => { const k = cell(p); const c = cells[k] = cells[k] || { worked: 0, leads: 0, cust: 0, targets: 0, knocks: 0 }; f(c); };
   leads.forEach(l => { const p = posOf(l); if (!p) return; bump(p, c => { c.leads++; if (l.status !== 'Not contacted') c.worked++; }); });
   customers.forEach(x => { const p = posOf(x); if (p) bump(p, c => c.cust++); });
+  knockSites().forEach(x => { const p = posOf(x); if (p) bump(p, c => { c.knocks++; c.worked++; }); });
   openTargets().forEach(t => { const p = posOf(t); if (p) bump(p, c => c.targets++); });
   Object.entries(cells).forEach(([k, c]) => {
     const [a, b] = k.split(':').map(Number);
@@ -331,7 +353,7 @@ function drawGrid() {
     L.rectangle([[a * H, b * W], [(a + 1) * H, (b + 1) * W]], {
       color: c.targets && !worked ? css('--s-not') : 'rgba(46,125,87,.55)', weight: c.targets && !worked ? 1.5 : 0.6,
       fillColor: css('--s-converted'), fillOpacity: op, interactive: true,
-    }).bindTooltip(c.leads + ' lead' + (c.leads === 1 ? '' : 's') + ' (' + c.worked + ' worked) · ' + c.cust + ' customer site' + (c.cust === 1 ? '' : 's') + ' · ' + c.targets + ' target' + (c.targets === 1 ? '' : 's') + ' left', { sticky: true }).addTo(layers.grid);
+    }).bindTooltip(c.leads + ' lead' + (c.leads === 1 ? '' : 's') + ' (' + c.worked + ' worked) · ' + c.cust + ' customer site' + (c.cust === 1 ? '' : 's') + ' · ' + c.targets + ' target' + (c.targets === 1 ? '' : 's') + ' left' + (c.knocks ? ' · ' + c.knocks + ' off-list knock' + (c.knocks === 1 ? '' : 's') : ''), { sticky: true }).addTo(layers.grid);
   });
 }
 
@@ -361,7 +383,7 @@ function openTargets() {
 function renderControls() {
   const counts = {}; leads.forEach(l => counts[l.status] = (counts[l.status] || 0) + 1);
   $('tg-status').innerHTML = STATUSES.map(s => '<li data-s="' + esc(s.k) + '" class="' + (state.status.has(s.k) ? '' : 'off') + '" role="checkbox" aria-checked="' + state.status.has(s.k) + '" tabindex="0"><span class="dot" style="background:' + COLOR[s.k] + '"></span>' + esc(s.k) + '<span class="n">' + (counts[s.k] || 0) + '</span></li>').join('');
-  const lc = { customers: customers.length, targets: openTargets().length };
+  const lc = { customers: customers.length, targets: openTargets().length, knocks: knockSites().length };
   $('tg-layers').innerHTML = LAYER_DEFS.map(d => '<li data-l="' + d.k + '" class="' + (state.layers.has(d.k) ? '' : 'off') + '" role="checkbox" aria-checked="' + state.layers.has(d.k) + '" tabindex="0"><span class="dot ' + d.cls + '" style="' + (d.color ? 'background:' + css(d.color) : '') + '"></span>' + esc(d.label) + '<span class="n">' + (lc[d.k] != null ? lc[d.k] : '') + '</span></li>').join('');
   $('tg-rep').innerHTML = REPS.map(r => '<button data-rep="' + r + '" class="' + (state.rep === r ? 'on' : '') + '">' + r + '</button>').join('');
   $('tg-age').innerHTML = AGES.map(([k, l]) => '<button data-age="' + k + '" class="' + (state.age === k ? 'on' : '') + '">' + l + '</button>').join('');
@@ -414,6 +436,7 @@ function flyTo(ref) {
   if (kind === 'l') { const l = leads.find(x => 'l:' + x.id === ref); if (l && !state.status.has(l.status)) { state.status.add(l.status); renderControls(); } state.rep = 'All'; state.age = 'any'; renderControls(); drawMap(); }
   if (kind === 't' && !state.layers.has('targets')) { state.layers.add('targets'); renderControls(); drawMap(); }
   if (kind === 'c' && !state.layers.has('customers')) { state.layers.add('customers'); renderControls(); drawMap(); }
+  if (kind === 'k' && !state.layers.has('knocks')) { state.layers.add('knocks'); renderControls(); drawMap(); }
   const mk = markerById[ref] || m;
   if (!mk) return;
   document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -461,6 +484,7 @@ async function doSearch() {
   const res = [];
   leads.forEach(l => { if (hit(l.company + ' ' + l.address + ' ' + l.city)) res.push({ ref: 'l:' + l.id, title: l.company, sub: chip(l.status) + ' ' + esc(l.address) + ' · ' + esc(l.rep) + (l.lastTouch ? ' · ' + fmtDate(l.lastTouch) : '') }); });
   customers.forEach(c => { if (hit(c.name + ' ' + c.customer + ' ' + c.address)) res.push({ ref: 'c:' + c.id, title: c.name, sub: '<span class="chip" style="background:' + css('--s-customer') + '">Customer</span> ' + esc(c.address) }); });
+  knockSites().forEach(s => { if (hit(s.name + ' ' + s.address)) res.push({ ref: 'k:' + s.id, title: s.name, sub: '<span class="chip" style="background:' + css('--s-customer') + '">Door knock</span> ' + esc(s.address || 'no address') + ' · ' + esc(s.rep) + ' · ' + fmtDate(s.date) }); });
   openTargets().forEach(t => { if (hit(t.name + ' ' + t.address + ' ' + t.area)) res.push({ ref: 't:' + t.id, title: t.name, sub: '<span class="chip" style="background:' + css('--s-target') + '">Target</span> ' + esc(t.address) + (claims[t.id] ? ' · claimed by ' + esc(claims[t.id].by.split(' ')[0]) : '') }); });
   if (res.length) {
     out.innerHTML = res.slice(0, 12).map(r => '<li data-fly="' + r.ref + '"><b>' + esc(r.title) + '</b><small>' + r.sub + '</small></li>').join('') + (res.length > 12 ? '<li class="none">' + (res.length - 12) + ' more; keep typing</li>' : '');
@@ -613,9 +637,49 @@ function fieldNote(t) {
   return 'Find the owner or property manager (tenant board, front desk); ask who services the rooftops.';
 }
 const numKey = a => { const m = cleanAddr(a || '').toLowerCase().match(/^(\d+)\s+([a-z]+)/); return m ? m[1] + ' ' + m[2] : ''; };
-function knocksForTarget(t) {
-  const ak = numKey(t.address || (geo['rev:' + t.id] || {}).addr), nn = normName(t.name);
-  return knocks.filter(k => k.targetId === t.id || (!k.targetId && !k.leadId && ((ak && numKey(k.address) === ak) || (nn.length > 5 && normName(k.company) === nn))));
+// Every knock is matched to the map once per render: by its lead/target id, else by street number +
+// street or company name against the lead sheet and the target list. A knock that matches neither
+// (a building outside the weekly list, e.g. Canforge or Goodwill) gets its own "off the list" pin,
+// grouped by building, so every conversation shows on the territory map.
+let _kidx = null;
+function knockIdx() {
+  if (_kidx) return _kidx;
+  const byLead = {}, byTarget = {}, ref = {}, sites = {}, lA = {}, lN = {}, tA = {}, tN = {};
+  const add = (m, k, v) => { if (k) (m[k] = m[k] || []).push(v); };
+  leads.forEach(l => { add(lA, numKey(l.address), l); const n = normName(l.company); if (n.length > 5) add(lN, n, l); });
+  targetsAll.forEach(t => { add(tA, numKey(t.address || (geo['rev:' + t.id] || {}).addr), t); const n = normName(t.name); if (n.length > 5) add(tN, n, t); });
+  const open = new Set(openTargets().map(t => t.id));
+  knocks.forEach(k => {
+    if (k.leadId) { add(byLead, k.leadId, k); ref[k.id] = 'l:' + k.leadId; return; }
+    if (k.targetId) { add(byTarget, k.targetId, k); ref[k.id] = 't:' + k.targetId; return; }
+    const a = numKey(k.address), n = normName(k.company), nOk = n.length > 5;
+    const ls = (a && lA[a]) || (nOk && lN[n]) || [];
+    const ts = [...new Set([...((a && tA[a]) || []), ...((nOk && tN[n]) || [])])];
+    ls.forEach(l => add(byLead, l.id, k)); ts.forEach(t => add(byTarget, t.id, k));
+    if (ls.length) { ref[k.id] = 'l:' + ls[0].id; return; }
+    const ot = ts.find(t => open.has(t.id));
+    if (ot) { ref[k.id] = 't:' + ot.id; return; }
+    const key = a ? 'a:' + a : n ? 'n:' + n : 'k:' + k.id;
+    (sites[key] = sites[key] || { kind: 'knock', id: key, knocks: [] }).knocks.push(k);
+    ref[k.id] = 'k:' + key;
+  });
+  const list = Object.values(sites).map(s => {       // knocks are sorted newest first
+    const latest = s.knocks[0], address = (s.knocks.find(k => k.address) || {}).address || '';
+    return { ...s, name: latest.company || '(no company)', address, area: '', date: latest.date, rep: latest.rep || 'Jake',
+      interest: (s.knocks.find(k => k.interest) || {}).interest || '', gkey: 'knock|' + (address ? addrKey(address) : s.id) };
+  });
+  return (_kidx = { byLead, byTarget, ref, sites: list });
+}
+function knockSites() { return knockIdx().sites; }
+function knockRef(k) { return knockIdx().ref[k.id] || ''; }
+function knocksForTarget(t) { return knockIdx().byTarget[t.id] || []; }
+// Off-list knocks the map can't place: no address in the recording, or the address wasn't found.
+function renderKnockPlace() {
+  const el = $('kn-place'); if (!el) return;
+  const rows = knockSites().filter(s => !posOf(s) && (!s.address || (geo[s.gkey] && geo[s.gkey].src === 'fail')));
+  el.innerHTML = rows.length ? '<h3>Knocks not on the map (' + rows.length + ')</h3><ul class="results">' + rows.map(s =>
+    '<li class="none"><b>' + esc(s.name) + '</b><small>' + (s.address ? esc(s.address) + ' · address not found' : 'No address in the recording') + ' · ' + fmtDate(s.date) + '</small>' +
+    '<button class="btn sm ghost" style="margin-top:.3rem" data-place="' + esc(s.gkey) + '">Place pin</button></li>').join('') + '</ul>' : '';
 }
 // ── Follow-ups required: open actions from knock conversations + lead-sheet follow-ups due ──
 // Knock rows carry actions [{text, due}] flagged from the Fireflies transcript; "Done" stamps doneAt
@@ -629,7 +693,7 @@ function renderFollowReq() {
   const today = todayISO(), wk = new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10), old = new Date(Date.now() - 45 * DAY).toISOString().slice(0, 10);
   let stale = 0;
   const items = [];
-  knocks.forEach(k => { if (k.doneAt) return; knockActions(k).forEach((a, i) => !a.done && items.push({ src: 'knock', k, i, due: a.due || k.followUp || '', text: a.text, who: 'Jake', company: k.company, sub: (k.contact ? k.contact + ' · ' : '') + (k.address || ''), interest: k.interest, ref: k.leadId ? 'l:' + k.leadId : k.targetId ? 't:' + k.targetId : '' })); });
+  knocks.forEach(k => { if (k.doneAt) return; knockActions(k).forEach((a, i) => !a.done && items.push({ src: 'knock', k, i, due: a.due || k.followUp || '', text: a.text, who: 'Jake', company: k.company, sub: (k.contact ? k.contact + ' · ' : '') + (k.address || ''), interest: k.interest, ref: knockRef(k) })); });
   leads.forEach(l => { if (!l.followUp || ['Dead', 'Converted'].includes(l.status) || (l.lastTouch && l.lastTouch >= l.followUp) || l.followUp > wk) return;
     if (l.followUp < old) { stale++; return; }   // same 45-day window as the Monday email; older ones are counted, not listed
     items.push({ src: 'lead', due: l.followUp, text: (l.notes || '').split(/\n/)[0].slice(0, 160) || 'Follow up', who: l.rep || '', company: l.company, sub: [l.contact, l.phone].filter(Boolean).join(' · '), ref: 'l:' + l.id }); });
@@ -706,11 +770,11 @@ function renderWeek() {
 function renderKnocks() {
   const el = $('t-knocks'); if (!el) return;
   const note = $('knock-note');
-  if (note) note.textContent = knocks.length ? knocks.length + ' conversation' + (knocks.length === 1 ? '' : 's') + ' · ' + knocks.filter(k => !k.leadId && !k.targetId).length + ' not matched to a lead or target' : '';
+  if (note) note.textContent = knocks.length ? knocks.length + ' conversation' + (knocks.length === 1 ? '' : 's') + ' · ' + knocks.filter(k => knockRef(k).startsWith('k:')).length + ' off the list (own pin on the map)' : '';
   el.innerHTML = '<thead><tr><th class="nosort">Date</th><th class="nosort">Company</th><th class="nosort">Contact</th><th class="nosort">Interest</th><th class="nosort">Summary</th><th class="nosort">Next step</th><th class="nosort"></th></tr></thead><tbody>' +
     (knocks.length ? knocks.slice(0, 200).map(k => {
-      const ref = k.leadId ? 'l:' + k.leadId : k.targetId ? 't:' + k.targetId : '';
-      return '<tr><td>' + fmtDate(k.date) + '</td><td>' + (ref ? '<a data-fly="' + esc(ref) + '">' + esc(k.company || '—') + '</a>' : esc(k.company || '—') + ' <span class="due" title="Not on the lead sheet or target list yet">new</span>') +
+      const ref = knockRef(k), off = ref.startsWith('k:');
+      return '<tr><td>' + fmtDate(k.date) + '</td><td>' + (ref ? '<a data-fly="' + esc(ref) + '">' + esc(k.company || '—') + '</a>' : esc(k.company || '—')) + (off ? ' <span class="due" title="Not on the lead sheet or target list yet; shown on the map as an off-list knock">off list</span>' : '') +
         '<small style="display:block;color:var(--light-grey)">' + esc(k.address || '') + '</small></td><td>' + esc(k.contact || '') + (k.role ? '<small style="display:block;color:var(--light-grey)">' + esc(k.role) + '</small>' : '') + '</td>' +
         '<td>' + (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '</td>' +
         '<td style="max-width:420px">' + esc(k.summary || '') + '</td><td>' + esc(k.nextStep || '') + (k.followUp ? '<small style="display:block">' + fmtDate(k.followUp) + '</small>' : '') + '</td>' +
@@ -766,10 +830,11 @@ function renderHeader(unplaced) {
 
 let fitted = false;
 function renderAll(redrawMap) {
-  _open = null;
+  _open = null; _kidx = null;
   renderHeader();
   renderControls();
   drawMap();
+  renderKnockPlace();
   renderAreas();
   fillTargetFilters();
   renderTargets();

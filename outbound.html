@@ -82,6 +82,8 @@ h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spac
 .dot.sq{border-radius:2px}
 .dot.tgt{background:#fff !important;border:2px solid var(--s-target);box-shadow:none}
 .dot.dia{border-radius:1px;transform:rotate(45deg);width:10px;height:10px;background:#fff !important;border:2px solid var(--s-target);box-shadow:none}
+.dot.kn{background:var(--s-contacted) !important;box-shadow:0 0 0 2px var(--s-customer)}
+.knock-pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--s-customer),0 1px 4px rgba(0,0,0,.3)}
 .dot.grid{border-radius:2px;background:rgba(46,125,87,.35);border:1px solid rgba(46,125,87,.6);box-shadow:none}
 .seg{display:inline-flex;background:rgba(16,68,78,0.056);border-radius:6px;padding:3px;gap:3px;flex-wrap:wrap}
 .seg button{border:none;background:none;color:var(--grey);font:inherit;font-size:.8rem;padding:.35rem .65rem;border-radius:4px;cursor:pointer}
@@ -95,6 +97,7 @@ h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spac
 .pop dt{color:#5A7A80}
 .pop .notes{font-size:12px;color:#33585F;background:#F1F6F7;border-radius:6px;padding:6px 8px;max-height:110px;overflow:auto;margin-top:4px}
 .pop a{color:#27636C}
+.pop a.btn:not(.ghost){color:#fff}
 .pop .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;color:#fff;white-space:nowrap}
 .shop-pin{width:34px;height:34px;border-radius:9px;background:#10444E;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
@@ -206,7 +209,7 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
   </section>
 
   <section>
-    <div class="h2-row"><div><h2>Territory map</h2><p class="h2-note">Every lead on the sheet, every customer site, and buildings not yet contacted. Search before you knock: if it's already on the map, someone has it.</p></div></div>
+    <div class="h2-row"><div><h2>Territory map</h2><p class="h2-note">Every lead on the sheet, every customer site, every door knock (including buildings off the list), and buildings not yet contacted. Search before you knock: if it's already on the map, someone has it.</p></div></div>
     <div class="map-shell">
       <aside class="side">
         <div class="search">
@@ -217,6 +220,7 @@ details.fr-team summary{cursor:pointer;font-family:'Oswald',sans-serif;font-size
         </div>
         <div><h3>Lead status</h3><ul class="toggles" id="tg-status"></ul></div>
         <div><h3>Layers</h3><ul class="toggles" id="tg-layers"></ul></div>
+        <div id="kn-place"></div>
         <div><h3>Who's working it</h3><div class="seg" id="tg-rep"></div></div>
         <div><h3>Last touched</h3><div class="seg" id="tg-age"></div></div>
         <p class="hint" id="geo-hint"></p>
