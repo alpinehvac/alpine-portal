@@ -427,6 +427,8 @@ html.ap-embed .board:has(>.bh:nth-child(7)){grid-template-columns:minmax(6.5rem,
 </main>
 
 <script>
+// visits[].others may arrive as "A, B" or ["A","B"] from the refresh — accept both
+const othersList = o => Array.isArray(o) ? o.filter(Boolean).map(String) : (o ? String(o).split(/,\s*/).filter(Boolean) : []);
 let D = null, WEEK = 0, STAGE = "ongoing";
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -538,7 +540,7 @@ function renderBoard() {
   let h = `<div class="bh"></div>` + cols.map(d => { const isT = iso(d) === iso(t); const n = inWeek.filter(v => v.date === iso(d)).length; return `<div class="bh ${isT ? "today" : ""}"><b>${d.toLocaleDateString("en-CA", { weekday: "short", day: "numeric" })}</b>${n} visit${n === 1 ? "" : "s"}${isT ? " · today" : ""}</div>`; }).join("");
   if (!names.length) h += `<div class="tech" style="grid-column:1/-1;color:var(--light-grey)">No visits scheduled this week.</div>`;
   names.forEach(n => {
-    const mine = inWeek.filter(v => (v.tech || "") === n || (n && (v.others || "").split(/,\s*/).includes(n)));
+    const mine = inWeek.filter(v => (v.tech || "") === n || (n && othersList(v.others).includes(n)));
     h += `<div class="tech">${n ? esc(n) : `<span class="bad">Unassigned</span>`}<small>${role(n) ? esc(role(n)) + " · " : ""}<span class="load">${mine.length}</span> visit${mine.length === 1 ? "" : "s"}</small></div>`;
     cols.forEach(d => {
       const vs = mine.filter(v => v.date === iso(d)).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
@@ -593,7 +595,7 @@ function renderJobs() {
 function renderTechLoad(X) {
   const counts = {};
   (D.techs || []).forEach(x => counts[x.name] = { s: 0, p: 0, m: 0 });
-  X.weekVisits.forEach(v => { const k = (v.kind || (jobById(v.job) || {}).kind || "Service"); const who = [v.tech || "Unassigned", ...(v.others ? v.others.split(/,\s*/) : [])]; new Set(who).forEach(n => { const c = counts[n] = counts[n] || { s: 0, p: 0, m: 0 }; c[k === "Project" ? "p" : k === "Maintenance" ? "m" : "s"]++; }); });
+  X.weekVisits.forEach(v => { const k = (v.kind || (jobById(v.job) || {}).kind || "Service"); const who = [v.tech || "Unassigned", ...othersList(v.others)]; new Set(who).forEach(n => { const c = counts[n] = counts[n] || { s: 0, p: 0, m: 0 }; c[k === "Project" ? "p" : k === "Maintenance" ? "m" : "s"]++; }); });
   const max = Math.max(1, ...Object.values(counts).map(c => c.s + c.p + c.m));
   const rows = Object.entries(counts).sort((a, b) => (b[1].s + b[1].p + b[1].m) - (a[1].s + a[1].p + a[1].m));
   $("tech-load").innerHTML = rows.length ? rows.map(([n, c]) => { const tot = c.s + c.p + c.m; return `<div class="tload"><span>${esc(n)}</span><span class="track">${[["s", "var(--teal-light)"], ["p", "var(--purple)"], ["m", "var(--green)"]].map(([k, col]) => `<i style="width:${c[k] / max * 100}%;background:${col}"></i>`).join("")}</span><span class="num ${tot === 0 ? "watch" : ""}" style="text-align:right">${tot} visit${tot === 1 ? "" : "s"}</span></div>`; }).join("") : `<div class="dim">No techs on file.</div>`;
