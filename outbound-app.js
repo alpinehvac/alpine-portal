@@ -68,6 +68,41 @@ document.getElementById('view-toggle')?.addEventListener('click', () => {
 });
 applyFocus();
 
+// ── Collapsible sections ────────────────────────────────────────────
+// Every section (and each half of the two-column section) opens from its title and starts
+// condensed, so the whole page fits on one screen. The embedded map view stays open.
+const EMBED = document.documentElement.classList.contains('ap-embed');
+const czUnits = [];
+document.querySelectorAll('main .h2-row').forEach(hr => {
+  const unit = hr.parentElement, h2 = hr.querySelector('h2'); if (!h2) return;
+  unit.classList.add('cz-unit'); if (!EMBED) unit.classList.add('collapsed');
+  h2.classList.add('cz-head'); h2.setAttribute('role', 'button'); h2.tabIndex = 0;
+  h2.setAttribute('aria-expanded', EMBED ? 'true' : 'false');
+  czUnits.push(unit);
+});
+function czSet(unit, open) {
+  if (!unit) return;
+  unit.classList.toggle('collapsed', !open);
+  const h2 = unit.querySelector('.cz-head'); if (h2) h2.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open && unit.contains(document.getElementById('map'))) mapShown();
+}
+document.addEventListener('click', e => {
+  const h = e.target.closest('.cz-head'); if (!h || e.target.closest('a,button,select,input')) return;
+  const u = h.closest('.cz-unit'); czSet(u, u.classList.contains('collapsed'));
+});
+document.addEventListener('keydown', e => {
+  const h = e.target.closest && e.target.closest('.cz-head'); if (!h || (e.key !== 'Enter' && e.key !== ' ')) return;
+  e.preventDefault(); const u = h.closest('.cz-unit'); czSet(u, u.classList.contains('collapsed'));
+});
+if (!EMBED) {
+  const bar = document.createElement('div'); bar.className = 'cz-bar';
+  bar.innerHTML = '<button class="btn sm ghost" id="cz-open">Expand all</button><button class="btn sm ghost" id="cz-close">Collapse all</button>';
+  const first = document.querySelector('main > section'); first.parentNode.insertBefore(bar, first);
+  bar.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; czUnits.forEach(u => czSet(u, b.id === 'cz-open')); });
+}
+// Open the map section (if collapsed) and let Leaflet re-measure before any fly-to.
+function showMap() { czSet(document.getElementById('map').closest('.cz-unit'), true); }
+
 // ── Data ────────────────────────────────────────────────────────────
 const leadsDoc = readJSON('ob_leads') || { rows: [] };
 const custDoc = readJSON('ob_customers') || { rows: [] };
@@ -439,7 +474,7 @@ function flyTo(ref) {
   if (kind === 'k' && !state.layers.has('knocks')) { state.layers.add('knocks'); renderControls(); drawMap(); }
   const mk = markerById[ref] || m;
   if (!mk) return;
-  document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showMap(); document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
   map.flyTo(mk.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.8 });
   setTimeout(() => mk.openPopup(), 850);
 }
@@ -450,7 +485,7 @@ function fitArea(area) {
   openTargets().forEach(t => { if (t.area === area) { const p = posOf(t); if (p) pts.push([p.lat, p.lng]); } });
   customers.forEach(c => { if (areaOfCust(c) === area) { const p = posOf(c); if (p) pts.push([p.lat, p.lng]); } });
   if (!pts.length) return;
-  document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showMap(); document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
   map.fitBounds(pts, { padding: [40, 40], maxZoom: 15 });
 }
 
@@ -458,7 +493,7 @@ function fitArea(area) {
 let placing = null;
 function startPlacing(gkey) {
   placing = gkey;
-  document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showMap(); document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
   $('geo-hint').innerHTML = '<b>Click the map where this building is.</b> <a href="#" id="cancel-place">Cancel</a>';
   $('cancel-place').onclick = ev => { ev.preventDefault(); placing = null; $('geo-hint').textContent = ''; };
   map.getContainer().style.cursor = 'crosshair';
@@ -688,49 +723,110 @@ function knockActions(k) {
   if (Array.isArray(k.actions) && k.actions.length) return k.actions;  // done ones are kept but skipped below
   return k.nextStep ? [{ text: k.nextStep, due: k.followUp || null }] : [];
 }
+// Removed follow-ups (not relevant any more): { <key>: { by, at } }, saved to the cloud for everyone.
+// A lead-sheet key includes its follow-up date, so a new date on the sheet brings it back.
+let fuDismissed = readJSON('ob_fu_dismissed') || {};
+let fuSort = 'recent', fuOpen = null, fuUndo = null, fuItems = {};
+const fuKey = x => x.src === 'knock' ? 'k:' + x.k.id + ':' + x.i : x.ref + ':' + (x.due || '');
 function renderFollowReq() {
   const el = $('fr-list'); if (!el) return;
   const today = todayISO(), wk = new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10), old = new Date(Date.now() - 45 * DAY).toISOString().slice(0, 10);
   let stale = 0;
   const items = [];
-  knocks.forEach(k => { if (k.doneAt) return; knockActions(k).forEach((a, i) => !a.done && items.push({ src: 'knock', k, i, due: a.due || k.followUp || '', text: a.text, who: 'Jake', company: k.company, sub: (k.contact ? k.contact + ' · ' : '') + (k.address || ''), interest: k.interest, ref: knockRef(k) })); });
+  knocks.forEach(k => { if (k.doneAt) return; knockActions(k).forEach((a, i) => !a.done && items.push({ src: 'knock', k, i, due: a.due || k.followUp || '', when: k.date || '', text: a.text, who: 'Jake', company: k.company, contact: k.contact || '', email: k.email || '', address: k.address || '', sub: (k.contact ? k.contact + ' · ' : '') + (k.address || ''), interest: k.interest, ref: knockRef(k) })); });
   leads.forEach(l => { if (!l.followUp || ['Dead', 'Converted'].includes(l.status) || (l.lastTouch && l.lastTouch >= l.followUp) || l.followUp > wk) return;
     if (l.followUp < old) { stale++; return; }   // same 45-day window as the Monday email; older ones are counted, not listed
-    items.push({ src: 'lead', due: l.followUp, text: (l.notes || '').split(/\n/)[0].slice(0, 160) || 'Follow up', who: l.rep || '', company: l.company, sub: [l.contact, l.phone].filter(Boolean).join(' · '), ref: 'l:' + l.id }); });
-  items.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
-  const od = items.filter(x => x.due && x.due < today).length;
+    items.push({ src: 'lead', l, due: l.followUp, when: l.lastTouch || l.followUp, text: (l.notes || '').split(/\n/)[0].slice(0, 160) || 'Follow up', who: l.rep || '', company: l.company, contact: l.contact || '', email: l.email || '', address: l.address || '', sub: [l.contact, l.phone].filter(Boolean).join(' · '), ref: 'l:' + l.id }); });
+  fuItems = {};
+  const live = items.filter(x => { const key = fuKey(x); x.key = key; fuItems[key] = x; return !fuDismissed[key]; });
+  // Most recent: newest conversation / touch first. Due date: overdue first, oldest first.
+  live.sort(fuSort === 'due' ? (a, b) => (a.due || '9999').localeCompare(b.due || '9999') : (a, b) => (b.when || '').localeCompare(a.when || '') || (a.due || '9999').localeCompare(b.due || '9999'));
   const row = x => {
     const late = x.due && x.due < today, dueTxt = x.due ? fmtDate(x.due) : 'No date';
-    return '<li><div class="wk-top"><span class="fr-due' + (late ? ' late' : x.due === today ? ' today' : '') + '">' + dueTxt + '</span>' +
+    // Contact found online for an off-sheet target, if the knock recording didn't carry an email.
+    const tc = !x.email && x.ref && x.ref.startsWith('t:') ? contactHTML(x.ref.slice(2)) : '';
+    return '<li class="fu' + (x.key === fuOpen ? ' open' : '') + '" data-key="' + esc(x.key) + '"><div class="fu-head wk-top"><span class="fr-due' + (late ? ' late' : x.due === today ? ' today' : '') + '">' + dueTxt + '</span>' +
       (x.ref ? '<a class="wk-name" data-fly="' + esc(x.ref) + '">' + esc(x.company || '—') + '</a>' : '<b>' + esc(x.company || '—') + '</b>') +
       (x.interest ? '<span class="chip" style="background:' + (INTEREST[x.interest] || '#5A7A80') + '">' + esc(x.interest) + '</span>' : '') +
-      '<span class="wk-type">' + (x.src === 'knock' ? 'Door knock' : 'Lead sheet') + (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
-      (x.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(x.k.id) + '" data-i="' + x.i + '">Done</button>' : '') + '</div>' +
-      '<div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + '</div>' : '') + '</li>';
+      '<span class="wk-type">' + (x.src === 'knock' ? 'Door knock' + (x.when ? ' ' + fmtDate(x.when) : '') : 'Lead sheet') + (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
+      '<div class="fu-gist">' + esc(x.text) + '</div></div>' +
+      '<div class="fu-body"><div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + (x.email ? ' · <a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' : '') + '</div>' : '') + tc +
+      '<div class="fu-acts"><button class="btn sm fu-mail">Email draft to me</button>' +
+      (x.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(x.k.id) + '" data-i="' + x.i + '">Done</button>' : '') +
+      '<button class="btn sm ghost fu-del">Remove</button><button class="btn sm ghost fu-next">Next ›</button></div></div></li>';
   };
+  const list = arr => '<ol class="wk fr">' + arr.map(row).join('') + '</ol>';
   // Each person sees their own first; everyone else's sits in a collapsed "Team" section.
   const mine = x => x.src === 'knock' ? (x.k.rep || 'Jake') === myName || new RegExp('\\b' + myName + '\\b', 'i').test(x.k.rep || 'Jake') : repOf(x.who).includes(myName);
-  const my = items.filter(mine), team = items.filter(x => !mine(x));
+  const my = live.filter(mine), team = live.filter(x => !mine(x));
   const kn = my.filter(x => x.src === 'knock'), ld = my.filter(x => x.src === 'lead');
   const teamNames = [...new Set(team.map(x => x.src === 'knock' ? (x.k.rep || '') : repOf(x.who).filter(n => n !== myName).join('/') || x.who).filter(Boolean))].join(', ');
-  $('fr-note').textContent = my.length + ' yours open · ' + my.filter(x => x.due && x.due < today).length + ' overdue' + (stale ? ' · ' + stale + ' older lead-sheet follow-ups not shown (update or close them on the sheet)' : '');
+  const removed = items.filter(x => fuDismissed[x.key]).length;
+  const tools = '<div class="fu-tools"><div class="seg" id="fu-sort"><button data-s="recent" class="' + (fuSort === 'recent' ? 'on' : '') + '">Most recent</button><button data-s="due" class="' + (fuSort === 'due' ? 'on' : '') + '">Due date</button></div>' +
+    (removed ? '<span>' + removed + ' removed</span>' : '') +
+    (fuUndo ? '<span class="fu-undo">Removed ' + esc((fuItems[fuUndo] || {}).company || 'follow-up') + ' <a id="fu-undo">Undo</a></span>' : '') + '</div>';
+  const shown = focusView ? kn : my;
+  $('fr-n').textContent = shown.length ? shown.length + ' open · ' + shown.filter(x => x.due && x.due < today).length + ' overdue' : '';
+  $('fr-note').textContent = focusView ? '' : (stale ? stale + ' older lead-sheet follow-ups not shown (update or close them on the sheet).' : '');
   if (focusView) {
-    $('fr-note').textContent = kn.length + ' open · ' + kn.filter(x => x.due && x.due < today).length + ' overdue';
-    el.innerHTML = kn.length ? '<ol class="wk fr">' + kn.map(row).join('') + '</ol>' : '<p class="hint">No open actions from your knock recordings.</p>';
+    el.innerHTML = tools + (kn.length ? list(kn) : '<p class="hint">No open actions from your knock recordings.</p>');
     return;
   }
-  el.innerHTML = '<h3 class="wk-h">From your door knocks (' + kn.length + ')</h3>' + (kn.length ? '<ol class="wk fr">' + kn.map(row).join('') + '</ol>' : '<p class="hint">No open actions from your knock recordings.</p>') +
-    '<h3 class="wk-h">Your lead-sheet follow-ups, last 45 days to next 7 (' + ld.length + ')</h3>' + (ld.length ? '<ol class="wk fr">' + ld.map(row).join('') + '</ol>' : '<p class="hint">None due.</p>') +
-    (team.length ? '<details class="fr-team"><summary>Team follow-ups' + (teamNames ? ' (' + esc(teamNames) + ')' : '') + ' · ' + team.length + '</summary><ol class="wk fr">' + team.map(row).join('') + '</ol></details>' : '');
+  el.innerHTML = tools + '<h3 class="wk-h">From your door knocks (' + kn.length + ')</h3>' + (kn.length ? list(kn) : '<p class="hint">No open actions from your knock recordings.</p>') +
+    '<h3 class="wk-h">Your lead-sheet follow-ups, last 45 days to next 7 (' + ld.length + ')</h3>' + (ld.length ? list(ld) : '<p class="hint">None due.</p>') +
+    (team.length ? '<details class="fr-team"><summary>Team follow-ups' + (teamNames ? ' (' + esc(teamNames) + ')' : '') + ' · ' + team.length + '</summary>' + list(team) + '</details>' : '');
+}
+// One-by-one: open a row; Done / Remove / Next move to the row below it.
+function fuRows() { return [...document.querySelectorAll('#fr-list li.fu')].filter(li => li.offsetParent !== null || li.classList.contains('open')); }
+function fuGoNext(li, rerender) {
+  const rows = fuRows(), i = rows.indexOf(li), nx = rows[i + 1] || null;
+  fuOpen = nx ? nx.dataset.key : null;
+  if (rerender) renderFollowReq();
+  else { rows.forEach(r => r.classList.toggle('open', r.dataset.key === fuOpen)); }
+  const el = fuOpen && document.querySelector('#fr-list li.fu[data-key="' + CSS.escape(fuOpen) + '"]');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function fuSave() { localStorage.setItem('ob_fu_dismissed', JSON.stringify(fuDismissed)); }
+// Generic follow-up, addressed to the signed-in user so it lands in their inbox to forward.
+function fuMail(x) {
+  const me = session.email || '', name = session.name || 'Alpine HVAC';
+  const first = (x.contact || '').trim().split(/[\s,(]/)[0];
+  const tc = x.ref && x.ref.startsWith('t:') ? (contactsDoc.rows || {})[x.ref.slice(2)] || {} : {};
+  const to = x.email || tc.email || '';
+  const met = x.src === 'knock' && x.when ? 'when I stopped by on ' + fmtDate(x.when).replace(/, \d{4}$/, '') : 'recently';
+  const site = x.address ? ' at ' + cleanAddr(x.address) : '';
+  const body = 'FORWARD TO: ' + ([x.contact, to].filter(Boolean).join(' <') + (to && x.contact ? '>' : '') || '(no contact on file)') + ' · ' + (x.company || '') + '\n' +
+    '----------------------------------------\n\n' +
+    'Hi ' + (first || 'there') + ',\n\n' +
+    'Thank you for taking the time to speak with me ' + met + '. I wanted to follow up on our conversation about the HVAC and building systems' + site + '.\n\n' +
+    'Alpine HVAC looks after commercial, industrial and institutional buildings across Niagara and Hamilton: planned maintenance, 24/7 emergency service, and building automation alongside the mechanical work, all from one team.\n\n' +
+    'Would you have 15 minutes in the next week or two for a quick walk through your mechanical room? We would take a look at your equipment and put together a maintenance plan that fits the building, at no charge.\n\n' +
+    'Thanks again, and I look forward to hearing from you.\n\n' +
+    name + '\nAlpine HVAC Service Inc.\n' + me + '\n';
+  location.href = 'mailto:' + encodeURIComponent(me) + '?subject=' + encodeURIComponent('Following up — ' + (x.company || 'our conversation')) + '&body=' + encodeURIComponent(body);
 }
 document.addEventListener('click', e => {
-  const b = e.target.closest('.fr-done'); if (!b) return;
-  const cur = readJSON('ob_knocks') || { rows: [] }, k = (cur.rows || []).find(r => r.id === b.dataset.k); if (!k) return;
-  const acts = knockActions(k).map((a, i) => i === +b.dataset.i ? { ...a, done: todayISO(), doneBy: session.name } : a);
-  k.actions = acts; if (acts.every(a => a.done)) { k.doneAt = todayISO(); k.doneBy = session.name; }
-  localStorage.setItem('ob_knocks', JSON.stringify(cur));
-  const mem = knocks.find(r => r.id === k.id); if (mem) Object.assign(mem, k);
-  renderFollowReq();
+  if (!e.target.closest('#fr-list')) return;
+  const sb = e.target.closest('#fu-sort button'); if (sb) { fuSort = sb.dataset.s; renderFollowReq(); return; }
+  if (e.target.closest('#fu-undo')) { delete fuDismissed[fuUndo]; fuOpen = fuUndo; fuUndo = null; fuSave(); renderFollowReq(); return; }
+  const li = e.target.closest('li.fu'); if (!li) return;
+  const x = fuItems[li.dataset.key];
+  if (e.target.closest('.fu-mail')) { if (x) fuMail(x); return; }
+  if (e.target.closest('.fu-next')) { fuGoNext(li, false); return; }
+  if (e.target.closest('.fu-del')) { fuDismissed[li.dataset.key] = { by: session.name, at: todayISO() }; fuUndo = li.dataset.key; fuSave(); fuGoNext(li, true); return; }
+  const b = e.target.closest('.fr-done');
+  if (b) {
+    const cur = readJSON('ob_knocks') || { rows: [] }, k = (cur.rows || []).find(r => r.id === b.dataset.k); if (!k) return;
+    const acts = knockActions(k).map((a, i) => i === +b.dataset.i ? { ...a, done: todayISO(), doneBy: session.name } : a);
+    k.actions = acts; if (acts.every(a => a.done)) { k.doneAt = todayISO(); k.doneBy = session.name; }
+    localStorage.setItem('ob_knocks', JSON.stringify(cur));
+    const mem = knocks.find(r => r.id === k.id); if (mem) Object.assign(mem, k);
+    fuGoNext(li, true); return;
+  }
+  if (e.target.closest('.fu-head') && !e.target.closest('a')) {
+    const open = !li.classList.contains('open'); fuOpen = open ? li.dataset.key : null;
+    fuRows().forEach(r => r.classList.toggle('open', r.dataset.key === fuOpen));
+  }
 });
 
 let weekSel = null;
@@ -751,6 +847,7 @@ function renderWeek() {
   const done = rows.filter(r => r.k.length).concat(extra).sort((a, b) => (b.k[0].date || '').localeCompare(a.k[0].date || ''));
   const mapLink = t => { const a = t.address || (geo['rev:' + t.id] || {}).addr; return a ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(a + ', ' + (t.area || '') + ', ON') + '" target="_blank" rel="noopener">' + esc(a) + '</a>' : (t.lat != null ? '<a href="https://maps.google.com/?q=' + t.lat + ',' + t.lng + '" target="_blank" rel="noopener">map pin</a>' : ''); };
   const sz = t => t.sqft ? ' · ' + fmtSqft(t.sqft) : '';
+  if ($('wk-n')) $('wk-n').textContent = 'Week ' + W.week + ' · ' + done.length + ' knocked · ' + next.length + ' to go';
   let h = '<div class="wk-head">' + (weeks.length > 1 ? '<select id="wk-sel">' + weeks.map(w => '<option value="' + w.week + '"' + (w.week === W.week ? ' selected' : '') + '>Week ' + w.week + ' · ' + fmtDate(w.sent) + '</option>').join('') + '</select>' : '<b>Week ' + W.week + '</b> · sent ' + fmtDate(W.sent)) +
     ' <span class="wk-count">' + done.length + ' knocked' + (extra.length ? ' (' + extra.length + ' off the list)' : '') + ' · ' + next.length + ' to go</span></div>';
   h += '<h3 class="wk-h">Knocked (' + done.length + ')</h3>' + (done.length ? '<ol class="wk">' + done.map(r => {
@@ -841,6 +938,14 @@ function renderHeader(unplaced) {
 }
 
 let fitted = false;
+function mapVisible() { return document.getElementById('map').offsetWidth > 0; }
+function fitInitial() {
+  if (fitted || !mapVisible()) return;
+  const pts = leads.concat(customers).map(posOf).filter(Boolean).filter(p => km({ lat: HAMILTON[0], lng: HAMILTON[1] }, p) < 90).map(p => [p.lat, p.lng]);
+  pts.push([shopPos().lat, shopPos().lng]);
+  if (pts.length > 3) { map.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); fitted = true; }
+}
+function mapShown() { map.invalidateSize(); fitInitial(); }
 function renderAll(redrawMap) {
   _open = null; _kidx = null;
   renderHeader();
@@ -857,11 +962,7 @@ function renderAll(redrawMap) {
   renderReports();
   renderWeek();
   renderFollowReq();
-  if (!fitted) {
-    const pts = leads.concat(customers).map(posOf).filter(Boolean).filter(p => km({ lat: HAMILTON[0], lng: HAMILTON[1] }, p) < 90).map(p => [p.lat, p.lng]);
-    pts.push([shopPos().lat, shopPos().lng]);
-    if (pts.length > 3) { map.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); fitted = true; }
-  }
+  fitInitial();
 }
 
 // Knocks merge by Fireflies id; automatic touch counts merge by week + rep + source.
