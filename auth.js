@@ -35,6 +35,7 @@ const AP_TOOLS = {
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },
   "service-agreements": { label: "Service Agreement Tracker",     roles: ["sales"], strict: true }, // sales role required, no super_admin bypass
   "site-reports":       { label: "Site Reports",                  roles: ["sales", "ops"], strict: true }, // quarterly maintenance progress + customer summaries
+  "accounts":           { label: "Account Management",            roles: ["owner", "field_ops"], strict: true }, // per-customer file, QTD/YTD activity, quarterly report + live link: Jake, Mike + Cole (account_data, account_share)
   "sales-strategy":     { label: "Sales Strategy",                roles: ["sales"] },
   "case-studies":       { label: "Case Studies",                  roles: ["sales"] },
   "audit-playbook":     { label: "Audit Playbook",                roles: ["sales"] },

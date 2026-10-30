@@ -1028,7 +1028,7 @@ else {
     const det = { ...(P.detail || {}), ...(extra.detail || {}) }, cst = { ...(P.costs || {}), ...(extra.costs || {}) };
     const qb = extra.qb || {}, em = extra.emails || {};
     const board = {}; ((window.__opsData || {}).jobs || []).forEach(j => board[j.id] = j);
-    const ids = [...new Set([...Object.keys(det), ...Object.keys(cst), ...Object.keys(qb), ...Object.keys(em)])].filter(id => /^JO\d+$/.test(id));
+    const ids = [...new Set([...Object.keys(det), ...Object.keys(cst), ...Object.keys(qb), ...Object.keys(em)])].filter(id => /^JO\d+$/.test(id) || /^SA\d+-\d+$/.test(id));
     if (!ids.length) throw new Error("Nothing to save: no BuildOps read waiting and no job data pasted.");
     const asOf = P.asOf || extra.asOf || new Date().toISOString().slice(0, 10);
     const old = {}, oldC = {};

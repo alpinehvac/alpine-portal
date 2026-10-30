@@ -111,6 +111,18 @@ service cloud.firestore {
       allow read, write: if isSales() || isOps();
     }
 
+    // Account Management: customer contacts, notes, report history + customization: Jake, Mike + Cole
+    match /account_data/{doc=**} {
+      allow read, write: if isFieldOps();
+    }
+    // Customer live report links (account-report.html?t=<token>): anyone holding the link can open ONE
+    // snapshot (no dollar amounts); nobody can list them. Jake, Mike and Cole publish, update or turn a link off.
+    match /account_share/{token} {
+      allow get: if token.size() >= 20;
+      allow list: if false;
+      allow create, update, delete: if isFieldOps();
+    }
+
     // Building Performance Audits (records) + audit photos (one doc per photo): sales only
     match /audit_data/{doc=**} {
       allow read, write: if isSales();

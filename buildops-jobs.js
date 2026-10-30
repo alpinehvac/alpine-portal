@@ -6,6 +6,7 @@
 //
 // For each job it opens, in this order, and reads only:
 //   /job/view/<n>?tab=reports-invoices   header fields, invoices, link to the job report
+//   /maintenance/view/<SA#-n>?tab=reports-invoices   same, for maintenance records (ids like "SA1024-3")
 //   /jobreport/<rid>                     every visit's description, techs, summary notes, recommendations,
 //                                        technician notes, labour, field POs, parts, receipts, photos, tasks;
 //                                        assets, invoice items. Each grid is paged through to the end
@@ -152,11 +153,12 @@ const vdate = s => { const m = String(s || "").match(/Visit\s+\d+\s*-\s*(.*)$/i)
 const tech = s => String(s || "").replace(/\s*\(.*\)$/, "");
 const role = s => (String(s || "").match(/\((.*)\)/) || [])[1] || "";
 
+const isMaint = id => /^SA\d+-\d+$/.test(id);
 async function readJobView(id) {
   const n = id.replace(/^JO/, "");
-  nav("/job/view/" + n + "?tab=reports-invoices");
-  const ok = await waitFor(() => mainText().includes("Job: " + id) && /Add Visit|Invoice #|INVOICE\(S\) ISSUED/i.test(mainText()));
-  if (!ok) throw new Error("job page did not load");
+  nav(isMaint(id) ? "/maintenance/view/" + id + "?tab=reports-invoices" : "/job/view/" + n + "?tab=reports-invoices");
+  const ok = await waitFor(() => mainText().includes((isMaint(id) ? "Maintenance: " : "Job: ") + id) && /Add Visit|Invoice #|INVOICE\(S\) ISSUED|TOTAL BILLED/i.test(mainText()));
+  if (!ok) throw new Error((isMaint(id) ? "maintenance" : "job") + " page did not load");
   await waitFor(() => /INVOICE\(S\) ISSUED|Invoice #/i.test(mainText()), 8000);
   const rep = [...document.querySelectorAll("main a[href*='/jobreport/']")].map(a => a.getAttribute("href")).find(h => /^\/jobreport\/[0-9a-f-]+$/.test(h));
   const T = tables();
@@ -188,11 +190,13 @@ function issueText() {
 
 // The job report overview lists every visit's description, summary notes, recommendations,
 // technician notes, labour, field POs, parts, receipts, photos and tasks, each in its own paged grid.
+let PREP = "";
 async function readOverview(rid) {
   ATT = new Map();
   nav("/jobreport/" + rid);
   const ok = await waitFor(() => /Costs\s*\n\s*Labor/i.test(mainText()) || mainText().includes("Invoice Items"));
   if (!ok) throw new Error("job report did not load");
+  PREP = field("PROPERTY REPRESENTATIVE"); // customer contact on the report header (name only)
   const T1 = await allTables(); // overview: costs, invoice items
   // "Visits (n of m Reviewed)" in the left nav opens the all-visits view (read-only navigation).
   const vn = [...document.querySelectorAll("main *")].find(e => e.children.length === 0 && /^Visits \(\d+ of \d+/.test(e.textContent.trim()));
@@ -233,11 +237,12 @@ async function readOverview(rid) {
 
 async function readJob(id) {
   const v = await readJobView(id);
+  PREP = "";
   const ov = v.rid ? await readOverview(v.rid) : { visits: [], jobRecs: [], jobTasks: [], assets: [], labour: [], inventory: [], purchased: [], invItems: [], invoiceSubtotal: null };
   const visits = ov.visits.filter(x => !/cancel/i.test(x.status || "")).sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.n || 0) - (b.n || 0));
   const strip = arr => arr.map(({ cost, unit, ...r }) => r);
   const detail = {
-    id, url: "https://live.buildops.com/job/view/" + id.replace(/^JO/, ""), reportUrl: v.rid ? "https://live.buildops.com/jobreport/" + v.rid : null,
+    id, kind: isMaint(id) ? "maintenance" : "job", url: "https://live.buildops.com/" + (isMaint(id) ? "maintenance/view/" + id : "job/view/" + id.replace(/^JO/, "")), propertyRep: PREP, reportUrl: v.rid ? "https://live.buildops.com/jobreport/" + v.rid : null,
     customer: v.h.customer, billTo: v.h.billTo, property: v.h.property, address: v.h.address, authorizedBy: v.h.authorizedBy,
     po: v.h.po, workOrder: v.h.workOrder, type: v.h.type, department: v.h.department, pm: v.h.pm, soldBy: v.h.soldBy,
     budgetHrs: v.h.budgetHrs, issue: v.issue,
@@ -279,7 +284,7 @@ async function loop() {
 window.alpineJobs = {
   start(ids, fresh) {
     if (fresh) { localStorage.removeItem(KEY); load(); }
-    const want = (ids || []).map(String).filter(x => /^JO\d+$/.test(x));
+    const want = (ids || []).map(String).filter(x => /^JO\d+$/.test(x) || /^SA\d+-\d+$/.test(x));
     for (const id of want) if (!S.queue.includes(id) && !S.detail[id]) S.queue.push(id);
     save(); loop();
     return { queued: S.queue.length, done: Object.keys(S.detail).length };

@@ -42,7 +42,8 @@
       // Field techs can't open Field Operations but do use the job pages.
       { tool: "job", label: "Jobs", show: () => can("job") && !can("ops-dashboard"), match: ["job.html"] },
       { tool: "service-agreements", label: "Service Agreements", match: ["service-agreements.html", "agreement.html", "refresh.html"] },
-      { tool: "site-reports", label: "Site Reports", match: ["site-reports.html", "site.html"] },
+      // Account Management replaced Site Reports in the menu (Oct 2026); site.html pages open from each customer file.
+      { tool: "accounts", label: "Account Management", match: ["accounts.html", "site.html", "site-reports.html"] },
       { tool: "team-hub", label: "Team Hub" },
       { tool: "call-log", label: "Call Log / On-Call", ext: true },
     ] },
