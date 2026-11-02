@@ -23,6 +23,9 @@ Invoke `anthropic-skills:alpine-ops-dashboard-refresh` and follow it (Steps 0–
 (`context.html`) first, as the cash refresh does; job dates must match the cash page. Save the board through
 Field Operations > Update data. Keep the saved file: Part B uses its job list.
 
+Leave off the board any job the Business Context log says is cancelled, replaced or not used, even if BuildOps
+still shows it Open.
+
 Before saving, re-read the quotes on every run; never carry them over. In BuildOps open `/quote/list`, 100 rows per
 page, all pages (the grid is virtualised: scroll it and read `.MuiDataGrid-cell[data-field]`). Fields:
 `quoteIdentifier, quoteTitle, customerName, createdDate, quoteAmount, status`, plus the property name and the row's
