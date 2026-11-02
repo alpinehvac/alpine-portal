@@ -23,6 +23,15 @@ Invoke `anthropic-skills:alpine-ops-dashboard-refresh` and follow it (Steps 0–
 (`context.html`) first, as the cash refresh does; job dates must match the cash page. Save the board through
 Field Operations > Update data. Keep the saved file: Part B uses its job list.
 
+Before saving, re-read the quotes on every run; never carry them over. In BuildOps open `/quote/list`, 100 rows per
+page, all pages (the grid is virtualised: scroll it and read `.MuiDataGrid-cell[data-field]`). Fields:
+`quoteIdentifier, quoteTitle, customerName, createdDate, quoteAmount, status`, plus the property name and the row's
+`a[href^="/quote/"]` link. Update every entry in `quotes[]`: `id, status, amount, created, customer, property, title,
+url` (`url` = `https://live.buildops.com` + that link). Keep `Open` as the board label for BuildOps `Draft`. Add new
+drafts, and any quote no longer open keeps its BuildOps status so the board drops it from Quoting. A ✕ check goes in
+`checks` only if the list could not be read. Quote and job numbers share digits: Q20261144 is not JO20261144, so
+never build a quote link from its number.
+
 ## Part B: Job pages
 
 ### B1. BuildOps read (photos, visit reports, hours, materials)

@@ -720,13 +720,15 @@ function colHead(el, title, n, total, sub) {
   $(el).innerHTML = `<h3>${title}<span class="n">${n}</span></h3><div class="tot">${fm(total)}${sub ? `<small>${sub}</small>` : ""}</div>`;
 }
 const jobRef = (j) => `<a href="${jobPage(j.id)}" onclick="event.stopPropagation()">${esc(j.id)}</a>`;
+/* Quote and job numbers share digits (Q20261144 is not JO20261144), so a quote only ever links to its own BuildOps quote page. */
+const quoteRef = (q) => q.url ? `<a href="${esc(q.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(q.id)}</a>` : esc(q.id);
 
 function quoteCard(q, t) {
   const draft = /draft/i.test(q.status || "");
   const d = parseD(q.sent || q.created), age = d ? days(d, t) : null;
   const stale = !draft && age != null && age > 14;
   return `<div class="jc"><div style="padding:.75rem .85rem .8rem">
-    <div class="jc-top"><span class="jc-id">${jobRef(q)}</span><span class="jc-amt">${fm(q.amount)}</span></div>
+    <div class="jc-top"><span class="jc-id">${quoteRef(q)}</span><span class="jc-amt">${fm(q.amount)}</span></div>
     <div class="jc-cust">${esc(q.customer)}</div><div class="jc-site">${esc(q.property || "")}</div>
     ${q.title ? `<div class="jc-scope">${esc(q.title)}</div>` : ""}
     <div class="jc-meta"><span class="tag ${draft ? "grey" : "amber"}">${esc(q.status || "Open")}</span>${age != null ? `<span class="tag ${stale ? "red" : "grey"}">${draft ? "Created" : "Sent"} ${fmtD(q.sent || q.created)} · ${age}d${stale ? " · follow up" : ""}</span>` : ""}${q.hrs ? `<span class="tag grey">${q.hrs} hrs</span>` : ""}${q.owner ? `<span class="tag grey">${esc(q.owner)}</span>` : ""}</div>
@@ -812,7 +814,7 @@ function renderPipeline() {
   if (a && host.contains(a) && /INPUT|TEXTAREA/.test(a.tagName) && a.type !== "checkbox") { pendingPipe = true; return; }
   pendingPipe = false;
   const t = today();
-  const quotes = (D.quotes || []).filter(q => !/approved|won|declined|lost|cancel|reject|expired/i.test(q.status || ""))
+  const quotes = (D.quotes || []).filter(q => !/approved|project added|won|declined|lost|cancel|reject|expired/i.test(q.status || ""))
     .sort((x, y) => (x.sent || x.created || "").localeCompare(y.sent || y.created || ""));
   const P = (D.jobs || []).filter(isPipe).map(pjob);
   const appr = P.filter(x => x.stage === "approved").sort((x, y) => (x.j.approved || x.j.created || "").localeCompare(y.j.approved || y.j.created || ""));

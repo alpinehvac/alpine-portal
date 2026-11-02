@@ -639,7 +639,7 @@ else {
     } else {
       const s = await getDoc(doc(db, "ops_job_detail", id));
       if (!s.exists()) {
-        document.getElementById("view").innerHTML = `<div class="head"><div><h1>${id.replace(/[^A-Z0-9]/g, "")}</h1><p class="sub">No visit details saved for this job yet. The daily refresh adds every job on the Field Operations board.</p></div><div class="actions"><a class="btn" href="https://live.buildops.com/job/view/${id.replace(/\D/g, "")}" target="_blank" rel="noopener">Open in BuildOps ↗</a></div></div>`;
+        document.getElementById("view").innerHTML = `<div class="head"><div><h1>${id.replace(/[^A-Z0-9]/g, "")}</h1><p class="sub">No visit details saved for this job yet. The daily refresh adds every job on the Field Operations board.</p></div><div class="actions"><a class="btn" href="${/^Q/.test(id) ? "https://live.buildops.com/quote/list" : `https://live.buildops.com/job/view/${id.replace(/\D/g, "")}`}" target="_blank" rel="noopener">Open in BuildOps ↗</a></div></div>`;
       } else {
         let costs = null;
         if (owner) { try { const c = await getDoc(doc(db, "ops_job_costs", id)); if (c.exists()) costs = JSON.parse(c.data().json); } catch (e) { if (!denied(e)) throw e; } }
