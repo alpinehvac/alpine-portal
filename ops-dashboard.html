@@ -214,8 +214,17 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 .ctx-row{display:flex;gap:.35rem;margin-top:.4rem;flex-wrap:wrap}
 .ctx-row input{flex:1 1 100%;min-width:0;font:inherit;font-size:.78rem;padding:.35rem .45rem;border:1px solid rgba(16,68,78,0.18);border-radius:5px;background:var(--black);color:var(--white)}
 .ctx-row input:focus{outline:none;border-color:var(--teal-light)}
-.arch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.7rem;align-items:start;margin-top:.7rem}
-.arch-grid .jc{margin-bottom:0;border-left-color:var(--light-grey)}
+.arch-month{margin-top:.5rem;border-top:1px solid var(--border);padding-top:.5rem}
+.arch-month>summary{cursor:pointer;font-weight:600;font-size:.82rem;color:var(--white)}
+.arch-month>summary small{font-weight:400;color:var(--light-grey);margin-left:.4rem;font-size:.76rem}
+.arch-row.jc{margin:.3rem 0 0;border-left-color:var(--light-grey);border-radius:6px;box-shadow:none}
+.arch-row.jc summary{display:grid;grid-template-columns:3.4rem 5.6rem minmax(0,1fr) auto;gap:.6rem;align-items:baseline;padding:.35rem 1.9rem .35rem .6rem !important;font-size:.8rem}
+.arch-row .arch-who{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arch-row .arch-who small{color:var(--light-grey);font-size:.76rem;margin-left:.35rem}
+.arch-row .arch-d,.arch-row .jc-id{color:var(--light-grey);font-size:.75rem;font-variant-numeric:tabular-nums}
+.arch-row .arch-a{font-family:'Oswald',sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.arch-row .chev{bottom:.45rem}
+@media (max-width:640px){.arch-row.jc summary{grid-template-columns:3.4rem minmax(0,1fr) auto}.arch-row .jc-id{display:none}}
 .rem-list{margin-top:1rem;font-size:.8rem}.rem-list summary{cursor:pointer;color:var(--light-grey);font-size:.78rem}
 .rem-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px dashed var(--border);flex-wrap:wrap}
 .rem-row small{display:block;font-size:.72rem;color:var(--light-grey)}
@@ -824,18 +833,43 @@ function quoteTags(q, t) {
   }
   return bits.join("");
 }
-function quoteCard(q, t, moved, archived) {
+function quoteCard(q, t, moved) {
   const S = BOARD[q.id] || {}, n = (S.context || []).length;
   return `<details class="jc" data-card="${esc(q.id)}" ${OPEN_CARDS.has(q.id) ? "open" : ""}><summary>
     <div class="jc-top"><span class="jc-id">${quoteRef(q)}</span><span class="jc-amt">${fm(q.amount)}</span></div>
     <div class="jc-cust">${esc(q.customer)}</div><div class="jc-site">${esc(q.property || "")}</div>
     ${q.title ? `<div class="jc-scope">${esc(q.title)}</div>` : ""}
-    ${archived && S.removedWhy ? `<div class="convo"><b>Why archived:</b> ${esc(S.removedWhy)}</div>` : q.outlook && q.outlook.short ? `<div class="convo">${esc(q.outlook.short)}</div>` : ""}
-    <div class="jc-meta">${archived ? `<span class="tag grey">Archived · ${stampTxt(S.removedBy, S.removedAt)}</span>` : moved ? `<span class="tag purple">Moved from quoting · ${stampTxt(S.stageBy, S.stageAt)}</span>` : quoteTags(q, t)}${n ? `<span class="tag grey">${n} context note${n > 1 ? "s" : ""}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
+    ${q.outlook && q.outlook.short ? `<div class="convo">${esc(q.outlook.short)}</div>` : ""}
+    <div class="jc-meta">${moved ? `<span class="tag purple">Moved from quoting · ${stampTxt(S.stageBy, S.stageAt)}</span>` : quoteTags(q, t)}${n ? `<span class="tag grey">${n} context note${n > 1 ? "s" : ""}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
   </summary><div class="jc-body">
     ${followBlock(q)}
-    ${contextBlock(q.id, archived ? "archived" : moved ? "movedquote" : "quote")}
+    ${contextBlock(q.id, moved ? "movedquote" : "quote")}
   </div></details>`;
+}
+/* Archived: one line per quote, full details only when opened. */
+function archiveRow(q) {
+  const S = BOARD[q.id] || {};
+  return `<details class="jc arch-row" data-card="${esc(q.id)}" ${OPEN_CARDS.has(q.id) ? "open" : ""}><summary>
+    <span class="arch-d">${fmtD((S.removedAt || "").slice(0, 10))}</span><span class="jc-id">${quoteRef(q)}</span>
+    <span class="arch-who"><b>${esc(q.customer || "")}</b><small>${esc(q.title || "")}</small></span>
+    <span class="arch-a">${fm(q.amount)}</span><span class="chev" aria-hidden="true">▾</span>
+  </summary><div class="jc-body">
+    <div class="convo"><b>Why archived:</b> ${esc(S.removedWhy || "—")} <span style="color:var(--light-grey)">· ${stampTxt(S.removedBy, S.removedAt)}</span></div>
+    ${followBlock(q)}
+    ${contextBlock(q.id, "archived")}
+  </div></details>`;
+}
+function archiveMonths(list) {
+  const months = new Map();
+  list.forEach(q => {
+    const d = new Date((BOARD[q.id] || {}).removedAt || Date.now()), key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    if (!months.has(key)) months.set(key, { label: d.toLocaleDateString("en-CA", { month: "long", year: "numeric" }), rows: [] });
+    months.get(key).rows.push(q);
+  });
+  return [...months.keys()].sort().reverse().map(k => {
+    const m = months.get(k), id = "__m-" + k;
+    return `<details class="arch-month" data-card="${id}" ${OPEN_CARDS.has(id) ? "open" : ""}><summary>${esc(m.label)}<small>${m.rows.length} quote${m.rows.length > 1 ? "s" : ""} · ${fm(m.rows.reduce((s, q) => s + (q.amount || 0), 0))}</small></summary>${m.rows.map(archiveRow).join("")}</details>`;
+  }).join("");
 }
 
 function matList(P) {
@@ -940,7 +974,7 @@ function renderPipeline() {
     return live ? { ...live, outlook: live.outlook || (snap && snap.outlook) } : snap;
   }).filter(Boolean).sort((x, y) => (BOARD[y.id].removedAt || "").localeCompare(BOARD[x.id].removedAt || ""));
   const gone = (D.jobs || []).filter(x => isRemoved(x.id));
-  $("pc-removed").innerHTML = (archived.length ? `<details class="rem-list" data-card="__arch" ${OPEN_CARDS.has("__arch") ? "open" : ""}><summary>Archived (${archived.length}) · ${fm(archived.reduce((s, q) => s + (q.amount || 0), 0))}</summary><div class="arch-grid">${archived.map(q => quoteCard(q, t, false, true)).join("")}</div></details>` : "")
+  $("pc-removed").innerHTML = (archived.length ? `<details class="rem-list" data-card="__arch" ${OPEN_CARDS.has("__arch") ? "open" : ""}><summary>Archived (${archived.length}) · ${fm(archived.reduce((s, q) => s + (q.amount || 0), 0))}</summary>${archiveMonths(archived)}</details>` : "")
     + (gone.length ? `<details class="rem-list" data-card="__rem" ${OPEN_CARDS.has("__rem") ? "open" : ""}><summary>Removed from board (${gone.length})</summary>${gone.map(x => { const S = BOARD[x.id]; return `<div class="rem-row"><span><b>${esc(x.id)}</b> ${esc(x.customer || "")}<small>${esc(S.removedWhy || "")} · ${stampTxt(S.removedBy, S.removedAt)}</small></span><button class="btn" data-act="restore" data-job="${esc(x.id)}">Restore</button></div>`; }).join("")}</details>` : "");
   setExpandLabel();
 }
