@@ -320,6 +320,14 @@ html.ap-embed-fin main>#ap-emb-kpis,html.ap-embed-fin main>#ap-emb-charts{displa
       <div class="table-wrap"><table id="alloc-table"></table></div>
       <ol class="assume" id="alloc-rules" style="margin-top:1rem"></ol>
     </div>
+    <div id="runway-wrap" style="display:none">
+      <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Pipeline runway: if no new work is sold</h4>
+      <p class="h2-note" id="runway-note"></p>
+      <div class="table-wrap"><table id="runway-months"></table></div>
+      <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Once the backlog ends: cost steps and the work needed to avoid them</h4>
+      <div class="table-wrap"><table id="runway-steps"></table></div>
+      <ol class="assume" id="runway-rules" style="margin-top:1rem"></ol>
+    </div>
     <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Profit as billed vs as earned</h4>
     <div class="table-wrap"><table id="pvb"></table></div>
     <h4 style="font-weight:500;margin:1.5rem 0 .5rem">Largest earned-but-not-billed jobs</h4>
@@ -713,6 +721,14 @@ function render(){
     all.forEach((v,i)=>{const c=v.a?"rgba(16,68,78,0.585)":(v.profit<0?"#B83227":"#2E7D57");const y0=y(0),y1_=y(v.profit);g+=`<rect x="${x(i)-st*.3}" y="${Math.min(y0,y1_)}" width="${st*.6}" height="${Math.abs(y1_-y0)}" fill="${c}" rx="2"><title>Week of ${v.week}: profit ${fmt(v.profit)}, revenue ${fmt(v.revenue)}</title></rect>`; if(i%3===0) g+=`<text x="${x(i)}" y="${T+H+22}" fill="#5A7A80" font-size="11" text-anchor="middle" font-family="Inter">${dShort(v.week)}</text>`;});
     svg.innerHTML=g;
     document.getElementById("top-ub").innerHTML=[...P.wip].sort((a,b)=>b.underBilled-a.underBilled).slice(0,3).map((w,i)=>kv(`${i+1}. ${esc(w.name)}${w.scopeChanging?' <span class="flag amber">scope changing</span>':''}`,fmt(w.underBilled))).join("");
+    const RW=P.runway;
+    if(RW){
+      document.getElementById("runway-wrap").style.display="";
+      document.getElementById("runway-note").textContent=RW.note||"";
+      document.getElementById("runway-months").innerHTML=`<thead><tr><th>Period</th><th>Revenue</th><th>Job revenue</th><th>Profit</th></tr></thead><tbody>`+RW.months.map(m=>`<tr><td>${esc(m.label)}</td><td>${fmt(m.revenue)}</td><td>${fmt(m.jobs)}</td><td class="${m.profit<0?"down":""}">${fmt(m.profit)}</td></tr>`).join("")+`</tbody>`;
+      document.getElementById("runway-steps").innerHTML=`<thead><tr><th>Step</th><th>Weekly fixed costs</th><th>Weekly result, no new work</th><th>New job revenue needed per week to break even</th></tr></thead><tbody>`+RW.steps.map(s=>`<tr><td style="text-align:left">${esc(s.label)}</td><td>${fmt(s.fixed)}</td><td class="${s.result<0?"down":""}">${fmt(s.result)}</td><td>${fmt(s.needed)}</td></tr>`).join("")+`</tbody>`;
+      document.getElementById("runway-rules").innerHTML=(RW.rules||[]).map(t=>`<li>${esc(t)}</li>`).join("");
+    }
     document.getElementById("profit-notes").innerHTML=(P.notes||[]).map(t=>`<li>${esc(t)}</li>`).join("");
     const fb=P.future.reduce((a,b)=>a+(b.billedProfit||0),0), jE=P.future.reduce((a,b)=>a+(b.jobsEarned||0),0), jB=P.future.reduce((a,b)=>a+(b.jobsBilled||0),0);
     const pastEarned=Q.adjustedNet+(Q.earnedNotBilled||0);
@@ -747,7 +763,7 @@ function renderHealth(){
     document.getElementById("health-trend").innerHTML=`<div class="health" style="margin-bottom:1rem">
       <div class="h-card"><div class="h-label">${esc(FY.label)}</div><div class="h-value">${fmt(FY.adjustedNet)}</div><div class="h-foot">${pct(FY.adjustedNet/FY.revenue*100,1)} net on ${fmt(FY.revenue)} revenue (owner items removed).</div></div>
       <div class="h-card"><div class="h-label">Last quarter (Jul–Sep)</div><div class="h-value">${fmt(ln)}</div><div class="h-foot">${pct(ln/lr*100,1)} on ${fmt(lr)}, as billed.</div></div>
-      <div class="h-card"><div class="h-label">Next quarter (Oct–Dec, projected)</div><div class="h-value ${pn<0?"down":""}">${fmt(pn)}</div><div class="h-foot">${pr?pct(pn/pr*100,1):"—"} on ${fmt(pr)}, as earned, if jobs finish on schedule.</div></div></div>
+      <div class="h-card"><div class="h-label">Next 13 weeks (projected)</div><div class="h-value ${pn<0?"down":""}">${fmt(pn)}</div><div class="h-foot">${pr?pct(pn/pr*100,1):"—"} on ${fmt(pr)}, as earned, if jobs finish on schedule.</div></div></div>
       <div class="chart-box" style="margin-bottom:1.25rem"><div class="chart-scroll"><svg viewBox="0 0 1000 250" role="img" aria-label="Monthly net profit">${g}</svg></div>
       <div class="legend"><span><i style="background:rgba(16,68,78,0.585)"></i>Actual month (QuickBooks, as billed, owner items removed)</span><span><i style="background:#2E7D57"></i>Projected (as earned)</span><span>Labels show net margin</span></div></div>`;
   }
