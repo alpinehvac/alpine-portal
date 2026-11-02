@@ -35,6 +35,24 @@ drafts, and any quote no longer open keeps its BuildOps status so the board drop
 `checks` only if the list could not be read. Quote and job numbers share digits: Q20261144 is not JO20261144, so
 never build a quote link from its number.
 
+Then read Outlook for every open quote (Jake's mailbox, read-only) and set `quotes[].outlook`. Searching the quote number
+finds the sent quote, because the number is in the quote body. Then search the thread subject or the customer contact
+for anything newer, and read the latest customer message and the latest message Alpine sent. Fields:
+
+1. `state`: `waiting` (customer owes us an answer), `owe` (we owe them), `parked` (no follow-up needed, say why in
+   `summary`), `notfound` (no email with this quote found).
+2. `summary`: 1 to 3 factual sentences on where the conversation is. `short`: one line, under 90 characters.
+3. `last`: date of the last message or logged site conversation. `who`: first name of who we are waiting on. `by`: whose
+   thread it is (Jake, Mike or Cole).
+4. `due`: `last` + 3 business days for `waiting` and `notfound`; `last` for `owe`. The page flags it red from that date.
+5. `to`, `toEmail`, `cc`: the customer contacts on the thread, no alpinehvac.ca addresses. `subject`: the thread subject.
+   `link`: the webLink of the latest message.
+6. `draft`: a short follow-up paragraph in plain language that the sender can paste into the thread. Only state what the
+   emails say. No sign-off, Outlook adds it. Leave `draft` empty for `parked`.
+
+Read the shared Context notes before writing these (`ops_jobs/{quote id}`, shown on each card): a note can change the
+state. Skip quotes that are removed from the board. Never send, reply, flag or draft anything in Outlook.
+
 ## Part B: Job pages
 
 ### B1. BuildOps read (photos, visit reports, hours, materials)

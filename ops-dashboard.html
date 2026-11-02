@@ -199,6 +199,24 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 .visit{display:flex;align-items:center;gap:.45rem;font-size:.8rem;margin-top:.5rem;flex-wrap:wrap}
 .visit input{font:inherit;font-size:.78rem;padding:.2rem .35rem;border:1px solid rgba(16,68,78,0.18);border-radius:5px;background:var(--black);color:var(--white)}
 .sync{font-size:.78rem;color:var(--light-grey)}
+/* Outlook summary, follow-up and Context on pipeline cards */
+.convo{font-size:.8rem;line-height:1.45;margin-top:.45rem;color:rgba(16,68,78,0.92)}
+.fu{margin-top:.45rem;padding:.6rem .65rem;border:1px solid var(--border);border-radius:7px;background:rgba(16,68,78,0.035)}
+.fu-to{font-size:.76rem;line-height:1.5;word-break:break-word}.fu-to b{font-weight:600}
+.fu-text{white-space:pre-wrap;font-size:.8rem;line-height:1.5;margin:.45rem 0;user-select:text}
+.fu-act{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.fu-act a{font-size:.76rem;color:#27636C}
+.ctx{list-style:none}
+.ctx li{display:grid;grid-template-columns:1fr auto;gap:.4rem;font-size:.8rem;line-height:1.4;padding:.35rem 0;border-bottom:1px dashed var(--border)}
+.ctx li:last-child{border-bottom:none}.ctx small{display:block;font-size:.7rem;color:var(--light-grey)}
+.ctx .x{border:none;background:none;color:var(--light-grey);cursor:pointer;font-size:.9rem;line-height:1;padding:0 .15rem}.ctx .x:hover{color:var(--red)}
+.ctx-empty{font-size:.78rem;color:var(--light-grey);padding:.15rem 0}
+.ctx-row{display:flex;gap:.35rem;margin-top:.4rem;flex-wrap:wrap}
+.ctx-row input{flex:1 1 100%;min-width:0;font:inherit;font-size:.78rem;padding:.35rem .45rem;border:1px solid rgba(16,68,78,0.18);border-radius:5px;background:var(--black);color:var(--white)}
+.ctx-row input:focus{outline:none;border-color:var(--teal-light)}
+.rem-list{margin-top:1rem;font-size:.8rem}.rem-list summary{cursor:pointer;color:var(--light-grey);font-size:.78rem}
+.rem-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px dashed var(--border);flex-wrap:wrap}
+.rem-row small{display:block;font-size:.72rem;color:var(--light-grey)}
 .sync.err{color:var(--red)}
 
 /* ── Completed jobs + job profit ── */
@@ -281,7 +299,7 @@ html.ap-embed-ops-board .board{grid-template-columns:minmax(9rem,11rem) repeat(5
 html.ap-embed-ops-board .board:has(>.bh:nth-child(7)){grid-template-columns:minmax(9rem,11rem) repeat(6,minmax(0,1fr))!important}
 html.ap-embed-ops-board .board-wrap{max-height:none}
 html.ap-embed main>section{background:#fff;border:1px solid rgba(16,68,78,.12);border-radius:12px;padding:14px 16px}
-html.ap-embed #pc-q,html.ap-embed #pc-a,html.ap-embed #pc-p,html.ap-embed #expand-all,html.ap-embed #sync-state,html.ap-embed main .h2-note{display:none!important}
+html.ap-embed #pc-q,html.ap-embed #pc-a,html.ap-embed #pc-p,html.ap-embed #pc-removed,html.ap-embed #expand-all,html.ap-embed #sync-state,html.ap-embed main .h2-note{display:none!important}
 html.ap-embed #pipeline h2,html.ap-embed main section h2{font-size:1rem!important;margin:0 0 .5rem!important}
 html.ap-embed .pipe{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:.7rem!important}
 html.ap-embed .pipe .col{min-height:0!important;padding:.6rem .7rem .1rem!important}
@@ -313,7 +331,7 @@ html.ap-embed .board:has(>.bh:nth-child(7)){grid-template-columns:minmax(6.5rem,
 
   <section id="pipeline">
     <div class="pipe-head">
-      <div><h2>Job pipeline</h2><p class="h2-note">Quoted and project jobs from BuildOps, refreshed daily by Claude. Checklists save instantly and are shared live between Jake, Mike and Cole.</p></div>
+      <div><h2>Job pipeline</h2><p class="h2-note">Quoted and project jobs from BuildOps, refreshed daily by Claude. Outlook summaries and follow-ups refresh daily. Context, checklists and moves save instantly and are shared live between Jake, Mike and Cole.</p></div>
       <div style="display:flex;gap:.8rem;align-items:center"><span class="sync" id="sync-state">Connecting…</span><button class="btn" id="expand-all" type="button">Expand all</button></div>
     </div>
     <div class="pipe">
@@ -321,6 +339,7 @@ html.ap-embed .board:has(>.bh:nth-child(7)){grid-template-columns:minmax(6.5rem,
       <div class="col a"><div class="col-h" id="ph-a"></div><div id="pc-a"></div></div>
       <div class="col p"><div class="col-h" id="ph-p"></div><div id="pc-p"></div></div>
     </div>
+    <div id="pc-removed"></div>
   </section>
 
   <section id="profit" style="display:none">
@@ -443,6 +462,7 @@ const DONE_BILLING = /fully invoiced|no charge|closed/i;
 function today() { return parseD(D.asOf) || new Date(); }
 function monday(d) { const x = new Date(d); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); x.setHours(0,0,0,0); return x; }
 function jobById(id) { return (D.jobs || []).find(j => j.id === id); }
+const isRemoved = id => typeof BOARD !== "undefined" && !!(BOARD[id] || {}).removed;
 function stageOf(j) {
   if (j.stage) return j.stage;
   if (/complete|invoiced|closed/i.test(j.status || "")) return "completed";
@@ -457,7 +477,7 @@ function jobLink(j, label) {
 
 /* ---------- derived lists ---------- */
 function derive() {
-  const t = today(), jobs = D.jobs || [], visits = D.visits || [];
+  const t = today(), jobs = (D.jobs || []).filter(j => !isRemoved(j.id)), visits = D.visits || [];
   const by = { ongoing: [], upcoming: [], completed: [] };
   jobs.forEach(j => (by[stageOf(j)] || by.upcoming).push(j));
   const wk0 = monday(t), wkEnd = addDays(wk0, 6);
@@ -670,7 +690,9 @@ function pjob(j) {
 /* ---------- writes (optimistic, then Firestore) ---------- */
 function syncMsg(text, err) { const s = $("sync-state"); if (s) { s.textContent = text; s.className = "sync" + (err ? " err" : ""); } }
 function commit(id, patch) {
+  const was = isRemoved(id);
   BOARD[id] = { ...(BOARD[id] || {}), ...patch };
+  if (was !== isRemoved(id) && D) render();
   renderPipeline(); renderProfit();
   if (window.apBoardSave) window.apBoardSave(id, patch);
   else syncMsg("Not connected. That change was not saved.", true);
@@ -679,6 +701,7 @@ function onBoard(e) {
   const el = e.target.closest("[data-act]");
   if (!el || !D) return;
   const act = el.dataset.act, id = el.dataset.job, item = el.dataset.item;
+  if (e.type === "click" && /^(ctx-|copy$|restore$)/.test(act)) return quoteAction(el, act, id, item);
   const j = jobById(id); if (!j) return;
   const P = pjob(j);
   if (e.type === "click" && el.tagName === "INPUT" && el.type !== "checkbox") return;
@@ -715,6 +738,31 @@ function onBoard(e) {
   }
 }
 
+/* Context notes, follow-up copy, and moving or removing a card. Saved in ops_jobs/{id} like the checklists; the daily refresh never overwrites them. */
+function quoteAction(el, act, id, item) {
+  const q = quoteById(id), S = BOARD[id] || {};
+  if (act === "copy") {
+    const o = (q && q.outlook) || {}, text = el.dataset.copy === "to" ? [o.toEmail, o.cc].filter(Boolean).join("; ") : o.draft;
+    if (!text) return;
+    const label = el.textContent, done = ok => { el.textContent = ok ? "Copied ✓" : "Copy failed"; setTimeout(() => { el.textContent = label; }, 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); else done(false);
+    return;
+  }
+  if (act === "restore") return commit(id, { removed: false, removedWhy: null, stage: null });
+  if (act === "ctx-del") {
+    const c = (S.context || []).find(x => x.id === item); if (!c || !confirm("Delete this note?")) return;
+    return commit(id, { context: S.context.filter(x => x.id !== item) });
+  }
+  if (act === "ctx-back") return commit(id, { stage: null, stageBy: ME, stageAt: nowIso() });
+  const input = el.closest(".jc").querySelector('[data-add="ctx"]'), text = input.value.trim();
+  if (!text && act !== "ctx-move") { input.placeholder = act === "ctx-remove" ? "Add the reason first, then Remove from board" : "Add context"; input.focus(); return; }
+  input.value = "";
+  const patch = text ? { context: [...(S.context || []), { id: uid(), text, by: ME, at: nowIso() }] } : {};
+  if (act === "ctx-move") Object.assign(patch, { stage: "inprogress", stageBy: ME, stageAt: nowIso() });
+  if (act === "ctx-remove") Object.assign(patch, { removed: true, removedWhy: text, removedBy: ME, removedAt: nowIso() });
+  commit(id, patch);
+}
+
 /* ---------- render ---------- */
 function colHead(el, title, n, total, sub) {
   $(el).innerHTML = `<h3>${title}<span class="n">${n}</span></h3><div class="tot">${fm(total)}${sub ? `<small>${sub}</small>` : ""}</div>`;
@@ -723,16 +771,67 @@ const jobRef = (j) => `<a href="${jobPage(j.id)}" onclick="event.stopPropagation
 /* Quote and job numbers share digits (Q20261144 is not JO20261144), so a quote only ever links to its own BuildOps quote page. */
 const quoteRef = (q) => q.url ? `<a href="${esc(q.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(q.id)}</a>` : esc(q.id);
 
-function quoteCard(q, t) {
-  const draft = /draft/i.test(q.status || "");
-  const d = parseD(q.sent || q.created), age = d ? days(d, t) : null;
-  const stale = !draft && age != null && age > 14;
-  return `<div class="jc"><div style="padding:.75rem .85rem .8rem">
+const CLOSED_QUOTE = /approved|project added|won|declined|lost|cancel|reject|expired/i;
+const quoteById = id => (D.quotes || []).find(q => q.id === id);
+/* A quote needs follow-up once the refresh's due date has passed. Quotes without an Outlook read fall back to age. */
+function quoteFollow(q, t) {
+  const o = q.outlook;
+  if (o) return /waiting|owe|notfound/.test(o.state || "") && !!o.due && parseD(o.due) <= t;
+  const d = parseD(q.sent || q.created);
+  return !/draft/i.test(q.status || "") && !!d && days(d, t) > 14;
+}
+function contextBlock(id, kind) {
+  const S = BOARD[id] || {}, list = (S.context || []).slice().sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+  const rows = list.map(c => `<li><span>${esc(c.text)}<small>${stampTxt(c.by, c.at)}</small></span><button class="x" data-act="ctx-del" data-job="${esc(id)}" data-item="${esc(c.id)}" title="Delete note" aria-label="Delete note">×</button></li>`).join("");
+  return `<div class="jc-sec"><span>Context</span><span>${list.length || ""}</span></div>
+    ${rows ? `<ul class="ctx">${rows}</ul>` : `<div class="ctx-empty">No context yet. Anything Jake, Mike or Cole adds here shows for all three.</div>`}
+    <div class="ctx-row"><input data-add="ctx" placeholder="Add context" aria-label="Add context">
+      <button class="btn" data-act="ctx-add" data-job="${esc(id)}">Add</button>
+      ${kind === "quote" ? `<button class="btn go" data-act="ctx-move" data-job="${esc(id)}">Move to in progress →</button>` : ""}
+      ${kind === "movedquote" ? `<button class="btn" data-act="ctx-back" data-job="${esc(id)}">← Back to quoting</button>` : ""}
+      <button class="btn" data-act="ctx-remove" data-job="${esc(id)}">Remove from board</button></div>`;
+}
+function followBlock(q) {
+  const o = q.outlook;
+  if (!o) return `<div class="jc-sec"><span>Conversation</span></div><div class="ctx-empty">Not read from Outlook yet. The next daily refresh adds it.</div>`;
+  const to = [o.to, o.toEmail].filter(Boolean).join(" · ");
+  const link = o.link ? `<a href="${esc(o.link)}" target="_blank" rel="noopener">Open email thread ↗</a>` : "";
+  return `<div class="jc-sec"><span>Conversation</span><span>${o.last ? "last " + fmtD(o.last) : ""}</span></div>
+    <div class="convo">${esc(o.summary || "")}</div>
+    ${o.draft ? `<div class="jc-sec"><span>Follow-up</span><span>${o.by ? esc(o.by) + "'s thread" : ""}</span></div>
+    <div class="fu"><div class="fu-to"><b>To:</b> ${esc(to || "Contact not found")}${o.cc ? `<br><b>Cc:</b> ${esc(o.cc)}` : ""}${o.subject ? `<br><b>Thread:</b> ${esc(o.subject)}` : ""}</div>
+      <div class="fu-text">${esc(o.draft)}</div>
+      <div class="fu-act"><button class="btn go" data-act="copy" data-job="${esc(q.id)}" data-copy="draft">Copy paragraph</button>${o.toEmail ? `<button class="btn" data-act="copy" data-job="${esc(q.id)}" data-copy="to">Copy recipient</button>` : ""}${link}</div></div>` : (link ? `<div class="fu-act" style="margin-top:.4rem">${link}</div>` : "")}`;
+}
+function quoteTags(q, t) {
+  const o = q.outlook, follow = quoteFollow(q, t), bits = [];
+  if (o) {
+    const age = o.last ? days(parseD(o.last), t) : null;
+    if (follow) bits.push(`<span class="tag red">Follow up${age != null ? " · " + age + "d since last touch" : ""}</span>`);
+    else if (/waiting|owe/.test(o.state || "") && o.due) bits.push(`<span class="tag grey">Follow up ${fmtD(o.due)}</span>`);
+    if (o.state === "owe") bits.push(`<span class="tag amber">We owe a reply</span>`);
+    else if (o.state === "waiting") bits.push(`<span class="tag amber">Waiting on ${esc(o.who || "them")}</span>`);
+    else if (o.state === "parked") bits.push(`<span class="tag teal">No follow-up needed</span>`);
+    else if (o.state === "notfound") bits.push(`<span class="tag grey">No email found</span>`);
+  } else {
+    const d = parseD(q.sent || q.created), age = d ? days(d, t) : null;
+    bits.push(`<span class="tag amber">${esc(q.status || "Open")}</span>`);
+    if (age != null) bits.push(`<span class="tag ${follow ? "red" : "grey"}">${fmtD(q.sent || q.created)} · ${age}d${follow ? " · follow up" : ""}</span>`);
+  }
+  return bits.join("");
+}
+function quoteCard(q, t, moved) {
+  const S = BOARD[q.id] || {}, n = (S.context || []).length;
+  return `<details class="jc" data-card="${esc(q.id)}" ${OPEN_CARDS.has(q.id) ? "open" : ""}><summary>
     <div class="jc-top"><span class="jc-id">${quoteRef(q)}</span><span class="jc-amt">${fm(q.amount)}</span></div>
     <div class="jc-cust">${esc(q.customer)}</div><div class="jc-site">${esc(q.property || "")}</div>
     ${q.title ? `<div class="jc-scope">${esc(q.title)}</div>` : ""}
-    <div class="jc-meta"><span class="tag ${draft ? "grey" : "amber"}">${esc(q.status || "Open")}</span>${age != null ? `<span class="tag ${stale ? "red" : "grey"}">${draft ? "Created" : "Sent"} ${fmtD(q.sent || q.created)} · ${age}d${stale ? " · follow up" : ""}</span>` : ""}${q.hrs ? `<span class="tag grey">${q.hrs} hrs</span>` : ""}${q.owner ? `<span class="tag grey">${esc(q.owner)}</span>` : ""}</div>
-  </div></div>`;
+    ${q.outlook && q.outlook.short ? `<div class="convo">${esc(q.outlook.short)}</div>` : ""}
+    <div class="jc-meta">${moved ? `<span class="tag purple">Moved from quoting · ${stampTxt(S.stageBy, S.stageAt)}</span>` : quoteTags(q, t)}${n ? `<span class="tag grey">${n} context note${n > 1 ? "s" : ""}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
+  </summary><div class="jc-body">
+    ${followBlock(q)}
+    ${contextBlock(q.id, moved ? "movedquote" : "quote")}
+  </div></details>`;
 }
 
 function matList(P) {
@@ -774,11 +873,12 @@ function approvedCard(P, t) {
     <div class="jc-top"><span class="jc-id">${jobRef(j)}${j.po ? ` · PO ${esc(j.po)}` : ""}</span><span class="jc-amt">${fm(j.quoted)}</span></div>
     <div class="jc-cust">${esc(j.customer)}</div><div class="jc-site">${esc(j.property || "")}</div>
     <div class="jc-scope">${esc(j.scope || j.title || "No description on the job yet.")}</div>
-    <div class="jc-meta">${age != null ? `<span class="tag ${age > 21 ? "amber" : "grey"}">Approved ${fmtD(j.approved || j.created)} · ${age}d</span>` : ""}<span class="tag grey">${j.budgetHrs ? j.budgetHrs + " hrs quoted" : "Hours not set"}</span>${all ? `<span class="tag ${out ? "amber" : "teal"}">${out ? `${out} of ${all} to order` : "All ordered"}</span>` : `<span class="tag grey">No materials list</span>`}${visit ? `<span class="tag teal">Visit ${fmtD(visit)}</span>` : ""}${orderPill(j)}${holdPill(j)}<span class="chev" aria-hidden="true">▾</span></div>
+    <div class="jc-meta">${age != null ? `<span class="tag ${age > 21 ? "amber" : "grey"}">Approved ${fmtD(j.approved || j.created)} · ${age}d</span>` : ""}${(P.S.context || []).length ? `<span class="tag grey">${P.S.context.length} context</span>` : ""}<span class="tag grey">${j.budgetHrs ? j.budgetHrs + " hrs quoted" : "Hours not set"}</span>${all ? `<span class="tag ${out ? "amber" : "teal"}">${out ? `${out} of ${all} to order` : "All ordered"}</span>` : `<span class="tag grey">No materials list</span>`}${visit ? `<span class="tag teal">Visit ${fmtD(visit)}</span>` : ""}${orderPill(j)}${holdPill(j)}<span class="chev" aria-hidden="true">▾</span></div>
   </summary><div class="jc-body">
     ${notesBlock(j)}
     <div class="jc-sec"><span>Materials &amp; equipment</span><span>${P.ordered} of ${all} ordered</span></div>
     ${matList(P)}
+    ${contextBlock(j.id, "job")}
     <div class="jc-act"><span class="sync">${P.S.stage === null && P.S.stageBy ? `Moved back by ${stampTxt(P.S.stageBy, P.S.stageAt)}` : ""}</span><button class="btn go" data-act="stage" data-job="${esc(j.id)}" data-to="inprogress">Start job →</button></div>
   </div></details>`;
 }
@@ -796,13 +896,14 @@ function progressCard(P, t) {
     <div class="jc-cust">${esc(j.customer)}</div><div class="jc-site">${esc(j.property || "")}</div>
     <div class="jc-scope">${esc(j.scope || j.title || "")}</div>
     <div class="pbar"><i class="${P.hrsPct > 100 ? "over" : P.hrsPct === 100 ? "full" : ""}" style="width:${Math.min(100, P.hrsPct || 0)}%"></i></div>
-    <div class="jc-meta">${P.tasks.length ? `<span class="tag grey">${P.doneH} of ${P.totH} task hrs done</span>` : `<span class="tag amber">No task list</span>`}${j.budgetHrs || j.actualHrs ? `<span class="tag ${over ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs ?? "?"} hrs used</span>` : ""}${out > 0 ? `<span class="tag amber">${out} item${out > 1 ? "s" : ""} not ordered</span>` : ""}${manual ? `<span class="tag purple">Started manually</span>` : ""}${orderPill(j)}${holdPill(j)}<span class="chev" aria-hidden="true">▾</span></div>
+    <div class="jc-meta">${(P.S.context || []).length ? `<span class="tag grey">${P.S.context.length} context</span>` : ""}${P.tasks.length ? `<span class="tag grey">${P.doneH} of ${P.totH} task hrs done</span>` : `<span class="tag amber">No task list</span>`}${j.budgetHrs || j.actualHrs ? `<span class="tag ${over ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs ?? "?"} hrs used</span>` : ""}${out > 0 ? `<span class="tag amber">${out} item${out > 1 ? "s" : ""} not ordered</span>` : ""}${manual ? `<span class="tag purple">Started manually</span>` : ""}${orderPill(j)}${holdPill(j)}<span class="chev" aria-hidden="true">▾</span></div>
   </summary><div class="jc-body">
     <div class="visit">${visitTxt}${j.nextVisit ? "" : `<label class="dim">Set date <input type="date" data-act="visit" data-job="${esc(j.id)}" value="${esc(P.S.visit || "")}"></label>`}</div>
     ${notesBlock(j)}
     <div class="jc-sec"><span>Tasks</span><span>hours</span></div>
     ${taskList(P)}
     ${P.materials.length ? `<div class="jc-sec"><span>Materials &amp; equipment</span><span>${P.ordered} of ${P.materials.length} ordered</span></div>${matList(P)}` : ""}
+    ${contextBlock(j.id, "job")}
     <div class="jc-act">${manual ? `<button class="btn" data-act="stage" data-job="${esc(j.id)}" data-to="">← Back to approved</button>` : "<span></span>"}<button class="btn done" data-act="stage" data-job="${esc(j.id)}" data-to="completed">Mark complete ✓</button></div>
   </div></details>`;
 }
@@ -814,19 +915,23 @@ function renderPipeline() {
   if (a && host.contains(a) && /INPUT|TEXTAREA/.test(a.tagName) && a.type !== "checkbox") { pendingPipe = true; return; }
   pendingPipe = false;
   const t = today();
-  const quotes = (D.quotes || []).filter(q => !/approved|project added|won|declined|lost|cancel|reject|expired/i.test(q.status || ""))
-    .sort((x, y) => (x.sent || x.created || "").localeCompare(y.sent || y.created || ""));
-  const P = (D.jobs || []).filter(isPipe).map(pjob);
+  const open = (D.quotes || []).filter(q => !CLOSED_QUOTE.test(q.status || "") && !isRemoved(q.id));
+  const movedQ = open.filter(q => (BOARD[q.id] || {}).stage === "inprogress");
+  const lastT = q => (q.outlook && q.outlook.last) || q.sent || q.created || "";
+  const quotes = open.filter(q => !movedQ.includes(q)).sort((x, y) => quoteFollow(y, t) - quoteFollow(x, t) || lastT(x).localeCompare(lastT(y)));
+  const P = (D.jobs || []).filter(j => isPipe(j) && !isRemoved(j.id)).map(pjob);
   const appr = P.filter(x => x.stage === "approved").sort((x, y) => (x.j.approved || x.j.created || "").localeCompare(y.j.approved || y.j.created || ""));
   const prog = P.filter(x => x.stage === "inprogress").sort((x, y) => (x.j.nextVisit || x.S.visit || "9999").localeCompare(y.j.nextVisit || y.S.visit || "9999") || (x.pct || 0) - (y.pct || 0));
   const toOrder = appr.reduce((s, x) => s + x.materials.length - x.ordered, 0);
   const pcts = prog.filter(x => x.hrsPct != null);
-  colHead("ph-q", "Quoting", quotes.length, quotes.reduce((s, q) => s + (q.amount || 0), 0), `${quotes.filter(q => !/draft/i.test(q.status || "") && days(parseD(q.sent || q.created) || t, t) > 14).length} need follow-up`);
+  colHead("ph-q", "Quoting", quotes.length, quotes.reduce((s, q) => s + (q.amount || 0), 0), `${quotes.filter(q => quoteFollow(q, t)).length} need follow-up`);
   colHead("ph-a", "Approved", appr.length, appr.reduce((s, x) => s + (x.j.quoted || 0), 0), toOrder ? `${toOrder} item${toOrder > 1 ? "s" : ""} to order` : "nothing to order");
-  colHead("ph-p", "In progress", prog.length, prog.reduce((s, x) => s + (x.j.quoted || 0), 0), pcts.length ? `avg ${Math.round(pcts.reduce((s, x) => s + x.hrsPct, 0) / pcts.length)}% of budgeted hours used` : "");
+  colHead("ph-p", "In progress", prog.length + movedQ.length, prog.reduce((s, x) => s + (x.j.quoted || 0), 0) + movedQ.reduce((s, q) => s + (q.amount || 0), 0), pcts.length ? `avg ${Math.round(pcts.reduce((s, x) => s + x.hrsPct, 0) / pcts.length)}% of budgeted hours used` : "");
   $("pc-q").innerHTML = quotes.length ? quotes.map(q => quoteCard(q, t)).join("") : `<div class="col-empty">${D.quotes ? "No open quotes." : "Open quotes appear here after the next daily refresh reads the BuildOps quotes list."}</div>`;
   $("pc-a").innerHTML = appr.length ? appr.map(x => approvedCard(x, t)).join("") : `<div class="col-empty">No approved jobs waiting to start.</div>`;
-  $("pc-p").innerHTML = prog.length ? prog.map(x => progressCard(x, t)).join("") : `<div class="col-empty">No project jobs in progress.</div>`;
+  $("pc-p").innerHTML = prog.length || movedQ.length ? movedQ.map(q => quoteCard(q, t, true)).join("") + prog.map(x => progressCard(x, t)).join("") : `<div class="col-empty">No project jobs in progress.</div>`;
+  const gone = [...(D.quotes || []), ...(D.jobs || [])].filter(x => isRemoved(x.id));
+  $("pc-removed").innerHTML = gone.length ? `<details class="rem-list"><summary>Removed from board (${gone.length})</summary>${gone.map(x => { const S = BOARD[x.id]; return `<div class="rem-row"><span><b>${esc(x.id)}</b> ${esc(x.customer || "")}<small>${esc(S.removedWhy || "")} · ${stampTxt(S.removedBy, S.removedAt)}</small></span><button class="btn" data-act="restore" data-job="${esc(x.id)}">Restore</button></div>`; }).join("")}</details>` : "";
   setExpandLabel();
 }
 
@@ -897,7 +1002,7 @@ function renderProfit() {
     ["Materials vs quote", `<span class="${matD < 0 ? "down" : "up"}">${fmS(matD)}</span>`, `${MF.filter(r => r.actMat > r.estMat).length} of ${MF.length} jobs over estimate`],
   ];
   /* Net: completed (final) + in progress (to date) */
-  const IP = (D.jobs || []).filter(isPipe).map(pjob).filter(x => x.stage === "inprogress");
+  const IP = (D.jobs || []).filter(j => isPipe(j) && !isRemoved(j.id)).map(pjob).filter(x => x.stage === "inprogress");
   const IPh = IP.filter(x => x.pct != null && x.j.budgetHrs > 0 && x.j.actualHrs > 0);
   const earnedH = IPh.reduce((a, x) => a + x.pct / 100 * x.j.budgetHrs, 0), ipA = IPh.reduce((a, x) => a + x.j.actualHrs, 0);
   const netEff = (sA + ipA) ? (sE + earnedH) / (sA + ipA) * 100 : null;
@@ -939,7 +1044,7 @@ function renderProfit() {
   const host = $("pipeline");
   host.addEventListener("change", onBoard);
   host.addEventListener("click", e => { if (e.target.closest("[data-act]")) onBoard(e); });
-  host.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset.add) { e.preventDefault(); const b = e.target.closest(".jc").querySelector(`[data-act="${/^mat/.test(e.target.dataset.add) ? "mat-add" : "task-add"}"]`); b && b.click(); } });
+  host.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset.add) { e.preventDefault(); const b = e.target.closest(".jc").querySelector(`[data-act="${e.target.dataset.add === "ctx" ? "ctx-add" : /^mat/.test(e.target.dataset.add) ? "mat-add" : "task-add"}"]`); b && b.click(); } });
   host.addEventListener("focusout", () => setTimeout(() => { if (pendingPipe) renderPipeline(); }, 0));
   host.addEventListener("toggle", e => { const c = e.target.dataset && e.target.dataset.card; if (c) { if (e.target.open) OPEN_CARDS.add(c); else OPEN_CARDS.delete(c); setExpandLabel(); } }, true);
 })();
@@ -960,7 +1065,13 @@ $("expand-all").addEventListener("click", () => {
   all.forEach(d => { d.open = open; if (open) OPEN_CARDS.add(d.dataset.card); else OPEN_CARDS.delete(d.dataset.card); });
   setExpandLabel();
 });
-window.apBoardState = map => { BOARD = map || {}; renderPipeline(); renderProfit(); };
+window.apBoardState = map => {
+  const key = m => Object.keys(m).filter(k => m[k].removed).sort().join();
+  const changed = key(map || {}) !== key(BOARD);
+  BOARD = map || {};
+  if (changed && D) render();
+  renderPipeline(); renderProfit();
+};
 window.apCashLoaded = data => { CASH = data; renderProfit(); };
 window.apSyncMsg = syncMsg;
 window.apPipeStart = () => { renderPipeline(); renderProfit(); };
