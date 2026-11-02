@@ -214,6 +214,8 @@ textarea{width:100%;background:var(--black);color:var(--white);border:1px solid 
 .ctx-row{display:flex;gap:.35rem;margin-top:.4rem;flex-wrap:wrap}
 .ctx-row input{flex:1 1 100%;min-width:0;font:inherit;font-size:.78rem;padding:.35rem .45rem;border:1px solid rgba(16,68,78,0.18);border-radius:5px;background:var(--black);color:var(--white)}
 .ctx-row input:focus{outline:none;border-color:var(--teal-light)}
+.arch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.7rem;align-items:start;margin-top:.7rem}
+.arch-grid .jc{margin-bottom:0;border-left-color:var(--light-grey)}
 .rem-list{margin-top:1rem;font-size:.8rem}.rem-list summary{cursor:pointer;color:var(--light-grey);font-size:.78rem}
 .rem-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px dashed var(--border);flex-wrap:wrap}
 .rem-row small{display:block;font-size:.72rem;color:var(--light-grey)}
@@ -740,7 +742,7 @@ function onBoard(e) {
 
 /* Context notes, follow-up copy, and moving or removing a card. Saved in ops_jobs/{id} like the checklists; the daily refresh never overwrites them. */
 function quoteAction(el, act, id, item) {
-  const q = quoteById(id), S = BOARD[id] || {};
+  const S = BOARD[id] || {}, q = quoteById(id) || S.archivedQuote;
   if (act === "copy") {
     const o = (q && q.outlook) || {}, text = el.dataset.copy === "to" ? [o.toEmail, o.cc].filter(Boolean).join("; ") : o.draft;
     if (!text) return;
@@ -748,18 +750,20 @@ function quoteAction(el, act, id, item) {
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); else done(false);
     return;
   }
-  if (act === "restore") return commit(id, { removed: false, removedWhy: null, stage: null });
+  if (act === "restore") return commit(id, { removed: false, removedWhy: null, stage: null, archivedQuote: null });
   if (act === "ctx-del") {
     const c = (S.context || []).find(x => x.id === item); if (!c || !confirm("Delete this note?")) return;
     return commit(id, { context: S.context.filter(x => x.id !== item) });
   }
   if (act === "ctx-back") return commit(id, { stage: null, stageBy: ME, stageAt: nowIso() });
   const input = el.closest(".jc").querySelector('[data-add="ctx"]'), text = input.value.trim();
-  if (!text && act !== "ctx-move") { input.placeholder = act === "ctx-remove" ? "Add the reason first, then Remove from board" : "Add context"; input.focus(); return; }
+  if (!text && act !== "ctx-move") { input.placeholder = act === "ctx-remove" ? "Add the reason first" : "Add context"; input.focus(); return; }
   input.value = "";
   const patch = text ? { context: [...(S.context || []), { id: uid(), text, by: ME, at: nowIso() }] } : {};
   if (act === "ctx-move") Object.assign(patch, { stage: "inprogress", stageBy: ME, stageAt: nowIso() });
   if (act === "ctx-remove") Object.assign(patch, { removed: true, removedWhy: text, removedBy: ME, removedAt: nowIso() });
+  /* An archived quote keeps its own copy of the email summary, so it survives even if the refresh later drops the quote. */
+  if (act === "ctx-remove" && q) patch.archivedQuote = JSON.parse(JSON.stringify(q));
   commit(id, patch);
 }
 
@@ -789,7 +793,7 @@ function contextBlock(id, kind) {
       <button class="btn" data-act="ctx-add" data-job="${esc(id)}">Add</button>
       ${kind === "quote" ? `<button class="btn go" data-act="ctx-move" data-job="${esc(id)}">Move to in progress →</button>` : ""}
       ${kind === "movedquote" ? `<button class="btn" data-act="ctx-back" data-job="${esc(id)}">← Back to quoting</button>` : ""}
-      <button class="btn" data-act="ctx-remove" data-job="${esc(id)}">Remove from board</button></div>`;
+      ${kind === "archived" ? `<button class="btn" data-act="restore" data-job="${esc(id)}">Restore to board</button>` : `<button class="btn" data-act="ctx-remove" data-job="${esc(id)}">${kind === "job" ? "Remove from board" : "Archive"}</button>`}</div>`;
 }
 function followBlock(q) {
   const o = q.outlook;
@@ -820,17 +824,17 @@ function quoteTags(q, t) {
   }
   return bits.join("");
 }
-function quoteCard(q, t, moved) {
+function quoteCard(q, t, moved, archived) {
   const S = BOARD[q.id] || {}, n = (S.context || []).length;
   return `<details class="jc" data-card="${esc(q.id)}" ${OPEN_CARDS.has(q.id) ? "open" : ""}><summary>
     <div class="jc-top"><span class="jc-id">${quoteRef(q)}</span><span class="jc-amt">${fm(q.amount)}</span></div>
     <div class="jc-cust">${esc(q.customer)}</div><div class="jc-site">${esc(q.property || "")}</div>
     ${q.title ? `<div class="jc-scope">${esc(q.title)}</div>` : ""}
-    ${q.outlook && q.outlook.short ? `<div class="convo">${esc(q.outlook.short)}</div>` : ""}
-    <div class="jc-meta">${moved ? `<span class="tag purple">Moved from quoting · ${stampTxt(S.stageBy, S.stageAt)}</span>` : quoteTags(q, t)}${n ? `<span class="tag grey">${n} context note${n > 1 ? "s" : ""}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
+    ${archived && S.removedWhy ? `<div class="convo"><b>Why archived:</b> ${esc(S.removedWhy)}</div>` : q.outlook && q.outlook.short ? `<div class="convo">${esc(q.outlook.short)}</div>` : ""}
+    <div class="jc-meta">${archived ? `<span class="tag grey">Archived · ${stampTxt(S.removedBy, S.removedAt)}</span>` : moved ? `<span class="tag purple">Moved from quoting · ${stampTxt(S.stageBy, S.stageAt)}</span>` : quoteTags(q, t)}${n ? `<span class="tag grey">${n} context note${n > 1 ? "s" : ""}</span>` : ""}<span class="chev" aria-hidden="true">▾</span></div>
   </summary><div class="jc-body">
     ${followBlock(q)}
-    ${contextBlock(q.id, moved ? "movedquote" : "quote")}
+    ${contextBlock(q.id, archived ? "archived" : moved ? "movedquote" : "quote")}
   </div></details>`;
 }
 
@@ -930,8 +934,14 @@ function renderPipeline() {
   $("pc-q").innerHTML = quotes.length ? quotes.map(q => quoteCard(q, t)).join("") : `<div class="col-empty">${D.quotes ? "No open quotes." : "Open quotes appear here after the next daily refresh reads the BuildOps quotes list."}</div>`;
   $("pc-a").innerHTML = appr.length ? appr.map(x => approvedCard(x, t)).join("") : `<div class="col-empty">No approved jobs waiting to start.</div>`;
   $("pc-p").innerHTML = prog.length || movedQ.length ? movedQ.map(q => quoteCard(q, t, true)).join("") + prog.map(x => progressCard(x, t)).join("") : `<div class="col-empty">No project jobs in progress.</div>`;
-  const gone = [...(D.quotes || []), ...(D.jobs || [])].filter(x => isRemoved(x.id));
-  $("pc-removed").innerHTML = gone.length ? `<details class="rem-list"><summary>Removed from board (${gone.length})</summary>${gone.map(x => { const S = BOARD[x.id]; return `<div class="rem-row"><span><b>${esc(x.id)}</b> ${esc(x.customer || "")}<small>${esc(S.removedWhy || "")} · ${stampTxt(S.removedBy, S.removedAt)}</small></span><button class="btn" data-act="restore" data-job="${esc(x.id)}">Restore</button></div>`; }).join("")}</details>` : "";
+  /* Archived quotes: everything on the card stays, newest first. Removed jobs keep their short list. */
+  const archived = Object.keys(BOARD).filter(id => BOARD[id].removed && /^Q/i.test(id)).map(id => {
+    const live = quoteById(id), snap = BOARD[id].archivedQuote;
+    return live ? { ...live, outlook: live.outlook || (snap && snap.outlook) } : snap;
+  }).filter(Boolean).sort((x, y) => (BOARD[y.id].removedAt || "").localeCompare(BOARD[x.id].removedAt || ""));
+  const gone = (D.jobs || []).filter(x => isRemoved(x.id));
+  $("pc-removed").innerHTML = (archived.length ? `<details class="rem-list" data-card="__arch" ${OPEN_CARDS.has("__arch") ? "open" : ""}><summary>Archived (${archived.length}) · ${fm(archived.reduce((s, q) => s + (q.amount || 0), 0))}</summary><div class="arch-grid">${archived.map(q => quoteCard(q, t, false, true)).join("")}</div></details>` : "")
+    + (gone.length ? `<details class="rem-list" data-card="__rem" ${OPEN_CARDS.has("__rem") ? "open" : ""}><summary>Removed from board (${gone.length})</summary>${gone.map(x => { const S = BOARD[x.id]; return `<div class="rem-row"><span><b>${esc(x.id)}</b> ${esc(x.customer || "")}<small>${esc(S.removedWhy || "")} · ${stampTxt(S.removedBy, S.removedAt)}</small></span><button class="btn" data-act="restore" data-job="${esc(x.id)}">Restore</button></div>`; }).join("")}</details>` : "");
   setExpandLabel();
 }
 
@@ -1059,7 +1069,7 @@ $("profit").addEventListener("click", e => {
   if (last) patch.tasks = P.tasks.map(x => x.id === last.id ? { ...x, done: false, by: "", at: "" } : x);
   if (confirm(`Move ${j.id} back to In progress${last ? ` and un-check "${last.name}"` : ""}?`)) commit(j.id, patch);
 });
-function setExpandLabel() { const all = [...document.querySelectorAll("#pipeline details.jc")]; const b = $("expand-all"); if (b) b.textContent = all.length && all.every(d => d.open) ? "Collapse all" : "Expand all"; }
+function setExpandLabel() { const all = [...document.querySelectorAll("#pipeline .pipe details.jc")]; const b = $("expand-all"); if (b) b.textContent = all.length && all.every(d => d.open) ? "Collapse all" : "Expand all"; }
 $("expand-all").addEventListener("click", () => {
   const all = [...document.querySelectorAll("#pipeline details.jc")], open = !all.every(d => d.open);
   all.forEach(d => { d.open = open; if (open) OPEN_CARDS.add(d.dataset.card); else OPEN_CARDS.delete(d.dataset.card); });

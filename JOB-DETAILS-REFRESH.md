@@ -51,7 +51,7 @@ for anything newer, and read the latest customer message and the latest message 
    emails say. No sign-off, Outlook adds it. Leave `draft` empty for `parked`.
 
 Read the shared Context notes before writing these (`ops_jobs/{quote id}`, shown on each card): a note can change the
-state. Skip quotes that are removed from the board. Never send, reply, flag or draft anything in Outlook.
+state. Skip quotes in the Archived section (`removed: true`) but keep them in `quotes[]`. Never send, reply, flag or draft anything in Outlook.
 
 ## Part B: Job pages
 
