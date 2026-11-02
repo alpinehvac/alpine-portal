@@ -1071,7 +1071,7 @@ $("profit").addEventListener("click", e => {
 });
 function setExpandLabel() { const all = [...document.querySelectorAll("#pipeline .pipe details.jc")]; const b = $("expand-all"); if (b) b.textContent = all.length && all.every(d => d.open) ? "Collapse all" : "Expand all"; }
 $("expand-all").addEventListener("click", () => {
-  const all = [...document.querySelectorAll("#pipeline details.jc")], open = !all.every(d => d.open);
+  const all = [...document.querySelectorAll("#pipeline .pipe details.jc")], open = !all.every(d => d.open);
   all.forEach(d => { d.open = open; if (open) OPEN_CARDS.add(d.dataset.card); else OPEN_CARDS.delete(d.dataset.card); });
   setExpandLabel();
 });
