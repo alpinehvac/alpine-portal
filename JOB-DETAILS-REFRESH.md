@@ -168,9 +168,9 @@ It reads only; the single write is step 6.
    QuickBooks is the record of what was sent: Clarissa enters each invoice under the same number once it has gone out.
    BuildOps can't show this: nearly all invoices stay Draft there after they are sent.
 3. Service agreement visits. On `accounts.html` run `JSON.stringify(apAccountReports.recentJobs(60))`. Keep maintenance
-   records (`SA1025-2`) with a finished visit that are not in `sweep.json`'s `invoicedIds`. Drop any for a customer billed
-   by monthly contract (a QuickBooks invoice with a `C` number and note `CONTRACT` in the last 60 days): those are raised by
-   Clarissa in QuickBooks. Add each to `extra`: `{id, bucket: "sa", customer, property, last, why}`, with `why` one line.
+   records (`SA1025-2`) with a finished visit that are not in `sweep.json`'s `invoicedIds`. Drop any whose agreement bills
+   monthly (`JSON.parse(localStorage.getItem("sa_agr_SA1025")).billing` is `Monthly`): those are raised by Clarissa in
+   QuickBooks under C-numbers. Add each to `extra`: `{id, bucket: "sa", customer, property, last, why}`, with `why` one line.
 4. Possibly missed work. In all mailboxes since the previous run, look for customers or staff saying work is finished, asking
    for an invoice, or sending a PO (`invoice`, `bill`, `billing`, `PO`, `completed`, `sign off`). If it matches a job that
    is on the list, add a line to that job's `flags`. If it matches a job not on the list, or no job, add to `extra`:
