@@ -161,16 +161,16 @@ It reads only; the single write is step 6.
 
 1. BuildOps invoices. Get `buildops-invoices.js` the same way as the reader and paste it in the BuildOps tab. Run
    `alpineInvoices.start()`, poll `JSON.stringify(alpineInvoices.status())` until `running` is false, read
-   `JSON.stringify(alpineInvoices.page(n))` for n = 0, 1, ... and save the combined rows as `bo-invoices.json`.
+   `alpineInvoices.chunks()` and then `alpineInvoices.chunk(n)` for each n, and join them, exactly, into `bo-invoices.csv`.
    If the page count stalls or `error` is set, skip steps 2 and 3 and say so in the summary.
 2. Match against QuickBooks. Download `invoice_sweep.py` and run
-   `python3 -I invoice_sweep.py bo-invoices.json INVOICES.json <today> > sweep.json` (INVOICES.json is B2's file).
+   `python3 -I invoice_sweep.py bo-invoices.csv INVOICES.json <today> > sweep.json` (INVOICES.json is B2's file).
    QuickBooks is the record of what was sent: Clarissa enters each invoice under the same number once it has gone out.
    BuildOps can't show this: nearly all invoices stay Draft there after they are sent.
 3. Service agreement visits. On `accounts.html` run `JSON.stringify(apAccountReports.recentJobs(60))`. Keep maintenance
-   records (`SA1025-2`) with a finished visit that are not in `sweep.json`'s `invoicedIds`. Drop any for a customer billed
-   by monthly contract (a QuickBooks invoice with a `C` number and note `CONTRACT` in the last 60 days): those are raised by
-   Clarissa in QuickBooks. Add each to `extra`: `{id, bucket: "sa", customer, property, last, why}`, with `why` one line.
+   records (`SA1025-2`) with a finished visit that are not in `sweep.json`'s `invoicedIds`. Drop any whose agreement bills
+   monthly (`JSON.parse(localStorage.getItem("sa_agr_SA1025")).billing` is `Monthly`): those are raised by Clarissa in
+   QuickBooks under C-numbers. Add each to `extra`: `{id, bucket: "sa", customer, property, last, why}`, with `why` one line.
 4. Possibly missed work. In all mailboxes since the previous run, look for customers or staff saying work is finished, asking
    for an invoice, or sending a PO (`invoice`, `bill`, `billing`, `PO`, `completed`, `sign off`). If it matches a job that
    is on the list, add a line to that job's `flags`. If it matches a job not on the list, or no job, add to `extra`:

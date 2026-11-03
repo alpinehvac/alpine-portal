@@ -3,7 +3,7 @@
 //   1. paste this file's contents once (defines window.alpineInvoices)
 //   2. alpineInvoices.start()    returns at once; the work runs in the background
 //   3. poll JSON.stringify(alpineInvoices.status()) until running is false
-//   4. read JSON.stringify(alpineInvoices.page(0)), page(1), ... (200 rows each, no truncation)
+//   4. read alpineInvoices.chunks(), then alpineInvoices.chunk(0), chunk(1), ... and join them into one CSV file
 //
 // Opens /invoice/list, sets nothing, and reads every row of the grid by column heading:
 // invoice number, service agreement, job, amount, balance, property, issued date, billing customer,
@@ -80,7 +80,14 @@ window.alpineInvoices = {
   start() { if (!S.running) run(); return "started"; },
   status() { return { running: S.running, pages: S.pages, rows: S.rows.length, error: S.error, columns: S.heads }; },
   result() { return S.rows; },
-  page(i) { return S.rows.slice(i * 200, (i + 1) * 200); },
+  // Browser tool output truncates at about 1,000 characters, so the rows come back as CSV in short pieces.
+  // Non-void invoices from the last 180 days: no,job,sa,amount,issued,by
+  csv() {
+    const cut = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10), c = s => String(s == null ? "" : s).replace(/[,\n]/g, " ");
+    return S.rows.filter(r => !/void/i.test(r.status || "") && (r.issued || "") >= cut).map(r => [r.no, r.job, r.sa, r.amount, r.issued, r.by].map(c).join(",")).join("\n");
+  },
+  chunks() { return Math.ceil(this.csv().length / 800); },
+  chunk(i) { return this.csv().slice(i * 800, (i + 1) * 800); },
 };
 window.alpineInvoices.ready = true;
 })();
