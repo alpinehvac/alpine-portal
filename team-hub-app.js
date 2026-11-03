@@ -1868,7 +1868,8 @@ const OB_CHECKLISTS = {
         'Probation period: 3 months — same for all roles',
         'New hire folded into the quarterly review cycle',
         'myHSA benefits activated after 3-month probation',
-        'Formal correction/termination meeting scheduled if concerns arise before probation expires'
+        'Formal correction/termination meeting scheduled if concerns arise before probation expires',
+        'The 5 Levels reviewed with the new hire: Level 4 minimum from day one — Onboarding › The 5 Levels'
       ]}
     ]
   },
