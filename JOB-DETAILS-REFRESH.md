@@ -123,8 +123,18 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
    - Customer: a person at a customer whose only open job on the board is this one, when the email is about that work.
 4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"`
    when the email was found only in Cole's mailbox.
-   `summary` is one factual line in your own words (≤140 characters), never copied access codes or personal details.
-5. In the run summary, list person-written emails from customers or contractors that matched no job (sender, subject,
+   `summary` is one factual line in your own words (≤200 characters), never copied access codes or personal details.
+   It must keep what matters to the job: dates, who owes what, approvals, changes to scope and reasons for delay.
+5. Read for full context, not from the preview. For every thread matched to a job, `read_resource` the newest message
+   and read the whole body, including the quoted history. Add a record for each earlier person-written message that
+   is in that history and not yet on the job page, using its real date and sender. Leave `link` empty when that message
+   can't be found in the mailbox: the save treats it as new by subject and date.
+6. Check the jobs coming up. For every job with a next visit in the next 14 days, search Jake's mailbox by its street
+   address, site name, short site name and customer contact, last 60 days. Add anything missing. Cole's mailbox can't be
+   text searched, so use the sender filter with the customer's domain and today's list.
+7. Compare the emails with the schedule. If an email changes or conflicts with a job's dates (for example the customer's
+   timing doesn't fit the next visit), add a flag to the board and list it first in the run summary.
+8. In the run summary, list person-written emails from customers or contractors that matched no job (sender, subject,
    one line each), so a missed thread can be caught the same day.
 
 ### B4. Save QuickBooks and email matches
