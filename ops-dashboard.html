@@ -844,7 +844,7 @@ function followBlock(q) {
   const o = q.outlook;
   if (!o) return `<div class="jc-sec"><span>Conversation</span></div><div class="ctx-empty">Not read from Outlook yet. The next daily refresh adds it.</div>`;
   const to = [o.to, o.toEmail].filter(Boolean).join(" · ");
-  const link = o.link ? `<a href="${esc(o.link)}" target="_blank" rel="noopener">Open email thread ↗</a>` : "";
+  const link = o.link ? `<a href="${esc(o.link)}" data-search="${esc(o.subject || "")}" target="_blank" rel="noopener">Open email thread ↗</a>` : "";
   return `<div class="jc-sec"><span>Conversation</span><span>${o.last ? "last " + fmtD(o.last) : ""}</span></div>
     <div class="convo">${esc(o.summary || "")}</div>
     ${o.draft ? `<div class="jc-sec"><span>Follow-up</span><span>${o.by ? esc(o.by) + "'s thread" : ""}</span></div>
