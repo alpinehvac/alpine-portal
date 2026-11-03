@@ -26,8 +26,9 @@ const nowIso = () => new Date().toISOString();
 let D = null, BOARD = {}, REC = {}, SWEEP = {}, USER = null;
 let TAB = "todo", BUCKET = "all";
 let OPEN = null, DET = null, COST = null; // the job open in the review view
-const BUCKETS = { complete: "Completed", service: "Service / T&M", progress: "Progress billing", flag: "Check first" };
-const BTAG = { complete: "green", service: "teal", progress: "purple", flag: "amber" };
+const CHECK_DAYS = 14; // contract-site service calls older than this wait in a collapsed list, not on the board
+const BUCKETS = { complete: "Completed", service: "Service / T&M", progress: "Progress billing", flag: "Check first", older: "Older contract visit" };
+const BTAG = { complete: "green", service: "teal", progress: "purple", flag: "amber", older: "grey" };
 
 /* ---------- the queue ---------- */
 const FULL = /fully invoiced|no charge|closed/i, NOBILL = /do not invoice/i;
@@ -46,13 +47,16 @@ function bucketOf(j) {
   }
   const allDone = (j.visitsDone || 0) > 0 && j.visitsDone >= (j.visitsTotal || 0) && !j.nextVisit;
   if (!allDone) return null;
-  return /site walk|estimate|warranty/i.test(j.type || "") || (!j.po && isContract(j.customer)) ? "flag" : "service";
+  if (!j.po && isContract(j.customer)) return (daysSince(j.lastVisit) ?? 0) > CHECK_DAYS ? "older" : "flag";
+  return /site walk|estimate|warranty/i.test(j.type || "") ? "flag" : "service";
 }
 
 /* Customers billed by contract (QuickBooks C-numbers, raised by Clarissa). A service call with no PO for one of these is often
    covered by the contract or a monthly parts PO, so it asks a person first. */
 const custKey = s => String(s || "").replace(/^\*/, "").split(/\s+c\/o\s+/i)[0].toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\b(inc|ltd|corp|corporation|limited)\b/g, "").replace(/\s+/g, " ").trim();
 const isContract = name => { const k = custKey(name); return !!k && (SWEEP.contractCustomers || []).some(c => { const x = custKey(c); return x.length > 5 && (x.startsWith(k) || k.startsWith(x)); }); };
+
+const CONTRACT_WHY = "Contract customer, no PO. Labour is usually covered by the contract. Materials bill separately unless a QuickBooks estimate covers them.";
 
 function itemFromJob(j, bucket) {
   const left = j.quoted > 0 ? j.quoted - (j.billed || 0) : null;
@@ -62,7 +66,8 @@ function itemFromJob(j, bucket) {
     complete: BOARD[j.id] && BOARD[j.id].stage === "completed" ? `Marked complete by ${BOARD[j.id].stageBy || "the team"}` : /ready to invoice/i.test(j.billingStatus || "") ? "BuildOps: Ready To Invoice" : "Complete in BuildOps, not fully invoiced",
     service: `All ${j.visitsDone} visit${j.visitsDone === 1 ? "" : "s"} done, nothing billed`,
     progress: `About ${money(earned)} earned past what's billed (hours used × quote)`,
-    flag: !j.po && isContract(j.customer) ? "Contract customer, no PO. Check it isn't covered by the contract or a monthly parts PO." : `${j.type || "Job"} with visits done and no invoice. Billable?`,
+    flag: !j.po && isContract(j.customer) ? CONTRACT_WHY : `${j.type || "Job"} with visits done and no invoice. Billable?`,
+    older: CONTRACT_WHY,
   }[bucket];
   return { id: j.id, job: j, bucket, customer: (j.customer || "").replace(/^\*/, ""), property: j.property || "", title: j.title || "", po: j.po || "", type: j.type || "", last: j.lastVisit || j.completed || null, left, est: bucket === "progress" ? earned : left, why, url: j.url, hours: j.actualHrs };
 }
@@ -85,7 +90,11 @@ function allItems() {
 function qbOf(no) { return no ? (SWEEP.qb || {})[String(no).replace(/^INV-/i, "")] : null; }
 function stateOf(id) {
   const r = REC[id] || {};
-  if (r.state === "skip") return "skip";
+  if (r.state === "skip") {
+    // New work after it was marked not billable puts it back, so nothing gets missed.
+    const j = D && (D.jobs || []).find(x => x.id === id);
+    return j && j.lastVisit && r.stateAt && j.lastVisit > r.stateAt.slice(0, 10) ? "todo" : "skip";
+  }
   if (r.invNo && qbOf(r.invNo)) return "done";
   return r.state === "queued" || r.state === "drafted" ? r.state : "todo";
 }
@@ -110,12 +119,12 @@ function card(i) {
     <div class="jc-cust">${esc(j.customer || i.customer)}</div><div class="jc-site">${esc(i.property)}</div>
     ${i.title ? `<div class="jc-scope">${esc(i.title)}</div>` : ""}
     ${hrsPct != null ? `<div class="pbar"><i class="${hrsPct > 100 ? "over" : hrsPct === 100 ? "full" : ""}" style="width:${Math.min(100, hrsPct)}%"></i></div>` : ""}
-    <div class="jc-meta">${tags}</div><span class="chev">▾</span>
+    <div class="jc-meta">${tags}${i.bucket === "flag" && i.st === "todo" ? `<button class="tag grey nb" type="button" data-nb="${esc(i.id)}">Not billable ✕</button>` : ""}</div><span class="chev">▾</span>
   </summary><div class="jc-body">
     <div class="jc-why">${esc(i.why)}</div>
     ${((SWEEP.items || {})[i.id] || {}).flags ? SWEEP.items[i.id].flags.map(f => `<div class="note-line">${esc(f)}</div>`).join("") : ""}
     ${ctx.length ? `<div class="jc-sec"><span>Context</span><span>${ctx.length}</span></div>${ctx.map(c => `<div class="note-line">${esc(c.text || "")}</div>`).join("")}` : ""}
-    <div class="jc-act">${isJob(i.id) ? `<a class="btn" href="job.html?id=${encodeURIComponent(i.id)}">Job page</a>` : "<span></span>"}<button class="btn done" type="button" data-open="${esc(i.id)}">${i.st === "todo" ? "Review invoice" : "Open"}</button></div>
+    <div class="jc-act">${i.st === "todo" ? `<button class="btn ghost warn" type="button" data-nb="${esc(i.id)}">Not billable</button>` : "<span></span>"}<span class="actions">${isJob(i.id) ? `<a class="btn" href="job.html?id=${encodeURIComponent(i.id)}">Job page</a>` : ""}<button class="btn done" type="button" data-open="${esc(i.id)}">${i.st === "todo" ? "Review invoice" : "Open"}</button></span></div>
   </div></details>`;
 }
 const isJob = id => /^(JO\d+|SA\d+-\d+)$/.test(id);
@@ -125,7 +134,7 @@ function renderList() {
   OPEN = null;
   const items = allItems();
   const by = st => items.filter(i => i.st === st);
-  const todo = by("todo"), queued = by("queued"), drafted = by("drafted"), done = by("done"), skip = by("skip");
+  const todo = by("todo").filter(i => i.bucket !== "older"), older = by("todo").filter(i => i.bucket === "older").sort((a, b) => (parseD(b.last) || 0) - (parseD(a.last) || 0)), queued = by("queued"), drafted = by("drafted"), done = by("done"), skip = by("skip");
   const nq = (SWEEP.notInQB || []).length, asOf = SWEEP.asOf || (D && D.asOf);
   const oldest = (a, b) => (parseD(a.last) || 0) - (parseD(b.last) || 0);
   const counts = {}; todo.forEach(i => counts[i.bucket] = (counts[i.bucket] || 0) + 1);
@@ -142,19 +151,24 @@ function renderList() {
     <div class="col a">${colHead("Queued for BuildOps", queued, "reviewed, waiting on Claude")}${queued.map(card).join("") || '<div class="col-empty">Nothing queued. Review a job and click Ready for BuildOps.</div>'}</div>
     <div class="col p">${colHead("In BuildOps, not sent", drafted, "moves on when it's in QuickBooks")}${drafted.map(card).join("") || '<div class="col-empty">No Drafts waiting to go out.</div>'}</div>
   </div>
+  ${older.length ? `<details class="rem-list" data-card="__old" ${OPEN_CARDS.has("__old") ? "open" : ""}><summary>Older contract visits, no PO (${older.length})</summary><p class="note" style="margin:.4rem 0 .6rem">Contract customers, last visit more than ${CHECK_DAYS} days ago. Kept here so nothing is lost. Open one to bill it, or mark it not billable.</p>${doneTable(older, true)}</details>` : ""}
   <details class="rem-list" data-card="__nq" ${OPEN_CARDS.has("__nq") ? "open" : ""}><summary>Not in QuickBooks (${nq})</summary>${reconTable()}</details>
   <details class="rem-list" data-card="__done" ${OPEN_CARDS.has("__done") ? "open" : ""}><summary>Done (${done.length})</summary>${doneTable(done)}</details>
-  <details class="rem-list" data-card="__skip" ${OPEN_CARDS.has("__skip") ? "open" : ""}><summary>Not invoicing (${skip.length})</summary>${doneTable(skip)}</details>`;
+  <details class="rem-list" data-card="__skip" ${OPEN_CARDS.has("__skip") ? "open" : ""}><summary>Not invoicing (${skip.length})</summary>${doneTable(skip, true)}</details>`;
 
   document.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { BUCKET = b.dataset.b; renderList(); });
+  const find = id => items.find(i => i.id === id) || {};
+  const quick = (e, id, patch) => { e.preventDefault(); e.stopPropagation(); const i = find(id); write(id, { state: patch.state, stateBy: ME, stateAt: nowIso(), skipReason: patch.reason, customer: i.customer || "", property: i.property || "" }); };
+  document.querySelectorAll("[data-nb]").forEach(b => b.onclick = e => quick(e, b.dataset.nb, { state: "skip", reason: "Not billable" }));
+  document.querySelectorAll("[data-back]").forEach(b => b.onclick = e => quick(e, b.dataset.back, { state: "new", reason: null }));
   document.querySelectorAll("[data-open],tr.go").forEach(el => el.onclick = e => { if (!e.target.closest("a")) location.hash = encodeURIComponent(el.dataset.open || el.dataset.id); });
   document.querySelectorAll("details[data-card]").forEach(d => d.ontoggle = () => { d.open ? OPEN_CARDS.add(d.dataset.card) : OPEN_CARDS.delete(d.dataset.card); });
   const c = $("cmd"); if (c) c.onclick = () => copy(claudeCommand(queued.length), c);
 }
 
-function doneTable(list) {
+function doneTable(list, acts) {
   if (!list.length) return '<div class="table-wrap"><p class="empty" style="padding:1rem">Nothing here.</p></div>';
-  return `<div class="table-wrap"><table><thead><tr><th>Job</th><th>Customer / site</th><th>Invoice</th><th>By</th><th class="num">Amount</th></tr></thead><tbody>${list.map(i => `<tr class="go" data-id="${esc(i.id)}"><td>${esc(i.id)}</td><td>${esc(i.customer)}<small>${esc(i.property)}</small></td><td>${esc(i.rec.invNo || i.rec.skipReason || "")}</td><td>${esc(i.rec.stateBy || "")}</td><td class="num">${i.rec.amount ? money(i.rec.amount) : "—"}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>Job</th><th>Customer / site</th><th>Invoice</th><th>By</th><th class="num">Amount</th>${acts ? "<th></th>" : ""}</tr></thead><tbody>${list.map(i => `<tr class="go" data-id="${esc(i.id)}"><td>${esc(i.id)}</td><td>${esc(i.customer)}<small>${esc(i.property)}</small></td><td>${esc(i.rec.invNo || i.rec.skipReason || (i.last ? "Last visit " + fmtD(i.last) : ""))}</td><td>${esc(i.rec.stateBy || "")}</td><td class="num">${i.rec.amount ? money(i.rec.amount) : "—"}</td>${acts ? `<td class="num">${i.st === "skip" ? `<button class="btn" type="button" data-back="${esc(i.id)}">Put back</button>` : `<button class="btn ghost warn" type="button" data-nb="${esc(i.id)}">Not billable</button>`}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function reconTable() {
@@ -212,10 +226,15 @@ async function flush() {
 }
 async function write(id, patch) {
   try {
-    await setDoc(doc(db, "invoicing_data", safeId(id)), { ...patch, jobId: id, customer: (ITEM && ITEM.customer) || patch.customer || "", property: (ITEM && ITEM.property) || patch.property || "", updatedAt: serverTimestamp(), updatedBy: USER.email }, { merge: true });
+    const it = ITEM && ITEM.id === id ? ITEM : {};
+    await setDoc(doc(db, "invoicing_data", safeId(id)), { ...patch, jobId: id, customer: patch.customer || it.customer || "", property: patch.property || it.property || "", updatedAt: serverTimestamp(), updatedBy: USER.email }, { merge: true });
     setSave("Saved · shared with Jake, Mike and Cole");
     return true;
-  } catch (e) { setSave("NOT SAVED (" + (e.code || e.message) + "). Copy your edits and refresh.", true); return false; }
+  } catch (e) {
+    const m = "NOT SAVED (" + (e.code || e.message) + "). Copy your edits and refresh.";
+    if ($("save")) setSave(m, true); else show(m);
+    return false;
+  }
 }
 
 async function openItem(id) {
@@ -430,7 +449,7 @@ function route() {
 }
 
 /* ---------- used by Claude: the daily sweep (read only) and INVOICING-CREATE.md ---------- */
-window.apInvoiceQueue = () => allItems().map(({ job, rec, ...i }) => ({ ...i, stateNow: i.st }));
+window.apInvoiceQueue = () => allItems().map(({ job, rec, ...i }) => ({ ...i, stateNow: i.bucket === "older" && i.st === "todo" ? "older" : i.st }));
 window.apInvoiceSweep = () => ({ asOf: SWEEP.asOf || "", items: SWEEP.items || {}, extra: SWEEP.extra || [] });
 window.apInvoiceQueued = () => Object.entries(REC).filter(([id]) => stateOf(id) === "queued").map(([id, r]) => ({ id, type: r.type, amount: r.amount ?? null, po: r.po || "", note: r.note || "", lines: r.lines || [], claudeNote: r.claudeNote || "", visits: r.visits || [], customer: r.customer || "", property: r.property || "", queuedBy: r.stateBy || "" }));
 window.apInvoiceDrafted = async (id, res) => {
