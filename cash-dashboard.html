@@ -800,7 +800,7 @@ function renderReserve(){
   document.getElementById("reserve-chart").innerHTML=g;
   const row=(a,v,b)=>`<tr${b?' style="font-weight:600"':""}><td style="text-align:left">${a}</td><td class="${v<0?"down":""}">${fmt(v)}</td></tr>`;
   document.getElementById("reserve-table").innerHTML=`<thead><tr><th style="text-align:left">As of ${dShort(DATA.asOf)}</th><th>Amount</th></tr></thead><tbody>`
-    +row("Cash, excluding line of credit",cash-loc)+row("Receivables",ar)+row("Supplier bills",-ap)+row("Credit cards",-cards)+row("HST, source deductions and WSIB owed, net of tax accounts",-owed)
+    +row("Cash, excluding line of credit",cash-loc)+row("Receivables",ar)+row("Supplier bills",-ap)+row("Credit cards",-cards)+row("Taxes owed, net of tax accounts",-owed)
     +row("Usable within 30 days",liquid,1)+row("Earned, not yet billed",enb)+row("Billed ahead of work done",-ahead)+row("Net reserve position",net,1)+`</tbody>`;
   document.getElementById("reserve-rules").innerHTML=["Materials on unbilled jobs are already in earned, not yet billed at sell price, so supplier bills are deducted only once.","Billed ahead of work done is money customers paid for work not done yet. It's held in cash, so it comes off.","The projection adds weekly earned profit and takes off owner draws, assuming no new jobs. It falls once the booked work runs out.",`Core burn of ${fmt(wk)}/week is after the cost cuts planned through January.`,"Points before Nov 2 use earned-not-billed figures from early October, so read them as a rough trend."].map(x=>`<li>${x}</li>`).join("");
 }
