@@ -397,6 +397,13 @@ html.ap-embed .board:has(>.bh:nth-child(7)){grid-template-columns:minmax(6.5rem,
     <div class="table-wrap"><table><thead id="jobs-head"></thead><tbody id="jobs-body"></tbody></table></div>
   </section>
 
+  <section id="hours-section" style="display:none">
+    <h2>Projected vs available hours</h2>
+    <p class="h2-note" id="hours-note" style="margin-bottom:1rem"></p>
+    <div class="panel"><table class="mini" id="hours-table" style="width:100%"></table></div>
+    <ol id="hours-rules" style="margin:.8rem 0 0 1.1rem;font-size:.85rem;color:var(--light-grey)"></ol>
+  </section>
+
   <section>
     <div class="two">
       <div>
@@ -549,7 +556,7 @@ function render() {
   (D.visits || []).forEach(v => { if (v.tech) techs.add(v.tech); });
   $("f-tech").innerHTML = `<option value="">All techs</option>` + [...techs].sort().map(n => `<option>${esc(n)}</option>`).join("");
 
-  renderBoard(); renderJobs(); renderTechLoad(X); renderPMs(X);
+  renderBoard(); renderJobs(); renderTechLoad(X); renderPMs(X); try { renderHours(); } catch (e) { console.error("Hours panel failed", e); }
   $("questions").innerHTML = (D.questions || []).length ? D.questions.map(q => `<li>${esc(q)}</li>`).join("") : `<li class="dim" style="list-style:none;margin-left:-1.2rem">No open questions this run.</li>`;
   const ctx = (window.__CTX || D.context || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   $("context").innerHTML = ctx.length ? ctx.map(c => `<li><div><span class="tag ${({Personnel:"purple",Operations:"teal",Financial:"amber",Customer:"grey"})[c.area] || "grey"}">${esc(c.area || "Note")}</span><small style="margin-top:.3rem">${fmtD(c.date)}</small></div><div>${esc(c.change)}${c.effective ? `<small>Effective ${fmtD(c.effective)}${c.impact ? " · " + esc(c.impact) : ""}</small>` : c.impact ? `<small>${esc(c.impact)}</small>` : ""}</div></li>`).join("") : `<li><div></div><div class="dim">Nothing logged yet.</div></li>`;
@@ -621,6 +628,35 @@ function renderJobs() {
     const billed = DONE_BILLING.test(j.billingStatus || "");
     return `<tr><td>${jobLink(j)}${j.po ? `<small>PO ${esc(j.po)}</small>` : ""}</td><td>${cust(j)}</td><td>${kindTag(j)}</td><td>${fmtD(j.completed)}</td><td><span class="tag ${billed ? "teal" : "red"}">${esc(j.billingStatus || "Not billed")}</span></td><td class="num">${hrs(j)}</td><td class="num">${money(j.quoted)}</td><td class="num">${money(j.billed)}</td></tr>`;
   }).join("") : `<tr><td class="empty-row" colspan="${H.length}">No jobs match.</td></tr>`;
+}
+
+// Projected vs available hours, next 13 weeks. Hours only, no dollars.
+// D.capacity overrides these. ends = finish dates for long jobs; other open jobs are assumed done in 4 weeks.
+const CAPACITY = { hoursPerWeek: 40, techs: 6, techChanges: [{ from: "2027-01-01", techs: 5 }], contractTechs: 3, defaultWeeks: 4,
+  ends: { JO20261184: "2027-02-28", JO20261201: "2027-03-31", JO20261185: "2026-12-31", JO20261171: "2026-12-12", JO20261127: "2026-11-30" } };
+function renderHours() {
+  if (!D || !$("hours-section")) return;
+  const C = { ...CAPACITY, ...(D.capacity || {}) }, ends = { ...CAPACITY.ends, ...(C.ends || {}) };
+  const t0 = monday(new Date((D.asOf || "") + "T12:00:00")), DAY = 864e5, wk = i => new Date(t0.getTime() + 7 * i * DAY);
+  const techsOn = dt => { let n = C.techs; (C.techChanges || []).forEach(c => { if (dt >= new Date(c.from + "T00:00:00")) n = c.techs; }); return n; };
+  const paid = [...Array(13)].map((_, i) => techsOn(wk(i)) * C.hoursPerWeek), avail = paid.map(h => Math.max(0, h - C.contractTechs * C.hoursPerWeek)), booked = Array(13).fill(0);
+  const open = (D.jobs || []).filter(j => isPipe(j) && !isRemoved(j.id) && j.budgetHrs > 0 && j.status === "Open" && j.stage !== "completed");
+  let left = 0, beyond = 0;
+  open.forEach(j => {
+    const r = Math.max(0, j.budgetHrs - (j.actualHrs || 0)); if (!r) return; left += r;
+    const end = ends[j.id] ? new Date(ends[j.id] + "T12:00:00") : wk(C.defaultWeeks), weeks = Math.max(1, (end - t0) / (7 * DAY)), perWk = r / weeks;
+    for (let i = 0; i < 13; i++) { const share = Math.max(0, Math.min(1, weeks - i)); booked[i] += perWk * share; }
+  });
+  const inWin = booked.reduce((a, b) => a + b, 0); beyond = left - inWin;
+  const groups = [["Weeks 1–4", 0, 4], ["Weeks 5–8", 4, 8], ["Weeks 9–13", 8, 13], ["Next 13 weeks", 0, 13]];
+  const add = (a, s, e) => a.slice(s, e).reduce((x, y) => x + y, 0), R = n => Math.round(n).toLocaleString("en-CA");
+  $("hours-section").style.display = "";
+  $("hours-note").textContent = `Project hours left on open jobs against the hours the crew has for project work. ${C.techs} techs at ${C.hoursPerWeek} hours, with ${C.contractTechs} held for contracts.`;
+  $("hours-table").innerHTML = `<thead><tr><th>Period</th><th class="num">Paid hours</th><th class="num">Held for contracts</th><th class="num">Available</th><th class="num">Booked</th><th class="num">Open</th><th class="num">Load</th></tr></thead><tbody>` + groups.map(([n, s, e], i) => {
+    const a = add(avail, s, e), b = add(booked, s, e), p = add(paid, s, e), o = a - b, pc = a ? Math.round(b / a * 100) : 0;
+    return `<tr${i === 3 ? ' style="font-weight:600;border-top:1px solid var(--border)"' : ""}><td>${n}</td><td class="num">${R(p)}</td><td class="num">${R(p - a)}</td><td class="num">${R(a)}</td><td class="num">${R(b)}</td><td class="num"${o < 0 ? ' style="color:#B83227"' : ""}>${o < 0 ? "−" : ""}${R(Math.abs(o))}</td><td class="num">${pc}%</td></tr>`;
+  }).join("") + `</tbody>`;
+  $("hours-rules").innerHTML = [`Booked uses budgeted hours left on ${open.length} open quoted jobs. Jobs already over budget count as zero, so remaining work on them isn't shown.`, `${R(beyond)} hours on long jobs fall after these 13 weeks.`, `Long jobs are spread evenly to their finish dates. Other jobs are assumed done in ${C.defaultWeeks} weeks.`, "The contract hold is an estimate, and service calls aren't deducted, so real open hours are lower. Quotes not yet approved aren't counted."].map(x => `<li>${esc(x)}</li>`).join("");
 }
 
 function renderTechLoad(X) {

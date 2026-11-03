@@ -289,11 +289,33 @@ html.ap-embed-fin main>#ap-emb-kpis,html.ap-embed-fin main>#ap-emb-charts{displa
   </section>
 
   <section id="profit-section" style="display:none">
+    <div id="basis-note" style="border-left:3px solid #3D818A;background:rgba(61,129,138,.08);border-radius:0 8px 8px 0;padding:.7rem .9rem;margin-bottom:1.25rem;font-size:.9rem"><b>Basis of these figures.</b> Projected weeks and months on this tab are earned: revenue counts as work is done, not when it's invoiced. Past months are QuickBooks as billed, because earned history isn't recorded month by month. Billed and collected money is on the Cash Position tab.</div>
     <h2>Profit: last 13 weeks and next 13 weeks</h2>
     <p class="h2-note">Profit counts revenue as work is done (percent complete), not when it's billed or collected. Before HST.</p>
     <div class="health" id="profit-cards" style="margin-bottom:1.25rem"></div>
     <div class="chart-box"><div class="chart-scroll"><svg id="profit-chart" viewBox="0 0 1000 320" role="img" aria-label="Weekly profit"></svg></div>
       <div class="legend"><span><i style="background:rgba(16,68,78,0.585)"></i>Actual (QuickBooks, monthly spread weekly)</span><span><i style="background:#2E7D57"></i>Projected profit</span><span><i style="background:#B83227"></i>Projected loss</span></div></div>
+
+    <div id="target-wrap" style="display:none;margin-top:2.25rem">
+      <h2>FY2027 monthly targets</h2>
+      <p class="h2-note" id="target-note"></p>
+      <div class="health" id="target-cards" style="margin:1rem 0 1.25rem"></div>
+      <div class="chart-box"><div class="chart-scroll"><svg id="target-chart" viewBox="0 0 1000 300" role="img" aria-label="Monthly revenue against the monthly target"></svg></div>
+        <div class="legend"><span><i style="background:rgba(16,68,78,0.585)"></i>Actual month (as billed)</span><span><i style="background:#3D818A"></i>Projected (as earned)</span><span>Dashed line = revenue target</span></div></div>
+      <div class="table-wrap" style="margin-top:1rem"><table id="target-table"></table></div>
+      <div class="table-wrap" id="benefit-wrap" style="margin-top:1rem;display:none"><table id="benefit-table"></table></div>
+      <ol class="assume" id="target-rules" style="margin-top:1rem"></ol>
+    </div>
+
+    <div id="reserve-wrap" style="display:none;margin-top:2.25rem">
+      <h2>Net reserve position</h2>
+      <p class="h2-note" id="reserve-note"></p>
+      <div class="health" id="reserve-cards" style="margin:1rem 0 1.25rem"></div>
+      <div class="chart-box"><div class="chart-scroll"><svg id="reserve-chart" viewBox="0 0 1000 300" role="img" aria-label="Net reserve position, past and projected, against the reserve target"></svg></div>
+        <div class="legend"><span><i style="background:#10444E"></i>Recorded</span><span><i style="background:#3D818A"></i>Projected, no new jobs</span><span>Dashed line = reserve target</span></div></div>
+      <div class="table-wrap" style="margin-top:1rem"><table id="reserve-table"></table></div>
+      <ol class="assume" id="reserve-rules" style="margin-top:1rem"></ol>
+    </div>
 
     <div id="mix-wrap" style="display:none;margin-top:2.25rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap">
@@ -562,7 +584,7 @@ function renderAlloc(rows){
     +plan.map(p=>`<tr><td>${monthName(p.ym)}${p.kind==="current"?" (MTD + proj.)":p.partial?"*":""}</td><td class="${p.profB<0?"down":""}">${fmt(p.profB)}</td><td class="${p.profE<0?"down":""}">${fmt(p.profE)}</td><td>${fmt(p.avail)}</td><td>${dShort(p.relS)}</td><td>${fmt(p.div)}</td><td>${fmt(p.re)}</td><td>${fmt(p.mkt)}</td><td style="text-align:left;white-space:normal;min-width:16rem">${esc(p.status)}</td></tr>`).join("")
     +`</tbody>`;
   document.getElementById("alloc-rules").innerHTML=[
-    "Remaining profit is after the base $5K per owner per month, so the $10K extra is on top of that.",
+    "Remaining profit is after the flat owner allocation, not actual dividends paid. The extra allocation is on top of that.",
     "Releasable is the lower of billed and earned profit: work done but not yet invoiced can't be paid out, and deposits billed ahead of the work aren't profit yet. Each catches up as jobs are invoiced and completed.",
     "The cash check uses the forecast line with expected service work, the same assumption as the profit projection. Every refresh re-runs this plan on the latest numbers, so amounts move as jobs, billings and burn change.",
     "Retained earnings isn't a transfer: it's profit left in operating cash. Marketing starts only when cash would stay above the 8-week target after the spend.",
@@ -736,11 +758,84 @@ function render(){
       <tr><td>${esc(Q.label||"Last 13 weeks")}</td><td>${fmt(Q.adjustedNet)}</td><td>~${fmt(pastEarned)}</td><td style="text-align:left">${fmt(Q.earnedNotBilled)} of work done but not billed by quarter-end. Estimate assumes little was unbilled at the start of the quarter.</td></tr>
       <tr><td>Next 13 weeks (projected)</td><td>${fmt(fb)}</td><td>${fmt(fp)}</td><td style="text-align:left">Job billings ${fmt(jB)} vs work done ${fmt(jE)}: catching up on unbilled work, plus deposits and equipment billings (mainly 21 Hunter) billed ahead of the work.</td></tr></tbody>`;
     try{ renderMix(); }catch(err){ console.error("Revenue mix/allocation render failed",err); }
+    try{ renderTargets(); }catch(err){ console.error("FY2027 targets render failed",err); }
+    try{ renderReserve(); }catch(err){ console.error("Net reserve render failed",err); }
   }
   renderHealth();
 
   document.getElementById("checks").innerHTML=DATA.checks.map(c=>`<div class="check"><span class="${c[0]?"ok":"bad"}">${c[0]?"✓":"✕"}</span><span>${esc(c[1])}</span></div>`).join("");
   document.getElementById("assumptions").innerHTML=DATA.assumptions.map(a=>`<li>${esc(a)}</li>`).join("");
+}
+
+// ── FY2027 monthly targets ───────────────────────────────────────────
+// Net reserve: what the business would have left if it settled up today. Worked out from the same saved
+// data as the rest of the page. Past points come from DATA.reserveHistory; the core burn from DATA.fyTargets.
+function renderReserve(){
+  const T={...FY_TARGETS,...(DATA.fyTargets||{})}, A=DATA.accounts, P=DATA.profit;
+  if(!T.reserveCoreBurn||!A||!P||!P.wip) return;
+  const total=l=>l.reduce((s,x)=>s+x,0), cash=total(A.operating.map(a=>a[1])), loc=A.loc||0, ar=DATA.ar.total, ap=DATA.ap.total, cards=A.cards||0;
+  const owed=total((A.earmarked||[]).map(r=>Math.max(0,(r[3]||0)-r[1])));
+  const enb=total(P.wip.map(j=>Math.max(0,j.underBilled))), ahead=total(P.wip.map(j=>Math.max(0,-j.underBilled)));
+  const liquid=cash-loc+ar-ap-cards-owed, net=liquid+enb-ahead, wk=T.reserveCoreBurn, target=Math.max(T.reserveGoal||0,wk*T.reserveWeeks), wks=v=>(v/wk).toFixed(1);
+  let run=net; const proj=P.future.map((w,i)=>{run+=w.profit-((DATA.weeks[i]&&DATA.weeks[i].out.draws)||0);return {date:addDays(w.week,6),v:run};});
+  const hist=(DATA.reserveHistory||[]).filter(r=>r[0]<DATA.asOf).map(r=>({date:r[0],v:r[1]})).concat([{date:DATA.asOf,v:net}]);
+  const end=proj[proj.length-1], first=hist[0], tag=v=>v<0?"down":"";
+  document.getElementById("reserve-wrap").style.display="";
+  document.getElementById("reserve-note").textContent=`What would be left if the business settled up today, as a truer read than the bank balance. Goal: ${fmt(target)}. It rises if ${T.reserveWeeks} weeks of core burn ever goes above that.`;
+  document.getElementById("reserve-cards").innerHTML=`
+    <div class="h-card"><div class="h-label">Net reserve position</div><div class="h-value ${tag(net)}">${fmt(net)}</div>
+      <div class="fillbar"><b style="width:${Math.min(100,Math.max(0,net/target*100))}%"></b></div><div class="h-foot">${wks(net)} weeks of core burn. ${fmt(Math.max(0,target-net))} to go to ${fmt(target)}.</div></div>
+    <div class="h-card"><div class="h-label">Usable within 30 days</div><div class="h-value ${tag(liquid)}">${fmt(liquid)}</div><div class="h-foot">${wks(liquid)} weeks of core burn. Cash and receivables less what's owed.</div></div>
+    <div class="h-card"><div class="h-label">Projected, week of ${dShort(P.future[P.future.length-1].week)}</div><div class="h-value ${tag(end.v)}">${fmt(end.v)}</div><div class="h-foot">${wks(end.v)} weeks, with no new jobs. Earned profit less owner draws.</div></div>
+    <div class="h-card"><div class="h-label">Change since ${dShort(first.date)}</div><div class="h-value ${tag(net-first.v)}">${net>=first.v?"+":""}${fmt(net-first.v)}</div><div class="h-foot">From ${fmt(first.v)}.</div></div>`;
+  const pts=hist.concat(proj), t0=+d(pts[0].date), t1=+d(pts[pts.length-1].date), lo=Math.min(0,...pts.map(p=>p.v)), hi=Math.max(target,...pts.map(p=>p.v))*1.08;
+  const X=s=>70+(+d(s)-t0)/(t1-t0)*900, Y=v=>262-(v-lo)/(hi-lo)*240, path=a=>a.map((p,i)=>(i?"L":"M")+X(p.date).toFixed(1)+" "+Y(p.v).toFixed(1)).join(" ");
+  let g="", step=Math.ceil((hi-lo)/4/50000)*50000;
+  for(let v=Math.ceil(lo/step)*step;v<hi;v+=step) g+=`<line x1="70" x2="970" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" stroke-opacity=".12"/><text x="62" y="${Y(v)+4}" text-anchor="end" font-size="12" fill="currentColor" fill-opacity=".65">${fmtK(v)}</text>`;
+  const m=new Date(d(pts[0].date));m.setDate(1);m.setMonth(m.getMonth()+1);
+  for(;+m<t1;m.setMonth(m.getMonth()+1)){const s=m.toISOString().slice(0,10);g+=`<text x="${X(s)}" y="284" text-anchor="middle" font-size="12" fill="currentColor" fill-opacity=".65">${m.toLocaleDateString("en-CA",{month:"short"})}</text>`;}
+  g+=`<line x1="70" x2="970" y1="${Y(target)}" y2="${Y(target)}" stroke="#A9821F" stroke-width="1.5" stroke-dasharray="6 5"/><text x="970" y="${Y(target)-6}" text-anchor="end" font-size="12" fill="#A9821F">Target ${fmtK(target)}</text>`;
+  g+=`<path d="${path(hist)}" fill="none" stroke="#10444E" stroke-width="2.5"/><path d="${path([hist[hist.length-1],...proj])}" fill="none" stroke="#3D818A" stroke-width="2.5" stroke-dasharray="7 4"/>`;
+  g+=`<circle cx="${X(DATA.asOf)}" cy="${Y(net)}" r="4.5" fill="#10444E"><title>${dShort(DATA.asOf)}: ${fmt(net)}</title></circle>`;
+  document.getElementById("reserve-chart").innerHTML=g;
+  const row=(a,v,b)=>`<tr${b?' style="font-weight:600"':""}><td style="text-align:left">${a}</td><td class="${v<0?"down":""}">${fmt(v)}</td></tr>`;
+  document.getElementById("reserve-table").innerHTML=`<thead><tr><th style="text-align:left">As of ${dShort(DATA.asOf)}</th><th>Amount</th></tr></thead><tbody>`
+    +row("Cash, excluding line of credit",cash-loc)+row("Receivables",ar)+row("Supplier bills",-ap)+row("Credit cards",-cards)+row("Taxes owed, net of tax accounts",-owed)
+    +row("Usable within 30 days",liquid,1)+row("Earned, not yet billed",enb)+row("Billed ahead of work done",-ahead)+row("Net reserve position",net,1)+`</tbody>`;
+  document.getElementById("reserve-rules").innerHTML=["Materials on unbilled jobs are already in earned, not yet billed at sell price, so supplier bills are deducted only once.","Billed ahead of work done is money customers paid for work not done yet. It's held in cash, so it comes off.","The projection adds weekly earned profit and takes off owner draws, assuming no new jobs. It falls once the booked work runs out.",`Core burn of ${fmt(wk)}/week is after the cost cuts planned through January. ${T.reserveWeeks} weeks of it is ${fmt(wk*T.reserveWeeks)}.`,"Points before Nov 2 use earned-not-billed figures from early October, so read them as a rough trend."].map(x=>`<li>${x}</li>`).join("");
+}
+
+// Targets. The owner allocation is never kept in this file: it comes from saved data as
+// DATA.fyTargets.goalAdjustMonthly. Past months = QuickBooks as billed; future months = as earned.
+const FY_TARGETS={revenueMonthly:250000,profitMargin:0.20,fyStart:"2026-10",techsAtTarget:6,reserveWeeks:8};
+function renderTargets(){
+  const T={...FY_TARGETS,...(DATA.fyTargets||{})}, FY=(DATA.health||{}).fy, F=(DATA.profit||{}).future||[];
+  if(!FY||!FY.months||!F.length) return;
+  const adj=T.goalAdjustMonthly||0;
+  const act=FY.months.filter(m=>m.month>=T.fyStart).map(m=>({month:m.month,revenue:m.revenue,profit:m.net-adj,proj:0}));
+  const last=act.length?act[act.length-1].month:"", P={};
+  F.forEach(w=>{const dt=d(w.week);dt.setDate(dt.getDate()+3);const k=ymOf(dt);P[k]=P[k]||{revenue:0,profit:0};P[k].revenue+=w.revenue;P[k].profit+=w.profit-adj/4.333;});
+  const pr=Object.keys(P).sort().filter(k=>k>last&&k>=T.fyStart).map(k=>({month:k,revenue:P[k].revenue,profit:P[k].profit,proj:1}));
+  const all=[...act,...pr]; if(!all.length) return;
+  const tot=k=>all.reduce((a,m)=>a+m[k],0), n=all.length, fr=sum(F.map(w=>w.revenue)), fp=sum(F.map(w=>w.profit))-adj/4.333*F.length, wk=52/12/F.length;
+  const hist=FY.months.slice(-3), h3=hist.length?hist.reduce((a,m)=>a+m.revenue,0)/hist.length:0;
+  const tag=v=>v>=100?"up":v>=85?"watch":"down", mn=k=>new Date(k+"-15T12:00:00").toLocaleDateString("en-CA",{month:"short"})+" '"+k.slice(2,4);
+  const rT=T.revenueMonthly, pM=T.profitMargin, pT=rT*pM, mg=(p,r)=>r?p/r*100:0;
+  document.getElementById("target-wrap").style.display="";
+  document.getElementById("target-note").textContent=`Revenue target ${fmt(rT)}/month (${fmt(rT*12)} a year). Profit target ${(pM*100).toFixed(0)}% net, or ${fmt(pT)}/month at target revenue. Single months swing with deposits and equipment, so read the averages.`;
+  document.getElementById("target-cards").innerHTML=`
+    <div class="h-card"><div class="h-label">Revenue, last 3 months (as billed)</div><div class="h-value ${tag(h3/rT*100)}">${fmt(h3)}/mo</div><div class="h-foot">${pct(h3/rT*100)} of target.</div></div>
+    <div class="h-card"><div class="h-label">Revenue, next 13 weeks (as earned)</div><div class="h-value ${tag(fr*wk/rT*100)}">${fmt(fr*wk)}/mo</div><div class="h-foot">${pct(fr*wk/rT*100)} of target.</div></div>
+    <div class="h-card"><div class="h-label">Goal profit, next 13 weeks (as earned)</div><div class="h-value ${tag(mg(fp,fr)/(pM*100)*100)}">${mg(fp,fr).toFixed(1)}% net</div><div class="h-foot">${fmt(fp*wk)}/month against the ${(pM*100).toFixed(0)}% target.</div></div>
+    <div class="h-card"><div class="h-label">FY2027 so far, ${n} months shown</div><div class="h-value ${tag(tot("revenue")/(rT*n)*100)}">${fmt(tot("revenue"))}</div><div class="h-foot">${pct(tot("revenue")/(rT*n)*100)} of revenue target; goal profit ${fmt(tot("profit"))}, ${mg(tot("profit"),tot("revenue")).toFixed(1)}% net. Includes projected months.</div></div>`;
+  const W=1000,L=70,R=20,Tp=20,H=230,st=(W-L-R)/n,x=i=>L+st*(i+.5),mx=Math.max(rT,...all.map(m=>m.revenue))*1.12,y=v=>Tp+H*(1-v/mx);
+  let g="";[0,100000,200000,300000,400000].filter(v=>v<mx).forEach(v=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(16,68,78,0.08)"/><text x="${L-10}" y="${y(v)+4}" fill="#5A7A80" font-size="12" text-anchor="end" font-family="Inter">${fmtK(v)}</text>`;});
+  all.forEach((m,i)=>{g+=`<rect x="${x(i)-Math.min(st*.3,50)}" y="${y(m.revenue)}" width="${Math.min(st*.6,100)}" height="${y(0)-y(m.revenue)}" fill="${m.proj?"#3D818A":"rgba(16,68,78,0.585)"}" rx="2"><title>${mn(m.month)}: ${fmt(m.revenue)}${m.proj?" projected":""}</title></rect><text x="${x(i)}" y="${Tp+H+18}" fill="#5A7A80" font-size="11" text-anchor="middle" font-family="Inter">${mn(m.month)}</text><text x="${x(i)}" y="${y(m.revenue)-6}" fill="#10444E" font-size="11" text-anchor="middle" font-family="Inter">${fmtK(m.revenue)}</text>`;});
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y(rT)}" y2="${y(rT)}" stroke="#B83227" stroke-width="1.5" stroke-dasharray="6 5"/>`;
+  document.getElementById("target-chart").innerHTML=g;
+  document.getElementById("target-table").innerHTML=`<thead><tr><th>Month</th><th>Basis</th><th>Revenue</th><th>% of target</th><th>Goal profit</th><th>Net %</th></tr></thead><tbody>`+all.map(m=>`<tr><td>${mn(m.month)}</td><td>${m.proj?"Earned":"Billed"}</td><td>${fmt(m.revenue)}</td><td>${pct(m.revenue/rT*100)}</td><td class="${m.profit<0?"down":""}">${fmt(m.profit)}</td><td>${mg(m.profit,m.revenue).toFixed(1)}%</td></tr>`).join("")+`</tbody>`;
+  if(T.ownerBenefits){document.getElementById("benefit-wrap").style.display="";document.getElementById("benefit-table").innerHTML=`<thead><tr><th style="text-align:left">Period</th><th>Revenue</th><th>Goal profit</th><th>Net %</th><th>Owner benefits above allocation</th><th>Left after benefits</th></tr></thead><tbody>`+T.ownerBenefits.map(b=>`<tr><td style="text-align:left">${b.label}</td><td>${fmt(b.revenue)}</td><td>${fmt(b.goalProfit)}</td><td>${mg(b.goalProfit,b.revenue).toFixed(1)}%</td><td>${fmt(b.used)}</td><td class="${b.goalProfit-b.used<0?"down":""}">${fmt(b.goalProfit-b.used)}</td></tr>`).join("")+`</tbody>`;}
+  document.getElementById("target-rules").innerHTML=[`Goal profit is profit after a flat owner allocation. Building materials, non-recoverable COGS, travel and extra dividends aren't deducted, so they sit inside the ${(pM*100).toFixed(0)}%.`,`Actual owner money up to the allocation is covered by it, so nothing is counted twice. Only the amount above it uses up the ${(pM*100).toFixed(0)}%, as shown in the table above.`,...(DATA.profit&&DATA.profit.contractParts?[DATA.profit.contractParts.note]:[]),`The revenue target assumes ${T.techsAtTarget} techs. At the same rate, 5 techs carry about ${fmt(rT/T.techsAtTarget*5)}/month.`,"Revenue includes equipment and materials that take few tech hours, so it doesn't show whether the crew is full. Crew load is on the Field Operations page.","Billed months can run ahead of the work: deposits count as billed revenue before the job starts."].map(x=>`<li>${esc(x)}</li>`).join("");
 }
 
 function renderHealth(){
