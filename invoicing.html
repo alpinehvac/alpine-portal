@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Invoicing</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("invoicing");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ALPINE INVOICING — Operations > Invoicing (Jake, Mike, Cole). Contains NO job data: everything loads from
+     Firestore after sign-in. The page builds the queue live from:
+       ops_dashboard/latest      the jobs on the board (daily refresh)
+       ops_jobs/{id}             "Mark complete" and other clicks on the board (live)
+       invoicing_data/sweep      the daily sweep: service agreement visits, possibly missed work, recipients, email
+                                 drafts, and which BuildOps invoices are in QuickBooks (INVOICING in JOB-DETAILS-REFRESH.md)
+       invoicing_data/{id}       what people review and edit here, one document per job (live)
+     Detail panels read ops_job_detail/{id} and ops_job_costs/{id}.
+     The Draft invoice in BuildOps is built by Claude in a live session: INVOICING-CREATE.md. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--purple:#6C5D8D;
+  --bg:#EAF2F3;--card:#FFFFFF;--ink:#10444E;--muted:#5A7A80;
+  --amber:#8A6A12;--red:#B83227;--green:#2E7D57;
+  --border:rgba(16,68,78,0.12);--radius:8px;--radius-lg:14px;
+}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--teal-light);outline-offset:2px}
+.wrap{max-width:1320px;margin:0 auto;padding:2rem 2rem 5rem}
+.btn{font-family:'Oswald',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);text-decoration:none;border:1px solid rgba(16,68,78,0.25);border-radius:6px;padding:8px 13px;background:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--teal)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.primary:hover{background:var(--teal-dark)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.warn{color:var(--red)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.banner{border-radius:var(--radius);padding:.7rem 1rem;font-size:.85rem;margin-bottom:1.25rem;background:rgba(184,50,39,0.07);border:1px solid rgba(184,50,39,0.35);color:var(--red)}
+.banner.info{background:rgba(61,129,138,0.1);border-color:rgba(61,129,138,0.35);color:var(--teal)}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3.6vw,2.2rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+h2{font-family:'Oswald',sans-serif;font-size:1.02rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.sub{color:var(--muted);margin-top:.35rem;font-size:.9rem}
+.sub b{color:var(--ink);font-weight:500}
+.actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.tag.red{background:rgba(184,50,39,0.12);color:var(--red)}
+.tag.amber{background:rgba(226,168,69,0.2);color:var(--amber)}
+.tag.teal{background:rgba(61,129,138,0.18);color:var(--teal)}
+.tag.purple{background:rgba(155,142,196,0.22);color:#4E4268}
+.tag.grey{background:rgba(16,68,78,0.08);color:var(--muted)}
+.tag.green{background:rgba(46,125,87,0.14);color:var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1.25rem;overflow:hidden}
+.kpi{padding:.9rem 1.1rem 1rem;border-right:1px solid var(--border)}
+.kpi:last-child{border-right:0}
+.k-label{font-size:.74rem;color:var(--muted)}
+.k-value{font-family:'Oswald',sans-serif;font-size:1.65rem;font-weight:600;line-height:1.2}
+.k-value.bad{color:var(--red)}
+.k-sub{font-size:.74rem;color:var(--muted)}
+.tabs{display:flex;gap:.25rem;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:1rem}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:.5rem .8rem;font-size:.86rem;color:var(--muted);cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--teal);font-weight:600}
+.tabs .n{font-size:.72rem;background:rgba(16,68,78,.08);border-radius:9px;padding:0 6px;margin-left:5px}
+.chips{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.9rem}
+.chips button{border:1px solid rgba(16,68,78,.18);background:#fff;border-radius:99px;padding:3px 11px;font-size:.78rem;color:var(--muted);cursor:pointer}
+.chips button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{font-size:.72rem;font-weight:600;color:var(--muted);text-align:left;padding:.6rem .8rem;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:.65rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr.go{cursor:pointer}
+tbody tr.go:hover{background:#F4F9F9}
+td small{display:block;color:var(--muted);font-size:.76rem}
+td.num,th.num{text-align:right;white-space:nowrap}
+.empty{color:var(--muted);text-align:center;padding:2rem 1rem;font-size:.88rem}
+/* detail */
+.crumb{font-size:.82rem;color:var(--muted);margin-bottom:.4rem}
+.crumb a{color:var(--teal);text-decoration:none;cursor:pointer}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:1.25rem;align-items:start}
+.side{display:grid;gap:1rem}
+.panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.1rem;margin-bottom:1rem}
+.side .panel{margin-bottom:0}
+.panel>h2{margin-bottom:.6rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.note{font-size:.78rem;color:var(--muted)}
+.lab{display:block;font-size:.74rem;color:var(--muted);margin:.6rem 0 .2rem}
+.in{width:100%;border:1px solid rgba(16,68,78,.2);border-radius:6px;padding:7px 9px;background:#fff;font-size:.88rem}
+textarea.in{resize:vertical;min-height:64px;line-height:1.45}
+.in:focus{border-color:var(--teal-light)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.totals{display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:.84rem;margin-top:.5rem}
+.totals b{font-weight:600}
+.flag{background:rgba(226,168,69,.14);border-radius:6px;padding:.45rem .65rem;font-size:.82rem;margin-bottom:.4rem;color:#5e4a0e}
+.flag.red{background:rgba(184,50,39,.08);color:var(--red)}
+.visit{border-top:1px solid var(--border);padding:.75rem 0}
+.visit:first-of-type{border-top:0}
+.visit.off .vbody{display:none}
+.vh{display:flex;gap:.6rem;align-items:flex-start;font-size:.88rem}
+.vh input{margin-top:4px}
+.vh small{display:block;color:var(--muted);font-size:.76rem}
+.vbody{margin:.45rem 0 0 1.45rem}
+.ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;margin-top:.5rem}
+.ph{position:relative;display:block;cursor:pointer;border-radius:6px;overflow:hidden;background:#eee;aspect-ratio:1}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph input{position:absolute;top:4px;left:4px;width:17px;height:17px}
+.ph.off img{opacity:.3;filter:grayscale(1)}
+.chk{display:flex;gap:.4rem;align-items:center;font-size:.84rem}
+.opts{display:flex;gap:.9rem;flex-wrap:wrap;margin:.3rem 0 .6rem}
+.who{display:flex;gap:.35rem;flex-wrap:wrap;margin:.3rem 0}
+.who label{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(16,68,78,.18);border-radius:99px;padding:2px 10px 2px 7px;font-size:.78rem;cursor:pointer;background:#fff}
+.who a{color:var(--teal);font-size:.72rem;text-decoration:none}
+.line{display:grid;grid-template-columns:1fr 62px 92px 24px;gap:.35rem;margin-bottom:.3rem}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1rem}
+.foot{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem}
+.save{font-size:.76rem;color:var(--muted);min-height:1.1em;margin-top:.4rem}
+.save.err{color:var(--red);font-weight:600}
+.mini{font-size:.82rem}
+.mini td,.mini th{padding:.35rem .5rem}
+@media (max-width:1100px){.grid{grid-template-columns:1fr}}
+@media (max-width:640px){.wrap{padding:1rem 1rem 4rem}.kpi{border-right:0;border-bottom:1px solid var(--border)}.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="wrap" id="main">
+  <div id="banner"></div>
+  <div id="view"><p class="note">Loading…</p></div>
+</main>
+<script type="module" src="invoicing-app.js"></script>
+</body>
+</html>

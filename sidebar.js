@@ -39,6 +39,7 @@
     { key: "operations", label: "Operations", icon: "ops", items: [
       { label: "Dashboard", href: D("operations"), show: () => can("ops-dashboard"), match: [D("operations")] },
       { tool: "ops-dashboard", label: "Field Operations", match: ["ops-dashboard.html", "job.html", "job-profit.html"] },
+      { tool: "invoicing", label: "Invoicing" },
       // Field techs can't open Field Operations but do use the job pages.
       { tool: "job", label: "Jobs", show: () => can("job") && !can("ops-dashboard"), match: ["job.html"] },
       { tool: "service-agreements", label: "Service Agreements", match: ["service-agreements.html", "agreement.html", "refresh.html"] },

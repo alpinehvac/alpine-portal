@@ -1222,6 +1222,9 @@ else {
     const qb = extra.qb || {}, em = extra.emails || {};
     const board = {}; ((window.__opsData || {}).jobs || []).forEach(j => board[j.id] = j);
     const ids = [...new Set([...Object.keys(det), ...Object.keys(cst), ...Object.keys(qb), ...Object.keys(em)])].filter(id => /^JO\d+$/.test(id) || /^SA\d+-\d+$/.test(id));
+    // Daily invoicing sweep (JOB-DETAILS-REFRESH.md Part B6): replaces invoicing_data/sweep, read by invoicing.html.
+    if (extra.invoicing) await setDoc(doc(db, "invoicing_data", "sweep"), { json: JSON.stringify(extra.invoicing), asOf: extra.invoicing.asOf || extra.asOf || "", updatedAt: serverTimestamp(), updatedBy: user.email });
+    if (extra.invoicing && !ids.length) return { saved: 0, indexed: 0, invoicing: true };
     if (!ids.length) throw new Error("Nothing to save: no BuildOps read waiting and no job data pasted.");
     const asOf = P.asOf || extra.asOf || new Date().toISOString().slice(0, 10);
     const old = {}, oldC = {};
