@@ -305,7 +305,7 @@ window.apJobStart = function (detail, costs, inv) {
   <div class="head">
     <div>
       <h1>${esc(J.customer || J.id)}</h1>
-      <p class="sub"><b>${esc(J.id)}</b>${J.po ? ` · PO <b>${esc(J.po)}</b>` : ""}${J.type ? ` · ${esc(J.type)}` : ""}${title ? ` · ${esc(title)}` : ""}</p>
+      <p class="sub"><b>${esc(J.id)}</b>${(J.quotes || []).length ? ` · Quote <b>${esc(J.quotes.join(", "))}</b>` : ""}${J.po ? ` · PO <b>${esc(J.po)}</b>` : ""}${J.type ? ` · ${esc(J.type)}` : ""}${title ? ` · ${esc(title)}` : ""}</p>
       <p class="sub">${esc(J.property || "")}${J.address ? ` · ${esc(J.address.replace(/,\s*CA$/, ""))}` : ""}</p>
       <div class="tags">${stage}${B.status ? `<span class="tag grey">BuildOps: ${esc(B.status)}</span>` : ""}${billing}${J.department ? `<span class="tag purple">${esc(J.department)}</span>` : ""}</div>
     </div>
@@ -581,7 +581,7 @@ function reportHtml(V, o) {
   <div class="rp-info">
     <div><b>Customer</b> ${esc(J.customer || "")}</div><div><b>Job #</b> ${esc(J.id)}</div>
     <div><b>Site</b> ${esc(J.property || "")}</div><div><b>Customer PO</b> ${esc(J.po || "—")}</div>
-    <div><b>Address</b> ${esc((J.address || "").replace(/,\s*CA$/, ""))}</div><div><b>Visits</b> ${V.length}${o.hours ? ` · ${hrsTxt(totalHrs)} on site` : ""}</div>
+    <div><b>Address</b> ${esc((J.address || "").replace(/,\s*CA$/, ""))}</div>${(J.quotes || []).length ? `<div><b>Quote #</b> ${esc(J.quotes.join(", "))}</div>` : ""}<div><b>Visits</b> ${V.length}${o.hours ? ` · ${hrsTxt(totalHrs)} on site` : ""}</div>
     ${J.billTo && J.billTo !== J.customer ? `<div><b>Bill to</b> ${esc(J.billTo)}</div>` : ""}${J.authorizedBy ? `<div><b>Authorized by</b> ${esc(J.authorizedBy)}</div>` : ""}
     <div><b>Technicians</b> ${esc(techs.join(", "))}</div><div><b>Report date</b> ${esc(fmtLong(todayIso()))}</div>
   </div>`;

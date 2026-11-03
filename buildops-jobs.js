@@ -6,6 +6,7 @@
 //
 // For each job it opens, in this order, and reads only:
 //   /job/view/<n>?tab=reports-invoices   header fields, invoices, link to the job report
+//   /job/view/<n>?tab=quotes             quote number(s), only when the job header shows a quote
 //   /maintenance/view/<SA#-n>?tab=reports-invoices   same, for maintenance records (ids like "SA1024-3")
 //   /jobreport/<rid>                     every visit's description, techs, summary notes, recommendations,
 //                                        technician notes, labour, field POs, parts, receipts, photos, tasks;
@@ -169,7 +170,8 @@ async function readJobView(id) {
     if (k >= 0) for (let i = k; i < L.length; i++) { if (/^INV-\d+$/.test(L[i])) { const amt = L.slice(i + 1, i + 4).find(x => /\$[\d,]/.test(x)); inv.push({ no: L[i], amount: amt ? num(amt.replace(/\s/g, "")) : null, status: "", issued: null, due: null, by: "" }); } if (/^Show History$/i.test(L[i])) break; }
   }
   const billedTotal = (() => { const m = mainText().match(/TOTAL BILLED FOR JOB\s*\$?\s*([\d,.]+)/i); return m ? num(m[1]) : null; })();
-  return {
+  const hasQuote = !isMaint(id) && !/\bNo Quotes\b/.test(mainText()) && /\bQuotes?\b/.test(mainText());
+  const out = {
     rid: rep ? rep.split("/").pop() : null, invoices: inv, billedTotal, issue: issueText(),
     h: {
       customer: field("CUSTOMER"), billTo: field("BILLING CUSTOMER"), property: field("PROPERTY"), address: field("ADDRESS"),
@@ -179,6 +181,14 @@ async function readJobView(id) {
       budgetHrs: num(field("TOTAL BUDGETED HOURS")), department: field("DEPARTMENTS")
     }
   };
+  // Quote numbers are on the job's Quotes tab. Read last, because this leaves the page the fields above came from.
+  out.quotes = [];
+  if (hasQuote) {
+    nav("/job/view/" + n + "?tab=quotes");
+    await waitFor(() => document.querySelector("main a[href^='/quote/']"), 6000);
+    out.quotes = [...new Set([...document.querySelectorAll("main a[href^='/quote/']")].map(a => a.textContent.trim()).filter(t => /^Q\d+/.test(t)))];
+  }
+  return out;
 }
 
 function issueText() {
@@ -244,7 +254,7 @@ async function readJob(id) {
   const detail = {
     id, kind: isMaint(id) ? "maintenance" : "job", url: "https://live.buildops.com/" + (isMaint(id) ? "maintenance/view/" + id : "job/view/" + id.replace(/^JO/, "")), propertyRep: PREP, reportUrl: v.rid ? "https://live.buildops.com/jobreport/" + v.rid : null,
     customer: v.h.customer, billTo: v.h.billTo, property: v.h.property, address: v.h.address, authorizedBy: v.h.authorizedBy,
-    po: v.h.po, workOrder: v.h.workOrder, type: v.h.type, department: v.h.department, pm: v.h.pm, soldBy: v.h.soldBy,
+    quotes: v.quotes || [], po: v.h.po, workOrder: v.h.workOrder, type: v.h.type, department: v.h.department, pm: v.h.pm, soldBy: v.h.soldBy,
     budgetHrs: v.h.budgetHrs, issue: v.issue,
     visits: visits.map(x => ({ ...x, id: id + "-" + x.n, labour: strip(x.labour), parts: strip(x.parts), fieldPOs: strip(x.fieldPOs), receipts: strip(x.receipts) })),
     jobRecs: ov.jobRecs, jobTasks: ov.jobTasks, assets: ov.assets,

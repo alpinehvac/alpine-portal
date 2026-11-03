@@ -157,6 +157,10 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 ### B6. Invoicing sweep (Operations > Invoicing)
 
 The page already builds its list live from the board and from "Mark complete". This step adds what only a run can see.
+Jobs and projects only for now: service agreement billing is Clarissa's (QuickBooks C-numbers) and stays off the page.
+On contract sites labour is normally covered and materials bill separately, unless a QuickBooks estimate covers them. The
+page shows no-PO jobs there under Parts only when they have materials and a visit in the last 14 days, otherwise under
+Possibly missed. People mark them Not billable.
 It reads only; the single write is step 6.
 
 1. BuildOps invoices. Get `buildops-invoices.js` the same way as the reader and paste it in the BuildOps tab. Run
@@ -164,13 +168,12 @@ It reads only; the single write is step 6.
    `alpineInvoices.chunks()` and then `alpineInvoices.chunk(n)` for each n, and join them, exactly, into `bo-invoices.csv`.
    If the page count stalls or `error` is set, skip steps 2 and 3 and say so in the summary.
 2. Match against QuickBooks. Download `invoice_sweep.py` and run
-   `python3 -I invoice_sweep.py bo-invoices.csv INVOICES.json <today> > sweep.json` (INVOICES.json is B2's file).
+   `python3 -I invoice_sweep.py bo-invoices.csv INVOICES.json <today> > sweep.json` (INVOICES.json is B2's file, which must include `invoices__customerref`).
    QuickBooks is the record of what was sent: Clarissa enters each invoice under the same number once it has gone out.
    BuildOps can't show this: nearly all invoices stay Draft there after they are sent.
-3. Service agreement visits. On `accounts.html` run `JSON.stringify(apAccountReports.recentJobs(60))`. Keep maintenance
-   records (`SA1025-2`) with a finished visit that are not in `sweep.json`'s `invoicedIds`. Drop any whose agreement bills
-   monthly (`JSON.parse(localStorage.getItem("sa_agr_SA1025")).billing` is `Monthly`): those are raised by Clarissa in
-   QuickBooks under C-numbers. Add each to `extra`: `{id, bucket: "sa", customer, property, last, why}`, with `why` one line.
+3. Already billed? For each `todo` item from step 5's queue, look for a QuickBooks invoice whose note carries the job's PO
+   digits, or a monthly parts invoice for the same site and month as the last visit (`80 KING JULY PARTS 2026-07-00709`). If
+   one exists, add a line to that job's `flags` with the invoice number and note. Those POs capture materials on contract sites.
 4. Possibly missed work. In all mailboxes since the previous run, look for customers or staff saying work is finished, asking
    for an invoice, or sending a PO (`invoice`, `bill`, `billing`, `PO`, `completed`, `sign off`). If it matches a job that
    is on the list, add a line to that job's `flags`. If it matches a job not on the list, or no job, add to `extra`:
@@ -185,7 +188,7 @@ It reads only; the single write is step 6.
    - `draft`: a short job summary from the visit summaries and emails, written to the customer. Benefits first, plain
      language, no costs or internal notes, no sign-off. Leave out anything the visit reports don't say.
    - `note`: the invoice note, in the format already used: `00747 - Niagara Parks Generator Piping`.
-6. Save. Add `extra`, `items` and `asOf` to `sweep.json`'s object, drop `invoicedIds`, and call
+6. Save. Add `extra`, `items` and `asOf` to `sweep.json`'s object and call
    `await window.apSaveJobDetails({invoicing: <that object>})` on Field Operations (pieces of at most ~35 KB as in B4).
    This replaces `invoicing_data/sweep`. It never touches what people typed on the page.
 7. Summary line: to invoice (count), new since yesterday, in BuildOps but not QuickBooks, amount differences.
