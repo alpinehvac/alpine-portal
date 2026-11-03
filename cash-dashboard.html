@@ -777,7 +777,7 @@ function renderReserve(){
   const owed=total((A.earmarked||[]).map(r=>Math.max(0,(r[3]||0)-r[1])));
   const enb=total(P.wip.map(j=>Math.max(0,j.underBilled))), ahead=total(P.wip.map(j=>Math.max(0,-j.underBilled)));
   const liquid=cash-loc+ar-ap-cards-owed, net=liquid+enb-ahead, wk=T.reserveCoreBurn, target=Math.max(T.reserveGoal||0,wk*T.reserveWeeks), wks=v=>(v/wk).toFixed(1);
-  let run=net; const proj=P.future.map((w,i)=>{run+=w.profit-((DATA.weeks[i]&&DATA.weeks[i].out.draws)||0);return {date:addDays(w.week,6),v:run};});
+  let run=net; const proj=P.future.map((w,i)=>{run+=w.profit-((DATA.weeks[i]&&DATA.weeks[i].out.draws)||0)-(T.reserveExtraWeekly||0);return {date:addDays(w.week,6),v:run};});
   const hist=(DATA.reserveHistory||[]).filter(r=>r[0]<DATA.asOf).map(r=>({date:r[0],v:r[1]})).concat([{date:DATA.asOf,v:net}]);
   const end=proj[proj.length-1], first=hist[0], tag=v=>v<0?"down":"";
   document.getElementById("reserve-wrap").style.display="";
@@ -786,7 +786,7 @@ function renderReserve(){
     <div class="h-card"><div class="h-label">Net reserve position</div><div class="h-value ${tag(net)}">${fmt(net)}</div>
       <div class="fillbar"><b style="width:${Math.min(100,Math.max(0,net/target*100))}%"></b></div><div class="h-foot">${wks(net)} weeks of core burn. ${fmt(Math.max(0,target-net))} to go to ${fmt(target)}.</div></div>
     <div class="h-card"><div class="h-label">Usable within 30 days</div><div class="h-value ${tag(liquid)}">${fmt(liquid)}</div><div class="h-foot">${wks(liquid)} weeks of core burn. Cash and receivables less what's owed.</div></div>
-    <div class="h-card"><div class="h-label">Projected, week of ${dShort(P.future[P.future.length-1].week)}</div><div class="h-value ${tag(end.v)}">${fmt(end.v)}</div><div class="h-foot">${wks(end.v)} weeks, with no new jobs. Earned profit less owner draws.</div></div>
+    <div class="h-card"><div class="h-label">Projected, week of ${dShort(P.future[P.future.length-1].week)}</div><div class="h-value ${tag(end.v)}">${fmt(end.v)}</div><div class="h-foot">${wks(end.v)} weeks, with no new jobs. Earned profit less all owner benefits.</div></div>
     <div class="h-card"><div class="h-label">Change since ${dShort(first.date)}</div><div class="h-value ${tag(net-first.v)}">${net>=first.v?"+":""}${fmt(net-first.v)}</div><div class="h-foot">From ${fmt(first.v)}.</div></div>`;
   const pts=hist.concat(proj), t0=+d(pts[0].date), t1=+d(pts[pts.length-1].date), lo=Math.min(0,...pts.map(p=>p.v)), hi=Math.max(target,...pts.map(p=>p.v))*1.08;
   const X=s=>70+(+d(s)-t0)/(t1-t0)*900, Y=v=>262-(v-lo)/(hi-lo)*240, path=a=>a.map((p,i)=>(i?"L":"M")+X(p.date).toFixed(1)+" "+Y(p.v).toFixed(1)).join(" ");
@@ -802,7 +802,7 @@ function renderReserve(){
   document.getElementById("reserve-table").innerHTML=`<thead><tr><th style="text-align:left">As of ${dShort(DATA.asOf)}</th><th>Amount</th></tr></thead><tbody>`
     +row("Cash, excluding line of credit",cash-loc)+row("Receivables",ar)+row("Supplier bills",-ap)+row("Credit cards",-cards)+row("Taxes owed, net of tax accounts",-owed)
     +row("Usable within 30 days",liquid,1)+row("Earned, not yet billed",enb)+row("Billed ahead of work done",-ahead)+row("Net reserve position",net,1)+`</tbody>`;
-  document.getElementById("reserve-rules").innerHTML=["Materials on unbilled jobs are already in earned, not yet billed at sell price, so supplier bills are deducted only once.","Billed ahead of work done is money customers paid for work not done yet. It's held in cash, so it comes off.","The projection adds weekly earned profit and takes off owner draws, assuming no new jobs. It falls once the booked work runs out.",`Core burn of ${fmt(wk)}/week is after the cost cuts planned through January. ${T.reserveWeeks} weeks of it is ${fmt(wk*T.reserveWeeks)}.`,"Points before Nov 2 use earned-not-billed figures from early October, so read them as a rough trend."].map(x=>`<li>${x}</li>`).join("");
+  document.getElementById("reserve-rules").innerHTML=["Materials on unbilled jobs are already in earned, not yet billed at sell price, so supplier bills are deducted only once.","Billed ahead of work done is money customers paid for work not done yet. It's held in cash, so it comes off.","The projection adds weekly earned profit and takes off owner draws, extra owner dividends and non-recoverable COGS, assuming no new jobs. It falls once the booked work runs out.",`Core burn of ${fmt(wk)}/week is after the cost cuts planned through January. ${T.reserveWeeks} weeks of it is ${fmt(wk*T.reserveWeeks)}.`,"Points before Nov 2 use earned-not-billed figures from early October, so read them as a rough trend."].map(x=>`<li>${x}</li>`).join("");
 }
 
 // Targets. The owner allocation is never kept in this file: it comes from saved data as
