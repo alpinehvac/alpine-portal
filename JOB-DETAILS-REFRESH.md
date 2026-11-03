@@ -17,6 +17,25 @@ Two outputs, both saved through the portal (no other writes anywhere):
 5. Browser JavaScript calls must return within ~40 seconds (the tool times out at 45 s). Start long work in the background
    and poll with short calls; never `await` a long loop in one call.
 
+## Mailboxes read
+
+This run reads two mailboxes, both read-only. Where the scheduled task's prompt says "Jake's Outlook", it means every
+mailbox listed here. Add a new mailbox only by adding it to this list.
+
+1. **Jake:** `jake.gilmore@alpinehvac.ca` (his own mailbox, searched as below).
+2. **Cole:** `cole.hamilton@alpinehvac.ca`. Cole shared his Inbox and Sent Items with Jake as Reviewer, so:
+   - Do this once, before Part A. Call `outlook_email_search` twice, with `mailboxOwnerEmail` =
+     `cole.hamilton@alpinehvac.ca`, `folderName` = `Inbox` and then `Sent Items`, `afterDateTime` = the previous run's
+     date, `limit` 25, paging until no more results. Keep the list for Part A and B3.
+   - Never send `query` or `recipient` for this mailbox: text search is denied on shared folders. Match against the
+     subject, sender, recipients and summary in the list, then `read_resource` the message URI (it carries `?owner=`)
+     when you need the full body.
+   - Subfolders are not shared, so mail Cole files elsewhere is not visible.
+   - If this mailbox returns FORBIDDEN, carry on with Jake's mailbox and add "Cole's mailbox not readable" to the run
+     summary. Never try a workaround.
+3. **Duplicates:** the same email can be in both mailboxes. Treat messages with the same `internetMessageId` as one
+   email and keep Jake's copy.
+
 ## Part A: Field Operations board
 
 Invoke `anthropic-skills:alpine-ops-dashboard-refresh` and follow it (Steps 0–5). Read the Business Context log
@@ -35,9 +54,12 @@ drafts, and any quote no longer open keeps its BuildOps status so the board drop
 `checks` only if the list could not be read. Quote and job numbers share digits: Q20261144 is not JO20261144, so
 never build a quote link from its number.
 
-Then read Outlook for every open quote (Jake's mailbox, read-only) and set `quotes[].outlook`. Searching the quote number
-finds the sent quote, because the number is in the quote body. Then search the thread subject or the customer contact
-for anything newer, and read the latest customer message and the latest message Alpine sent. Fields:
+Then read Outlook for every open quote (both mailboxes above, read-only) and set `quotes[].outlook`. In Jake's mailbox,
+searching the quote number finds the sent quote, because the number is in the quote body. Then search the thread subject
+or the customer contact for anything newer, and read the latest customer message and the latest message Alpine sent. In
+Cole's mailbox, match today's list on the quote number, thread subject or customer contact. Use whichever mailbox has the
+newest message. If Cole's list has nothing new for a quote whose card has `by: "Cole"`, keep that card's previous
+`outlook` rather than marking it `notfound`. Fields:
 
 1. `state`: `waiting` (customer owes us an answer), `owe` (we owe them), `parked` (no follow-up needed, say why in
    `summary`), `notfound` (no email with this quote found).
@@ -79,17 +101,19 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 2. `python3 -I job_match.py BILLS.json INVOICES.json jobs.json --merge > qb.json` (download `job_match.py` from the repo
    the same way as the reader). `--merge` marks each record so the portal adds the new bills to the ones it already has.
 
-### B3. Outlook emails (Jake's mailbox, read-only)
+### B3. Outlook emails (both mailboxes, read-only)
 
-1. Search with `afterDateTime` = the previous run's date (yesterday on a normal day), no other filter, `limit` 25,
-   paging with `offset` until no more results.
+1. Jake's mailbox: search with `afterDateTime` = the previous run's date (yesterday on a normal day), no other filter,
+   `limit` 25, paging with `offset` until no more results. Cole's mailbox: use the list from "Mailboxes read". Remove
+   duplicates, then apply steps 2 to 4 to both.
 2. Drop: senders `fireflies.ai`, `glassriverai.com`, `noreply`/`no-reply`; subjects starting `REPORT`, `Re: REPORTS`,
    `Follow-up Radar`, `Meeting Prep`, monthly `INVOICES` batches; newsletters and marketing.
 3. Match each remaining email to jobs on the board by: the job number (`JO2026xxxx` or `2026xxxx`), the PO number
    (the 5 digits `00xxx`, with or without the P/TM/EQ prefix), an invoice number on the job, or a distinctive site
    name (`Niagara Parks Police`, `21 Hunter`, `35 Yale`, `Flanagan`, …). Skip generic addresses shared by many jobs
    (e.g. `80 King`) unless the PO or job number also appears.
-4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`.
+4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"`
+   when the email was found only in Cole's mailbox.
    `summary` is one factual line in your own words (≤140 characters), never copied access codes or personal details.
 
 ### B4. Save QuickBooks and email matches
@@ -103,7 +127,7 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 ### B5. Check
 
 1. Open `job.html?id=<one job with a visit yesterday>` and confirm the visit, hours and photos show.
-2. Add to the run summary: jobs read, visit reports, photos, QuickBooks bills matched, emails matched, any errors.
+2. Add to the run summary: jobs read, visit reports, photos, QuickBooks bills matched, emails matched (Jake / Cole), any errors.
 
 ## Field reference
 
