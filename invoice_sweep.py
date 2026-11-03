@@ -57,7 +57,7 @@ def main(bo_path, qb_path, today):
         key = re.sub(r"^INV-?", "", no, flags=re.I)
         q = qb.get(key)
         if not q and r.get("amount") is not None:
-            q = next((x for x in by_quote if x["total"] is not None and abs(x["total"] - r["amount"]) < 0.01), None)
+            q = next((x for x in by_quote if x["total"] is not None and abs(x["total"] - r["amount"]) < 0.05), None)
             if q:
                 by_quote.remove(q)
                 qb[key] = q
