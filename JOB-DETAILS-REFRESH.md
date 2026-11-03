@@ -107,14 +107,25 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
    `limit` 25, paging with `offset` until no more results. Cole's mailbox: use the list from "Mailboxes read". Remove
    duplicates, then apply steps 2 to 4 to both.
 2. Drop: senders `fireflies.ai`, `glassriverai.com`, `noreply`/`no-reply`; subjects starting `REPORT`, `Re: REPORTS`,
-   `Follow-up Radar`, `Meeting Prep`, monthly `INVOICES` batches; newsletters and marketing.
+   `Follow-up Radar`, `Meeting Prep`, monthly `INVOICES` batches; newsletters and marketing. Judge by who wrote the
+   email, not by the subject. A person's reply stays in even when the subject says `Do Not Reply`, `[EXTERNAL]` or carries
+   a locate, ticket or reference number: forwarded notices often become the main job conversation.
 3. Match each remaining email to jobs on the board by: the job number (`JO2026xxxx` or `2026xxxx`), the PO number
    (the 5 digits `00xxx`, with or without the P/TM/EQ prefix), an invoice number on the job, or a distinctive site
    name (`Niagara Parks Police`, `21 Hunter`, `35 Yale`, `Flanagan`, …). Skip generic addresses shared by many jobs
    (e.g. `80 King`) unless the PO or job number also appears.
+   Also match by:
+   - Street address: compare the number and street name, ignoring punctuation and suffixes, so `8037- SCHISLER RD` is
+     `8037 Schisler Road`. The board may only show a site name, so use addresses seen on the job's PO, quote or earlier
+     matched emails. Check the message body as well as the subject.
+   - Short site names used by the customer, such as `FS6` for Fire Station #6.
+   - Thread: once one email in a thread matches a job, every person-written email in that thread goes to that job.
+   - Customer: a person at a customer whose only open job on the board is this one, when the email is about that work.
 4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"`
    when the email was found only in Cole's mailbox.
    `summary` is one factual line in your own words (≤140 characters), never copied access codes or personal details.
+5. In the run summary, list person-written emails from customers or contractors that matched no job (sender, subject,
+   one line each), so a missed thread can be caught the same day.
 
 ### B4. Save QuickBooks and email matches
 
