@@ -11,11 +11,13 @@ INV-20261301 in BuildOps is 20261301 in QuickBooks. That number match comes firs
 quote number (Q20261142), so a BuildOps invoice with no number match can still match a Q-numbered QuickBooks invoice of the
 same total, each used once.
 
-Left out of notInQB:
-  anything older than 120 days; and agreement invoices with no job or visit number (SA1009): monthly
-  contracts are raised in QuickBooks under C-numbers, so these BuildOps copies never match.
+Left out of notInQB: anything older than 120 days, and every service agreement invoice (SA1009, SA1025-2). Contract billing
+is Clarissa's, in QuickBooks under C-numbers, and isn't on the Invoicing page yet.
 
-Output: {asOf, qb: {doc: {doc, date, total, balance}}, notInQB: [...], amountDiff: [...], invoicedIds: [...]}
+contractCustomers: QuickBooks customers with a C-numbered invoice. The page asks a person to check a service call with no PO
+for one of these before it is billed.
+
+Output: {asOf, qb: {doc: {doc, date, total, balance}}, notInQB: [...], amountDiff: [...], contractCustomers: [...]}
 """
 import datetime as dt
 import json
@@ -41,18 +43,23 @@ def bo_rows(path):
 
 def main(bo_path, qb_path, today):
     now = dt.date.fromisoformat(today)
-    qb = {}
+    qb, contract = {}, set()
     for r in rows(qb_path):
         doc = str(r.get("invoices__docnumber") or "").strip()
+        if re.match(r"C\d", doc):
+            ref = r.get("invoices__customerref") or {}
+            name = ref.get("name") if isinstance(ref, dict) else ""
+            if name:
+                contract.add(name)
         if doc:
             qb[doc] = {"doc": doc, "date": r.get("invoices__txndate"), "total": r.get("invoices__totalamt"), "balance": r.get("invoices__balance")}
-    not_in, diff, ids = [], [], set()
+    not_in, diff = [], []
     by_quote = [q for d, q in qb.items() if d.startswith("Q")]
     for r in bo_rows(bo_path):
         job = r.get("job") or ""
         sa = r.get("sa") or ""
-        if job:
-            ids.add(job)
+        if sa or job.startswith("SA"):
+            continue
         no = str(r.get("no") or "")
         key = re.sub(r"^INV-?", "", no, flags=re.I)
         q = qb.get(key)
@@ -69,11 +76,11 @@ def main(bo_path, qb_path, today):
             age = (now - dt.date.fromisoformat(r.get("issued") or "")).days
         except ValueError:
             continue
-        if age > WINDOW or (sa and not job):
+        if age > WINDOW:
             continue
         not_in.append({"no": no, "job": job, "issued": r.get("issued"), "by": r.get("by") or "", "amount": r.get("amount")})
     not_in.sort(key=lambda x: x["issued"] or "")
-    json.dump({"asOf": today, "qb": qb, "notInQB": not_in, "amountDiff": diff, "invoicedIds": sorted(ids)}, sys.stdout)
+    json.dump({"asOf": today, "qb": qb, "notInQB": not_in, "amountDiff": diff, "contractCustomers": sorted(contract)}, sys.stdout)
 
 
 if __name__ == "__main__":

@@ -26,8 +26,8 @@ const nowIso = () => new Date().toISOString();
 let D = null, BOARD = {}, REC = {}, SWEEP = {}, USER = null;
 let TAB = "todo", BUCKET = "all";
 let OPEN = null, DET = null, COST = null; // the job open in the review view
-const BUCKETS = { complete: "Marked complete", service: "Service / T&M", progress: "Progress billing", sa: "Service agreements", flag: "Possibly missed" };
-const BTAG = { complete: "green", service: "teal", progress: "purple", sa: "teal", flag: "amber" };
+const BUCKETS = { complete: "Completed", service: "Service / T&M", progress: "Progress billing", flag: "Check first" };
+const BTAG = { complete: "green", service: "teal", progress: "purple", flag: "amber" };
 
 /* ---------- the queue ---------- */
 const FULL = /fully invoiced|no charge|closed/i, NOBILL = /do not invoice/i;
@@ -46,8 +46,13 @@ function bucketOf(j) {
   }
   const allDone = (j.visitsDone || 0) > 0 && j.visitsDone >= (j.visitsTotal || 0) && !j.nextVisit;
   if (!allDone) return null;
-  return /site walk|estimate|warranty/i.test(j.type || "") ? "flag" : "service";
+  return /site walk|estimate|warranty/i.test(j.type || "") || (!j.po && isContract(j.customer)) ? "flag" : "service";
 }
+
+/* Customers billed by contract (QuickBooks C-numbers, raised by Clarissa). A service call with no PO for one of these is often
+   covered by the contract or a monthly parts PO, so it asks a person first. */
+const custKey = s => String(s || "").replace(/^\*/, "").split(/\s+c\/o\s+/i)[0].toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\b(inc|ltd|corp|corporation|limited)\b/g, "").replace(/\s+/g, " ").trim();
+const isContract = name => { const k = custKey(name); return !!k && (SWEEP.contractCustomers || []).some(c => { const x = custKey(c); return x.length > 5 && (x.startsWith(k) || k.startsWith(x)); }); };
 
 function itemFromJob(j, bucket) {
   const left = j.quoted > 0 ? j.quoted - (j.billed || 0) : null;
@@ -57,7 +62,7 @@ function itemFromJob(j, bucket) {
     complete: BOARD[j.id] && BOARD[j.id].stage === "completed" ? `Marked complete by ${BOARD[j.id].stageBy || "the team"}` : /ready to invoice/i.test(j.billingStatus || "") ? "BuildOps: Ready To Invoice" : "Complete in BuildOps, not fully invoiced",
     service: `All ${j.visitsDone} visit${j.visitsDone === 1 ? "" : "s"} done, nothing billed`,
     progress: `About ${money(earned)} earned past what's billed (hours used × quote)`,
-    flag: `${j.type || "Job"} with visits done and no invoice. Billable?`,
+    flag: !j.po && isContract(j.customer) ? "Contract customer, no PO. Check it isn't covered by the contract or a monthly parts PO." : `${j.type || "Job"} with visits done and no invoice. Billable?`,
   }[bucket];
   return { id: j.id, job: j, bucket, customer: (j.customer || "").replace(/^\*/, ""), property: j.property || "", title: j.title || "", po: j.po || "", type: j.type || "", last: j.lastVisit || j.completed || null, left, est: bucket === "progress" ? earned : left, why, url: j.url, hours: j.actualHrs };
 }
@@ -66,8 +71,8 @@ function itemFromJob(j, bucket) {
 function allItems() {
   const out = new Map();
   (D ? D.jobs || [] : []).forEach(j => { const b = bucketOf(j); if (b) out.set(j.id, itemFromJob(j, b)); });
-  // Service agreement visits and anything else the daily sweep found.
-  (SWEEP.extra || []).forEach(x => { if (!out.has(x.id)) out.set(x.id, { bucket: x.bucket || "flag", customer: "", property: "", title: "", po: "", type: "", last: null, left: null, est: null, why: "", ...x }); });
+  // Anything else the daily sweep found. Service agreement billing is not on this page yet.
+  (SWEEP.extra || []).filter(x => x.bucket !== "sa").forEach(x => { if (!out.has(x.id)) out.set(x.id, { bucket: x.bucket || "flag", customer: "", property: "", title: "", po: "", type: "", last: null, left: null, est: null, why: "", ...x }); });
   // Anything already in progress stays visible even if the board has moved on.
   Object.entries(REC).forEach(([id, r]) => {
     if (out.has(id) || !r.state || r.state === "new") return;
@@ -85,60 +90,78 @@ function stateOf(id) {
   return r.state === "queued" || r.state === "drafted" ? r.state : "todo";
 }
 
-/* ---------- list view ---------- */
+/* ---------- board: same pipeline and job cards as Field Operations ---------- */
+const OPEN_CARDS = new Set();
+function card(i) {
+  const j = i.job || {}, r = i.rec, age = daysSince(i.last), hrsPct = j.budgetHrs > 0 ? Math.round((j.actualHrs || 0) / j.budgetHrs * 100) : null;
+  const amt = r.amount ? money(r.amount) : i.est != null ? money(i.est) : (j.actualHrs ? `${Math.round(j.actualHrs * 10) / 10} h` : "To price");
+  const ctx = (BOARD[i.id] || {}).context || [];
+  const tags = [
+    `<span class="tag ${BTAG[i.bucket]}">${BUCKETS[i.bucket]}</span>`,
+    age != null ? `<span class="tag ${age > 30 ? "red" : age > 14 ? "amber" : "grey"}">Last work ${fmtD(i.last)} · ${age}d</span>` : "",
+    j.budgetHrs ? `<span class="tag ${hrsPct > 100 ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs} hrs used</span>` : "",
+    i.left != null && i.bucket === "progress" ? `<span class="tag grey">${money(i.left)} left on quote</span>` : "",
+    i.st === "queued" ? `<span class="tag amber">Queued by ${esc(r.stateBy || "")}</span>` : "",
+    i.st === "drafted" ? `<span class="tag teal">${esc(r.invNo || "Draft")}</span>` : "",
+    r.claudeError ? `<span class="tag red">Claude couldn't build this</span>` : "",
+  ].join("");
+  return `<details class="jc" data-card="${esc(i.id)}" ${OPEN_CARDS.has(i.id) ? "open" : ""}><summary>
+    <div class="jc-top"><span class="jc-id">${isJob(i.id) ? `<a href="job.html?id=${encodeURIComponent(i.id)}" onclick="event.stopPropagation()">${esc(i.id)}</a>` : "No job yet"}${i.po ? ` · PO ${esc(i.po)}` : ""}</span><span class="jc-amt">${amt}</span></div>
+    <div class="jc-cust">${esc(j.customer || i.customer)}</div><div class="jc-site">${esc(i.property)}</div>
+    ${i.title ? `<div class="jc-scope">${esc(i.title)}</div>` : ""}
+    ${hrsPct != null ? `<div class="pbar"><i class="${hrsPct > 100 ? "over" : hrsPct === 100 ? "full" : ""}" style="width:${Math.min(100, hrsPct)}%"></i></div>` : ""}
+    <div class="jc-meta">${tags}</div><span class="chev">▾</span>
+  </summary><div class="jc-body">
+    <div class="jc-why">${esc(i.why)}</div>
+    ${((SWEEP.items || {})[i.id] || {}).flags ? SWEEP.items[i.id].flags.map(f => `<div class="note-line">${esc(f)}</div>`).join("") : ""}
+    ${ctx.length ? `<div class="jc-sec"><span>Context</span><span>${ctx.length}</span></div>${ctx.map(c => `<div class="note-line">${esc(c.text || "")}</div>`).join("")}` : ""}
+    <div class="jc-act">${isJob(i.id) ? `<a class="btn" href="job.html?id=${encodeURIComponent(i.id)}">Job page</a>` : "<span></span>"}<button class="btn done" type="button" data-open="${esc(i.id)}">${i.st === "todo" ? "Review invoice" : "Open"}</button></div>
+  </div></details>`;
+}
+const isJob = id => /^(JO\d+|SA\d+-\d+)$/.test(id);
+const colHead = (title, list, sub) => `<div class="col-h"><h3>${title}<span class="n">${list.length}</span></h3><div class="tot">${money(list.reduce((s, i) => s + (i.rec.amount || i.est || 0), 0))}${sub ? `<small>${sub}</small>` : ""}</div></div>`;
+
 function renderList() {
   OPEN = null;
   const items = allItems();
   const by = st => items.filter(i => i.st === st);
-  const todo = by("todo"), queued = by("queued"), drafted = by("drafted");
-  const known = todo.reduce((s, i) => s + (i.est || 0), 0), unknown = todo.filter(i => i.est == null).length;
-  const oldest = todo.map(i => daysSince(i.last)).filter(n => n != null).sort((a, b) => b - a)[0];
-  const nq = (SWEEP.notInQB || []).length;
-  const asOf = SWEEP.asOf || (D && D.asOf);
-  const TABS = [["todo", "To invoice", todo.length], ["queued", "Queued for BuildOps", queued.length], ["drafted", "In BuildOps, not sent", drafted.length], ["recon", "Not in QuickBooks", nq], ["done", "Done", by("done").length], ["skip", "Not invoicing", by("skip").length]];
-  const list = TAB === "recon" ? [] : by(TAB).filter(i => TAB !== "todo" || BUCKET === "all" || i.bucket === BUCKET)
-    .sort((a, b) => (TAB === "todo" ? (parseD(a.last) || 0) - (parseD(b.last) || 0) : (b.rec.stateAt || "").localeCompare(a.rec.stateAt || "")));
+  const todo = by("todo"), queued = by("queued"), drafted = by("drafted"), done = by("done"), skip = by("skip");
+  const nq = (SWEEP.notInQB || []).length, asOf = SWEEP.asOf || (D && D.asOf);
+  const oldest = (a, b) => (parseD(a.last) || 0) - (parseD(b.last) || 0);
   const counts = {}; todo.forEach(i => counts[i.bucket] = (counts[i.bucket] || 0) + 1);
+  const shown = todo.filter(i => BUCKET === "all" || i.bucket === BUCKET).sort(oldest);
+  const old = todo.map(i => daysSince(i.last)).filter(n => n != null).sort((a, b) => b - a)[0];
+  const unpriced = todo.filter(i => i.est == null).length;
 
   $("view").innerHTML = `
-  <div class="head"><div><h1>Invoicing</h1><p class="sub">Work ready to bill, from BuildOps, Outlook and QuickBooks. Swept daily${asOf ? ` · as of <b>${esc(fmtD(asOf))}</b>` : ""}. Marked-complete jobs move here right away.</p></div>
+  <div class="head"><div><h1>Invoicing</h1><p class="sub">The next stop after Field Operations: jobs and projects ready to bill. Swept daily${asOf ? ` · as of <b>${esc(fmtD(asOf))}</b>` : ""}. Marked-complete jobs land here right away.</p></div>
     <div class="actions"><button class="btn primary" id="cmd" ${queued.length ? "" : "disabled"}>Copy Claude command (${queued.length})</button></div></div>
-  <div class="kpis">
-    <div class="kpi"><div class="k-label">To invoice</div><div class="k-value">${todo.length}</div><div class="k-sub">${money(known)} known${unknown ? ` + ${unknown} to price` : ""}</div></div>
-    <div class="kpi"><div class="k-label">Oldest waiting</div><div class="k-value ${oldest > 30 ? "bad" : ""}">${oldest != null ? oldest + " d" : "—"}</div><div class="k-sub">since the last work</div></div>
-    <div class="kpi"><div class="k-label">Queued for BuildOps</div><div class="k-value">${queued.length}</div><div class="k-sub">reviewed, waiting on Claude</div></div>
-    <div class="kpi"><div class="k-label">In BuildOps, not sent</div><div class="k-value">${drafted.length}</div><div class="k-sub">Draft built, not in QuickBooks yet</div></div>
-    <div class="kpi"><div class="k-label">Not in QuickBooks</div><div class="k-value ${nq ? "bad" : ""}">${nq}</div><div class="k-sub">BuildOps invoices with no match</div></div>
+  <div class="chips"><button data-b="all" class="${BUCKET === "all" ? "on" : ""}">All ${todo.length}</button>${Object.keys(BUCKETS).filter(k => counts[k]).map(k => `<button data-b="${k}" class="${BUCKET === k ? "on" : ""}">${BUCKETS[k]} ${counts[k]}</button>`).join("")}</div>
+  <div class="pipe">
+    <div class="col q">${colHead("To invoice", shown, `${unpriced ? unpriced + " to price · " : ""}${old != null ? "oldest " + old + "d" : ""}`)}${shown.map(card).join("") || '<div class="col-empty">Nothing waiting here.</div>'}</div>
+    <div class="col a">${colHead("Queued for BuildOps", queued, "reviewed, waiting on Claude")}${queued.map(card).join("") || '<div class="col-empty">Nothing queued. Review a job and click Ready for BuildOps.</div>'}</div>
+    <div class="col p">${colHead("In BuildOps, not sent", drafted, "moves on when it's in QuickBooks")}${drafted.map(card).join("") || '<div class="col-empty">No Drafts waiting to go out.</div>'}</div>
   </div>
-  <div class="tabs">${TABS.map(([k, l, n]) => `<button data-tab="${k}" class="${TAB === k ? "on" : ""}">${l}<span class="n">${n}</span></button>`).join("")}</div>
-  ${TAB === "todo" ? `<div class="chips"><button data-b="all" class="${BUCKET === "all" ? "on" : ""}">All ${todo.length}</button>${Object.keys(BUCKETS).filter(k => counts[k]).map(k => `<button data-b="${k}" class="${BUCKET === k ? "on" : ""}">${BUCKETS[k]} ${counts[k]}</button>`).join("")}</div>` : ""}
-  ${TAB === "recon" ? reconTable() : listTable(list)}`;
+  <details class="rem-list" data-card="__nq" ${OPEN_CARDS.has("__nq") ? "open" : ""}><summary>Not in QuickBooks (${nq})</summary>${reconTable()}</details>
+  <details class="rem-list" data-card="__done" ${OPEN_CARDS.has("__done") ? "open" : ""}><summary>Done (${done.length})</summary>${doneTable(done)}</details>
+  <details class="rem-list" data-card="__skip" ${OPEN_CARDS.has("__skip") ? "open" : ""}><summary>Not invoicing (${skip.length})</summary>${doneTable(skip)}</details>`;
 
-  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; renderList(); });
   document.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { BUCKET = b.dataset.b; renderList(); });
-  document.querySelectorAll("tr.go").forEach(tr => tr.onclick = e => { if (!e.target.closest("a")) location.hash = encodeURIComponent(tr.dataset.id); });
+  document.querySelectorAll("[data-open],tr.go").forEach(el => el.onclick = e => { if (!e.target.closest("a")) location.hash = encodeURIComponent(el.dataset.open || el.dataset.id); });
+  document.querySelectorAll("details[data-card]").forEach(d => d.ontoggle = () => { d.open ? OPEN_CARDS.add(d.dataset.card) : OPEN_CARDS.delete(d.dataset.card); });
   const c = $("cmd"); if (c) c.onclick = () => copy(claudeCommand(queued.length), c);
 }
 
-function listTable(list) {
-  if (!list.length) return `<div class="table-wrap"><div class="empty">${TAB === "todo" ? "Nothing waiting to be invoiced." : "Nothing here."}</div></div>`;
-  return `<div class="table-wrap"><table><thead><tr><th>Customer / site</th><th>Job</th><th>Why it's here</th><th>Last work</th><th class="num">To bill</th><th></th></tr></thead><tbody>${list.map(i => {
-    const age = daysSince(i.last), r = i.rec;
-    const status = i.st === "queued" ? `<span class="tag amber">Queued ${esc(r.stateBy || "")}</span>` : i.st === "drafted" ? `<span class="tag teal">${esc(r.invNo || "Draft")}</span>` : i.st === "done" ? `<span class="tag green">In QuickBooks</span>` : i.st === "skip" ? `<span class="tag grey">${esc(r.skipReason || "Not invoicing")}</span>` : r.updatedBy ? `<span class="tag grey">Started</span>` : "";
-    return `<tr class="go" data-id="${esc(i.id)}"><td>${esc(i.customer)}<small>${esc(i.property)}</small></td>
-      <td>${/^flag-/.test(i.id) ? "No job yet" : `<a href="job.html?id=${encodeURIComponent(i.id)}">${esc(i.id)}</a>`}${i.po ? `<small>PO ${esc(i.po)}</small>` : ""}${i.type ? `<small>${esc(i.type)}</small>` : ""}</td>
-      <td><span class="tag ${BTAG[i.bucket]}">${BUCKETS[i.bucket]}</span><small style="margin-top:3px">${esc(i.why)}</small></td>
-      <td>${fmtD(i.last)}${age != null ? `<small style="${age > 30 ? "color:var(--red)" : ""}">${age} days ago</small>` : ""}</td>
-      <td class="num">${r.amount ? money(r.amount) : i.est != null ? money(i.est) : `<span class="note">${i.job ? `T&amp;M${i.hours ? ` · ${Math.round(i.hours * 10) / 10} h` : ""}` : "To price"}</span>`}${i.left != null && i.bucket === "progress" ? `<small>${money(i.left)} left on quote</small>` : ""}</td>
-      <td>${status}</td></tr>`;
-  }).join("")}</tbody></table></div>`;
+function doneTable(list) {
+  if (!list.length) return '<div class="table-wrap"><p class="empty" style="padding:1rem">Nothing here.</p></div>';
+  return `<div class="table-wrap"><table><thead><tr><th>Job</th><th>Customer / site</th><th>Invoice</th><th>By</th><th class="num">Amount</th></tr></thead><tbody>${list.map(i => `<tr class="go" data-id="${esc(i.id)}"><td>${esc(i.id)}</td><td>${esc(i.customer)}<small>${esc(i.property)}</small></td><td>${esc(i.rec.invNo || i.rec.skipReason || "")}</td><td>${esc(i.rec.stateBy || "")}</td><td class="num">${i.rec.amount ? money(i.rec.amount) : "—"}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function reconTable() {
   const rows = SWEEP.notInQB || [], diff = SWEEP.amountDiff || [];
-  return `<p class="note" style="margin-bottom:.7rem">Non-void BuildOps invoices from the last 120 days with no matching number in QuickBooks. Either never sent, or sent and not entered yet. Contract invoices (C-numbers) are raised in QuickBooks and aren't part of this list.</p>
-  <div class="table-wrap">${rows.length ? `<table><thead><tr><th>Invoice</th><th>Job</th><th>Issued</th><th>Created by</th><th class="num">Amount</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td>${fmtD(r.issued)}</td><td>${esc(r.by || "")}</td><td class="num">${money2(r.amount)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Every BuildOps invoice from the last 120 days is in QuickBooks.</div>`}</div>
-  ${diff.length ? `<h2 style="margin:1.25rem 0 .5rem">Amount differs between BuildOps and QuickBooks</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Job</th><th class="num">BuildOps</th><th class="num">QuickBooks</th></tr></thead><tbody>${diff.map(r => `<tr><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td class="num">${money2(r.amount)}</td><td class="num">${money2(r.qb)}</td></tr>`).join("")}</tbody></table></div>` : ""}`;
+  return `<p class="note" style="margin:.4rem 0 .6rem">BuildOps job invoices from the last 120 days with no match in QuickBooks. Either never sent, or sent and not entered yet.</p>
+  <div class="table-wrap">${rows.length ? `<table><thead><tr><th>Invoice</th><th>Job</th><th>Issued</th><th>Created by</th><th class="num">Amount</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td>${fmtD(r.issued)}</td><td>${esc(r.by || "")}</td><td class="num">${money2(r.amount)}</td></tr>`).join("")}</tbody></table>` : `<p class="empty" style="padding:1rem">Every BuildOps invoice from the last 120 days is in QuickBooks.</p>`}</div>
+  ${diff.length ? `<h2 style="margin:1.1rem 0 .5rem">Amount differs between BuildOps and QuickBooks</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Job</th><th class="num">BuildOps</th><th class="num">QuickBooks</th></tr></thead><tbody>${diff.map(r => `<tr><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td class="num">${money2(r.amount)}</td><td class="num">${money2(r.qb)}</td></tr>`).join("")}</tbody></table></div>` : ""}`;
 }
 
 function claudeCommand(n) {
@@ -216,42 +239,50 @@ const stripMeta = r => { const { updatedAt, updatedBy, jobId, customer, property
 
 function renderReview() {
   const it = ITEM, F = FORM, st = stateOf(it.id), sw = (SWEEP.items || {})[it.id] || {};
-  const j = it.job || {}, V = billable(), locked = st === "queued" || st === "drafted" || st === "done";
-  const inv = (COST && COST.invoices) || [], qbi = (COST && COST.qbInvoices) || [], bills = (COST && COST.bills) || [], em = ((COST && COST.emails) || []).slice(0, 6);
+  const j = it.job || {}, B = (DET && DET.board) || {}, V = billable(), locked = st === "queued" || st === "drafted" || st === "done";
+  const inv = (COST && COST.invoices) || [], qbi = (COST && COST.qbInvoices) || [], bills = (COST && COST.bills) || [], em = ((COST && COST.emails) || []).slice(0, 8);
   const billed = j.billed != null ? j.billed : (COST && COST.billedQB);
   const amt = +F.amount || 0;
-  const hrs = V.filter(v => (F.visits || []).includes(v.id)).reduce((s, v) => s + visitHrs(v), 0);
+  const actual = V.reduce((s, v) => s + visitHrs(v), 0) || j.actualHrs || 0, budget = j.budgetHrs || (DET && DET.budgetHrs) || null;
   const flags = [...(sw.flags || [])];
-  if (!it.po) flags.push("No PO on this job. Confirm with the customer whether the invoice needs one.");
+  if (!it.po) flags.push("No PO on this job. Confirm whether the customer needs one on the invoice.");
   if (it.left != null && amt > it.left + 1) flags.push(`Amount is ${money(amt - it.left)} over what's left on the quote. Check there's a change order.`);
-  const ppl = sw.to || [];
-  const extra = (F.to || []).filter(e => !ppl.some(p => p.email === e));
+  const ppl = sw.to || [], extra = (F.to || []).filter(e => !ppl.some(p => p.email === e));
+  const billing = j.billingStatus || B.billingStatus, status = j.status || B.status;
+  const title = it.title || (DET && (DET.issue || "").split("\n")[0].slice(0, 90)) || "";
+  const addr = DET && DET.address ? DET.address.replace(/,\s*CA$/, "") : "";
+  const last = j.lastVisit || (V.length ? V[V.length - 1].date : null);
 
   $("view").innerHTML = `
-  <div class="crumb"><a id="back">Invoicing</a> · ${esc(it.id)}</div>
-  <div class="head"><div><h1>${esc(it.customer)}</h1>
-    <p class="sub"><b>${esc(it.id)}</b>${it.po ? ` · PO <b>${esc(it.po)}</b>` : ""}${it.type ? ` · ${esc(it.type)}` : ""}${it.title ? ` · ${esc(it.title.slice(0, 90))}` : ""}</p>
-    <p class="sub">${esc(it.property)}</p></div>
-    <div class="actions"><a class="btn" href="job.html?id=${encodeURIComponent(it.id)}">Job page</a>${(DET && DET.reportUrl) ? `<a class="btn" href="${esc(DET.reportUrl)}" target="_blank" rel="noopener">BuildOps report ↗</a>` : ""}${(it.url || (DET && DET.url)) ? `<a class="btn" href="${esc(it.url || DET.url)}" target="_blank" rel="noopener">BuildOps ↗</a>` : ""}</div></div>
+  <div class="crumb"><a id="back" href="#">Invoicing</a> · ${esc(it.id)}</div>
+  <div class="head"><div>
+    <h1>${esc(j.customer || (DET && DET.customer) || it.customer)}</h1>
+    <p class="sub"><b>${esc(it.id)}</b>${it.po ? ` · PO <b>${esc(it.po)}</b>` : ""}${it.type ? ` · ${esc(it.type)}` : ""}${title ? ` · ${esc(title)}` : ""}</p>
+    <p class="sub">${esc(it.property)}${addr ? ` · ${esc(addr)}` : ""}</p>
+    <div class="tags"><span class="tag ${BTAG[it.bucket]}">${BUCKETS[it.bucket]}</span>${status ? `<span class="tag grey">BuildOps: ${esc(status)}</span>` : ""}${billing ? `<span class="tag ${/fully|paid/i.test(billing) ? "green" : /partial|ready/i.test(billing) ? "amber" : "red"}">${esc(billing)}</span>` : ""}${(DET && DET.department) ? `<span class="tag purple">${esc(DET.department)}</span>` : ""}</div>
+  </div>
+  <div class="actions"><button class="btn primary" id="preview" type="button">Job report</button>${isJob(it.id) ? `<a class="btn" href="job.html?id=${encodeURIComponent(it.id)}">Job page</a>` : ""}${(it.url || (DET && DET.url)) ? `<a class="btn" href="${esc(it.url || DET.url)}" target="_blank" rel="noopener">BuildOps ↗</a>` : ""}</div></div>
   ${flags.map(f => `<div class="flag">${esc(f)}</div>`).join("")}
   ${st === "queued" ? `<div class="banner info">Queued by ${esc(F.stateBy || "")}. Waiting for Claude to build the Draft in BuildOps. Take it back to change anything.</div>` : ""}
-  ${st === "drafted" ? `<div class="banner info">${esc(F.invNo || "Draft")} built in BuildOps${F.invTotal ? ` for ${money2(F.invTotal)}` : ""}. Review it, send it, and it moves to Done when ${esc(F.invNo || "it")} shows up in QuickBooks.${F.invUrl ? ` <a href="${esc(F.invUrl)}" target="_blank" rel="noopener"><b>Open in BuildOps ↗</b></a>` : ""}</div>` : ""}
+  ${st === "drafted" ? `<div class="banner info">${esc(F.invNo || "Draft")} built in BuildOps${F.invTotal ? ` for ${money2(F.invTotal)}` : ""}. Review it and send it. It moves to Done when ${esc(F.invNo || "it")} shows up in QuickBooks.${F.invUrl ? ` <a href="${esc(F.invUrl)}" target="_blank" rel="noopener"><b>Open in BuildOps ↗</b></a>` : ""}</div>` : ""}
   ${st === "done" ? `<div class="banner info">In QuickBooks as ${esc((qbOf(F.invNo) || {}).doc)} · ${money2((qbOf(F.invNo) || {}).total)} · ${(qbOf(F.invNo) || {}).balance === 0 ? "paid" : "open with Clarissa"}.</div>` : ""}
   ${F.claudeError ? `<div class="banner">Claude couldn't build this one: ${esc(F.claudeError)}</div>` : ""}
-  <div class="grid"><div>
-    <section class="panel"><h2>Visits and job report<span class="actions"><button class="btn primary" id="preview" type="button">Preview report</button></span></h2>
-      <p class="note">Tick what goes in the customer report. Edits to a summary change the report only, not BuildOps.</p>
-      <div class="opts">${[["hours", "Hours on site"], ["mats", "Materials"], ["recs", "Recommendations"], ["photos", "Photos"], ["sign", "Signature lines"]].map(([k, l]) => `<label class="chk"><input type="checkbox" data-opt="${k}" ${(F.opts || {})[k] ? "checked" : ""}> ${l}</label>`).join("")}</div>
-      ${V.length ? V.map(v => visitRow(v)).join("") : '<div class="empty">No visit reports yet. The daily refresh adds them.</div>'}
-    </section>
-    <section class="panel"><h2>Billing so far</h2>
-      <div class="row2 mini"><div>Quoted <b>${money(j.quoted)}</b> · Billed <b>${money(billed)}</b>${it.left != null ? ` · Left <b>${money(it.left)}</b>` : ""}</div><div>Hours <b>${Math.round((j.actualHrs || 0) * 10) / 10}</b>${j.budgetHrs ? ` of ${j.budgetHrs}` : ""} · Supplier bills <b>${money(bills.reduce((s, x) => s + (x.amount || 0), 0))}</b></div></div>
-      ${inv.length || qbi.length ? `<table class="mini" style="margin-top:.5rem"><thead><tr><th>Invoice</th><th>Issued</th><th>QuickBooks</th><th class="num">Amount</th></tr></thead><tbody>${mergeInv(inv, qbi).map(i => `<tr><td>${esc(i.no)}</td><td>${fmtD(i.issued)}</td><td>${i.qb ? (i.qb.balance === 0 ? '<span class="tag green">Paid</span>' : `<span class="tag amber">${money2(i.qb.balance)} open</span>`) : '<span class="tag red">Not in QuickBooks</span>'}</td><td class="num">${money2(i.amount ?? (i.qb && i.qb.total))}</td></tr>`).join("")}</tbody></table>` : '<p class="note" style="margin-top:.4rem">No invoices on this job yet.</p>'}
-    </section>
-    ${em.length ? `<section class="panel"><h2>Recent emails</h2><table class="mini"><tbody>${em.map(e => `<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td>${e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(e.subject || "(no subject)")}</a>` : esc(e.subject || "")}<small>${esc(e.from || "")}${e.summary ? " · " + esc(e.summary) : ""}</small></td></tr>`).join("")}</tbody></table></section>` : ""}
+  <div class="kpis">
+    <div class="kpi"><div class="k-label">Visits</div><div class="k-value">${V.length}<span class="dim" style="font-size:1rem"> / ${((DET && DET.visits) || []).length}</span></div><div class="k-sub">completed / logged</div></div>
+    <div class="kpi"><div class="k-label">Hours on site</div><div class="k-value">${Math.round(actual * 10) / 10} h</div><div class="k-sub">${budget ? `${Math.round(actual / budget * 100)}% of ${budget} budgeted` : "no budgeted hours"}</div></div>
+    <div class="kpi"><div class="k-label">Last visit</div><div class="k-value" style="font-size:1.2rem">${fmtD(last)}</div><div class="k-sub">${daysSince(last) != null ? daysSince(last) + " days ago" : ""}</div></div>
+    <div class="kpi"><div class="k-label">Quoted (pre-HST)</div><div class="k-value">${money(j.quoted || 0)}</div><div class="k-sub">${it.left != null ? money(it.left) + " left to bill" : "&nbsp;"}</div></div>
+    <div class="kpi"><div class="k-label">Supplier bills</div><div class="k-value">${money(bills.reduce((s, x) => s + (x.amount || 0), 0))}</div><div class="k-sub">${bills.length} on this PO</div></div>
+    <div class="kpi"><div class="k-label">Billed (pre-HST)</div><div class="k-value">${money(billed || 0)}</div><div class="k-sub">${billed ? "" : "nothing billed yet"}</div></div>
   </div>
-  <div class="side">
-    <section class="panel"><h2>Invoice</h2>
+  ${DET && DET.issue ? `<section><h2>Scope</h2><div class="panel scope">${esc(DET.issue)}</div></section>` : ""}
+  <section>
+    <div class="h2-row"><div><h2>Visits</h2><p class="note">Tick what goes in the customer report. Open a visit to edit its summary or choose photos. Edits change the report only, not BuildOps.</p></div></div>
+    <div class="opts">${[["hours", "Hours on site"], ["mats", "Materials"], ["recs", "Recommendations"], ["photos", "Photos"], ["sign", "Signature lines"]].map(([k, l]) => `<label><input type="checkbox" data-opt="${k}" ${(F.opts || {})[k] ? "checked" : ""}> ${l}</label>`).join("")}</div>
+    ${V.length ? V.slice().reverse().map(visitRow).join("") : '<div class="panel empty">No visit reports yet. The daily refresh adds them.</div>'}
+  </section>
+  <section><div class="two">
+    <div class="panel"><h2>Invoice</h2>
       <div class="row2"><div><label class="lab" for="f-type">Type</label><select class="in" id="f-type" ${locked ? "disabled" : ""}>${["Full", "Progress", "Final", "T&M"].map(t => `<option ${F.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
         <div><label class="lab" for="f-po">PO</label><input class="in" id="f-po" value="${esc(F.po || "")}" ${locked ? "disabled" : ""}></div></div>
       <label class="lab" for="f-amt">Amount before HST${F.type === "T&M" ? " (leave blank: BuildOps prices it from the pricebook)" : ""}</label>
@@ -259,25 +290,29 @@ function renderReview() {
       <div class="totals" id="totals"></div>
       <label class="lab" for="f-note">Invoice note (shows in BuildOps and QuickBooks)</label>
       <textarea class="in" id="f-note" rows="2" ${locked ? "disabled" : ""}>${esc(F.note || "")}</textarea>
-      <label class="lab">Line items for Claude (optional)${hrs ? ` · ${Math.round(hrs * 10) / 10} h on the ticked visits` : ""}</label>
+      <label class="lab">Line items for Claude (optional)</label>
       <div id="lines"></div>
       ${locked ? "" : '<button class="btn ghost" id="add-line" type="button">+ Add line</button>'}
       <label class="lab" for="f-claude">Anything else Claude should know</label>
       <textarea class="in" id="f-claude" rows="2" placeholder="e.g. Bill the balance after the deposit on INV-20261142" ${locked ? "disabled" : ""}>${esc(F.claudeNote || "")}</textarea>
       <div class="foot" id="acts"></div>
       <div class="save" id="save"></div>
-    </section>
-    <section class="panel"><h2>Email</h2>
-      <p class="note">From <b>${FROM}</b> · CC <b>${CC}</b>, always. Send from BuildOps or Outlook, then attach the invoice and report PDFs.</p>
+    </div>
+    <div class="panel"><h2>Email</h2>
+      <p class="note">From <b>${FROM}</b> · CC <b>${CC}</b>, always. Attach the invoice and report PDFs before sending.</p>
       <label class="lab">To</label>
-      <div class="who">${ppl.map(p => `<label title="${esc(p.src || "")}"><input type="checkbox" data-to="${esc(p.email)}" ${(F.to || []).includes(p.email) ? "checked" : ""}>${esc(p.name || p.email)}${p.role ? ` · ${esc(p.role)}` : ""} <a href="mailto:${esc(p.email)}?cc=${CC}">${esc(p.email)}</a></label>`).join("") || '<span class="note">No contacts found yet. The daily sweep fills these in.</span>'}</div>
+      <div class="who">${ppl.map(p => `<label title="${esc(p.src || "")}"><input type="checkbox" data-to="${esc(p.email)}" ${(F.to || []).includes(p.email) ? "checked" : ""}>${esc(p.name || p.email)}${p.role ? ` · ${esc(p.role)}` : ""} <a href="mailto:${esc(p.email)}?cc=${CC}">${esc(p.email)}</a></label>`).join("") || '<span class="dim" style="font-size:.82rem">No contacts found yet. The daily sweep fills these in.</span>'}</div>
       <input class="in" id="f-to-x" placeholder="Other addresses, separated by commas" value="${esc(extra.join(", "))}">
       <label class="lab" for="f-subj">Subject</label><input class="in" id="f-subj" value="${esc(F.subject || "")}">
-      <label class="lab" for="f-body">Message</label><textarea class="in" id="f-body" rows="9">${esc(F.body || "")}</textarea>
+      <label class="lab" for="f-body">Message</label><textarea class="in" id="f-body" rows="10">${esc(F.body || "")}</textarea>
       <div class="foot"><a class="btn primary" id="mail" href="#">Open email</a><button class="btn" id="c-to" type="button">Copy To</button><button class="btn" id="c-subj" type="button">Copy subject</button><button class="btn" id="c-body" type="button">Copy message</button></div>
-      <p class="note" id="mail-note" style="margin-top:.4rem">Pick contact@ in the From field: an email link can't set it.</p>
-    </section>
-  </div></div>`;
+      <p class="note" id="mail-note" style="margin-top:.4rem;font-size:.78rem">Pick contact@ in the From field: an email link can't set it.</p>
+    </div>
+  </div></section>
+  <section><h2>Invoices</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Issued</th><th>QuickBooks</th><th class="num">Amount</th></tr></thead><tbody>
+    ${inv.length || qbi.length ? mergeInv(inv, qbi).map(i => `<tr><td>${esc(i.no)}</td><td>${fmtD(i.issued)}</td><td>${i.qb ? (i.qb.balance === 0 ? '<span class="tag green">Paid</span>' : `<span class="tag amber">${money2(i.qb.balance)} open</span>`) : '<span class="tag red">Not in QuickBooks</span>'}</td><td class="num">${money2(i.amount ?? (i.qb && i.qb.total))}</td></tr>`).join("") : '<tr><td colspan="4" class="empty">No invoices on this job yet.</td></tr>'}
+  </tbody></table></div></section>
+  ${em.length ? `<section><h2>Recent emails</h2><div class="table-wrap"><table><tbody>${em.map(e => `<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td>${e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(e.subject || "(no subject)")}</a>` : esc(e.subject || "")}<small>${esc(e.from || "")}${e.summary ? " · " + esc(e.summary) : ""}</small></td></tr>`).join("")}</tbody></table></div></section>` : ""}`;
   bindReview(it, st, locked);
 }
 
@@ -288,19 +323,24 @@ function mergeInv(inv, qbi) {
 }
 
 function visitRow(v) {
-  const F = FORM, on = (F.visits || []).includes(v.id), P = (v.photos || []).filter(p => phUrl(p, 200) && p.rep !== false), off = F.phOff || [];
-  const edit = (F.sumEdits || {})[v.id];
-  return `<div class="visit ${on ? "" : "off"}"><div class="vh"><input type="checkbox" data-v="${esc(v.id)}" ${on ? "checked" : ""} aria-label="Include this visit">
-    <div>${esc(v.desc || "Visit")}<small>${fmtD(v.date)} · ${esc([v.tech, ...(v.others || [])].filter(Boolean).join(", "))} · ${Math.round(visitHrs(v) * 10) / 10} h${(v.photos || []).length ? ` · ${(v.photos || []).length} photo${v.photos.length === 1 ? "" : "s"}` : ""}</small></div></div>
-    <div class="vbody"><textarea class="in" rows="3" data-sum="${esc(v.id)}" aria-label="Visit summary">${esc(edit != null ? edit : sumText(v))}</textarea>
-    ${(v.recs || []).length ? `<p class="note" style="margin-top:.3rem">Recommendations: ${v.recs.map(r => esc(r.title || r.asset || "")).filter(Boolean).join("; ")}</p>` : ""}
-    ${P.length ? `<div class="ph-grid">${P.slice(0, 12).map(p => `<label class="ph ${off.includes(p.src) ? "off" : ""}"><img loading="lazy" src="${esc(phUrl(p, 220))}" alt="${esc(p.comment || "Visit photo")}"><input type="checkbox" data-ph="${esc(p.src)}" ${off.includes(p.src) ? "" : "checked"} aria-label="Include photo"></label>`).join("")}</div>` : ""}</div></div>`;
+  const F = FORM, on = (F.visits || []).includes(v.id), P = (v.photos || []).filter(p => phUrl(p, 360) && p.rep !== false), off = F.phOff || [];
+  const edit = (F.sumEdits || {})[v.id], text = edit != null ? edit : sumText(v), h = visitHrs(v);
+  const techs = [v.tech, ...(v.others || [])].filter(Boolean).join(", ");
+  return `<article class="visit ${on ? "" : "off"}" data-vis="${esc(v.id)}">
+    <div class="vh"><input type="checkbox" data-v="${esc(v.id)}" ${on ? "checked" : ""} aria-label="Include visit ${esc(v.n)} in report">
+      <div class="vdate">${fmtD(v.date)}<small>Visit #${esc(v.n)}</small></div>
+      <div><div class="vtitle">${esc(v.desc || "Visit")}</div><div class="vtech">${esc(techs || "No tech assigned")}</div>${text ? `<div class="vsum">${esc(text)}</div>` : ""}</div>
+      <div class="vright"><b>${h ? Math.round(h * 10) / 10 + " h" : "—"}</b>${(v.photos || []).length ? v.photos.length + " photo" + (v.photos.length === 1 ? "" : "s") : ""}</div></div>
+    <div class="vb"><div class="blk"><h4>Visit summary for the report</h4><textarea class="in" rows="4" data-sum="${esc(v.id)}" aria-label="Visit summary">${esc(text)}</textarea></div>
+      ${(v.recs || []).length ? `<div class="blk"><h4>Recommendations</h4><ul class="plain">${v.recs.map(r => `<li><b>${esc(r.title || r.asset || "Recommendation")}</b>${r.text ? " — " + esc(r.text) : ""}</li>`).join("")}</ul></div>` : ""}
+      ${P.length ? `<div class="blk"><h4>Photos for the report</h4><div class="ph-grid">${P.map(p => `<label class="ph ${off.includes(p.src) ? "off" : ""}"><img loading="lazy" src="${esc(phUrl(p, 360))}" alt="${esc(p.comment || "Visit photo")}"><input type="checkbox" data-ph="${esc(p.src)}" ${off.includes(p.src) ? "" : "checked"} aria-label="Include photo"></label>`).join("")}</div></div>` : ""}
+    </div></article>`;
 }
 
 function bindReview(it, st, locked) {
   const F = FORM;
-  const back = () => { flush(); location.hash = ""; };
-  $("back").onclick = back;
+  $("back").onclick = e => { e.preventDefault(); flush(); location.hash = ""; };
+  document.querySelectorAll(".vh").forEach(h => h.onclick = e => { if (!e.target.closest("input")) h.parentElement.classList.toggle("open"); });
   const bind = (id, key, fn) => { const el = $(id); if (el) el.oninput = () => queueSave({ [key]: fn ? fn(el.value) : el.value }); };
   bind("f-type", "type"); bind("f-po", "po"); bind("f-note", "note"); bind("f-claude", "claudeNote"); bind("f-subj", "subject"); bind("f-body", "body");
   $("f-type").onchange = () => { queueSave({ type: $("f-type").value }); drawTotals(); };
