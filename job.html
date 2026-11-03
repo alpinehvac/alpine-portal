@@ -488,7 +488,7 @@ function ownerSections() {
 
   <section>
     <h2>Emails<span class="lock">Jake, Mike &amp; Cole</span></h2>
-    <p class="note" style="margin-bottom:.9rem">Threads in Jake's and Cole's Outlook that mention ${esc(J.id)}${J.po ? `, PO ${esc(J.po)}` : ""} or the site name. Read-only.</p>
+    <p class="note" style="margin-bottom:.9rem">Threads in Jake's, Cole's and Mike's Outlook that mention ${esc(J.id)}${J.po ? `, PO ${esc(J.po)}` : ""} or the site name. Read-only.</p>
     ${em.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>From</th><th>Subject</th></tr></thead><tbody>${em.map(e => `<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td>${esc(e.from)}${e.via ? `<small>${esc(e.via)}'s mailbox</small>` : ""}</td><td>${e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(e.subject)}</a>` : esc(e.subject)}${e.summary ? `<small>${esc(e.summary)}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>` : '<div class="panel empty">No matching emails found.</div>'}
   </section>`;
 }
