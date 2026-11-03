@@ -26,9 +26,9 @@ const nowIso = () => new Date().toISOString();
 let D = null, BOARD = {}, REC = {}, SWEEP = {}, USER = null;
 let TAB = "todo", BUCKET = "all";
 let OPEN = null, DET = null, COST = null; // the job open in the review view
-const CHECK_DAYS = 14; // contract-site visits older than this stay under Possibly missed, even with parts on them
-const PARTS = {}; // jobs at contract customers with parts or supplier bills: {count, bills}
-const BUCKETS = { service: "Service / T&M", progress: "Progress billing", parts: "Parts only", flag: "Possibly missed" };
+const BUCKETS = { service: "Service / T&M", progress: "Current jobs", parts: "Parts only", flag: "Possibly missed" };
+const TEAM = [["Mike", "mike.launder@alpinehvac.ca"], ["Clarissa", "admin@alpinehvac.ca"], ["Cole", "cole.hamilton@alpinehvac.ca"], ["Jake", "jake.gilmore@alpinehvac.ca"]];
+const isParts = j => /^EQ00/i.test(j.po || "");
 const BTAG = { service: "teal", progress: "purple", parts: "teal", flag: "amber" };
 
 /* ---------- the queue ---------- */
@@ -40,6 +40,7 @@ function bucketOf(j) {
   if (S.removed || NOBILL.test(j.billingStatus || "") || FULL.test(j.billingStatus || "") || S.invoiced) return null;
   const left = j.quoted > 0 ? j.quoted - (j.billed || 0) : null;
   if (left != null && left < 1) return null; // billed to the quote: nothing left, whatever the BuildOps tag says
+  if (isParts(j)) return "parts";
   const project = j.kind === "Project" || j.pipeline === true;
   if (isDone(j)) return project ? "progress" : "service";
   if (project) {
@@ -49,8 +50,7 @@ function bucketOf(j) {
   }
   const allDone = (j.visitsDone || 0) > 0 && j.visitsDone >= (j.visitsTotal || 0) && !j.nextVisit;
   if (!allDone) return null;
-  if (!j.po && isContract(j.customer)) return PARTS[j.id] && (daysSince(j.lastVisit) ?? 0) <= CHECK_DAYS ? "parts" : "flag";
-  return /site walk|estimate|warranty/i.test(j.type || "") ? "flag" : "service";
+  return (!j.po && isContract(j.customer)) || /site walk|estimate|warranty/i.test(j.type || "") ? "flag" : "service";
 }
 const isDone = j => (BOARD[j.id] || {}).stage === "completed" || j.stage === "completed" || /complete/i.test(j.status || "") || /ready to invoice/i.test(j.billingStatus || "");
 
@@ -64,12 +64,11 @@ const CONTRACT_WHY = "Contract customer, no PO. Labour is usually covered by the
 function itemFromJob(j, bucket) {
   const left = j.quoted > 0 ? j.quoted - (j.billed || 0) : null, done = isDone(j), S = BOARD[j.id] || {};
   const earned = bucket === "progress" && !done ? Math.min((j.actualHrs || 0) / j.budgetHrs, 1) * j.quoted - (j.billed || 0) : null;
-  const sw = (SWEEP.items || {})[j.id] || {}, p = PARTS[j.id];
+  const sw = (SWEEP.items || {})[j.id] || {};
   const doneWhy = S.stage === "completed" ? `Marked complete by ${S.stageBy || "the team"}` : /ready to invoice/i.test(j.billingStatus || "") ? "BuildOps: Ready To Invoice" : "Complete in BuildOps, not fully invoiced";
-  const why = sw.why || (done ? doneWhy : {
+  const why = sw.why || (bucket === "parts" ? `Parts order on PO ${j.po}` : done ? doneWhy : {
     service: `All ${j.visitsDone} visit${j.visitsDone === 1 ? "" : "s"} done, nothing billed`,
     progress: `About ${money(earned)} earned past what's billed (hours used × quote)`,
-    parts: `${CONTRACT_WHY} ${p ? `${p.count} part${p.count === 1 ? "" : "s"} or bills on this job.` : ""}`,
     flag: !j.po && isContract(j.customer) ? CONTRACT_WHY : `${j.type || "Job"} with visits done and no invoice. Billable?`,
   }[bucket]);
   return { id: j.id, job: j, bucket, done, customer: (j.customer || "").replace(/^\*/, ""), property: j.property || "", title: j.title || "", po: j.po || "", type: j.type || "", last: j.lastVisit || j.completed || null, left, est: earned != null ? earned : left, why, url: j.url, hours: j.actualHrs };
@@ -110,7 +109,6 @@ function card(i) {
   const ctx = (BOARD[i.id] || {}).context || [];
   const tags = [
     i.done ? '<span class="tag green">Completed</span>' : "",
-    i.bucket === "parts" || PARTS[i.id] ? `<span class="tag teal">${PARTS[i.id] ? PARTS[i.id].count + (PARTS[i.id].count === 1 ? " part" : " parts") : "Parts"}</span>` : "",
     age != null ? `<span class="tag ${age > 30 ? "red" : age > 14 ? "amber" : "grey"}">Last work ${fmtD(i.last)} · ${age}d</span>` : "",
     j.budgetHrs ? `<span class="tag ${hrsPct > 100 ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs} hrs used</span>` : "",
     i.left != null && i.bucket === "progress" ? `<span class="tag grey">${money(i.left)} left on quote</span>` : "",
@@ -123,7 +121,7 @@ function card(i) {
     <div class="jc-cust">${esc(j.customer || i.customer)}</div><div class="jc-site">${esc(i.property)}</div>
     ${i.title ? `<div class="jc-scope">${esc(i.title)}</div>` : ""}
     ${hrsPct != null ? `<div class="pbar"><i class="${hrsPct > 100 ? "over" : hrsPct === 100 ? "full" : ""}" style="width:${Math.min(100, hrsPct)}%"></i></div>` : ""}
-    <div class="jc-meta">${tags}${(i.bucket === "flag" || i.bucket === "parts") && i.st === "todo" ? `<button class="tag grey nb" type="button" data-nb="${esc(i.id)}">Not billable ✕</button>` : ""}</div><span class="chev">▾</span>
+    <div class="jc-meta">${tags}${i.bucket === "flag" && i.st === "todo" ? `<button class="tag grey nb" type="button" data-nb="${esc(i.id)}">Not billable ✕</button>` : ""}</div><span class="chev">▾</span>
   </summary><div class="jc-body">
     <div class="jc-why">${esc(i.why)}</div>
     ${((SWEEP.items || {})[i.id] || {}).flags ? SWEEP.items[i.id].flags.map(f => `<div class="note-line">${esc(f)}</div>`).join("") : ""}
@@ -151,8 +149,8 @@ function renderList() {
     <div class="actions"><button class="btn primary" id="cmd" ${queued.length ? "" : "disabled"}>Copy Claude command (${queued.length})</button></div></div>
   <div class="pipe">
     <div class="col a">${colHead("Service / T&amp;M", svc, sub(svc))}${body(svc, "No service or T&amp;M jobs waiting.")}</div>
-    <div class="col p">${colHead("Progress billing", prog, sub(prog))}${body(prog, "No project billing due.")}</div>
-    <div class="col q">${colHead("Parts only", parts, `contract sites, last ${CHECK_DAYS} days`)}${body(parts, "No materials to bill on contract sites.")}</div>
+    <div class="col p">${colHead("Current jobs", prog, sub(prog))}${body(prog, "No current jobs to bill.")}</div>
+    <div class="col q">${colHead("Parts only", parts, "PO starts with EQ00")}${body(parts, "No EQ00 parts orders to bill.")}</div>
   </div>
   <details class="rem-list" data-card="__miss" ${OPEN_CARDS.has("__miss") ? "open" : ""}><summary>Possibly missed (${missed.length})</summary><p class="note" style="margin:.4rem 0 .7rem">Work that may or may not be billable. Open one to bill it, or mark it not billable.</p><div class="cards">${body(missed, "Nothing to check.")}</div></details>
   <details class="rem-list" data-card="__conf" ${OPEN_CARDS.has("__conf") ? "open" : ""}><summary>Confirmed invoiced (${conf.length})</summary>${confirmedTable(conf)}</details>
@@ -168,6 +166,25 @@ function renderList() {
   const c = $("cmd"); if (c) c.onclick = () => copy(claudeCommand(queued.length), c);
 }
 
+/* Ask the team: an editable message with the job's details and a link back, to copy into Teams or open as an email. */
+const portalUrl = page => location.href.replace(/[^/]*([?#].*)?$/, "") + page;
+function askBlock(subject, text, open) {
+  return `<details class="ask" ${open ? "open" : ""}><summary>Ask the team</summary><div class="ask-b" data-subj="${esc(subject)}">
+    <textarea class="in" rows="9" aria-label="Message to the team">${esc(text)}</textarea>
+    <div class="foot"><button class="btn primary" type="button" data-ask-copy>Copy message</button>${TEAM.filter(([n]) => n !== ME).map(([n, e]) => `<button class="btn" type="button" data-ask-to="${esc(e)}">Email ${esc(n)}</button>`).join("")}</div>
+  </div></details>`;
+}
+function askJob(it, inv) {
+  const last = it.last || (it.job || {}).lastVisit;
+  const lines = [`Job: ${it.id}`, `Customer: ${it.customer}`, it.property && it.property !== it.customer ? `Site: ${it.property}` : "", it.po ? `PO: ${it.po}` : "", last ? `Last visit: ${fmtD(last)}` : "", ...inv.map(i => `Invoice: ${i}`), `Link: ${portalUrl("invoicing.html#" + encodeURIComponent(it.id))}`].filter(Boolean);
+  return askBlock(`Invoice status - ${it.id} - ${it.customer}`, `Hi,\n\nWhat's the invoicing status on this job? I can't find anything in the recent emails. Does it need an invoice, or is it already looked after?\n\n${lines.join("\n")}`, !((COST && COST.emails) || []).length);
+}
+function askInvoice(r) {
+  const link = r.job ? portalUrl("job.html?id=" + encodeURIComponent(r.job)) : portalUrl("invoicing.html");
+  const lines = [`Invoice: ${r.no}`, r.job ? `Job: ${r.job}` : "", `Amount: ${money2(r.amount)}`, `Issued: ${fmtD(r.issued)}`, r.by ? `Created by: ${r.by}` : "", `Link: ${link}`].filter(Boolean);
+  return askBlock(`Invoice status - ${r.no}`, `Hi,\n\nThis invoice is in BuildOps but not in QuickBooks. Was it sent? If not, does it still need to go out, or should it be voided?\n\n${lines.join("\n")}`, false);
+}
+
 function confirmedTable(rows) {
   if (!rows.length) return '<div class="table-wrap"><p class="empty" style="padding:1rem">Nothing yet. The daily sweep fills this from QuickBooks.</p></div>';
   return `<p class="note" style="margin:.4rem 0 .6rem">Job invoices in QuickBooks from the last 60 days, newest first.</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Job</th><th>Customer</th><th>For</th><th>QuickBooks</th><th class="num">Total</th></tr></thead><tbody>${rows.map(r => `<tr><td style="white-space:nowrap">${fmtD(r.date)}</td><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td>${esc((r.customer || "").replace(/^\*/, ""))}</td><td>${esc(r.note || "")}</td><td>${r.balance === 0 ? '<span class="tag green">Paid</span>' : `<span class="tag amber">${money2(r.balance)} open</span>`}</td><td class="num">${money2(r.total)}</td></tr>`).join("")}</tbody></table></div>`;
@@ -181,7 +198,7 @@ function doneTable(list, acts) {
 function reconTable() {
   const rows = SWEEP.notInQB || [], diff = SWEEP.amountDiff || [];
   return `<p class="note" style="margin:.4rem 0 .6rem">BuildOps job invoices from the last 120 days with no match in QuickBooks. Either never sent, or sent and not entered yet.</p>
-  <div class="table-wrap">${rows.length ? `<table><thead><tr><th>Invoice</th><th>Job</th><th>Issued</th><th>Created by</th><th class="num">Amount</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td>${fmtD(r.issued)}</td><td>${esc(r.by || "")}</td><td class="num">${money2(r.amount)}</td></tr>`).join("")}</tbody></table>` : `<p class="empty" style="padding:1rem">Every BuildOps invoice from the last 120 days is in QuickBooks.</p>`}</div>
+  <div class="table-wrap">${rows.length ? `<table><thead><tr><th>Invoice</th><th>Job</th><th>Issued</th><th>Created by</th><th class="num">Amount</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td>${fmtD(r.issued)}</td><td>${esc(r.by || "")}</td><td class="num">${money2(r.amount)}</td></tr><tr class="ask-row"><td colspan="5">${askInvoice(r)}</td></tr>`).join("")}</tbody></table>` : `<p class="empty" style="padding:1rem">Every BuildOps invoice from the last 120 days is in QuickBooks.</p>`}</div>
   ${diff.length ? `<h2 style="margin:1.1rem 0 .5rem">Amount differs between BuildOps and QuickBooks</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Job</th><th class="num">BuildOps</th><th class="num">QuickBooks</th></tr></thead><tbody>${diff.map(r => `<tr><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td class="num">${money2(r.amount)}</td><td class="num">${money2(r.qb)}</td></tr>`).join("")}</tbody></table></div>` : ""}`;
 }
 
@@ -283,7 +300,7 @@ function renderReview() {
   <div class="crumb"><a id="back" href="#">Invoicing</a> · ${esc(it.id)}</div>
   <div class="head"><div>
     <h1>${esc(j.customer || (DET && DET.customer) || it.customer)}</h1>
-    <p class="sub"><b>${esc(it.id)}</b>${it.po ? ` · PO <b>${esc(it.po)}</b>` : ""}${it.type ? ` · ${esc(it.type)}` : ""}${title ? ` · ${esc(title)}` : ""}</p>
+    <p class="sub"><b>${esc(it.id)}</b>${((DET && DET.quotes) || []).length ? ` · Quote <b>${esc(DET.quotes.join(", "))}</b>` : ""}${it.po ? ` · PO <b>${esc(it.po)}</b>` : ""}${it.type ? ` · ${esc(it.type)}` : ""}${title ? ` · ${esc(title)}` : ""}</p>
     <p class="sub">${esc(it.property)}${addr ? ` · ${esc(addr)}` : ""}</p>
     <div class="tags">${it.done ? '<span class="tag green">Completed</span>' : ""}<span class="tag ${BTAG[it.bucket]}">${BUCKETS[it.bucket]}</span>${status ? `<span class="tag grey">BuildOps: ${esc(status)}</span>` : ""}${billing ? `<span class="tag ${/fully|paid/i.test(billing) ? "green" : /partial|ready/i.test(billing) ? "amber" : "red"}">${esc(billing)}</span>` : ""}${(DET && DET.department) ? `<span class="tag purple">${esc(DET.department)}</span>` : ""}</div>
   </div>
@@ -338,7 +355,8 @@ function renderReview() {
   <section><h2>Invoices</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Issued</th><th>QuickBooks</th><th class="num">Amount</th></tr></thead><tbody>
     ${inv.length || qbi.length ? mergeInv(inv, qbi).map(i => `<tr><td>${esc(i.no)}</td><td>${fmtD(i.issued)}</td><td>${i.qb ? (i.qb.balance === 0 ? '<span class="tag green">Paid</span>' : `<span class="tag amber">${money2(i.qb.balance)} open</span>`) : '<span class="tag red">Not in QuickBooks</span>'}</td><td class="num">${money2(i.amount ?? (i.qb && i.qb.total))}</td></tr>`).join("") : '<tr><td colspan="4" class="empty">No invoices on this job yet.</td></tr>'}
   </tbody></table></div></section>
-  ${em.length ? `<section><h2>Recent emails</h2><div class="table-wrap"><table><tbody>${em.map(e => `<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td>${e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(e.subject || "(no subject)")}</a>` : esc(e.subject || "")}<small>${esc(e.from || "")}${e.summary ? " · " + esc(e.summary) : ""}</small></td></tr>`).join("")}</tbody></table></div></section>` : ""}`;
+  <section><h2>Recent emails</h2>${em.length ? `<div class="table-wrap"><table><tbody>${em.map(e => `<tr><td style="white-space:nowrap">${fmtD(e.date)}</td><td>${e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(e.subject || "(no subject)")}</a>` : esc(e.subject || "")}<small>${esc(e.from || "")}${e.summary ? " · " + esc(e.summary) : ""}</small></td></tr>`).join("")}</tbody></table></div>` : '<div class="panel empty">No emails found for this job.</div>'}
+    ${askJob(it, mergeInv(inv, qbi).map(i => `${i.no} (${i.qb ? (i.qb.balance === 0 ? "paid" : "open") : "not in QuickBooks"})`))}</section>`;
   bindReview(it, st, locked);
 }
 
@@ -455,6 +473,14 @@ function route() {
   if (id) { if (id !== OPEN) openItem(id); } else { flush(); renderList(); }
 }
 
+document.addEventListener("click", e => {
+  const c = e.target.closest("[data-ask-copy]"), t = e.target.closest("[data-ask-to]");
+  if (!c && !t) return;
+  const box = e.target.closest(".ask-b"), text = box.querySelector("textarea").value;
+  if (c) return copy(text, c);
+  location.href = `mailto:${t.dataset.askTo}?subject=${encodeURIComponent(box.dataset.subj)}&body=${encodeURIComponent(text)}`;
+});
+
 /* ---------- used by Claude: the daily sweep (read only) and INVOICING-CREATE.md ---------- */
 window.apInvoiceQueue = () => allItems().map(({ job, rec, ...i }) => ({ ...i, stateNow: i.st }));
 window.apInvoiceSweep = () => ({ asOf: SWEEP.asOf || "", items: SWEEP.items || {}, extra: SWEEP.extra || [] });
@@ -477,22 +503,6 @@ else {
   USER = user;
   const denied = e => /permission/i.test((e && (e.code || e.message)) || "");
   const redraw = () => { if (D && !OPEN && !location.hash.slice(1)) renderList(); };
-  /* Parts only needs to know which contract-site jobs have materials. Read once, after the customer list arrives. */
-  let partsRead = false;
-  const readParts = async () => {
-    if (partsRead || !(SWEEP.contractCustomers || []).length) return;
-    partsRead = true;
-    const ids = (D.jobs || []).filter(j => !j.po && isContract(j.customer) && (j.visitsDone || 0) > 0 && bucketOf(j)).map(j => j.id);
-    await Promise.all(ids.map(async id => {
-      try {
-        const [a, b] = await Promise.all([getDoc(doc(db, "ops_job_detail", safeId(id))), getDoc(doc(db, "ops_job_costs", safeId(id)))]);
-        const d = a.exists() ? JSON.parse(a.data().json) : {}, c = b.exists() ? JSON.parse(b.data().json) : {};
-        const count = (d.visits || []).reduce((s, v) => s + (v.parts || []).length, 0) + (d.materials || []).length + (c.bills || []).length;
-        if (count) PARTS[id] = { count, bills: (c.bills || []).reduce((s, x) => s + (x.amount || 0), 0) };
-      } catch (e) { /* the job simply stays under Possibly missed */ }
-    }));
-    redraw();
-  };
   try {
     const s = await getDoc(doc(db, "ops_dashboard", "latest"));
     D = s.exists() ? JSON.parse(s.data().json) : { jobs: [] };
@@ -505,7 +515,6 @@ else {
         else { const x = d.data(); m[x.jobId || d.id] = x; }
       });
       REC = m; if (location.hash.length > 1 && !OPEN) route(); else redraw();
-      readParts();
     }, e => show(denied(e) ? "Invoicing data is blocked: publish the updated Firestore rules (firestore.rules in the repo)." : "Invoicing data couldn't load: " + (e.code || e.message)));
     window.addEventListener("hashchange", route);
     window.addEventListener("beforeunload", () => { flush(); });

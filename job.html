@@ -186,13 +186,23 @@ tr.go{cursor:pointer}tr.go:hover td{background:rgba(16,68,78,0.035)}
 @media (max-width:860px){ .two{grid-template-columns:1fr} .vh{grid-template-columns:auto 5.5rem 1fr} .vright{display:none} .vb{padding-left:1.2rem} }
 @media (max-width:560px){ .wrap{padding:1.5rem 1rem 4rem}.nav-inner{padding:0 1rem} .rp-info{grid-template-columns:1fr} }
 @page{size:Letter;margin:10mm}
+/* Print: whenever the report is open, only the report prints. Tied to the open report, not to a timer: Safari's print dialog
+   doesn't pause the page, so a class removed after a delay printed the whole portal behind it.
+   Photos print as inline blocks because Safari splits CSS grid rows across pages. */
 @media print{
-  body{background:#fff !important}
-  body.printing > *:not(#overlay-sheet){display:none !important}
-  body.printing #overlay-sheet{display:block !important;position:static;background:#fff;padding:0;overflow:visible}
-  body.printing .sheet-bar{display:none !important}
-  body.printing .sheet-wrap{width:auto}
-  body.printing .sheet{padding:0;border-radius:0}
+  html body:has(#overlay-sheet.on){background:#fff !important;padding:0 !important;margin:0 !important}
+  body:has(#overlay-sheet.on) > *:not(#overlay-sheet){display:none !important}
+  body:has(#overlay-sheet.on) #overlay-sheet{display:block !important;position:static;background:#fff;padding:0;overflow:visible;inset:auto}
+  body:has(#overlay-sheet.on) .sheet-bar{display:none !important}
+  body:has(#overlay-sheet.on) .sheet-wrap{width:auto;max-width:none;margin:0}
+  body:has(#overlay-sheet.on) .sheet{padding:0;border-radius:0;box-shadow:none}
+  .rp-ph{display:block;font-size:0;orphans:1;widows:1}
+  .rp-ph figure{display:inline-block;width:32.4%;margin:0 1.4% 6px 0;vertical-align:top;font-size:7.5pt}
+  .rp-ph figure:nth-child(3n){margin-right:0}
+  .rp-h2{break-after:avoid;page-break-after:avoid}
+  .sheet table tr{break-inside:avoid;page-break-inside:avoid}
+  .sheet thead{display:table-header-group}
+  .rp-foot{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 <link rel="stylesheet" href="theme.css">
@@ -553,12 +563,10 @@ function alertNoVisits() { $("r-nsel").parentElement.style.outline = "2px solid 
 $("r-print").onclick = async () => {
   const imgs = [...$("sheet").querySelectorAll("img")].filter(i => !i.complete);
   if (imgs.length) { $("r-print").textContent = "Loading photos…"; await Promise.race([Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; }))), new Promise(r => setTimeout(r, 15000))]); $("r-print").textContent = "Print / Save PDF"; }
-  const t = document.title; document.title = $("sheet").dataset.name || t;
-  document.body.classList.add("printing");
-  const done = () => { document.body.classList.remove("printing"); document.title = t; window.removeEventListener("afterprint", done); };
+  const t = document.title; document.title = $("sheet").dataset.name || t; // the PDF's file name
+  const done = () => { document.title = t; window.removeEventListener("afterprint", done); };
   window.addEventListener("afterprint", done);
   window.print();
-  setTimeout(done, 1500);
 };
 
 function reportHtml(V, o) {
