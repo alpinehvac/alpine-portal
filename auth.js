@@ -139,7 +139,7 @@ document.addEventListener("click", e => {
   document.body.appendChild(note);
   setTimeout(() => note.remove(), 8000);
   if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
-  location.href = "ms-outlook://";
+  location.href = "ms-outlook://emails"; // the bare ms-outlook:// shows "unknown host" on Mac; emails and events open cleanly (tested Nov 3 2026)
 });
 
 // Left sidebar navigation (sidebar.js) on every page except the login page.
