@@ -123,6 +123,25 @@ function apVisibleTools() {
   return Object.keys(AP_TOOLS).filter(id => apHasAccess(session, id));
 }
 
+// Outlook links: open the Outlook app, not Outlook in the browser (Apple devices only; the scheme is unreliable on Windows).
+// The app has no supported link to one specific email, so the click copies the email's subject for its search box.
+// Stored email links stay as they are; the note it shows has an "Open in browser" link for when the app isn't available.
+document.addEventListener("click", e => {
+  const a = e.target.closest && e.target.closest('a[href*="outlook.office"]');
+  if (!a || e.metaKey || e.ctrlKey || !/Mac|iPhone|iPad/.test(navigator.platform || "")) return;
+  e.preventDefault();
+  const text = (a.dataset.search || a.textContent || "").replace(/[↗\s]+$/, "").trim(), web = a.href;
+  const note = document.createElement("div");
+  note.textContent = "Opening Outlook. Subject copied: click Search in Outlook and paste it. ";
+  const alt = document.createElement("a"); alt.href = web; alt.target = "_blank"; alt.rel = "noopener"; alt.textContent = "Open in browser"; alt.style.color = "#9FD3D5";
+  alt.addEventListener("click", ev => ev.stopPropagation()); note.appendChild(alt);
+  note.style.cssText = "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:#10444E;color:#fff;font:500 13px Inter,system-ui,sans-serif;padding:10px 16px;border-radius:8px;box-shadow:0 4px 14px rgba(10,42,48,.3)";
+  document.body.appendChild(note);
+  setTimeout(() => note.remove(), 8000);
+  if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+  location.href = "ms-outlook://";
+});
+
 // Left sidebar navigation (sidebar.js) on every page except the login page.
 (function () {
   const f = (location.pathname.split("/").pop() || "").toLowerCase();
