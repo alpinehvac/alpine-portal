@@ -30,8 +30,9 @@ the portal and BuildOps as that person.
    c. Click **Open Job Report**, then **Create Invoice**. Pick the visits in `visits` if it asks. On a progress invoice use
       `amount`, and use `lines` as the line items when there are any.
    d. On the Draft set: the PO to `po`, the invoice note to `note`. Leave the issued date as today. Apply `claudeNote`.
-   e. Compare with the queue. For `type` Full, Final or Progress, the subtotal must equal `amount` within $1. For T&M
-      `amount` can be blank: BuildOps prices from the pricebook, and if `amount` is set it must match within $1.
+      For `type` Parts, bill materials only, with no labour lines: labour on these sites is covered by the contract.
+   e. Compare with the queue. For `type` Full, Final or Progress, the subtotal must equal `amount` within $1. For T&M and
+      Parts `amount` can be blank: BuildOps prices from the pricebook, and if `amount` is set it must match within $1.
       If it doesn't match, leave the Draft as it is, and say so in the summary with both numbers.
    f. Read the invoice number and total, and save them from the portal tab:
       `await apInvoiceDrafted("<id>", {invNo: "INV-20261301", invUrl: "<the invoice page address>", invTotal: <total with HST>})`.

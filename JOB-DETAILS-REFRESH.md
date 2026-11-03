@@ -159,7 +159,8 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 The page already builds its list live from the board and from "Mark complete". This step adds what only a run can see.
 Jobs and projects only for now: service agreement billing is Clarissa's (QuickBooks C-numbers) and stays off the page.
 On contract sites labour is normally covered and materials bill separately, unless a QuickBooks estimate covers them. The
-page holds no-PO service calls there in Check first for 14 days, then in a collapsed list, and people mark them Not billable.
+page shows no-PO jobs there under Parts only when they have materials and a visit in the last 14 days, otherwise under
+Possibly missed. People mark them Not billable.
 It reads only; the single write is step 6.
 
 1. BuildOps invoices. Get `buildops-invoices.js` the same way as the reader and paste it in the BuildOps tab. Run

@@ -26,9 +26,10 @@ const nowIso = () => new Date().toISOString();
 let D = null, BOARD = {}, REC = {}, SWEEP = {}, USER = null;
 let TAB = "todo", BUCKET = "all";
 let OPEN = null, DET = null, COST = null; // the job open in the review view
-const CHECK_DAYS = 14; // contract-site service calls older than this wait in a collapsed list, not on the board
-const BUCKETS = { complete: "Completed", service: "Service / T&M", progress: "Progress billing", flag: "Check first", older: "Older contract visit" };
-const BTAG = { complete: "green", service: "teal", progress: "purple", flag: "amber", older: "grey" };
+const CHECK_DAYS = 14; // contract-site visits older than this stay under Possibly missed, even with parts on them
+const PARTS = {}; // jobs at contract customers with parts or supplier bills: {count, bills}
+const BUCKETS = { service: "Service / T&M", progress: "Progress billing", parts: "Parts only", flag: "Possibly missed" };
+const BTAG = { service: "teal", progress: "purple", parts: "teal", flag: "amber" };
 
 /* ---------- the queue ---------- */
 const FULL = /fully invoiced|no charge|closed/i, NOBILL = /do not invoice/i;
@@ -39,17 +40,19 @@ function bucketOf(j) {
   if (S.removed || NOBILL.test(j.billingStatus || "") || FULL.test(j.billingStatus || "") || S.invoiced) return null;
   const left = j.quoted > 0 ? j.quoted - (j.billed || 0) : null;
   if (left != null && left < 1) return null; // billed to the quote: nothing left, whatever the BuildOps tag says
-  if (S.stage === "completed" || j.stage === "completed" || /complete/i.test(j.status || "") || /ready to invoice/i.test(j.billingStatus || "")) return "complete";
-  if (j.kind === "Project" || j.pipeline === true) {
+  const project = j.kind === "Project" || j.pipeline === true;
+  if (isDone(j)) return project ? "progress" : "service";
+  if (project) {
     if (!(j.quoted > 0) || !(j.budgetHrs > 0)) return null;
     const earned = Math.min((j.actualHrs || 0) / j.budgetHrs, 1) * j.quoted;
     return earned - (j.billed || 0) > 500 ? "progress" : null;
   }
   const allDone = (j.visitsDone || 0) > 0 && j.visitsDone >= (j.visitsTotal || 0) && !j.nextVisit;
   if (!allDone) return null;
-  if (!j.po && isContract(j.customer)) return (daysSince(j.lastVisit) ?? 0) > CHECK_DAYS ? "older" : "flag";
+  if (!j.po && isContract(j.customer)) return PARTS[j.id] && (daysSince(j.lastVisit) ?? 0) <= CHECK_DAYS ? "parts" : "flag";
   return /site walk|estimate|warranty/i.test(j.type || "") ? "flag" : "service";
 }
+const isDone = j => (BOARD[j.id] || {}).stage === "completed" || j.stage === "completed" || /complete/i.test(j.status || "") || /ready to invoice/i.test(j.billingStatus || "");
 
 /* Customers billed by contract (QuickBooks C-numbers, raised by Clarissa). A service call with no PO for one of these is often
    covered by the contract or a monthly parts PO, so it asks a person first. */
@@ -59,17 +62,17 @@ const isContract = name => { const k = custKey(name); return !!k && (SWEEP.contr
 const CONTRACT_WHY = "Contract customer, no PO. Labour is usually covered by the contract. Materials bill separately unless a QuickBooks estimate covers them.";
 
 function itemFromJob(j, bucket) {
-  const left = j.quoted > 0 ? j.quoted - (j.billed || 0) : null;
-  const earned = bucket === "progress" ? Math.min((j.actualHrs || 0) / j.budgetHrs, 1) * j.quoted - (j.billed || 0) : null;
-  const sw = (SWEEP.items || {})[j.id] || {};
-  const why = sw.why || {
-    complete: BOARD[j.id] && BOARD[j.id].stage === "completed" ? `Marked complete by ${BOARD[j.id].stageBy || "the team"}` : /ready to invoice/i.test(j.billingStatus || "") ? "BuildOps: Ready To Invoice" : "Complete in BuildOps, not fully invoiced",
+  const left = j.quoted > 0 ? j.quoted - (j.billed || 0) : null, done = isDone(j), S = BOARD[j.id] || {};
+  const earned = bucket === "progress" && !done ? Math.min((j.actualHrs || 0) / j.budgetHrs, 1) * j.quoted - (j.billed || 0) : null;
+  const sw = (SWEEP.items || {})[j.id] || {}, p = PARTS[j.id];
+  const doneWhy = S.stage === "completed" ? `Marked complete by ${S.stageBy || "the team"}` : /ready to invoice/i.test(j.billingStatus || "") ? "BuildOps: Ready To Invoice" : "Complete in BuildOps, not fully invoiced";
+  const why = sw.why || (done ? doneWhy : {
     service: `All ${j.visitsDone} visit${j.visitsDone === 1 ? "" : "s"} done, nothing billed`,
     progress: `About ${money(earned)} earned past what's billed (hours used × quote)`,
+    parts: `${CONTRACT_WHY} ${p ? `${p.count} part${p.count === 1 ? "" : "s"} or bills on this job.` : ""}`,
     flag: !j.po && isContract(j.customer) ? CONTRACT_WHY : `${j.type || "Job"} with visits done and no invoice. Billable?`,
-    older: CONTRACT_WHY,
-  }[bucket];
-  return { id: j.id, job: j, bucket, customer: (j.customer || "").replace(/^\*/, ""), property: j.property || "", title: j.title || "", po: j.po || "", type: j.type || "", last: j.lastVisit || j.completed || null, left, est: bucket === "progress" ? earned : left, why, url: j.url, hours: j.actualHrs };
+  }[bucket]);
+  return { id: j.id, job: j, bucket, done, customer: (j.customer || "").replace(/^\*/, ""), property: j.property || "", title: j.title || "", po: j.po || "", type: j.type || "", last: j.lastVisit || j.completed || null, left, est: earned != null ? earned : left, why, url: j.url, hours: j.actualHrs };
 }
 
 /* Everything with a record or a reason to be here. */
@@ -77,12 +80,12 @@ function allItems() {
   const out = new Map();
   (D ? D.jobs || [] : []).forEach(j => { const b = bucketOf(j); if (b) out.set(j.id, itemFromJob(j, b)); });
   // Anything else the daily sweep found. Service agreement billing is not on this page yet.
-  (SWEEP.extra || []).filter(x => x.bucket !== "sa").forEach(x => { if (!out.has(x.id)) out.set(x.id, { bucket: x.bucket || "flag", customer: "", property: "", title: "", po: "", type: "", last: null, left: null, est: null, why: "", ...x }); });
+  (SWEEP.extra || []).filter(x => x.bucket !== "sa").forEach(x => { if (!out.has(x.id)) out.set(x.id, { bucket: "flag", customer: "", property: "", title: "", po: "", type: "", last: null, left: null, est: null, why: "", ...x }); });
   // Anything already in progress stays visible even if the board has moved on.
   Object.entries(REC).forEach(([id, r]) => {
     if (out.has(id) || !r.state || r.state === "new") return;
     const j = D && (D.jobs || []).find(x => x.id === id);
-    out.set(id, j ? itemFromJob(j, "complete") : { id, bucket: "complete", customer: r.customer || id, property: r.property || "", title: "", po: r.po || "", type: "", last: null, left: null, est: r.amount || null, why: "" });
+    out.set(id, j ? itemFromJob(j, j.kind === "Project" ? "progress" : "service") : { id, bucket: "service", customer: r.customer || id, property: r.property || "", title: "", po: r.po || "", type: "", last: null, left: null, est: r.amount || null, why: "" });
   });
   return [...out.values()].map(it => ({ ...it, rec: REC[it.id] || {}, st: stateOf(it.id) }));
 }
@@ -106,7 +109,8 @@ function card(i) {
   const amt = r.amount ? money(r.amount) : i.est != null ? money(i.est) : (j.actualHrs ? `${Math.round(j.actualHrs * 10) / 10} h` : "To price");
   const ctx = (BOARD[i.id] || {}).context || [];
   const tags = [
-    `<span class="tag ${BTAG[i.bucket]}">${BUCKETS[i.bucket]}</span>`,
+    i.done ? '<span class="tag green">Completed</span>' : "",
+    i.bucket === "parts" || PARTS[i.id] ? `<span class="tag teal">${PARTS[i.id] ? PARTS[i.id].count + (PARTS[i.id].count === 1 ? " part" : " parts") : "Parts"}</span>` : "",
     age != null ? `<span class="tag ${age > 30 ? "red" : age > 14 ? "amber" : "grey"}">Last work ${fmtD(i.last)} · ${age}d</span>` : "",
     j.budgetHrs ? `<span class="tag ${hrsPct > 100 ? "red" : "grey"}">${j.actualHrs ?? 0} / ${j.budgetHrs} hrs used</span>` : "",
     i.left != null && i.bucket === "progress" ? `<span class="tag grey">${money(i.left)} left on quote</span>` : "",
@@ -119,7 +123,7 @@ function card(i) {
     <div class="jc-cust">${esc(j.customer || i.customer)}</div><div class="jc-site">${esc(i.property)}</div>
     ${i.title ? `<div class="jc-scope">${esc(i.title)}</div>` : ""}
     ${hrsPct != null ? `<div class="pbar"><i class="${hrsPct > 100 ? "over" : hrsPct === 100 ? "full" : ""}" style="width:${Math.min(100, hrsPct)}%"></i></div>` : ""}
-    <div class="jc-meta">${tags}${i.bucket === "flag" && i.st === "todo" ? `<button class="tag grey nb" type="button" data-nb="${esc(i.id)}">Not billable ✕</button>` : ""}</div><span class="chev">▾</span>
+    <div class="jc-meta">${tags}${(i.bucket === "flag" || i.bucket === "parts") && i.st === "todo" ? `<button class="tag grey nb" type="button" data-nb="${esc(i.id)}">Not billable ✕</button>` : ""}</div><span class="chev">▾</span>
   </summary><div class="jc-body">
     <div class="jc-why">${esc(i.why)}</div>
     ${((SWEEP.items || {})[i.id] || {}).flags ? SWEEP.items[i.id].flags.map(f => `<div class="note-line">${esc(f)}</div>`).join("") : ""}
@@ -133,30 +137,28 @@ const colHead = (title, list, sub) => `<div class="col-h"><h3>${title}<span clas
 function renderList() {
   OPEN = null;
   const items = allItems();
-  const by = st => items.filter(i => i.st === st);
-  const todo = by("todo").filter(i => i.bucket !== "older"), older = by("todo").filter(i => i.bucket === "older").sort((a, b) => (parseD(b.last) || 0) - (parseD(a.last) || 0)), queued = by("queued"), drafted = by("drafted"), done = by("done"), skip = by("skip");
-  const nq = (SWEEP.notInQB || []).length, asOf = SWEEP.asOf || (D && D.asOf);
-  const oldest = (a, b) => (parseD(a.last) || 0) - (parseD(b.last) || 0);
-  const counts = {}; todo.forEach(i => counts[i.bucket] = (counts[i.bucket] || 0) + 1);
-  const shown = todo.filter(i => BUCKET === "all" || i.bucket === BUCKET).sort(oldest);
-  const old = todo.map(i => daysSince(i.last)).filter(n => n != null).sort((a, b) => b - a)[0];
-  const unpriced = todo.filter(i => i.est == null).length;
+  const live = items.filter(i => i.st === "todo" || i.st === "queued" || i.st === "drafted");
+  const ST = { queued: 1, drafted: 2, todo: 0 };
+  const col = b => live.filter(i => i.bucket === b).sort((x, y) => ST[x.st] - ST[y.st] || (parseD(x.last) || 0) - (parseD(y.last) || 0));
+  const svc = col("service"), prog = col("progress"), parts = col("parts"), missed = col("flag");
+  const skip = items.filter(i => i.st === "skip"), queued = live.filter(i => i.st === "queued");
+  const conf = SWEEP.confirmed || [], nq = (SWEEP.notInQB || []).length, asOf = SWEEP.asOf || (D && D.asOf);
+  const sub = list => { const o = list.map(i => daysSince(i.last)).filter(n => n != null).sort((a, b) => b - a)[0], u = list.filter(i => i.est == null).length; return [u ? u + " to price" : "", o != null ? "oldest " + o + "d" : ""].filter(Boolean).join(" · "); };
+  const body = (list, none) => list.map(card).join("") || `<div class="col-empty">${none}</div>`;
 
   $("view").innerHTML = `
   <div class="head"><div><h1>Invoicing</h1><p class="sub">The next stop after Field Operations: jobs and projects ready to bill. Swept daily${asOf ? ` · as of <b>${esc(fmtD(asOf))}</b>` : ""}. Marked-complete jobs land here right away.</p></div>
     <div class="actions"><button class="btn primary" id="cmd" ${queued.length ? "" : "disabled"}>Copy Claude command (${queued.length})</button></div></div>
-  <div class="chips"><button data-b="all" class="${BUCKET === "all" ? "on" : ""}">All ${todo.length}</button>${Object.keys(BUCKETS).filter(k => counts[k]).map(k => `<button data-b="${k}" class="${BUCKET === k ? "on" : ""}">${BUCKETS[k]} ${counts[k]}</button>`).join("")}</div>
   <div class="pipe">
-    <div class="col q">${colHead("To invoice", shown, `${unpriced ? unpriced + " to price · " : ""}${old != null ? "oldest " + old + "d" : ""}`)}${shown.map(card).join("") || '<div class="col-empty">Nothing waiting here.</div>'}</div>
-    <div class="col a">${colHead("Queued for BuildOps", queued, "reviewed, waiting on Claude")}${queued.map(card).join("") || '<div class="col-empty">Nothing queued. Review a job and click Ready for BuildOps.</div>'}</div>
-    <div class="col p">${colHead("In BuildOps, not sent", drafted, "moves on when it's in QuickBooks")}${drafted.map(card).join("") || '<div class="col-empty">No Drafts waiting to go out.</div>'}</div>
+    <div class="col a">${colHead("Service / T&amp;M", svc, sub(svc))}${body(svc, "No service or T&amp;M jobs waiting.")}</div>
+    <div class="col p">${colHead("Progress billing", prog, sub(prog))}${body(prog, "No project billing due.")}</div>
+    <div class="col q">${colHead("Parts only", parts, `contract sites, last ${CHECK_DAYS} days`)}${body(parts, "No materials to bill on contract sites.")}</div>
   </div>
-  ${older.length ? `<details class="rem-list" data-card="__old" ${OPEN_CARDS.has("__old") ? "open" : ""}><summary>Older contract visits, no PO (${older.length})</summary><p class="note" style="margin:.4rem 0 .6rem">Contract customers, last visit more than ${CHECK_DAYS} days ago. Kept here so nothing is lost. Open one to bill it, or mark it not billable.</p>${doneTable(older, true)}</details>` : ""}
+  <details class="rem-list" data-card="__miss" ${OPEN_CARDS.has("__miss") ? "open" : ""}><summary>Possibly missed (${missed.length})</summary><p class="note" style="margin:.4rem 0 .7rem">Work that may or may not be billable. Open one to bill it, or mark it not billable.</p><div class="cards">${body(missed, "Nothing to check.")}</div></details>
+  <details class="rem-list" data-card="__conf" ${OPEN_CARDS.has("__conf") ? "open" : ""}><summary>Confirmed invoiced (${conf.length})</summary>${confirmedTable(conf)}</details>
   <details class="rem-list" data-card="__nq" ${OPEN_CARDS.has("__nq") ? "open" : ""}><summary>Not in QuickBooks (${nq})</summary>${reconTable()}</details>
-  <details class="rem-list" data-card="__done" ${OPEN_CARDS.has("__done") ? "open" : ""}><summary>Done (${done.length})</summary>${doneTable(done)}</details>
   <details class="rem-list" data-card="__skip" ${OPEN_CARDS.has("__skip") ? "open" : ""}><summary>Not invoicing (${skip.length})</summary>${doneTable(skip, true)}</details>`;
 
-  document.querySelectorAll("[data-b]").forEach(b => b.onclick = () => { BUCKET = b.dataset.b; renderList(); });
   const find = id => items.find(i => i.id === id) || {};
   const quick = (e, id, patch) => { e.preventDefault(); e.stopPropagation(); const i = find(id); write(id, { state: patch.state, stateBy: ME, stateAt: nowIso(), skipReason: patch.reason, customer: i.customer || "", property: i.property || "" }); };
   document.querySelectorAll("[data-nb]").forEach(b => b.onclick = e => quick(e, b.dataset.nb, { state: "skip", reason: "Not billable" }));
@@ -164,6 +166,11 @@ function renderList() {
   document.querySelectorAll("[data-open],tr.go").forEach(el => el.onclick = e => { if (!e.target.closest("a")) location.hash = encodeURIComponent(el.dataset.open || el.dataset.id); });
   document.querySelectorAll("details[data-card]").forEach(d => d.ontoggle = () => { d.open ? OPEN_CARDS.add(d.dataset.card) : OPEN_CARDS.delete(d.dataset.card); });
   const c = $("cmd"); if (c) c.onclick = () => copy(claudeCommand(queued.length), c);
+}
+
+function confirmedTable(rows) {
+  if (!rows.length) return '<div class="table-wrap"><p class="empty" style="padding:1rem">Nothing yet. The daily sweep fills this from QuickBooks.</p></div>';
+  return `<p class="note" style="margin:.4rem 0 .6rem">Job invoices in QuickBooks from the last 60 days, newest first.</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Job</th><th>Customer</th><th>For</th><th>QuickBooks</th><th class="num">Total</th></tr></thead><tbody>${rows.map(r => `<tr><td style="white-space:nowrap">${fmtD(r.date)}</td><td>${esc(r.no)}</td><td>${r.job ? `<a href="job.html?id=${encodeURIComponent(r.job)}">${esc(r.job)}</a>` : "—"}</td><td>${esc((r.customer || "").replace(/^\*/, ""))}</td><td>${esc(r.note || "")}</td><td>${r.balance === 0 ? '<span class="tag green">Paid</span>' : `<span class="tag amber">${money2(r.balance)} open</span>`}</td><td class="num">${money2(r.total)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function doneTable(list, acts) {
@@ -197,11 +204,11 @@ function defaultDraft(it) {
   const first = ((sw.to || [])[0] || {}).name;
   const lines = V.map(v => { const t = sumText(v).split(/(?<=[.!?])\s+/)[0] || v.desc || "Service visit"; return `${fmtD(v.date)}: ${t}`; }).slice(-6);
   return {
-    type: it.bucket === "progress" ? "Progress" : /t\s*&\s*m|time/i.test(it.type) ? "T&M" : it.bucket === "complete" ? "Final" : "Full",
-    amount: it.bucket === "progress" ? Math.max(Math.round(it.est || 0), 0) : it.left != null ? Math.round(it.left * 100) / 100 : null,
+    type: it.bucket === "parts" ? "Parts" : it.bucket === "progress" && !it.done ? "Progress" : /t\s*&\s*m|time/i.test(it.type) ? "T&M" : it.done ? "Final" : "Full",
+    amount: it.bucket === "parts" ? null : it.bucket === "progress" ? Math.max(Math.round(it.est || 0), 0) : it.left != null ? Math.round(it.left * 100) / 100 : null,
     po: it.po || "",
     note: sw.note || `${it.po ? it.po.replace(/^[A-Z]+/, "") + " - " : ""}${(it.title || site).slice(0, 80)}`,
-    lines: [],
+    lines: it.bucket === "parts" ? V.flatMap(v => v.parts || []).map(p => ({ desc: p.name || "", qty: p.qty ?? "", amount: "" })) : [],
     to,
     subject: d.subject || `Invoice - ${site}${it.po ? ` - PO ${it.po}` : ""}`,
     body: d.body || `${first ? `Hi ${first.split(" ")[0]},\n\n` : ""}Please find attached our invoice for ${site}${it.title ? `: ${it.title.slice(0, 80)}` : ""}.\n\n${lines.length ? `Work completed:\n${lines.join("\n")}\n\n` : ""}The job report with visit summaries and photos is attached. Let us know if you have any questions.`,
@@ -246,7 +253,7 @@ async function openItem(id) {
     if (b.exists()) COST = JSON.parse(b.data().json);
   } catch (e) { show("Job details couldn't load (" + (e.code || e.message) + ")."); }
   if (OPEN !== id) return;
-  ITEM = allItems().find(i => i.id === id) || (() => { const j = D && (D.jobs || []).find(x => x.id === id); return j ? { ...itemFromJob(j, "complete"), rec: REC[id] || {} } : { id, bucket: "flag", customer: (DET && DET.customer) || id, property: (DET && DET.property) || "", title: "", po: (DET && DET.po) || "", type: (DET && DET.type) || "", why: "", rec: REC[id] || {} }; })();
+  ITEM = allItems().find(i => i.id === id) || (() => { const j = D && (D.jobs || []).find(x => x.id === id); return j ? { ...itemFromJob(j, j.kind === "Project" ? "progress" : "service"), rec: REC[id] || {} } : { id, bucket: "flag", customer: (DET && DET.customer) || id, property: (DET && DET.property) || "", title: "", po: (DET && DET.po) || "", type: (DET && DET.type) || "", why: "", rec: REC[id] || {} }; })();
   if (DET) { ITEM.customer = ITEM.customer || (DET.customer || "").replace(/^\*/, ""); ITEM.property = ITEM.property || DET.property || ""; ITEM.po = ITEM.po || DET.po || ""; ITEM.type = ITEM.type || DET.type || ""; }
   FORM = { ...defaultDraft(ITEM), ...stripMeta(REC[id] || {}) };
   renderReview();
@@ -278,7 +285,7 @@ function renderReview() {
     <h1>${esc(j.customer || (DET && DET.customer) || it.customer)}</h1>
     <p class="sub"><b>${esc(it.id)}</b>${it.po ? ` · PO <b>${esc(it.po)}</b>` : ""}${it.type ? ` · ${esc(it.type)}` : ""}${title ? ` · ${esc(title)}` : ""}</p>
     <p class="sub">${esc(it.property)}${addr ? ` · ${esc(addr)}` : ""}</p>
-    <div class="tags"><span class="tag ${BTAG[it.bucket]}">${BUCKETS[it.bucket]}</span>${status ? `<span class="tag grey">BuildOps: ${esc(status)}</span>` : ""}${billing ? `<span class="tag ${/fully|paid/i.test(billing) ? "green" : /partial|ready/i.test(billing) ? "amber" : "red"}">${esc(billing)}</span>` : ""}${(DET && DET.department) ? `<span class="tag purple">${esc(DET.department)}</span>` : ""}</div>
+    <div class="tags">${it.done ? '<span class="tag green">Completed</span>' : ""}<span class="tag ${BTAG[it.bucket]}">${BUCKETS[it.bucket]}</span>${status ? `<span class="tag grey">BuildOps: ${esc(status)}</span>` : ""}${billing ? `<span class="tag ${/fully|paid/i.test(billing) ? "green" : /partial|ready/i.test(billing) ? "amber" : "red"}">${esc(billing)}</span>` : ""}${(DET && DET.department) ? `<span class="tag purple">${esc(DET.department)}</span>` : ""}</div>
   </div>
   <div class="actions"><button class="btn primary" id="preview" type="button">Job report</button>${isJob(it.id) ? `<a class="btn" href="job.html?id=${encodeURIComponent(it.id)}">Job page</a>` : ""}${(it.url || (DET && DET.url)) ? `<a class="btn" href="${esc(it.url || DET.url)}" target="_blank" rel="noopener">BuildOps ↗</a>` : ""}</div></div>
   ${flags.map(f => `<div class="flag">${esc(f)}</div>`).join("")}
@@ -302,9 +309,9 @@ function renderReview() {
   </section>
   <section><div class="two">
     <div class="panel"><h2>Invoice</h2>
-      <div class="row2"><div><label class="lab" for="f-type">Type</label><select class="in" id="f-type" ${locked ? "disabled" : ""}>${["Full", "Progress", "Final", "T&M"].map(t => `<option ${F.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+      <div class="row2"><div><label class="lab" for="f-type">Type</label><select class="in" id="f-type" ${locked ? "disabled" : ""}>${["Full", "Progress", "Final", "T&M", "Parts"].map(t => `<option ${F.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
         <div><label class="lab" for="f-po">PO</label><input class="in" id="f-po" value="${esc(F.po || "")}" ${locked ? "disabled" : ""}></div></div>
-      <label class="lab" for="f-amt">Amount before HST${F.type === "T&M" ? " (leave blank: BuildOps prices it from the pricebook)" : ""}</label>
+      <label class="lab" for="f-amt">Amount before HST${F.type === "T&M" || F.type === "Parts" ? " (leave blank: BuildOps prices it from the pricebook)" : ""}</label>
       <input class="in" id="f-amt" inputmode="decimal" value="${F.amount ?? ""}" ${locked ? "disabled" : ""}>
       <div class="totals" id="totals"></div>
       <label class="lab" for="f-note">Invoice note (shows in BuildOps and QuickBooks)</label>
@@ -415,7 +422,7 @@ function drawActs(it, st) {
     el.innerHTML = `<button class="btn primary" id="go">Ready for BuildOps</button><button class="btn ghost warn" id="skip">Not invoicing</button>`;
     $("go").onclick = () => {
       if (!(FORM.visits || []).length && !FORM.amount) { setSave("Tick at least one visit or enter an amount.", true); return; }
-      if (FORM.type !== "T&M" && !FORM.amount) { setSave("Enter the amount, or set the type to T&M.", true); return; }
+      if (FORM.type !== "T&M" && FORM.type !== "Parts" && !FORM.amount) { setSave("Enter the amount, or set the type to T&M or Parts.", true); return; }
       set({ ...fullDraft(), ...stamp("queued"), claudeError: null, customer: it.customer, property: it.property, jobId: it.id }, () => { location.hash = ""; });
     };
     $("skip").onclick = () => {
@@ -449,7 +456,7 @@ function route() {
 }
 
 /* ---------- used by Claude: the daily sweep (read only) and INVOICING-CREATE.md ---------- */
-window.apInvoiceQueue = () => allItems().map(({ job, rec, ...i }) => ({ ...i, stateNow: i.bucket === "older" && i.st === "todo" ? "older" : i.st }));
+window.apInvoiceQueue = () => allItems().map(({ job, rec, ...i }) => ({ ...i, stateNow: i.st }));
 window.apInvoiceSweep = () => ({ asOf: SWEEP.asOf || "", items: SWEEP.items || {}, extra: SWEEP.extra || [] });
 window.apInvoiceQueued = () => Object.entries(REC).filter(([id]) => stateOf(id) === "queued").map(([id, r]) => ({ id, type: r.type, amount: r.amount ?? null, po: r.po || "", note: r.note || "", lines: r.lines || [], claudeNote: r.claudeNote || "", visits: r.visits || [], customer: r.customer || "", property: r.property || "", queuedBy: r.stateBy || "" }));
 window.apInvoiceDrafted = async (id, res) => {
@@ -470,6 +477,22 @@ else {
   USER = user;
   const denied = e => /permission/i.test((e && (e.code || e.message)) || "");
   const redraw = () => { if (D && !OPEN && !location.hash.slice(1)) renderList(); };
+  /* Parts only needs to know which contract-site jobs have materials. Read once, after the customer list arrives. */
+  let partsRead = false;
+  const readParts = async () => {
+    if (partsRead || !(SWEEP.contractCustomers || []).length) return;
+    partsRead = true;
+    const ids = (D.jobs || []).filter(j => !j.po && isContract(j.customer) && (j.visitsDone || 0) > 0 && bucketOf(j)).map(j => j.id);
+    await Promise.all(ids.map(async id => {
+      try {
+        const [a, b] = await Promise.all([getDoc(doc(db, "ops_job_detail", safeId(id))), getDoc(doc(db, "ops_job_costs", safeId(id)))]);
+        const d = a.exists() ? JSON.parse(a.data().json) : {}, c = b.exists() ? JSON.parse(b.data().json) : {};
+        const count = (d.visits || []).reduce((s, v) => s + (v.parts || []).length, 0) + (d.materials || []).length + (c.bills || []).length;
+        if (count) PARTS[id] = { count, bills: (c.bills || []).reduce((s, x) => s + (x.amount || 0), 0) };
+      } catch (e) { /* the job simply stays under Possibly missed */ }
+    }));
+    redraw();
+  };
   try {
     const s = await getDoc(doc(db, "ops_dashboard", "latest"));
     D = s.exists() ? JSON.parse(s.data().json) : { jobs: [] };
@@ -482,6 +505,7 @@ else {
         else { const x = d.data(); m[x.jobId || d.id] = x; }
       });
       REC = m; if (location.hash.length > 1 && !OPEN) route(); else redraw();
+      readParts();
     }, e => show(denied(e) ? "Invoicing data is blocked: publish the updated Firestore rules (firestore.rules in the repo)." : "Invoicing data couldn't load: " + (e.code || e.message)));
     window.addEventListener("hashchange", route);
     window.addEventListener("beforeunload", () => { flush(); });
