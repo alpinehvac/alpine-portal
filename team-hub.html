@@ -253,6 +253,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('onboarding')">New Hire Onboarding</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('roles')">Role Descriptions</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('techstd')">Technician Standards</button>
+  <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('fivelevels')">The 5 Levels</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('team')">Team Members</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('reviews')">Quarterly Reviews</button>
@@ -2591,6 +2592,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
       <!-- Condensed job description for the selected team member -->
       <div id="rv-role-box" class="rv-role-box" style="display:none"></div>
 
+      <!-- The 5 Levels reference -->
+      <div class="rv-role-box" style="font-size:.8125rem;line-height:1.6;color:#10444E"><strong>The 5 Levels:</strong> Level 4 is the minimum, Level 5 is the goal. Agree the level for this quarter, the best Level 4 or 5 example, the problem future-proofed, and the focus for next quarter. <a href="standards/Alpine-5-Levels-Review-One-Pager.pdf" target="_blank" rel="noopener" style="color:var(--teal-light);font-weight:600">Open the one-pager →</a></div>
+
       <!-- Review questions -->
       <div class="rv-form-section">
         <div class="rv-form-section-title">Review Questions</div>
@@ -2757,6 +2761,52 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 
 
 
+<!-- ── TAB: THE 5 LEVELS (Bring Solutions, Not Problems — every team member) ── -->
+<div id="panel-fivelevels" class="tab-panel" style="overflow-y:auto;height:calc(100vh - 56px)">
+<style>
+.fl-pdfs{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:2rem}
+.fl-pdf{font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#FFFFFF;background:#27636C;padding:.6rem 1rem;border-radius:4px}
+.fl-pdf:hover{background:#10444E}
+.fl-levels{display:flex;flex-direction:column;gap:.5rem;margin-bottom:2rem}
+.fl-row{display:grid;grid-template-columns:64px minmax(0,1fr);gap:.75rem;align-items:center;background:#DDE8E9;color:#10444E;padding:.8rem 1.1rem;border-radius:4px}
+.fl-row.min{background:#27636C;color:#FFFFFF}
+.fl-row.top{background:#6C5D8D;color:#FFFFFF}
+.fl-n{font-family:'Oswald',sans-serif;font-size:2.6rem;font-weight:700;line-height:1}
+.fl-t{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem .75rem}
+.fl-tag{font-size:.75rem;font-weight:600;letter-spacing:.1em}
+.fl-body p{margin:.15rem 0 0;font-size:.875rem;line-height:1.5}
+.fl-body p.fl-q{font-style:italic}
+.fl-line{display:flex;align-items:center;gap:.75rem;font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#10444E;margin:.35rem 0}
+.fl-line::before,.fl-line::after{content:'';flex:1;height:3px;background:#10444E}
+.fl-note{font-size:.875rem;line-height:1.7;color:#10444E;margin:0 0 1rem}
+</style>
+<div class="fm-wrap">
+  <div class="fm-eyebrow">Every Team Member · Every Role</div>
+  <h1 class="fm-page-title">Bring Solutions, Not Problems</h1>
+  <p class="fm-page-sub">The 5 levels. Level 4 is the minimum for every Alpine team member, regardless of role, from day one. Level 5 is the goal. Use this in onboarding, quarterly reviews and day-to-day feedback.</p>
+
+  <div class="fl-pdfs">
+    <a class="fl-pdf" href="standards/Alpine-5-Levels-Review-One-Pager.pdf" target="_blank" rel="noopener">Review &amp; onboarding one-pager (PDF)</a>
+    <a class="fl-pdf" href="standards/Alpine-5-Levels-Wall-Poster.pdf" target="_blank" rel="noopener">Wall poster (PDF)</a>
+  </div>
+
+  <div class="fl-levels">
+    <div class="fl-row top"><div class="fl-n">5</div><div class="fl-body"><div class="fl-t">Fix it and future-proof it<span class="fl-tag">The goal</span></div><p>Fix it, future-proof the problem, and keep leadership in the loop.</p><p class="fl-q">"I rented one and added lift access to our handoff notes so it doesn't happen again."</p></div></div>
+    <div class="fl-row min"><div class="fl-n">4</div><div class="fl-body"><div class="fl-t">Recommend one<span class="fl-tag">The Alpine minimum</span></div><p>Problem, cause, options, and what you recommend.</p><p class="fl-q">"I recommend the rental so today's work still gets done."</p></div></div>
+    <div class="fl-line"><span>Alpine minimum. Every role. Day one.</span></div>
+    <div class="fl-row "><div class="fl-n">3</div><div class="fl-body"><div class="fl-t">Bring options</div><p>Problem, cause, and possible solutions.</p><p class="fl-q">"We can rent one or rebook. Which do you want?"</p></div></div>
+    <div class="fl-row "><div class="fl-n">2</div><div class="fl-body"><div class="fl-t">Find the cause</div><p>The problem and why it happened.</p><p class="fl-q">"It never made the job notes. What do you want me to do?"</p></div></div>
+    <div class="fl-row "><div class="fl-n">1</div><div class="fl-body"><div class="fl-t">Flag it</div><p>Report the problem.</p><p class="fl-q">"We don't have the scissor lift. What do you want me to do?"</p></div></div>
+  </div>
+
+  <div class="fm-intro">
+    <p><strong>Future-proof the problem:</strong> find why it happened, change what caused it, and teach the team.</p>
+  </div>
+  <p class="fl-note"><strong>Stop at Level 4 and escalate</strong> for a safety issue, anything outside your licence or scope, or a decision with real cost or customer impact. Bring a recommendation when you do.</p>
+  <p class="fl-note">Every level up means a faster fix, fewer calls up the ladder, and fewer repeat problems. Same levels in the office and in sales.</p>
+</div>
+</div><!-- end panel-fivelevels -->
+
 <!-- ── TAB: TECHNICIAN STANDARDS (all field techs; foremen meet these plus Foreman Standards) ── -->
 <div id="panel-techstd" class="tab-panel" style="overflow-y:auto;height:calc(100vh - 56px)">
 <div class="fm-wrap">
@@ -2777,6 +2827,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
     </div>
     <div class="fm-standard-body" id="fm-body-t1">
       <p class="fm-desc">Own the problem in front of you first. Before calling up the ladder, work it: what have you tried, what are the options, what do you recommend? Escalate when it's genuinely a safety issue, outside your licence or scope, or a decision with real cost or customer impact — and bring a recommendation when you do.</p>
+      <p class="fm-desc"><a href="#" onclick="showTab('fivelevels');return false" style="color:var(--teal-light);font-weight:600">View The 5 Levels →</a></p>
       <div class="fm-scenarios">
         <div>
           <div class="fm-scenario-head looks-like"><span class="fm-scenario-icon">✓</span><span class="fm-scenario-label">Looks like</span></div>
