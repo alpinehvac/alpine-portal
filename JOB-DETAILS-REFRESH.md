@@ -19,22 +19,24 @@ Two outputs, both saved through the portal (no other writes anywhere):
 
 ## Mailboxes read
 
-This run reads two mailboxes, both read-only. Where the scheduled task's prompt says "Jake's Outlook", it means every
+This run reads three mailboxes, all read-only. Where the scheduled task's prompt says "Jake's Outlook", it means every
 mailbox listed here. Add a new mailbox only by adding it to this list.
 
 1. **Jake:** `jake.gilmore@alpinehvac.ca` (his own mailbox, searched as below).
-2. **Cole:** `cole.hamilton@alpinehvac.ca`. Cole shared his Inbox and Sent Items with Jake as Reviewer, so:
-   - Do this once, before Part A. Call `outlook_email_search` twice, with `mailboxOwnerEmail` =
-     `cole.hamilton@alpinehvac.ca`, `folderName` = `Inbox` and then `Sent Items`, `afterDateTime` = the previous run's
-     date, `limit` 25, paging until no more results. Keep the list for Part A and B3.
-   - Never send `query` or `recipient` for this mailbox: text search is denied on shared folders. Match against the
+2. **Cole:** `cole.hamilton@alpinehvac.ca` (shared mailbox, rules below).
+3. **Mike:** `mike.launder@alpinehvac.ca` (shared mailbox, rules below).
+4. **Shared mailbox rules.** Cole and Mike share their Inbox and Sent Items with Jake as Reviewer, so for each of them:
+   - Do this once, before Part A. Call `outlook_email_search` twice, with `mailboxOwnerEmail` = their address,
+     `folderName` = `Inbox` and then `Sent Items`, `afterDateTime` = the previous run's date, `limit` 25, paging until
+     no more results. Keep the list for Part A and B3.
+   - Never send `query` or `recipient` for these mailboxes: text search is denied on shared folders. Match against the
      subject, sender, recipients and summary in the list, then `read_resource` the message URI (it carries `?owner=`)
      when you need the full body.
-   - Subfolders are not shared, so mail Cole files elsewhere is not visible.
-   - If this mailbox returns FORBIDDEN, carry on with Jake's mailbox and add "Cole's mailbox not readable" to the run
-     summary. Never try a workaround.
-3. **Duplicates:** the same email can be in both mailboxes. Treat messages with the same `internetMessageId` as one
-   email and keep Jake's copy.
+   - Subfolders are not shared, so mail they file elsewhere is not visible.
+   - If a mailbox returns FORBIDDEN or NOT_FOUND, carry on with the others and add "<name>'s mailbox not readable" to
+     the run summary. Never try a workaround.
+5. **Duplicates:** the same email can be in more than one mailbox. Treat messages with the same `internetMessageId` as
+   one email and keep the copy in this order: Jake, Cole, Mike.
 
 ## Part A: Field Operations board
 
@@ -57,8 +59,8 @@ never build a quote link from its number.
 Then read Outlook for every open quote (both mailboxes above, read-only) and set `quotes[].outlook`. In Jake's mailbox,
 searching the quote number finds the sent quote, because the number is in the quote body. Then search the thread subject
 or the customer contact for anything newer, and read the latest customer message and the latest message Alpine sent. In
-Cole's mailbox, match today's list on the quote number, thread subject or customer contact. Use whichever mailbox has the
-newest message. If Cole's list has nothing new for a quote whose card has `by: "Cole"`, keep that card's previous
+Cole's and Mike's mailboxes, match today's lists on the quote number, thread subject or customer contact. Use whichever mailbox has the
+newest message. If those lists have nothing new for a quote whose card has `by: "Cole"` or `by: "Mike"`, keep that card's previous
 `outlook` rather than marking it `notfound`. Fields:
 
 1. `state`: `waiting` (customer owes us an answer), `owe` (we owe them), `parked` (no follow-up needed, say why in
@@ -104,7 +106,7 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 ### B3. Outlook emails (both mailboxes, read-only)
 
 1. Jake's mailbox: search with `afterDateTime` = the previous run's date (yesterday on a normal day), no other filter,
-   `limit` 25, paging with `offset` until no more results. Cole's mailbox: use the list from "Mailboxes read". Remove
+   `limit` 25, paging with `offset` until no more results. Cole's and Mike's mailboxes: use the lists from "Mailboxes read". Remove
    duplicates, then apply steps 2 to 4 to both.
 2. Drop: senders `fireflies.ai`, `glassriverai.com`, `noreply`/`no-reply`; subjects starting `REPORT`, `Re: REPORTS`,
    `Follow-up Radar`, `Meeting Prep`, monthly `INVOICES` batches; newsletters and marketing. Judge by who wrote the
@@ -121,8 +123,8 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
    - Short site names used by the customer, such as `FS6` for Fire Station #6.
    - Thread: once one email in a thread matches a job, every person-written email in that thread goes to that job.
    - Customer: a person at a customer whose only open job on the board is this one, when the email is about that work.
-4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"`
-   when the email was found only in Cole's mailbox.
+4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"` or
+   `via: "Mike"` when the email was found only in that person's mailbox.
    `summary` is one factual line in your own words (≤200 characters), never copied access codes or personal details.
    It must keep what matters to the job: dates, who owes what, approvals, changes to scope and reasons for delay.
 5. Read for full context, not from the preview. For every thread matched to a job, `read_resource` the newest message
@@ -130,8 +132,8 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
    is in that history and not yet on the job page, using its real date and sender. Leave `link` empty when that message
    can't be found in the mailbox: the save treats it as new by subject and date.
 6. Check the jobs coming up. For every job with a next visit in the next 14 days, search Jake's mailbox by its street
-   address, site name, short site name and customer contact, last 60 days. Add anything missing. Cole's mailbox can't be
-   text searched, so use the sender filter with the customer's domain and today's list.
+   address, site name, short site name and customer contact, last 60 days. Add anything missing. Cole's and Mike's mailboxes
+   can't be text searched, so use the sender filter with the customer's domain and today's lists.
 7. Compare the emails with the schedule. If an email changes or conflicts with a job's dates (for example the customer's
    timing doesn't fit the next visit), add a flag to the board and list it first in the run summary.
 8. In the run summary, list person-written emails from customers or contractors that matched no job (sender, subject,
@@ -148,7 +150,7 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 ### B5. Check
 
 1. Open `job.html?id=<one job with a visit yesterday>` and confirm the visit, hours and photos show.
-2. Add to the run summary: jobs read, visit reports, photos, QuickBooks bills matched, emails matched (Jake / Cole), any errors.
+2. Add to the run summary: jobs read, visit reports, photos, QuickBooks bills matched, emails matched (Jake / Cole / Mike), any errors.
 
 ## Field reference
 
