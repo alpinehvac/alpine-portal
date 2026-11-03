@@ -745,13 +745,17 @@ function renderFollowReq() {
     const late = x.due && x.due < today, dueTxt = x.due ? fmtDate(x.due) : 'No date';
     // Contact found online for an off-sheet target, if the knock recording didn't carry an email.
     const tc = !x.email && x.ref && x.ref.startsWith('t:') ? contactHTML(x.ref.slice(2)) : '';
+    const c = fuContact(x);
+    // Knock rows keep their contact in contactEmail / contactPhone; show it the same way as a target's.
+    const kc = x.src === 'knock' && !tc && (c.email || c.phone) ? '<div class="wk-sub">☎ ' + [c.phone ? '<a href="tel:' + esc(c.phone.replace(/\s*(ext|x)\b.*$/i, '').replace(/[^0-9+]/g, '')) + '">' + esc(c.phone) + '</a>' : '', c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : ''].filter(Boolean).join(' · ') + '</div>' : '';
     return '<li class="fu' + (x.key === fuOpen ? ' open' : '') + '" data-key="' + esc(x.key) + '"><div class="fu-head wk-top"><span class="fr-due' + (late ? ' late' : x.due === today ? ' today' : '') + '">' + dueTxt + '</span>' +
       (x.ref ? '<a class="wk-name" data-fly="' + esc(x.ref) + '">' + esc(x.company || '—') + '</a>' : '<b>' + esc(x.company || '—') + '</b>') +
       (x.interest ? '<span class="chip" style="background:' + (INTEREST[x.interest] || '#5A7A80') + '">' + esc(x.interest) + '</span>' : '') +
       '<span class="wk-type">' + (x.src === 'knock' ? 'Door knock' + (x.when ? ' ' + fmtDate(x.when) : '') : 'Lead sheet') + (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
       '<div class="fu-gist">' + esc(x.text) + '</div></div>' +
-      '<div class="fu-body"><div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + (x.email ? ' · <a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' : '') + '</div>' : '') + tc +
-      '<div class="fu-acts"><button class="btn sm fu-mail">Email draft to me</button>' +
+      '<div class="fu-body"><div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + (x.email ? ' · <a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' : '') + '</div>' : '') + tc + kc +
+      '<div class="fu-acts">' + (c.email || c.phone ? '<button class="btn sm fu-draft"' + (c.email ? '' : ' title="No email on file: the To line opens blank. Phone: ' + esc(c.phone) + '"') + '>Email draft to prospect</button>' : '') +
+      '<button class="btn sm' + (c.email || c.phone ? ' ghost' : '') + ' fu-mail">Email draft to me</button>' +
       (x.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(x.k.id) + '" data-i="' + x.i + '">Done</button>' : '') +
       '<button class="btn sm ghost fu-del">Remove</button><button class="btn sm ghost fu-next">Next ›</button></div></div></li>';
   };
@@ -787,23 +791,48 @@ function fuGoNext(li, rerender) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 function fuSave() { localStorage.setItem('ob_fu_dismissed', JSON.stringify(fuDismissed)); }
-// Generic follow-up, addressed to the signed-in user so it lands in their inbox to forward.
-function fuMail(x) {
+// Best contact for a follow-up: the row itself, then its lead-sheet row, then the target's public contact.
+// Knock contacts are free text ("info@x.ca (general)", "905-735-1700 ext 4000 (main line)"), so pull out the address.
+const fuEmailOf = s => (String(s || '').match(/[\w.+'-]+@[\w-]+(?:\.[\w-]+)+/) || [''])[0];
+const fuPhoneOf = s => /\d{3}\D{0,3}\d{4}/.test(s || '') ? String(s).replace(/\s*\(.*?\)\s*/g, ' ').trim() : '';
+function fuContact(x) {
+  const k = x.k || {}, ref = x.ref || '';
+  const l = x.l || (ref.startsWith('l:') ? leads.find(r => r.id === ref.slice(2)) : null) || {};
+  const tc = ref.startsWith('t:') ? (contactsDoc.rows || {})[ref.slice(2)] || {} : {};
+  return { email: [x.email, k.contactEmail, l.email, tc.email].map(fuEmailOf).find(Boolean) || '',
+    phone: [k.contactPhone, l.phone, tc.phone].map(fuPhoneOf).find(Boolean) || '' };
+}
+function fuLetter(x) {
   const me = session.email || '', name = session.name || 'Alpine HVAC';
   const first = (x.contact || '').trim().split(/[\s,(]/)[0];
-  const tc = x.ref && x.ref.startsWith('t:') ? (contactsDoc.rows || {})[x.ref.slice(2)] || {} : {};
-  const to = x.email || tc.email || '';
   const met = x.src === 'knock' && x.when ? 'when I stopped by on ' + fmtDate(x.when).replace(/, \d{4}$/, '') : 'recently';
   const site = x.address ? ' at ' + cleanAddr(x.address) : '';
-  const body = 'FORWARD TO: ' + ([x.contact, to].filter(Boolean).join(' <') + (to && x.contact ? '>' : '') || '(no contact on file)') + ' · ' + (x.company || '') + '\n' +
-    '----------------------------------------\n\n' +
-    'Hi ' + (first || 'there') + ',\n\n' +
+  return 'Hi ' + (first || 'there') + ',\n\n' +
     'Thank you for taking the time to speak with me ' + met + '. I wanted to follow up on our conversation about the HVAC and building systems' + site + '.\n\n' +
     'Alpine HVAC looks after commercial, industrial and institutional buildings across Niagara and Hamilton: planned maintenance, 24/7 emergency service, and building automation alongside the mechanical work, all from one team.\n\n' +
     'Would you have 15 minutes in the next week or two for a quick walk through your mechanical room? We would take a look at your equipment and put together a maintenance plan that fits the building, at no charge.\n\n' +
     'Thanks again, and I look forward to hearing from you.\n\n' +
     name + '\nAlpine HVAC Service Inc.\n' + me + '\n';
-  location.href = 'mailto:' + encodeURIComponent(me) + '?subject=' + encodeURIComponent('Following up — ' + (x.company || 'our conversation')) + '&body=' + encodeURIComponent(body);
+}
+const fuOpenMail = (to, x, body) => { location.href = 'mailto:' + encodeURIComponent(to).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Following up — ' + (x.company || 'our conversation')) + '&body=' + encodeURIComponent(body.replace(/\n/g, '\r\n')); };
+// Generic follow-up, addressed to the signed-in user so it lands in their inbox to forward.
+function fuMail(x) {
+  const to = fuContact(x).email;
+  fuOpenMail(session.email || '', x, 'FORWARD TO: ' + ([x.contact, to].filter(Boolean).join(' <') + (to && x.contact ? '>' : '') || '(no contact on file)') + ' · ' + (x.company || '') + '\n' +
+    '----------------------------------------\n\n' + fuLetter(x));
+}
+// Addressed straight to the prospect (To is blank if only a phone is on file). Summaries are internal notes,
+// so they sit in a block at the top for the sender to use and delete, not in the letter itself.
+function fuDraft(x) {
+  const c = fuContact(x), k = x.k, summary = String(k ? k.summary || '' : x.l.notes || '').trim().slice(0, 700);
+  const open = k ? knockActions(k).filter(a => !a.done).map(a => a.text) : (x.text && x.text !== summary ? [x.text] : []);
+  const notes = 'MY NOTES: DELETE BEFORE SENDING\n' +
+    (x.src === 'knock' ? 'Door knock' + (x.when ? ' ' + fmtDate(x.when) : '') : 'Lead sheet') + (x.contact ? ' · ' + x.contact + (k && k.role ? ' (' + k.role + ')' : '') : '') + '\n' +
+    (c.email ? '' : 'No email on file. Phone: ' + c.phone + '\n') +
+    (summary ? '\nSummary: ' + summary + '\n' : '') +
+    (open.length ? '\nFollowing up on:\n' + open.map((t, i) => (i + 1) + '. ' + t).join('\n') + '\n' : '') +
+    '----------------------------------------\n\n';
+  fuOpenMail(c.email, x, notes + fuLetter(x));
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('#fr-list')) return;
@@ -811,6 +840,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('#fu-undo')) { delete fuDismissed[fuUndo]; fuOpen = fuUndo; fuUndo = null; fuSave(); renderFollowReq(); return; }
   const li = e.target.closest('li.fu'); if (!li) return;
   const x = fuItems[li.dataset.key];
+  if (e.target.closest('.fu-draft')) { if (x) fuDraft(x); return; }
   if (e.target.closest('.fu-mail')) { if (x) fuMail(x); return; }
   if (e.target.closest('.fu-next')) { fuGoNext(li, false); return; }
   if (e.target.closest('.fu-del')) { fuDismissed[li.dataset.key] = { by: session.name, at: todayISO() }; fuUndo = li.dataset.key; fuSave(); fuGoNext(li, true); return; }
