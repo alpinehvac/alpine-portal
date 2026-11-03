@@ -221,7 +221,17 @@ li.fu.open{background:rgba(39,99,108,.05);border-radius:6px}
 li.fu.open .fu-body{display:block}
 .fu-acts{display:flex;gap:.45rem;flex-wrap:wrap;margin:.6rem 0 0 5.1rem}
 .fu-acts .fu-del{border-color:rgba(184,50,39,.4);color:#B83227}
-@media(max-width:640px){.fu-gist,ol.fr .wk-note,ol.fr .wk-sub,.fu-acts{margin-left:0}}
+.fu-count{font-size:.72rem;font-weight:600;color:var(--teal);background:rgba(39,99,108,.1);border-radius:10px;padding:1px 8px}
+ul.fu-items{list-style:none;margin:.5rem 0 0 5.1rem;padding:0}
+ol.wk li.fu-item,li.fu-item{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.4rem 0;border-bottom:1px solid rgba(16,68,78,.07);font-size:.84rem}
+li.fu-item:last-child{border-bottom:0}
+.fu-item label{display:flex;align-items:flex-start;gap:.45rem;flex:1 1 260px;cursor:pointer}
+.fu-item input{margin-top:.2rem;accent-color:var(--teal)}
+.fu-item .fr-due{min-width:0}
+.fu-item-acts{display:flex;gap:.35rem}
+.fu-item-acts .fr-done{margin-left:0}
+.fu-item-acts .fu-del{border-color:rgba(184,50,39,.4);color:#B83227}
+@media(max-width:640px){.fu-gist,ol.fr .wk-note,ol.fr .wk-sub,.fu-acts,ul.fu-items{margin-left:0}}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -236,7 +246,7 @@ li.fu.open .fu-body{display:block}
   <div class="head"><h1>Outbound</h1><div class="asof"><div id="asof">Loading…</div><button class="btn sm ghost" id="view-toggle" style="margin-top:.5rem"></button></div></div>
   <div id="banners" class="team-only"></div>
   <section id="fr-section">
-    <div class="h2-row"><div><h2>Follow-ups required <span class="cz-n" id="fr-n"></span></h2><p class="h2-note">Actions flagged from your door-knock recordings<span class="team-only"> plus lead-sheet follow-ups due this week</span>; the same list goes out in the Tue/Fri Follow-up Radar email. Tap a row to open it, then work down the list with Next. Email draft to prospect opens a draft addressed to them, with your notes on top to delete before sending (shows when an email or phone is on file); Email draft to me opens a generic follow-up addressed to you to forward; Remove drops one that's no longer relevant (Undo if you slip). <span id="fr-note"></span></p></div></div>
+    <div class="h2-row"><div><h2>Follow-ups required <span class="cz-n" id="fr-n"></span></h2><p class="h2-note">Actions flagged from your door-knock recordings<span class="team-only"> plus lead-sheet follow-ups due this week</span>; the same list goes out in the Tue/Fri Follow-up Radar email. One row per location. Open it to see everything to follow up on there; tick what you want and use Email draft to prospect, or Draft for a single item. Your notes sit at the top of the draft: delete them before sending. Shown when an email or phone is on file. Done and Remove clear one item (Undo if you slip).<span id="fr-note"></span></p></div></div>
     <div class="wk-wrap" id="fr-list" style="max-height:620px"></div>
   </section>
 
@@ -321,7 +331,7 @@ li.fu.open .fu-body{display:block}
 <script>
   window.AP_SYNC_COLLECTION = "outbound_data";
   window.AP_SYNC_ROUTES = { "st_": "site_data" };
-  window.AP_APP_SCRIPT = "outbound-app.js";
+  window.AP_APP_SCRIPT = "outbound-app.js?v=" + Math.floor(Date.now() / 600000); // new URL every 10 minutes, so updates reach installed Safari apps
 </script>
 <script type="module" src="cloud-sync.js"></script>
 </body>

@@ -726,7 +726,7 @@ function knockActions(k) {
 // Removed follow-ups (not relevant any more): { <key>: { by, at } }, saved to the cloud for everyone.
 // A lead-sheet key includes its follow-up date, so a new date on the sheet brings it back.
 let fuDismissed = readJSON('ob_fu_dismissed') || {};
-let fuSort = 'recent', fuOpen = null, fuUndo = null, fuItems = {};
+let fuSort = 'recent', fuOpen = null, fuUndo = null, fuItems = {}, fuGroups = {};
 const fuKey = x => x.src === 'knock' ? 'k:' + x.k.id + ':' + x.i : x.ref + ':' + (x.due || '');
 function renderFollowReq() {
   const el = $('fr-list'); if (!el) return;
@@ -741,25 +741,39 @@ function renderFollowReq() {
   const live = items.filter(x => { const key = fuKey(x); x.key = key; fuItems[key] = x; return !fuDismissed[key]; });
   // Most recent: newest conversation / touch first. Due date: overdue first, oldest first.
   live.sort(fuSort === 'due' ? (a, b) => (a.due || '9999').localeCompare(b.due || '9999') : (a, b) => (b.when || '').localeCompare(a.when || '') || (a.due || '9999').localeCompare(b.due || '9999'));
-  const row = x => {
-    const late = x.due && x.due < today, dueTxt = x.due ? fmtDate(x.due) : 'No date';
+  // One row per location: the open row lists everything to follow up on there, each tickable for the draft.
+  const dueCls = d => d && d < today ? ' late' : d === today ? ' today' : '';
+  const row = g => {
+    const x = g.items[0], c = fuMerge(g.items), both = c.email || c.phone, n = g.items.length;
+    const dues = g.items.map(i => i.due).filter(Boolean).sort(), due = dues[0] || '';
+    const interest = (g.items.find(i => i.interest) || {}).interest;
+    const srcs = [...new Set(g.items.map(i => i.src === 'knock' ? 'Door knock' + (i.when ? ' ' + fmtDate(i.when) : '') : 'Lead sheet'))];
+    const who = [...new Set(g.items.map(i => i.who).filter(Boolean))].join(', ');
     // Contact found online for an off-sheet target, if the knock recording didn't carry an email.
     const tc = !x.email && x.ref && x.ref.startsWith('t:') ? contactHTML(x.ref.slice(2)) : '';
-    const c = fuContact(x);
     // Knock rows keep their contact in contactEmail / contactPhone; show it the same way as a target's.
-    const kc = x.src === 'knock' && !tc && (c.email || c.phone) ? '<div class="wk-sub">☎ ' + [c.phone ? '<a href="tel:' + esc(c.phone.replace(/\s*(ext|x)\b.*$/i, '').replace(/[^0-9+]/g, '')) + '">' + esc(c.phone) + '</a>' : '', c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : ''].filter(Boolean).join(' · ') + '</div>' : '';
-    return '<li class="fu' + (x.key === fuOpen ? ' open' : '') + '" data-key="' + esc(x.key) + '"><div class="fu-head wk-top"><span class="fr-due' + (late ? ' late' : x.due === today ? ' today' : '') + '">' + dueTxt + '</span>' +
+    const kc = !tc && (c.email || c.phone) ? '<div class="wk-sub">☎ ' + [c.phone ? '<a href="tel:' + esc(c.phone.replace(/\s*(ext|x)\b.*$/i, '').replace(/[^0-9+]/g, '')) + '">' + esc(c.phone) + '</a>' : '', c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : ''].filter(Boolean).join(' · ') + '</div>' : '';
+    const sub = c.contact, addr = c.address;
+    return '<li class="fu' + (g.key === fuOpen ? ' open' : '') + '" data-key="' + esc(g.key) + '"><div class="fu-head wk-top"><span class="fr-due' + dueCls(due) + '">' + (due ? fmtDate(due) : 'No date') + '</span>' +
       (x.ref ? '<a class="wk-name" data-fly="' + esc(x.ref) + '">' + esc(x.company || '—') + '</a>' : '<b>' + esc(x.company || '—') + '</b>') +
-      (x.interest ? '<span class="chip" style="background:' + (INTEREST[x.interest] || '#5A7A80') + '">' + esc(x.interest) + '</span>' : '') +
-      '<span class="wk-type">' + (x.src === 'knock' ? 'Door knock' + (x.when ? ' ' + fmtDate(x.when) : '') : 'Lead sheet') + (x.who ? ' · ' + esc(x.who) : '') + '</span>' +
-      '<div class="fu-gist">' + esc(x.text) + '</div></div>' +
-      '<div class="fu-body"><div class="wk-note"><b>' + esc(x.text) + '</b></div>' + (x.sub ? '<div class="wk-sub">' + esc(x.sub) + (x.email ? ' · <a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>' : '') + '</div>' : '') + tc + kc +
-      '<div class="fu-acts">' + (c.email || c.phone ? '<button class="btn sm fu-draft"' + (c.email ? '' : ' title="No email on file: the To line opens blank. Phone: ' + esc(c.phone) + '"') + '>Email draft to prospect</button>' : '') +
-      '<button class="btn sm' + (c.email || c.phone ? ' ghost' : '') + ' fu-mail">Email draft to me</button>' +
-      (x.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(x.k.id) + '" data-i="' + x.i + '">Done</button>' : '') +
-      '<button class="btn sm ghost fu-del">Remove</button><button class="btn sm ghost fu-next">Next ›</button></div></div></li>';
+      (n > 1 ? '<span class="fu-count">' + n + ' items</span>' : '') +
+      (interest ? '<span class="chip" style="background:' + (INTEREST[interest] || '#5A7A80') + '">' + esc(interest) + '</span>' : '') +
+      '<span class="wk-type">' + esc(srcs[0] + (srcs.length > 1 ? ' +' + (srcs.length - 1) + ' more' : '')) + (who ? ' · ' + esc(who) : '') + '</span>' +
+      '<div class="fu-gist">' + esc(x.text) + (n > 1 ? ' · +' + (n - 1) + ' more' : '') + '</div></div>' +
+      '<div class="fu-body">' + (sub || addr ? '<div class="wk-sub">' + esc([sub, addr].filter(Boolean).join(' · ')) + '</div>' : '') + tc + kc +
+      '<ul class="fu-items">' + g.items.map(i => '<li class="fu-item" data-key="' + esc(i.key) + '"><label><input type="checkbox" class="fu-pick" checked><span>' + esc(i.text) + '</span></label>' +
+        '<span class="fr-due' + dueCls(i.due) + '">' + (i.due ? fmtDate(i.due) : 'No date') + '</span><span class="fu-item-acts">' +
+        (both ? '<button class="btn sm ghost fu-one">Draft</button>' : '') +
+        (i.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(i.k.id) + '" data-i="' + i.i + '">Done</button>' : '') +
+        '<button class="btn sm ghost fu-del">Remove</button></span></li>').join('') + '</ul>' +
+      '<div class="fu-acts">' + (both ? '<button class="btn sm fu-draft"' + (c.email ? '' : ' title="No email on file: the To line opens blank. Phone: ' + esc(c.phone) + '"') + '>Email draft to prospect (<span class="fu-n">' + n + '</span>)</button>' : '') +
+      '<button class="btn sm' + (both ? ' ghost' : '') + ' fu-mail">Email draft to me</button>' +
+      '<button class="btn sm ghost fu-next">Next ›</button></div></div></li>';
   };
-  const list = arr => '<ol class="wk fr">' + arr.map(row).join('') + '</ol>';
+  // Group within the sorted list, so a location sits where its first item would.
+  const groups = arr => { const m = new Map(); arr.forEach(x => { const k = 'g:' + (x.ref || normName(x.company) || x.key); if (!m.has(k)) m.set(k, { key: k, items: [] }); m.get(k).items.push(x); }); return [...m.values()]; };
+  fuGroups = {};
+  const list = arr => '<ol class="wk fr">' + groups(arr).map(g => { fuGroups[g.key] = g; return row(g); }).join('') + '</ol>';
   // Each person sees their own first; everyone else's sits in a collapsed "Team" section.
   const mine = x => x.src === 'knock' ? (x.k.rep || 'Jake') === myName || new RegExp('\\b' + myName + '\\b', 'i').test(x.k.rep || 'Jake') : repOf(x.who).includes(myName);
   const my = live.filter(mine), team = live.filter(x => !mine(x));
@@ -770,7 +784,7 @@ function renderFollowReq() {
     (removed ? '<span>' + removed + ' removed</span>' : '') +
     (fuUndo ? '<span class="fu-undo">Removed ' + esc((fuItems[fuUndo] || {}).company || 'follow-up') + ' <a id="fu-undo">Undo</a></span>' : '') + '</div>';
   const shown = focusView ? kn : my;
-  $('fr-n').textContent = shown.length ? shown.length + ' open · ' + shown.filter(x => x.due && x.due < today).length + ' overdue' : '';
+  $('fr-n').textContent = shown.length ? groups(shown).length + ' locations · ' + shown.length + ' open · ' + shown.filter(x => x.due && x.due < today).length + ' overdue' : '';
   $('fr-note').textContent = focusView ? '' : (stale ? stale + ' older lead-sheet follow-ups not shown (update or close them on the sheet).' : '');
   if (focusView) {
     el.innerHTML = tools + (kn.length ? list(kn) : '<p class="hint">No open actions from your knock recordings.</p>');
@@ -802,6 +816,11 @@ function fuContact(x) {
   return { email: [x.email, k.contactEmail, l.email, tc.email].map(fuEmailOf).find(Boolean) || '',
     phone: [k.contactPhone, l.phone, tc.phone].map(fuPhoneOf).find(Boolean) || '' };
 }
+// A location's items can come from several knocks: use whichever one carries each detail.
+function fuMerge(list) {
+  const found = list.map(fuContact), first = f => list.map(i => i[f]).find(Boolean) || '';
+  return { ...list[0], contact: first('contact'), address: first('address'), email: found.map(c => c.email).find(Boolean) || '', phone: found.map(c => c.phone).find(Boolean) || '' };
+}
 function fuLetter(x) {
   const me = session.email || '', name = session.name || 'Alpine HVAC';
   const first = (x.contact || '').trim().split(/[\s,(]/)[0];
@@ -816,34 +835,44 @@ function fuLetter(x) {
 }
 const fuOpenMail = (to, x, body) => { location.href = 'mailto:' + encodeURIComponent(to).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Following up — ' + (x.company || 'our conversation')) + '&body=' + encodeURIComponent(body.replace(/\n/g, '\r\n')); };
 // Generic follow-up, addressed to the signed-in user so it lands in their inbox to forward.
-function fuMail(x) {
-  const to = fuContact(x).email;
+function fuMail(list) {
+  const x = fuMerge(list), to = x.email;
   fuOpenMail(session.email || '', x, 'FORWARD TO: ' + ([x.contact, to].filter(Boolean).join(' <') + (to && x.contact ? '>' : '') || '(no contact on file)') + ' · ' + (x.company || '') + '\n' +
     '----------------------------------------\n\n' + fuLetter(x));
 }
-// Addressed straight to the prospect (To is blank if only a phone is on file). Summaries are internal notes,
-// so they sit in a block at the top for the sender to use and delete, not in the letter itself.
-function fuDraft(x) {
-  const c = fuContact(x), k = x.k, summary = String(k ? k.summary || '' : x.l.notes || '').trim().slice(0, 700);
-  const open = k ? knockActions(k).filter(a => !a.done).map(a => a.text) : (x.text && x.text !== summary ? [x.text] : []);
-  const notes = 'MY NOTES: DELETE BEFORE SENDING\n' +
-    (x.src === 'knock' ? 'Door knock' + (x.when ? ' ' + fmtDate(x.when) : '') : 'Lead sheet') + (x.contact ? ' · ' + x.contact + (k && k.role ? ' (' + k.role + ')' : '') : '') + '\n' +
-    (c.email ? '' : 'No email on file. Phone: ' + c.phone + '\n') +
-    (summary ? '\nSummary: ' + summary + '\n' : '') +
-    (open.length ? '\nFollowing up on:\n' + open.map((t, i) => (i + 1) + '. ' + t).join('\n') + '\n' : '') +
+// Addressed straight to the prospect (To is blank if only a phone is on file), covering the items picked at
+// that location. Summaries are internal notes, so they sit in a block at the top for the sender to use and
+// delete, not in the letter itself.
+function fuDraft(list) {
+  const x = fuMerge(list), c = x;
+  const convs = [...new Map(list.map(i => [i.k ? 'k' + i.k.id : 'l', i])).values()].map(i => {
+    const head = (i.src === 'knock' ? 'Door knock' + (i.when ? ' ' + fmtDate(i.when) : '') : 'Lead sheet') + (i.contact ? ' · ' + i.contact + (i.k && i.k.role ? ' (' + i.k.role + ')' : '') : '');
+    const summary = String(i.k ? i.k.summary || '' : i.l.notes || '').trim().slice(0, 500);
+    return head + (summary ? '\nSummary: ' + summary : '');
+  });
+  const notes = 'MY NOTES: DELETE BEFORE SENDING\n' + (c.email ? '' : 'No email on file. Phone: ' + c.phone + '\n') + convs.join('\n\n') + '\n\n' +
+    'Following up on:\n' + list.map((i, n) => (n + 1) + '. ' + i.text).join('\n') + '\n' +
     '----------------------------------------\n\n';
   fuOpenMail(c.email, x, notes + fuLetter(x));
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('#fr-list')) return;
   const sb = e.target.closest('#fu-sort button'); if (sb) { fuSort = sb.dataset.s; renderFollowReq(); return; }
-  if (e.target.closest('#fu-undo')) { delete fuDismissed[fuUndo]; fuOpen = fuUndo; fuUndo = null; fuSave(); renderFollowReq(); return; }
+  if (e.target.closest('#fu-undo')) { const u = fuItems[fuUndo]; delete fuDismissed[fuUndo]; if (u) fuOpen = 'g:' + (u.ref || normName(u.company) || u.key); fuUndo = null; fuSave(); renderFollowReq(); return; }
   const li = e.target.closest('li.fu'); if (!li) return;
-  const x = fuItems[li.dataset.key];
-  if (e.target.closest('.fu-draft')) { if (x) fuDraft(x); return; }
-  if (e.target.closest('.fu-mail')) { if (x) fuMail(x); return; }
+  const g = fuGroups[li.dataset.key], item = e.target.closest('li.fu-item');
+  const picked = () => g ? [...li.querySelectorAll('li.fu-item')].filter(r => r.querySelector('.fu-pick').checked).map(r => fuItems[r.dataset.key]).filter(Boolean) : [];
+  // A cleared item leaves its location open while anything is left there; the last one moves to the next location.
+  const afterItem = () => { if (li.querySelectorAll('li.fu-item').length > 1) renderFollowReq(); else fuGoNext(li, true); };
+  if (e.target.closest('.fu-pick')) {
+    const n = picked().length, c = li.querySelector('.fu-n'), b = li.querySelector('.fu-draft');
+    if (c) c.textContent = n; if (b) b.disabled = !n; return;
+  }
+  if (e.target.closest('.fu-one')) { const x = fuItems[item.dataset.key]; if (x) fuDraft([x]); return; }
+  if (e.target.closest('.fu-draft')) { const l = picked(); if (l.length) fuDraft(l); return; }
+  if (e.target.closest('.fu-mail')) { if (g) fuMail(picked().length ? picked() : g.items); return; }
   if (e.target.closest('.fu-next')) { fuGoNext(li, false); return; }
-  if (e.target.closest('.fu-del')) { fuDismissed[li.dataset.key] = { by: session.name, at: todayISO() }; fuUndo = li.dataset.key; fuSave(); fuGoNext(li, true); return; }
+  if (e.target.closest('.fu-del')) { const k = item.dataset.key; fuDismissed[k] = { by: session.name, at: todayISO() }; fuUndo = k; fuSave(); afterItem(); return; }
   const b = e.target.closest('.fr-done');
   if (b) {
     const cur = readJSON('ob_knocks') || { rows: [] }, k = (cur.rows || []).find(r => r.id === b.dataset.k); if (!k) return;
@@ -851,7 +880,7 @@ document.addEventListener('click', e => {
     k.actions = acts; if (acts.every(a => a.done)) { k.doneAt = todayISO(); k.doneBy = session.name; }
     localStorage.setItem('ob_knocks', JSON.stringify(cur));
     const mem = knocks.find(r => r.id === k.id); if (mem) Object.assign(mem, k);
-    fuGoNext(li, true); return;
+    afterItem(); return;
   }
   if (e.target.closest('.fu-head') && !e.target.closest('a')) {
     const open = !li.classList.contains('open'); fuOpen = open ? li.dataset.key : null;
