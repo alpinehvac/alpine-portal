@@ -147,8 +147,8 @@ tr.go{cursor:pointer}tr.go:hover td{background:rgba(16,68,78,0.035)}
 .sheet{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;color:#111110;font-family:'Inter',system-ui,sans-serif;font-size:10.5pt;line-height:1.45;padding:14mm 14mm 16mm;border-radius:4px}
 .rp-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1A6B6B;padding-bottom:10px;margin-bottom:14px}
 .rp-brand{display:flex;gap:10px;align-items:center}
-.rp-mark{width:40px;height:40px;background:#1A6B6B;border-radius:6px;display:flex;align-items:center;justify-content:center}
-.rp-mark svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rp-mark{background:#10444E;border-radius:6px;padding:7px 11px;display:flex;align-items:center;justify-content:center}
+.rp-mark img{height:46px;width:auto;display:block}
 .rp-name{font-family:'Oswald',sans-serif;font-weight:700;font-size:15pt;letter-spacing:.06em;line-height:1;color:#111110}
 .rp-tag{font-size:8pt;color:#9B8EC4;letter-spacing:.08em;margin-top:3px;font-weight:600}
 .rp-co{font-size:8pt;color:#555;text-align:right;line-height:1.5}
@@ -260,7 +260,7 @@ const phCap = p => [p.type ? p.type[0].toUpperCase() + p.type.slice(1) : "", p.c
 if (!CAN_BOARD) $("back").outerHTML = '<a class="back-link" href="job.html">&larr; All jobs</a>';
 else $("back").href = "ops-dashboard.html", $("back").innerHTML = "&larr; Field Operations";
 
-let J = null, C = null, SEL = new Set();
+let J = null, C = null, SEL = new Set(), INV = null;
 
 /* ---------- job list (job.html with no id) ---------- */
 window.apJobList = function (list, asOf) {
@@ -287,8 +287,8 @@ const visitHrs = v => sum(v.labour || [], l => l.hrs);
 const visitTechs = v => [v.tech, ...(v.others || [])].filter(Boolean);
 const doneVisits = () => (J.visits || []).filter(v => DONE.test(v.status || ""));
 
-window.apJobStart = function (detail, costs) {
-  J = detail; C = costs;
+window.apJobStart = function (detail, costs, inv) {
+  J = detail; C = costs; INV = inv || null;
   const B = J.board || {};
   document.title = `${J.id} — ${J.customer || "Job"}`;
   const visits = (J.visits || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.n || 0) - (a.n || 0));
@@ -309,7 +309,7 @@ window.apJobStart = function (detail, costs) {
       <p class="sub">${esc(J.property || "")}${J.address ? ` · ${esc(J.address.replace(/,\s*CA$/, ""))}` : ""}</p>
       <div class="tags">${stage}${B.status ? `<span class="tag grey">BuildOps: ${esc(B.status)}</span>` : ""}${billing}${J.department ? `<span class="tag purple">${esc(J.department)}</span>` : ""}</div>
     </div>
-    <div class="actions"><button class="btn primary" id="open-report" type="button">Job report</button>${J.url ? `<a class="btn" href="${esc(J.url)}" target="_blank" rel="noopener">BuildOps ↗</a>` : ""}</div>
+    <div class="actions"><button class="btn primary" id="open-report" type="button">Job report</button>${COSTS ? `<button class="btn" id="mark-done" type="button"${window.apJobMarked ? " disabled" : ""}>${window.apJobMarked ? "Marked complete ✓" : "Mark complete"}</button><a class="btn" href="invoicing.html#${encodeURIComponent(J.id)}">Invoice</a>` : ""}${J.url ? `<a class="btn" href="${esc(J.url)}" target="_blank" rel="noopener">BuildOps ↗</a>` : ""}</div>
   </div>
   <div class="kpis">
     <div class="kpi"><div class="k-label">Visits</div><div class="k-value">${doneVisits().length}<span class="dim" style="font-size:1rem"> / ${(J.visits || []).length}</span></div><div class="k-sub">completed / logged</div></div>
@@ -350,6 +350,10 @@ window.apJobStart = function (detail, costs) {
 
   wireVisits();
   $("open-report").onclick = openOpts;
+  // Mark complete: same switch as the Field Operations card (ops_jobs/{id}.stage). The job moves to Invoicing right away.
+  const md = $("mark-done");
+  if (md && !window.apJobMarked) md.onclick = async () => { md.disabled = true; try { await window.apMarkJobComplete(J.id); md.textContent = "Marked complete ✓"; } catch (e) { md.disabled = false; md.textContent = "Not saved, try again"; } };
+  if (INV) invoiceReport();
 };
 
 function visitCard(v) {
@@ -530,6 +534,21 @@ $("r-build").onclick = () => {
   $("overlay-opts").classList.remove("on");
   $("overlay-sheet").classList.add("on");
 };
+/* Opened from Invoicing (job.html?id=…&inv=1): the customer report with what was reviewed there. Edits live in
+   invoicing_data/{id} and never change BuildOps or the job page's own data. */
+function invoiceReport() {
+  const o = INV.opts || {}, off = new Set(INV.phOff || []), edits = INV.sumEdits || {}, keep = new Set(INV.visits || []);
+  const V = (J.visits || []).filter(v => keep.has(v.id)).map(v => ({
+    ...v, photos: (v.photos || []).filter(p => !off.has(p.src)),
+    summaries: edits[v.id] != null ? [{ text: edits[v.id] }] : v.summaries,
+  })).sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.n || 0) - (b.n || 0));
+  if (!V.length) return;
+  $("sheet").innerHTML = reportHtml(V, { internal: false, hours: !!o.hours, mats: !!o.mats, recs: !!o.recs, sign: !!o.sign, photos: !!o.photos });
+  const name = `${J.id} ${V.length === 1 ? "Service Report" : "Job Report"} ${todayIso()}`;
+  $("sheet-name").textContent = name + " · " + V.length + " visit" + (V.length > 1 ? "s" : "");
+  $("sheet").dataset.name = name;
+  $("overlay-sheet").classList.add("on");
+}
 function alertNoVisits() { $("r-nsel").parentElement.style.outline = "2px solid var(--red)"; setTimeout(() => $("r-nsel").parentElement.style.outline = "", 1500); }
 $("r-print").onclick = async () => {
   const imgs = [...$("sheet").querySelectorAll("img")].filter(i => !i.complete);
@@ -554,9 +573,9 @@ function reportHtml(V, o) {
   const prepared = SESSION ? SESSION.name : "";
   let h = `
   <div class="rp-head">
-    <div class="rp-brand"><div class="rp-mark"><svg viewBox="0 0 24 24"><path d="M3 20 L9 9 L13 15 L16 11 L21 20 Z"/></svg></div>
-      <div><div class="rp-name">ALPINE HVAC SERVICE INC.</div><div class="rp-tag">HYDRONICS · CONTROLS · BUILDING SYSTEMS</div></div></div>
-    <div class="rp-co">4241 Victoria Avenue, Vineland Station, ON L0R 2E0<br>alpinehvac.ca · TSSA Reg. FS-R-51098</div>
+    <div class="rp-brand"><div class="rp-mark"><img src="images/alpine-logo-white.png" alt="Alpine HVAC Service"></div>
+      <div class="rp-tag">HYDRONICS · CONTROLS · BUILDING SYSTEMS</div></div>
+    <div class="rp-co">4241 Victoria Ave, Vineland, ON L0R 2E0<br>289-438-1175 · alpinehvac.ca · TSSA Reg. FS-R-51098</div>
   </div>
   <div class="rp-title"><h1>${single ? "Service Report" : "Job Report"}${o.internal ? '<span class="rp-badge">Internal — not for customer</span>' : ""}</h1><span>${esc(period)}</span></div>
   <div class="rp-info">
@@ -621,7 +640,7 @@ function internalReport(V, totalHrs) {
 </script>
 
 <script type="module">
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import { db, currentUser } from "./ap-firebase.js";
 const show = (msg, info) => { document.getElementById("banner").innerHTML = `<div class="banner ${info ? "info" : ""}">${msg}</div>`; };
 const user = await currentUser();
@@ -643,7 +662,14 @@ else {
       } else {
         let costs = null;
         if (owner) { try { const c = await getDoc(doc(db, "ops_job_costs", id)); if (c.exists()) costs = JSON.parse(c.data().json); } catch (e) { if (!denied(e)) throw e; } }
-        window.apJobStart(JSON.parse(s.data().json), costs);
+        let inv = null;
+        if (owner) {
+          const safe = id.replace(/\//g, "_");
+          window.apMarkJobComplete = async jobId => { const who = ((sess && sess.name) || "").split(" ")[0] || "Someone"; await setDoc(doc(db, "ops_jobs", safe), { stage: "completed", stageBy: who, stageAt: new Date().toISOString(), jobId, updatedAt: serverTimestamp(), updatedBy: user.email }, { merge: true }); };
+          try { const b = await getDoc(doc(db, "ops_jobs", safe)); window.apJobMarked = b.exists() && b.data().stage === "completed"; } catch (e) { if (!denied(e)) throw e; }
+          if (new URLSearchParams(location.search).get("inv")) { try { const r = await getDoc(doc(db, "invoicing_data", safe)); if (r.exists()) inv = r.data(); } catch (e) { if (!denied(e)) throw e; } }
+        }
+        window.apJobStart(JSON.parse(s.data().json), costs, inv);
       }
     }
   } catch (e) {

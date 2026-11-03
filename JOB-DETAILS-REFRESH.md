@@ -19,13 +19,15 @@ Two outputs, both saved through the portal (no other writes anywhere):
 
 ## Mailboxes read
 
-This run reads three mailboxes, all read-only. Where the scheduled task's prompt says "Jake's Outlook", it means every
+This run reads four mailboxes, all read-only. Where the scheduled task's prompt says "Jake's Outlook", it means every
 mailbox listed here. Add a new mailbox only by adding it to this list.
 
 1. **Jake:** `jake.gilmore@alpinehvac.ca` (his own mailbox, searched as below).
 2. **Cole:** `cole.hamilton@alpinehvac.ca` (shared mailbox, rules below).
 3. **Mike:** `mike.launder@alpinehvac.ca` (shared mailbox, rules below).
-4. **Shared mailbox rules.** Cole and Mike share their Inbox and Sent Items with Jake as Reviewer, so for each of them:
+4. **Shared contact mailbox:** `contact@alpinehvac.ca` (shared mailbox, rules below). As of Nov 3 2026 it isn't shared with
+   Jake yet, so it reports as not readable until it is. Use `via: "Contact"` on emails found only here.
+5. **Shared mailbox rules.** Cole, Mike and contact@ share their Inbox and Sent Items with Jake as Reviewer, so for each:
    - Do this once, before Part A. Call `outlook_email_search` twice, with `mailboxOwnerEmail` = their address,
      `folderName` = `Inbox` and then `Sent Items`, `afterDateTime` = the previous run's date, `limit` 25, paging until
      no more results. Keep the list for Part A and B3.
@@ -35,8 +37,8 @@ mailbox listed here. Add a new mailbox only by adding it to this list.
    - Subfolders are not shared, so mail they file elsewhere is not visible.
    - If a mailbox returns FORBIDDEN or NOT_FOUND, carry on with the others and add "<name>'s mailbox not readable" to
      the run summary. Never try a workaround.
-5. **Duplicates:** the same email can be in more than one mailbox. Treat messages with the same `internetMessageId` as
-   one email and keep the copy in this order: Jake, Cole, Mike.
+6. **Duplicates:** the same email can be in more than one mailbox. Treat messages with the same `internetMessageId` as
+   one email and keep the copy in this order: Jake, Cole, Mike, contact@.
 
 ## Part A: Field Operations board
 
@@ -151,6 +153,42 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 
 1. Open `job.html?id=<one job with a visit yesterday>` and confirm the visit, hours and photos show.
 2. Add to the run summary: jobs read, visit reports, photos, QuickBooks bills matched, emails matched (Jake / Cole / Mike), any errors.
+
+### B6. Invoicing sweep (Operations > Invoicing)
+
+The page already builds its list live from the board and from "Mark complete". This step adds what only a run can see.
+It reads only; the single write is step 6.
+
+1. BuildOps invoices. Get `buildops-invoices.js` the same way as the reader and paste it in the BuildOps tab. Run
+   `alpineInvoices.start()`, poll `JSON.stringify(alpineInvoices.status())` until `running` is false, read
+   `JSON.stringify(alpineInvoices.page(n))` for n = 0, 1, ... and save the combined rows as `bo-invoices.json`.
+   If the page count stalls or `error` is set, skip steps 2 and 3 and say so in the summary.
+2. Match against QuickBooks. Download `invoice_sweep.py` and run
+   `python3 -I invoice_sweep.py bo-invoices.json INVOICES.json <today> > sweep.json` (INVOICES.json is B2's file).
+   QuickBooks is the record of what was sent: Clarissa enters each invoice under the same number once it has gone out.
+   BuildOps can't show this: nearly all invoices stay Draft there after they are sent.
+3. Service agreement visits. On `accounts.html` run `JSON.stringify(apAccountReports.recentJobs(60))`. Keep maintenance
+   records (`SA1025-2`) with a finished visit that are not in `sweep.json`'s `invoicedIds`. Drop any for a customer billed
+   by monthly contract (a QuickBooks invoice with a `C` number and note `CONTRACT` in the last 60 days): those are raised by
+   Clarissa in QuickBooks. Add each to `extra`: `{id, bucket: "sa", customer, property, last, why}`, with `why` one line.
+4. Possibly missed work. In all mailboxes since the previous run, look for customers or staff saying work is finished, asking
+   for an invoice, or sending a PO (`invoice`, `bill`, `billing`, `PO`, `completed`, `sign off`). If it matches a job that
+   is on the list, add a line to that job's `flags`. If it matches a job not on the list, or no job, add to `extra`:
+   `{id: "<job id>" or "flag-YYYYMMDD-n", bucket: "flag", customer, property, last, why}`.
+5. Recipients and drafts. On `invoicing.html` read `JSON.stringify(apInvoiceQueue())` and `JSON.stringify(apInvoiceSweep())`
+   in slices. For each item with `stateNow` of `todo`, keep its `items[id]` from the previous sweep if it has `to`, and build
+   one only if it is new:
+   `items[id] = {to: [{name, email, role, src}], draft: {subject, body}, note, flags: []}`.
+   - `to`: who gets invoices for this job, best first. Check who received the last invoice or quote in Outlook, the job's
+     Property Representative in BuildOps, and the BuildOps customer contacts. Business addresses only, never a guess. `src`
+     says where it came from. Leave `to` empty rather than guessing.
+   - `draft`: a short job summary from the visit summaries and emails, written to the customer. Benefits first, plain
+     language, no costs or internal notes, no sign-off. Leave out anything the visit reports don't say.
+   - `note`: the invoice note, in the format already used: `00747 - Niagara Parks Generator Piping`.
+6. Save. Add `extra`, `items` and `asOf` to `sweep.json`'s object, drop `invoicedIds`, and call
+   `await window.apSaveJobDetails({invoicing: <that object>})` on Field Operations (pieces of at most ~35 KB as in B4).
+   This replaces `invoicing_data/sweep`. It never touches what people typed on the page.
+7. Summary line: to invoice (count), new since yesterday, in BuildOps but not QuickBooks, amount differences.
 
 ## Field reference
 

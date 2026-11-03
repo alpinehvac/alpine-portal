@@ -93,6 +93,10 @@ service cloud.firestore {
       allow read: if isFieldOps();
       allow write: if isOwner();
     }
+    // Invoicing: reviewed invoices (one doc per job) + the daily sweep (doc "sweep"): Jake, Mike and Cole
+    match /invoicing_data/{doc=**} {
+      allow read, write: if isFieldOps();
+    }
     // Business Context log: one source of truth read by every dashboard refresh: owners only
     match /portal_context/{doc=**} {
       allow read, write: if isOwner();
