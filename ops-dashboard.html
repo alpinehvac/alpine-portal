@@ -632,7 +632,7 @@ function renderJobs() {
 
 // Projected vs available hours, next 13 weeks. Hours only, no dollars.
 // D.capacity overrides these. ends = finish dates for long jobs; other open jobs are assumed done in 4 weeks.
-const CAPACITY = { hoursPerWeek: 40, techs: 6, techChanges: [{ from: "2027-01-01", techs: 5 }], contractTechs: 3, defaultWeeks: 4,
+const CAPACITY = { hoursPerWeek: 40, techs: 6, techChanges: [{ from: "2027-01-01", techs: 5 }], contractTechs: 2, defaultWeeks: 4,
   ends: { JO20261184: "2027-02-28", JO20261201: "2027-03-31", JO20261185: "2026-12-31", JO20261171: "2026-12-12", JO20261127: "2026-11-30" } };
 function renderHours() {
   if (!D || !$("hours-section")) return;
@@ -651,7 +651,7 @@ function renderHours() {
   const groups = [["Weeks 1–4", 0, 4], ["Weeks 5–8", 4, 8], ["Weeks 9–13", 8, 13], ["Next 13 weeks", 0, 13]];
   const add = (a, s, e) => a.slice(s, e).reduce((x, y) => x + y, 0), R = n => Math.round(n).toLocaleString("en-CA");
   $("hours-section").style.display = "";
-  $("hours-note").textContent = `Project hours left on open jobs against the hours the crew has for project work. ${C.techs} techs at ${C.hoursPerWeek} hours, with ${C.contractTechs} held for contracts.`;
+  $("hours-note").textContent = `Project hours left on open jobs against the hours the crew has for project work. ${C.techs} techs at ${C.hoursPerWeek} hours, with ${C.contractTechs} held for contracts (one mechanical, one BAS).`;
   $("hours-table").innerHTML = `<thead><tr><th>Period</th><th class="num">Paid hours</th><th class="num">Held for contracts</th><th class="num">Available</th><th class="num">Booked</th><th class="num">Open</th><th class="num">Load</th></tr></thead><tbody>` + groups.map(([n, s, e], i) => {
     const a = add(avail, s, e), b = add(booked, s, e), p = add(paid, s, e), o = a - b, pc = a ? Math.round(b / a * 100) : 0;
     return `<tr${i === 3 ? ' style="font-weight:600;border-top:1px solid var(--border)"' : ""}><td>${n}</td><td class="num">${R(p)}</td><td class="num">${R(p - a)}</td><td class="num">${R(a)}</td><td class="num">${R(b)}</td><td class="num"${o < 0 ? ' style="color:#B83227"' : ""}>${o < 0 ? "−" : ""}${R(Math.abs(o))}</td><td class="num">${pc}%</td></tr>`;
