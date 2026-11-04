@@ -987,7 +987,8 @@ function renderWeek() {
   if ($('wk-n')) $('wk-n').textContent = 'Week ' + W.week + ' · ' + done.length + ' knocked · ' + next.length + ' to go';
   let h = '<div class="wk-head">' + (weeks.length > 1 ? '<select id="wk-sel">' + weeks.map(w => '<option value="' + w.week + '"' + (w.week === W.week ? ' selected' : '') + '>Week ' + w.week + ' · ' + fmtDate(w.sent) + '</option>').join('') + '</select>' : '<b>Week ' + W.week + '</b> · sent ' + fmtDate(W.sent)) +
     ' <span class="wk-count">' + done.length + ' knocked' + (extra.length ? ' (' + extra.length + ' off the list)' : '') + ' · ' + next.length + ' to go</span></div>';
-  h += '<h3 class="wk-h">Knocked (' + done.length + ')</h3>' + (done.length ? '<ol class="wk">' + done.map(r => {
+  // Built here but rendered below the route list: Next up comes first, Knocked after it.
+  const knockedHTML = '<h3 class="wk-h">Knocked (' + done.length + ')</h3>' + (done.length ? '<ol class="wk">' + done.map(r => {
     const k = r.k[0];
     if (r.x) return '<li class="done"><div class="wk-top"><span class="wk-n" title="Not on this week\'s list">+</span>' +
       (r.ref ? '<a class="wk-name" data-fly="' + esc(r.ref) + '">' + esc(k.company || '—') + '</a>' : '<b class="wk-name">' + esc(k.company || '—') + '</b>') +
@@ -1008,7 +1009,7 @@ function renderWeek() {
     return head + '<li><div class="wk-top"><span class="wk-n">' + r.n + '</span><a class="wk-name" data-fly="t:' + esc(r.t.id) + '">' + esc(r.t.name) + '</a><span class="wk-type">' + esc(r.t.type || '') + '</span></div>' +
       '<div class="wk-sub">' + mapLink(r.t) + sz(r.t) + '</div>' + contactHTML(r.t.id) + '<div class="wk-note">' + esc(fieldNote(r.t)) + '</div></li>';
   }).join('') + (next.length ? '</ol>' : '');
-  el.innerHTML = h;
+  el.innerHTML = h + knockedHTML;
   const sel = $('wk-sel'); if (sel) sel.onchange = () => { weekSel = +sel.value; renderWeek(); };
 }
 
