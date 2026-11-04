@@ -6,7 +6,8 @@
 // Reads (hydrated by cloud-sync.js before this runs):
 //   sa_agr_<SA#>           service_agreements_data   agreements, tier, term, account manager
 //   st_site_<pid>          site_data                 properties, assets, BuildOps visits
-//   st_clear_<pid>_<q>     site_data                 CLEAR condition per asset
+//   st_clearlive_<pid>     site_data                 live CLEAR report (colours, notes, last review)
+//   st_clear_<pid>_<q>     site_data                 quarter snapshot of the CLEAR report
 // Writes:
 //   ac_acct_<key>          account_data              contact, notes, report history (+ last-generated stamp)
 //   account_share/<token>  (direct Firestore write)  customer-facing snapshot behind the live link
@@ -56,6 +57,18 @@ function cleanTitle(s) { return String(s || '').replace(/\s+/g, ' ').replace(/^[
 let toastT; function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3500); }
 const CUR_Q = qOf(isoD(TODAY));
 const LAST_Q = prevQ(CUR_Q);
+
+// Live CLEAR status for a property card.
+function clearBadge(s) {
+  const r = readJSON('st_clearlive_' + s.id);
+  if (!r) return '<span class="badge b-grey">CLEAR not started</span>';
+  const n = c => r.rows.filter(x => x.include !== false && x.condition === c).length;
+  const d = parseD(r.reviewedAt), days = d ? Math.floor((TODAY - d) / 86400000) : null;
+  const newVisits = (s.visits || []).some(v => (v.date || '') > (r.visitsThru || ''));
+  const due = days == null || days > 30 || newVisits;
+  return '<span class="badge b-red">' + n('red') + ' red</span><span class="badge b-amber">' + n('yellow') + ' yellow</span><span class="badge b-green">' + n('green') + ' green</span>' +
+    (due ? '<span class="badge b-amber">Review due</span>' : '<span class="badge b-grey">Reviewed ' + esc(fmtD(r.reviewedAt)) + '</span>');
+}
 
 function tierOf(type) {
   const t = String(type || '');
@@ -123,15 +136,17 @@ function groupJobs(vis) {
   return [...by.values()].sort((a, b) => (b.visits[b.visits.length - 1].date || '').localeCompare(a.visits[a.visits.length - 1].date || ''));
 }
 
-// Items needing attention: red / yellow CLEAR assets for the quarter (falls back to the latest CLEAR report).
+// Items needing attention: red / yellow assets on the live CLEAR report (past quarters use their snapshot;
+// falls back to the latest snapshot for sites without a live report).
 function attentionFor(c, q) {
   const out = [];
   c.sites.forEach(s => {
-    let r = readJSON('st_clear_' + s.id + '_' + q);
+    let r = q === CUR_Q ? readJSON('st_clearlive_' + s.id) : readJSON('st_clear_' + s.id + '_' + q);
+    if (!r) r = readJSON('st_clearlive_' + s.id) || readJSON('st_clear_' + s.id + '_' + q);
     if (!r) { const ks = scanKeys('st_clear_' + s.id + '_').map(([k]) => k).sort(); if (ks.length) r = readJSON(ks[ks.length - 1]); }
     ((r && r.rows) || []).filter(x => x.include !== false && (x.condition === 'red' || x.condition === 'yellow')).forEach(x => {
       const note = String(x.notes || '').split('\n').map(l => l.trim()).filter(Boolean).pop() || '';
-      out.push({ site: s.name, tag: x.tag, type: x.type || '', condition: x.condition, note: note.replace(/^[A-Z][a-z]{2} \d{1,2}, \d{4}: /, ''), quarter: r.quarter });
+      out.push({ site: s.name, tag: x.tag, type: x.type || '', condition: x.condition, note: note.replace(/^[A-Z][a-z]{2} \d{1,2}, \d{4}: /, ''), quarter: r.quarter || q });
     });
   });
   return out.sort((a, b) => (a.condition === b.condition ? 0 : a.condition === 'red' ? -1 : 1));
@@ -357,6 +372,7 @@ function renderFile(key) {
     const a = countVisits((s.visits || []).filter(v => v.date >= qf && v.date <= qt)), y = countVisits((s.visits || []).filter(v => v.date >= yf && v.date <= yt));
     return '<div class="card prop' + (ui.site === s.id ? ' on' : '') + '" data-site="' + esc(s.id) + '" style="cursor:pointer"><div class="pn">' + esc(s.name) + '</div><div class="pa">' + esc(s.address || '') + '</div>' +
       '<div class="pc"><span class="badge b-grey">' + qLabel(ui.q) + ': ' + plural(a.total, 'visit') + '</span><span class="badge b-grey">YTD ' + y.total + '</span><span class="badge b-grey">' + plural((s.assets || []).length, 'asset') + '</span></div>' +
+      '<div class="pc">' + clearBadge(s) + '</div>' +
       '<div class="pl"><a href="site.html?p=' + esc(s.id) + '&q=' + esc(ui.q) + '">Site page</a><a href="site.html?p=' + esc(s.id) + '&q=' + esc(ui.q) + '&view=clear">CLEAR report</a><a href="' + BO + '/property/view/' + esc(s.id) + '" target="_blank" rel="noopener">BuildOps ↗</a></div></div>';
   }).join('') + (C.sites.length ? '' : '<p class="empty">No properties pulled from BuildOps yet.</p>') + '</div>';
 

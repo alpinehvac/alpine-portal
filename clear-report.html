@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Alpine HVAC — CLEAR Report</title>
+<!-- ALPINE CUSTOMER CLEAR REPORT: the live equipment condition link for one site.
+     clear-report.html?t=<token>   (add &print=1 to open the print / Save-as-PDF view)
+     No login and no portal code: reads one snapshot, account_share/<token>, published from the site page's
+     CLEAR tab by Jake, Mike or Cole. The snapshot holds only colours, customer notes and key findings: no
+     dollar amounts, internal notes or history. Firestore rules allow reading a single token, never listing.
+     Turning the link off deletes it. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#1A6B6B;--teal-dark:#114A4A;--ink:#111110;--muted:#5F6B6B;--bg:#F3F7F7;--card:#fff;--line:rgba(17,17,16,.1);
+  --red:#B83227;--yel:#E8B23A;--grn:#2E8B62}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+a{color:var(--teal)}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.hero{background:var(--teal);color:#fff;padding:1.1rem 1.25rem 2.4rem}
+.hero-in{max-width:960px;margin:0 auto}
+.wrap{max-width:1000px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.brand img{height:58px;width:auto;display:block}
+.brand span{font-size:.76rem;letter-spacing:.04em;color:#D9EAEA;border-left:1px solid rgba(255,255,255,.4);padding-left:1rem;line-height:1.45}
+.brand .btn{margin-left:auto}
+.kick{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#CDE9EA;margin-top:1.3rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.7rem,4.5vw,2.6rem);font-weight:700;text-transform:uppercase;line-height:1.1;margin:.2rem 0 .3rem}
+.hero p{color:#E3F2F2;font-size:.9rem}
+.wrap{padding:0 1.25rem 4rem}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:-1.4rem 0 1.5rem;position:relative}
+.tile{border-radius:12px;padding:.85rem 1rem;box-shadow:0 2px 10px rgba(16,68,78,.08)}
+.tile b{display:block;font-family:'Oswald',sans-serif;font-size:2.1rem;font-weight:600;line-height:1}
+.tile span{font-size:.82rem}
+.tile.red{background:#FBE9E6;color:#9B2D20}.tile.yellow{background:#FBF1D8;color:#7A5200}.tile.green{background:#E3F3EA;color:#1E6B45}
+h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:1.7rem 0 .7rem}
+.sum{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.9rem 1rem;white-space:pre-wrap;font-size:.92rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.a{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.8rem;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--grn);border-radius:10px;padding:.7rem .8rem}
+.a.yellow{border-left-color:var(--yel)}.a.red{border-left-color:var(--red)}
+.a img,.a .noimg{width:76px;height:76px;object-fit:cover;border-radius:6px;background:#E8EEEE}
+.t{font-family:'Oswald',sans-serif;font-size:1.02rem;font-weight:600;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.pill{font-family:'Inter',sans-serif;font-size:.64rem;font-weight:700;letter-spacing:.05em;border-radius:3px;padding:1px 6px}
+.pill.red{background:var(--red);color:#fff}.pill.yellow{background:var(--yel);color:#111110}.pill.green{background:var(--grn);color:#fff}
+.m{font-size:.76rem;color:var(--muted)}
+.n{font-size:.84rem;margin-top:.3rem;white-space:pre-wrap}
+.btn{font-family:'Oswald',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(255,255,255,.45);border-radius:8px;padding:.5rem .9rem;background:transparent;color:#fff;cursor:pointer}
+.foot{margin-top:2rem;font-size:.8rem;color:var(--muted)}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.2rem;margin-top:1.5rem}
+@media (max-width:720px){.grid{grid-template-columns:1fr}.tile b{font-size:1.7rem}.tile{padding:.7rem}.tile span{font-size:.74rem}}
+@media print{
+  @page{size:letter;margin:11mm}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff;font-size:10pt}
+  .brand .btn{display:none}
+  .hero{border-radius:6px;padding:.7rem 1rem .9rem}
+  .tiles{margin:.6rem 0 .4rem}.tile{box-shadow:none}
+  .wrap{padding:0;max-width:none}
+  .a{break-inside:avoid}
+  h2{margin:.8rem 0 .4rem}
+}
+</style>
+</head>
+<body>
+<header class="hero"><div class="hero-in">
+  <div class="brand"><img src="images/alpine-logo-white.png" alt="Alpine HVAC Service"><span>Hydronics · Controls<br>Building Systems</span><button class="btn" id="print" hidden>Save PDF</button></div>
+  <div id="head"><div class="kick">CLEAR report</div><h1>Loading…</h1></div>
+</div></header>
+<main class="wrap" id="main"></main>
+<script type="module">
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { db } from "./ap-firebase.js";
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtMs = ms => { const d = new Date(ms); return MONTHS[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear(); };
+const fmtD = s => { if (!/^\d{4}-\d{2}-\d{2}/.test(s || "")) return ""; const [y, m, d] = s.slice(0, 10).split("-").map(Number); return MONTHS[m - 1] + " " + d + ", " + y; };
+const params = new URLSearchParams(location.search);
+const t = params.get("t") || "";
+
+function fail(msg) {
+  $("head").innerHTML = '<div class="kick">CLEAR report</div><h1>Report unavailable</h1>';
+  $("main").innerHTML = '<div class="msg"><p>' + esc(msg) + '</p><p style="margin-top:.75rem">Questions? Call Alpine HVAC at <a href="tel:2894381175">289-438-1175</a>.</p></div>';
+}
+function card(x) {
+  const meta = [x.type, x.make, x.model && "Model " + x.model].filter(Boolean).join(" · ") + (x.remain != null ? " · ~" + x.remain + " yrs remaining" : "");
+  return '<div class="a ' + esc(x.condition) + '">' + (x.img ? '<img src="' + esc(x.img) + '" alt="" loading="lazy">' : '<div class="noimg"></div>') +
+    '<div><div class="t">' + esc(x.tag) + '<span class="pill ' + esc(x.condition) + '">' + esc(String(x.condition).toUpperCase()) + '</span></div><div class="m">' + esc(meta) + '</div>' +
+    (x.notes ? '<div class="n">' + esc(x.notes) + '</div>' : x.desc ? '<div class="m">' + esc(x.desc) + '</div>' : '') + '</div></div>';
+}
+function render(R) {
+  document.title = "Alpine HVAC — CLEAR Report — " + R.site;
+  $("head").innerHTML = '<div class="kick">CLEAR report · updated ' + esc(fmtMs(R.updatedAt)) + '</div><h1>' + esc(R.site) + '</h1><p>' + esc(R.customer) + (R.address ? ' · ' + esc(R.address.replace(/, CA$/, "")) : '') + (R.reviewedAt ? ' · Reviewed ' + esc(fmtD(R.reviewedAt)) : '') + '</p>';
+  const rows = R.rows || [], by = c => rows.filter(x => x.condition === c);
+  const sec = (c, title) => by(c).length ? '<h2>' + title + '</h2><div class="grid">' + by(c).map(card).join("") + '</div>' : "";
+  $("main").innerHTML = '<div class="tiles"><div class="tile red"><b>' + by("red").length + '</b><span>Needs attention now</span></div><div class="tile yellow"><b>' + by("yellow").length + '</b><span>Monitor or plan repair</span></div><div class="tile green"><b>' + by("green").length + '</b><span>Good condition</span></div></div>' +
+    (R.summary ? '<h2>Key findings</h2><div class="sum">' + esc(R.summary) + '</div>' : '') +
+    sec("red", "Needs attention now") + sec("yellow", "Monitor or plan repair") + sec("green", "Good condition") +
+    '<p class="foot">Condition is based on what our technicians found during maintenance and service visits. Remaining life is estimated from install date and typical service life. Questions? Call your account manager at <a href="tel:2894381175">289-438-1175</a> · alpinehvac.ca</p>';
+  const b = $("print"); b.hidden = false; b.onclick = () => window.print();
+  if (params.get("print") === "1") setTimeout(() => window.print(), 600);
+}
+async function load() {
+  if (!/^[A-Za-z0-9_-]{20,}$/.test(t)) return fail("This link is incomplete. Please use the full link from your email.");
+  let R;
+  try {
+    const s = await getDoc(doc(db, "account_share", t));
+    if (!s.exists()) return fail("This report link has expired or been turned off.");
+    R = JSON.parse(s.data().json);
+  } catch (e) { console.error(e); return fail("We couldn't load this report right now. Please try again shortly."); }
+  if (R.kind !== "clear") return fail("This link is for a different report.");
+  render(R);
+}
+load();
+</script>
+</body>
+</html>

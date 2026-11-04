@@ -69,6 +69,12 @@ without manual work.
    `source` is `"BuildOps"`, `"QuickBooks"` or `"Outlook"`. Confirm `updated` matches the number of customers and
    list any `unmatched`.
 
+## Live CLEAR reports
+
+The weekly pull only replaces `st_site_<pid>`. The live CLEAR report (`st_clearlive_<pid>`) is never overwritten.
+When someone opens a site's CLEAR tab, new assets are added and new visit notes appear as suggestions to confirm.
+Property cards in Account Management show "Review due" when a report is over 30 days old or has unread visits.
+
 ## Finish
 
 PushNotification: "Weekly account refresh: BuildOps applied (N sites, M visits), K visit reports read, C contacts
