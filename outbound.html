@@ -14,7 +14,7 @@
      Leads: ob_leads, written by the daily refresh from Natalie's "Alpine Leads 2026" sheet (outbound-build.py).
      Customers: ob_customers (BuildOps property list, daily) + st_site_* (agreement sites, site_data).
      Targets: ob_targets (researched, not yet contacted). Claims: ob_claims. Geocode cache: ob_geo.
-     Natalie's daily reports: ob_reports (from her daily report emails to Jake, filed by the morning door-knock sync). Access: sales role. -->
+     Natalie's daily reports: ob_reports (from her daily report emails to Jake, filed by the morning door-knock sync). Script coaching brief: ob_coach (weekly coaching task). Access: sales role. -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -238,6 +238,41 @@ li.fu-item:last-child{border-bottom:0}
 .fu-item-acts .fr-done{margin-left:0}
 .fu-item-acts .fu-del{border-color:rgba(184,50,39,.4);color:#B83227}
 @media(max-width:640px){.fu-gist,ol.fr .wk-note,ol.fr .wk-sub,.fu-acts,ul.fu-items,.fu-note,.fu-tpl{margin-left:0}}
+
+/* ── Jake's outbound dashboard (top of page, Jake only) ── */
+#jd{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.2rem;margin-bottom:1.25rem}
+.jd-head{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}
+.jd-head span{font-size:.8rem;color:var(--grey)}
+.jd-alert{background:rgba(39,99,108,.08);border:1px solid rgba(39,99,108,.3);border-radius:var(--radius);padding:.6rem .8rem;font-size:.86rem;margin-bottom:.9rem}
+.jd-goals{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1rem}
+.jd-goal b{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:500;font-variant-numeric:tabular-nums}
+.jd-goal .lbl{font-size:.8rem;color:var(--grey);display:flex;justify-content:space-between;gap:.5rem;margin-bottom:.1rem}
+.jd-track{height:8px;border-radius:4px;background:rgba(16,68,78,.09);overflow:hidden;margin-top:.3rem}
+.jd-track i{display:block;height:100%;background:var(--teal);border-radius:4px}
+.jd-tiles{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:1.1rem}
+.jd-tiles .metric{padding:.7rem .8rem .8rem}
+.jd-tiles .m-label{min-height:0}
+.jd-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.4rem;align-items:start}
+#jd h3{font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.4rem}
+.jd-t th{position:static;cursor:default;white-space:normal;padding:.4rem .5rem;font-size:.76rem}
+.jd-t td{padding:.45rem .5rem}
+.jd-t td b{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:500}
+.jd-st{font-size:.76rem;font-weight:600;white-space:nowrap}
+.jd-st.ok{color:var(--green)}.jd-st.low{color:var(--red)}.jd-st.wait{color:var(--grey);font-weight:500}
+.jd-foot{font-size:.76rem;color:var(--grey);margin-top:.5rem}
+.jd-coach{display:grid;gap:.6rem;font-size:.85rem}
+.jd-coach h4{font-size:.76rem;font-weight:600;color:var(--grey);margin-bottom:.1rem}
+.jd-coach ol{margin:0;padding-left:1.1rem}
+.jd-coach li{margin-bottom:.2rem}
+.jd-say{display:block;color:var(--teal);margin-top:.1rem}
+.jd-next{margin-top:1.1rem}
+.jd-next ul{list-style:none}
+.jd-next li{display:flex;justify-content:space-between;align-items:center;gap:.7rem;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.85rem}
+.jd-next li:last-child{border-bottom:0}
+.jd-next small{display:block;color:var(--grey);font-size:.76rem}
+.jd-next .btn{flex-shrink:0}
+@media(max-width:1000px){.jd-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:640px){#jd{padding:.9rem}.jd-goals{grid-template-columns:minmax(0,1fr)}.jd-tiles{grid-template-columns:repeat(2,1fr)}.jd-tiles .metric:nth-child(2){border-right:none}.jd-tiles .metric:nth-child(-n+2){border-bottom:1px solid var(--border)}}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -250,6 +285,7 @@ li.fu-item:last-child{border-bottom:0}
 
 <main class="wrap">
   <div class="head"><h1>Outbound</h1><div class="asof"><div id="asof">Loading…</div><button class="btn sm ghost" id="view-toggle" style="margin-top:.5rem"></button></div></div>
+  <div id="jd" hidden></div>
   <div id="banners" class="team-only"></div>
   <section id="fr-section">
     <div class="h2-row"><div><h2>Follow-ups required <span class="cz-n" id="fr-n"></span></h2><p class="h2-note">Actions flagged from your door-knock recordings<span class="team-only"> plus lead-sheet follow-ups due this week</span>; the same list goes out in the Tue/Fri Follow-up Radar email. One row per location. Open it to see everything to follow up on there; tick what you want and use Email draft to prospect, or Draft for a single item. Your notes sit at the top of the draft: delete them before sending. Shown when an email or phone is on file. Pick a draft template on each location: BPA is chosen for you when the conversation mentions an existing contract. Add notes on any location; an email or phone you type there goes into its drafts. Done and Remove clear one item (Undo if you slip).<span id="fr-note"></span></p></div></div>
@@ -337,7 +373,7 @@ li.fu-item:last-child{border-bottom:0}
 
 <script>
   window.AP_SYNC_COLLECTION = "outbound_data";
-  window.AP_SYNC_ROUTES = { "st_": "site_data" };
+  window.AP_SYNC_ROUTES = { "st_": "site_data", "au_": "audit_data" }; // au_: read by Jake's funnel dashboard
   window.AP_APP_SCRIPT = "outbound-app.js?v=" + Math.floor(Date.now() / 600000); // new URL every 10 minutes, so updates reach installed Safari apps
 </script>
 <script type="module" src="cloud-sync.js"></script>
