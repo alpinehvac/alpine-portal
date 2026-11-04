@@ -20,7 +20,7 @@ the portal and BuildOps as that person.
 ## Steps
 
 1. Open `https://alpinehvac.github.io/alpine-portal/invoicing.html`. Read `JSON.stringify(apInvoiceQueued())`. Each row has
-   `id, type, amount (before HST), po, note, lines, claudeNote, visits, customer, property`. If it's empty, stop.
+   `id, type, amount (before HST), po, note, summary, lines, claudeNote, visits, customer, property`. If it's empty, stop.
 2. List the jobs for the person in one numbered block, then carry on.
 3. For each job, in a new BuildOps tab:
    a. Open `https://live.buildops.com/job/view/<number>?tab=reports-invoices` (`JO20261111` is number `20261111`). For a
@@ -29,7 +29,10 @@ the portal and BuildOps as that person.
       another: call `apInvoiceFailed(id, "Looks already invoiced: INV-…")` and move on.
    c. Click **Open Job Report**, then **Create Invoice**. Pick the visits in `visits` if it asks. On a progress invoice use
       `amount`, and use `lines` as the line items when there are any.
-   d. On the Draft set: the PO to `po`, the invoice note to `note`. Leave the issued date as today. Apply `claudeNote`.
+   d. On the Draft set: the PO to `po`, the invoice note to `note`, and the **Invoice Summary** box (the plain text box above
+      the Labor table, customer-facing) to `summary`, replacing whatever BuildOps put there. If `summary` is blank, stop and
+      record it with `apInvoiceFailed`: no invoice goes out without the techs' work on it. Leave the issued date as today.
+      Apply `claudeNote`.
       For `type` Parts, bill materials only, with no labour lines: labour on these sites is covered by the contract.
    e. Compare with the queue. For `type` Full, Final or Progress, the subtotal must equal `amount` within $1. For T&M and
       Parts `amount` can be blank: BuildOps prices from the pricebook, and if `amount` is set it must match within $1.
