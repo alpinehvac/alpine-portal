@@ -726,6 +726,10 @@ function knockActions(k) {
 // Removed follow-ups (not relevant any more): { <key>: { by, at } }, saved to the cloud for everyone.
 // A lead-sheet key includes its follow-up date, so a new date on the sheet brings it back.
 let fuDismissed = readJSON('ob_fu_dismissed') || {};
+// Notes typed on a location's follow-up: { <group key>: { text, by, at } }, saved to the cloud for everyone.
+// The refreshes never touch this key. An email or phone in a note wins over what the lookups found.
+let fuNotes = readJSON('ob_fu_notes') || {};
+const fuGroupKey = x => 'g:' + (x.ref || normName(x.company) || x.key);
 let fuSort = 'recent', fuOpen = null, fuUndo = null, fuItems = {}, fuGroups = {};
 const fuKey = x => x.src === 'knock' ? 'k:' + x.k.id + ':' + x.i : x.ref + ':' + (x.due || '');
 function renderFollowReq() {
@@ -753,25 +757,29 @@ function renderFollowReq() {
     const tc = !x.email && x.ref && x.ref.startsWith('t:') ? contactHTML(x.ref.slice(2)) : '';
     // Knock rows keep their contact in contactEmail / contactPhone; show it the same way as a target's.
     const kc = !tc && (c.email || c.phone) ? '<div class="wk-sub">☎ ' + [c.phone ? '<a href="tel:' + esc(c.phone.replace(/\s*(ext|x)\b.*$/i, '').replace(/[^0-9+]/g, '')) + '">' + esc(c.phone) + '</a>' : '', c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : ''].filter(Boolean).join(' · ') + '</div>' : '';
-    const sub = c.contact, addr = c.address;
+    const sub = c.contact, addr = c.address, note = c.note, pat = !c.email && (g.items.map(i => (i.k || {}).emailPattern).find(Boolean) || '');
     return '<li class="fu' + (g.key === fuOpen ? ' open' : '') + '" data-key="' + esc(g.key) + '"><div class="fu-head wk-top"><span class="fr-due' + dueCls(due) + '">' + (due ? fmtDate(due) : 'No date') + '</span>' +
       (x.ref ? '<a class="wk-name" data-fly="' + esc(x.ref) + '">' + esc(x.company || '—') + '</a>' : '<b>' + esc(x.company || '—') + '</b>') +
-      (n > 1 ? '<span class="fu-count">' + n + ' items</span>' : '') +
+      (n > 1 ? '<span class="fu-count">' + n + ' items</span>' : '') + (note ? '<span class="fu-count">Note</span>' : '') +
       (interest ? '<span class="chip" style="background:' + (INTEREST[interest] || '#5A7A80') + '">' + esc(interest) + '</span>' : '') +
       '<span class="wk-type">' + esc(srcs[0] + (srcs.length > 1 ? ' +' + (srcs.length - 1) + ' more' : '')) + (who ? ' · ' + esc(who) : '') + '</span>' +
       '<div class="fu-gist">' + esc(x.text) + (n > 1 ? ' · +' + (n - 1) + ' more' : '') + '</div></div>' +
       '<div class="fu-body">' + (sub || addr ? '<div class="wk-sub">' + esc([sub, addr].filter(Boolean).join(' · ')) + '</div>' : '') + tc + kc +
+      '<div class="wk-sub fu-found">' + fuFoundHTML(note) + '</div>' +
+      (pat ? '<div class="wk-sub fu-pat">Possible email (unverified pattern): ' + esc(pat) + '</div>' : '') +
       '<ul class="fu-items">' + g.items.map(i => '<li class="fu-item" data-key="' + esc(i.key) + '"><label><input type="checkbox" class="fu-pick" checked><span>' + esc(i.text) + '</span></label>' +
         '<span class="fr-due' + dueCls(i.due) + '">' + (i.due ? fmtDate(i.due) : 'No date') + '</span><span class="fu-item-acts">' +
-        (both ? '<button class="btn sm ghost fu-one">Draft</button>' : '') +
+        '<button class="btn sm ghost fu-one"' + (both ? '' : ' hidden') + '>Draft</button>' +
         (i.src === 'knock' ? '<button class="btn sm ghost fr-done" data-k="' + esc(i.k.id) + '" data-i="' + i.i + '">Done</button>' : '') +
         '<button class="btn sm ghost fu-del">Remove</button></span></li>').join('') + '</ul>' +
-      '<div class="fu-acts">' + (both ? '<button class="btn sm fu-draft"' + (c.email ? '' : ' title="No email on file: the To line opens blank. Phone: ' + esc(c.phone) + '"') + '>Email draft to prospect (<span class="fu-n">' + n + '</span>)</button>' : '') +
+      '<label class="fu-note"><span>Notes for this follow-up. Add any email or phone you find and the draft will use it.</span><textarea rows="2" placeholder="e.g. frank@example.ca, found on the city site">' + esc(note) + '</textarea></label>' +
+      '<div class="fu-tpl"><label>Draft template <select>' + Object.keys(FU_TEMPLATES).map(t => '<option value="' + t + '"' + (t === fuTplOf(g) ? ' selected' : '') + '>' + FU_TEMPLATES[t] + '</option>').join('') + '</select></label><span class="fu-auto">' + (fuTplPick[g.key] ? '' : fuHasContract(g.items) ? 'Picked because they mention an existing contract or contractor' : '') + '</span></div>' +
+      '<div class="fu-acts"><button class="btn sm fu-draft"' + (both ? '' : ' hidden') + (both && !c.email ? ' title="No email on file: the To line opens blank."' : '') + '>Email draft to prospect (<span class="fu-n">' + n + '</span>)</button>' +
       '<button class="btn sm' + (both ? ' ghost' : '') + ' fu-mail">Email draft to me</button>' +
       '<button class="btn sm ghost fu-next">Next ›</button></div></div></li>';
   };
   // Group within the sorted list, so a location sits where its first item would.
-  const groups = arr => { const m = new Map(); arr.forEach(x => { const k = 'g:' + (x.ref || normName(x.company) || x.key); if (!m.has(k)) m.set(k, { key: k, items: [] }); m.get(k).items.push(x); }); return [...m.values()]; };
+  const groups = arr => { const m = new Map(); arr.forEach(x => { const k = fuGroupKey(x); if (!m.has(k)) m.set(k, { key: k, items: [] }); m.get(k).items.push(x); }); return [...m.values()]; };
   fuGroups = {};
   const list = arr => '<ol class="wk fr">' + groups(arr).map(g => { fuGroups[g.key] = g; return row(g); }).join('') + '</ol>';
   // Each person sees their own first; everyone else's sits in a collapsed "Team" section.
@@ -809,6 +817,11 @@ function fuSave() { localStorage.setItem('ob_fu_dismissed', JSON.stringify(fuDis
 // Knock contacts are free text ("info@x.ca (general)", "905-735-1700 ext 4000 (main line)"), so pull out the address.
 const fuEmailOf = s => (String(s || '').match(/[\w.+'-]+@[\w-]+(?:\.[\w-]+)+/) || [''])[0];
 const fuPhoneOf = s => /\d{3}\D{0,3}\d{4}/.test(s || '') ? String(s).replace(/\s*\(.*?\)\s*/g, ' ').trim() : '';
+const fuPhoneIn = s => (String(s || '').match(/(?:\+?1[\s.-]*)?\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4}(?:\s*(?:ext\.?|x)\s*\d+)?/i) || [''])[0];
+function fuFoundHTML(note) {
+  const e = fuEmailOf(note), p = fuPhoneIn(note);
+  return e || p ? 'From your notes: ' + [p ? esc(p) : '', e ? esc(e) : ''].filter(Boolean).join(' · ') : '';
+}
 function fuContact(x) {
   const k = x.k || {}, ref = x.ref || '';
   const l = x.l || (ref.startsWith('l:') ? leads.find(r => r.id === ref.slice(2)) : null) || {};
@@ -819,10 +832,45 @@ function fuContact(x) {
 // A location's items can come from several knocks: use whichever one carries each detail.
 function fuMerge(list) {
   const found = list.map(fuContact), first = f => list.map(i => i[f]).find(Boolean) || '';
-  return { ...list[0], contact: first('contact'), address: first('address'), email: found.map(c => c.email).find(Boolean) || '', phone: found.map(c => c.phone).find(Boolean) || '' };
+  const note = (fuNotes[fuGroupKey(list[0])] || {}).text || '';
+  return { ...list[0], contact: first('contact'), address: first('address'), note, email: fuEmailOf(note) || found.map(c => c.email).find(Boolean) || '', phone: fuPhoneIn(note) || found.map(c => c.phone).find(Boolean) || '' };
+}
+// Outlook adds the signature, so the letters stop at the closing line.
+const BPA_SAMPLE = 'https://alpinehvac.github.io/alpine-portal/flyers/Alpine-BPA-Sample.pdf';
+const FU_TEMPLATES = { std: 'Standard follow-up', bpa: 'BPA: has a contract' };
+const fuTplPick = {};   // choices made on this page; otherwise the template is picked from the conversation
+const FU_CONTRACT = /\b(pm|maintenance|service)\s+(contract|agreement)\b|\bunder contract\b|\b(current|existing|another|other)\s+(contractor|provider|hvac company)\b|\bsecond[- ]opinion\b|\blocked in\b/i;
+function fuHasContract(list) {
+  return list.some(i => {
+    const k = i.k || {}, cp = String(k.currentProvider || '').trim();
+    if (cp && !/^(none|no\b|n\/?a|unknown|not )/i.test(cp)) return true;
+    return FU_CONTRACT.test([k.summary, k.nextStep, k.pains, i.text, i.l && i.l.notes].filter(Boolean).join(' \n '));
+  }) || FU_CONTRACT.test((fuNotes[fuGroupKey(list[0])] || {}).text || '');
+}
+const fuTplOf = g => fuTplPick[g.key] || (fuHasContract(g.items) ? 'bpa' : 'std');
+function fuBpaLetter(x) {
+  const first = (x.contact || '').trim().split(/[\s,(]/)[0];
+  const met = x.src === 'knock' && x.when ? 'when I stopped by on ' + fmtDate(x.when).replace(/, \d{4}$/, '') : 'recently';
+  const mo = new Date().getMonth();   // 0 = January
+  const season = mo >= 2 && mo <= 7 ? 'before the hot weather arrives' : 'as the cold weather approaches';
+  const crew = myName === 'Jake' ? 'Myself, our service leader Mike and/or our lead technician' : 'Jake, our co-founder, with our service leader and/or lead technician';
+  return (first ? 'Hey ' + first : 'Hi there') + ',\n\n' +
+    'Thanks again for taking the time to chat ' + met + '. I know you already have a maintenance contractor in place, so I\'m not asking you to change anything. I wanted to see if a one-time second opinion on your site would be useful.\n\n' +
+    'We call it our Zero-Risk Building Performance Audit: a full look at your HVAC equipment and controls, followed by a sit-down on what we found. What you get:\n\n' +
+    '1. A second opinion on how your systems are working and how the work is priced\n' +
+    '2. At least 3 clear actions you can take to improve your systems\n' +
+    '3. A 12 to 24 month plan with budget ranges, so there are no gaps ' + season + '\n\n' +
+    'How it works: ' + crew + ' would come to site and go through each piece of equipment, just as we would on a maintenance visit. You then get a detailed report with clear action steps and flags, and we walk you through it on a follow-up call.\n\n' +
+    'Why it\'s zero-risk:\n\n' +
+    '1. If we don\'t find at least 3 things you agree are worth acting on, you don\'t pay.\n' +
+    '2. If you start a service agreement with Alpine within 45 days of the follow-up call, the full audit fee is credited toward your first year.\n' +
+    '3. If you stay with your current contractor, the report is yours to keep, with a clear list of what to take back to them.\n\n' +
+    'And if you ever change contractors or need backup in a pinch, we would already have your equipment information and could arrive ready to work.\n\n' +
+    'Here is a sample so you can see what the report looks like: ' + BPA_SAMPLE + '\n\n' +
+    'Would a 20-minute call next week work to see if it\'s a fit? You can also book a time through the link in my signature.\n\n' +
+    'Looking forward to hearing from you.' + (first ? ' Thanks ' + first : ' Thanks') + '\n';
 }
 function fuLetter(x) {
-  const me = session.email || '', name = session.name || 'Alpine HVAC';
   const first = (x.contact || '').trim().split(/[\s,(]/)[0];
   const met = x.src === 'knock' && x.when ? 'when I stopped by on ' + fmtDate(x.when).replace(/, \d{4}$/, '') : 'recently';
   const site = x.address ? ' at ' + cleanAddr(x.address) : '';
@@ -830,20 +878,19 @@ function fuLetter(x) {
     'Thank you for taking the time to speak with me ' + met + '. I wanted to follow up on our conversation about the HVAC and building systems' + site + '.\n\n' +
     'Alpine HVAC looks after commercial, industrial and institutional buildings across Niagara and Hamilton: planned maintenance, 24/7 emergency service, and building automation alongside the mechanical work, all from one team.\n\n' +
     'Would you have 15 minutes in the next week or two for a quick walk through your mechanical room? We would take a look at your equipment and put together a maintenance plan that fits the building, at no charge.\n\n' +
-    'Thanks again, and I look forward to hearing from you.\n\n' +
-    name + '\nAlpine HVAC Service Inc.\n' + me + '\n';
+    'Thanks again, and I look forward to hearing from you.\n';
 }
-const fuOpenMail = (to, x, body) => { location.href = 'mailto:' + encodeURIComponent(to).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Following up — ' + (x.company || 'our conversation')) + '&body=' + encodeURIComponent(body.replace(/\n/g, '\r\n')); };
+const fuOpenMail = (to, x, body, subject) => { location.href = 'mailto:' + encodeURIComponent(to).replace(/%40/g, '@') + '?subject=' + encodeURIComponent(subject || 'Following up — ' + (x.company || 'our conversation')) + '&body=' + encodeURIComponent(body.replace(/\n/g, '\r\n')); };
 // Generic follow-up, addressed to the signed-in user so it lands in their inbox to forward.
-function fuMail(list) {
+function fuMail(list, tpl) {
   const x = fuMerge(list), to = x.email;
   fuOpenMail(session.email || '', x, 'FORWARD TO: ' + ([x.contact, to].filter(Boolean).join(' <') + (to && x.contact ? '>' : '') || '(no contact on file)') + ' · ' + (x.company || '') + '\n' +
-    '----------------------------------------\n\n' + fuLetter(x));
+    '----------------------------------------\n\n' + (tpl === 'bpa' ? fuBpaLetter(x) : fuLetter(x)));
 }
 // Addressed straight to the prospect (To is blank if only a phone is on file), covering the items picked at
 // that location. Summaries are internal notes, so they sit in a block at the top for the sender to use and
 // delete, not in the letter itself.
-function fuDraft(list) {
+function fuDraft(list, tpl) {
   const x = fuMerge(list), c = x;
   const convs = [...new Map(list.map(i => [i.k ? 'k' + i.k.id : 'l', i])).values()].map(i => {
     const head = (i.src === 'knock' ? 'Door knock' + (i.when ? ' ' + fmtDate(i.when) : '') : 'Lead sheet') + (i.contact ? ' · ' + i.contact + (i.k && i.k.role ? ' (' + i.k.role + ')' : '') : '');
@@ -851,14 +898,45 @@ function fuDraft(list) {
     return head + (summary ? '\nSummary: ' + summary : '');
   });
   const notes = 'MY NOTES: DELETE BEFORE SENDING\n' + (c.email ? '' : 'No email on file. Phone: ' + c.phone + '\n') + convs.join('\n\n') + '\n\n' +
+    (c.note ? 'Your notes: ' + c.note + '\n\n' : '') +
     'Following up on:\n' + list.map((i, n) => (n + 1) + '. ' + i.text).join('\n') + '\n' +
     '----------------------------------------\n\n';
-  fuOpenMail(c.email, x, notes + fuLetter(x));
+  if (tpl === 'bpa') fuOpenMail(c.email, x, notes + fuBpaLetter(x), 'Alpine HVAC — second opinion for ' + (x.company || 'your site'));
+  else fuOpenMail(c.email, x, notes + fuLetter(x));
 }
+// Notes save as you type (the note wins once it holds an email or phone), and the buttons follow along
+// in place: re-rendering here would swallow a click on Draft right after typing.
+let fuNoteTimer = null;
+function fuNotePersist() {
+  clearTimeout(fuNoteTimer); fuNoteTimer = null;
+  const cur = readJSON('ob_fu_notes') || {};
+  Object.keys(fuNotes).forEach(k => { cur[k] = fuNotes[k]; });
+  Object.keys(cur).forEach(k => { if (!fuNotes[k] || !fuNotes[k].text) delete cur[k]; });
+  fuNotes = cur;
+  localStorage.setItem('ob_fu_notes', JSON.stringify(cur));
+}
+document.addEventListener('input', e => {
+  const ta = e.target.closest('#fr-list .fu-note textarea'); if (!ta) return;
+  const li = ta.closest('li.fu'), g = fuGroups[li.dataset.key]; if (!g) return;
+  const text = ta.value.trim();
+  if (text) fuNotes[g.key] = { text, by: session.name, at: todayISO() }; else delete fuNotes[g.key];
+  const c = fuMerge(g.items), both = c.email || c.phone;
+  li.querySelector('.fu-found').innerHTML = fuFoundHTML(text);
+  li.querySelectorAll('.fu-draft,.fu-one').forEach(b => { b.hidden = !both; });
+  li.querySelector('.fu-mail').classList.toggle('ghost', !!both);
+  const pat = li.querySelector('.fu-pat'); if (pat) pat.hidden = !!c.email;
+  li.querySelector('.fu-draft').title = both && !c.email ? 'No email on file: the To line opens blank.' : '';
+  clearTimeout(fuNoteTimer); fuNoteTimer = setTimeout(fuNotePersist, 700);
+});
+document.addEventListener('change', e => {
+  if (e.target.closest('#fr-list .fu-note textarea') && fuNoteTimer) fuNotePersist();
+  const sel = e.target.closest('#fr-list .fu-tpl select'); if (!sel) return;
+  const li = sel.closest('li.fu'); fuTplPick[li.dataset.key] = sel.value; li.querySelector('.fu-auto').textContent = '';
+});
 document.addEventListener('click', e => {
   if (!e.target.closest('#fr-list')) return;
   const sb = e.target.closest('#fu-sort button'); if (sb) { fuSort = sb.dataset.s; renderFollowReq(); return; }
-  if (e.target.closest('#fu-undo')) { const u = fuItems[fuUndo]; delete fuDismissed[fuUndo]; if (u) fuOpen = 'g:' + (u.ref || normName(u.company) || u.key); fuUndo = null; fuSave(); renderFollowReq(); return; }
+  if (e.target.closest('#fu-undo')) { const u = fuItems[fuUndo]; delete fuDismissed[fuUndo]; if (u) fuOpen = fuGroupKey(u); fuUndo = null; fuSave(); renderFollowReq(); return; }
   const li = e.target.closest('li.fu'); if (!li) return;
   const g = fuGroups[li.dataset.key], item = e.target.closest('li.fu-item');
   const picked = () => g ? [...li.querySelectorAll('li.fu-item')].filter(r => r.querySelector('.fu-pick').checked).map(r => fuItems[r.dataset.key]).filter(Boolean) : [];
@@ -868,9 +946,9 @@ document.addEventListener('click', e => {
     const n = picked().length, c = li.querySelector('.fu-n'), b = li.querySelector('.fu-draft');
     if (c) c.textContent = n; if (b) b.disabled = !n; return;
   }
-  if (e.target.closest('.fu-one')) { const x = fuItems[item.dataset.key]; if (x) fuDraft([x]); return; }
-  if (e.target.closest('.fu-draft')) { const l = picked(); if (l.length) fuDraft(l); return; }
-  if (e.target.closest('.fu-mail')) { if (g) fuMail(picked().length ? picked() : g.items); return; }
+  if (e.target.closest('.fu-one')) { const x = fuItems[item.dataset.key]; if (x) fuDraft([x], fuTplOf(g)); return; }
+  if (e.target.closest('.fu-draft')) { const l = picked(); if (l.length) fuDraft(l, fuTplOf(g)); return; }
+  if (e.target.closest('.fu-mail')) { if (g) fuMail(picked().length ? picked() : g.items, fuTplOf(g)); return; }
   if (e.target.closest('.fu-next')) { fuGoNext(li, false); return; }
   if (e.target.closest('.fu-del')) { const k = item.dataset.key; fuDismissed[k] = { by: session.name, at: todayISO() }; fuUndo = k; fuSave(); afterItem(); return; }
   const b = e.target.closest('.fr-done');
