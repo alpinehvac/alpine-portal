@@ -219,16 +219,23 @@ function defaultDraft(it) {
   const V = billable(), site = it.property || it.customer;
   const to = (sw.to || []).filter(x => x.primary !== false).slice(0, 1).map(x => x.email);
   const first = ((sw.to || [])[0] || {}).name;
-  const lines = V.map(v => { const t = sumText(v).split(/(?<=[.!?])\s+/)[0] || v.desc || "Service visit"; return `${fmtD(v.date)}: ${t}`; }).slice(-6);
+  // sw.sums and sw.summary are the sweep's customer-ready rewrite of the techs' notes. Until the sweep has one, use the notes.
+  const shown = v => (sw.sums || {})[v.id] || sumText(v);
+  const worked = V.filter(v => shown(v));
+  const summary = sw.summary || (worked.length === 1 ? shown(worked[0]) : worked.map(v => `${fmtD(v.date)}: ${shown(v)}`).join("\n\n"));
+  const lines = V.map(v => `${fmtD(v.date)}: ${v.desc || "Service visit"}`).slice(-6);
+  const work = summary ? `Work completed:\n${summary}\n\n` : lines.length ? `Work completed:\n${lines.join("\n")}\n\n` : "";
   return {
     type: it.bucket === "parts" ? "Parts" : it.bucket === "progress" && !it.done ? "Progress" : /t\s*&\s*m|time/i.test(it.type) ? "T&M" : it.done ? "Final" : "Full",
     amount: it.bucket === "parts" ? null : it.bucket === "progress" ? Math.max(Math.round(it.est || 0), 0) : it.left != null ? Math.round(it.left * 100) / 100 : null,
     po: it.po || "",
     note: sw.note || `${it.po ? it.po.replace(/^[A-Z]+/, "") + " - " : ""}${(it.title || site).slice(0, 80)}`,
+    summary,
+    sumEdits: { ...(sw.sums || {}) },
     lines: it.bucket === "parts" ? V.flatMap(v => v.parts || []).map(p => ({ desc: p.name || "", qty: p.qty ?? "", amount: "" })) : [],
     to,
     subject: d.subject || `Invoice - ${site}${it.po ? ` - PO ${it.po}` : ""}`,
-    body: d.body || `${first ? `Hi ${first.split(" ")[0]},\n\n` : ""}Please find attached our invoice for ${site}${it.title ? `: ${it.title.slice(0, 80)}` : ""}.\n\n${lines.length ? `Work completed:\n${lines.join("\n")}\n\n` : ""}The job report with visit summaries and photos is attached. Let us know if you have any questions.`,
+    body: d.body || `${first ? `Hi ${first.split(" ")[0]},\n\n` : ""}Please find attached our invoice for ${site}${it.title ? `: ${it.title.slice(0, 80)}` : ""}.\n\n${work}The job report with visit summaries and photos is attached. Let us know if you have any questions.`,
     visits: V.map(v => v.id),
     opts: { hours: /t\s*&\s*m|time/i.test(it.type), mats: true, recs: true, sign: false, photos: true },
   };
@@ -272,11 +279,13 @@ async function openItem(id) {
   if (OPEN !== id) return;
   ITEM = allItems().find(i => i.id === id) || (() => { const j = D && (D.jobs || []).find(x => x.id === id); return j ? { ...itemFromJob(j, j.kind === "Project" ? "progress" : "service"), rec: REC[id] || {} } : { id, bucket: "flag", customer: (DET && DET.customer) || id, property: (DET && DET.property) || "", title: "", po: (DET && DET.po) || "", type: (DET && DET.type) || "", why: "", rec: REC[id] || {} }; })();
   if (DET) { ITEM.customer = ITEM.customer || (DET.customer || "").replace(/^\*/, ""); ITEM.property = ITEM.property || DET.property || ""; ITEM.po = ITEM.po || DET.po || ""; ITEM.type = ITEM.type || DET.type || ""; }
-  FORM = { ...defaultDraft(ITEM), ...stripMeta(REC[id] || {}) };
+  const dflt = defaultDraft(ITEM), saved = stripMeta(REC[id] || {});
+  FORM = { ...dflt, ...saved, sumEdits: { ...dflt.sumEdits, ...(saved.sumEdits || {}) } };
+  if (!saved.summary && saved.sumEdits) { const t = Object.values(saved.sumEdits).filter(Boolean).join("\n\n"); if (t) FORM.summary = t; } // reviewed before this box existed
   renderReview();
 }
 /* Autosave sends only what changed, but the queue and the report need the whole reviewed draft, defaults included. */
-const DRAFT_KEYS = ["type", "amount", "po", "note", "lines", "to", "subject", "body", "visits", "opts", "sumEdits", "phOff", "claudeNote"];
+const DRAFT_KEYS = ["type", "amount", "po", "note", "summary", "lines", "to", "subject", "body", "visits", "opts", "sumEdits", "phOff", "claudeNote"];
 const fullDraft = () => { const o = {}; DRAFT_KEYS.forEach(k => { if (FORM[k] !== undefined) o[k] = FORM[k]; }); return o; };
 const stripMeta = r => { const { updatedAt, updatedBy, jobId, customer, property, ...x } = r; return x; };
 
@@ -331,6 +340,8 @@ function renderReview() {
       <label class="lab" for="f-amt">Amount before HST${F.type === "T&M" || F.type === "Parts" ? " (leave blank: BuildOps prices it from the pricebook)" : ""}</label>
       <input class="in" id="f-amt" inputmode="decimal" value="${F.amount ?? ""}" ${locked ? "disabled" : ""}>
       <div class="totals" id="totals"></div>
+      <label class="lab" for="f-summary">Invoice summary (customer-facing, prints on the invoice)</label>
+      <textarea class="in" id="f-summary" rows="6" ${locked ? "disabled" : ""}>${esc(F.summary || "")}</textarea>
       <label class="lab" for="f-note">Invoice note (shows in BuildOps and QuickBooks)</label>
       <textarea class="in" id="f-note" rows="2" ${locked ? "disabled" : ""}>${esc(F.note || "")}</textarea>
       <label class="lab">Line items for Claude (optional)</label>
@@ -386,7 +397,7 @@ function bindReview(it, st, locked) {
   $("back").onclick = e => { e.preventDefault(); flush(); location.hash = ""; };
   document.querySelectorAll(".vh").forEach(h => h.onclick = e => { if (!e.target.closest("input")) h.parentElement.classList.toggle("open"); });
   const bind = (id, key, fn) => { const el = $(id); if (el) el.oninput = () => queueSave({ [key]: fn ? fn(el.value) : el.value }); };
-  bind("f-type", "type"); bind("f-po", "po"); bind("f-note", "note"); bind("f-claude", "claudeNote"); bind("f-subj", "subject"); bind("f-body", "body");
+  bind("f-type", "type"); bind("f-po", "po"); bind("f-note", "note"); bind("f-summary", "summary"); bind("f-claude", "claudeNote"); bind("f-subj", "subject"); bind("f-body", "body");
   $("f-type").onchange = () => { queueSave({ type: $("f-type").value }); drawTotals(); };
   $("f-amt").oninput = () => { const v = $("f-amt").value.replace(/[$,\s]/g, ""); queueSave({ amount: v === "" || isNaN(+v) ? null : +v }); drawTotals(); };
   const toX = () => { const ticked = [...document.querySelectorAll("[data-to]:checked")].map(c => c.dataset.to), more = $("f-to-x").value.split(/[,;\s]+/).map(s => s.trim()).filter(s => /@/.test(s)); queueSave({ to: [...new Set([...ticked, ...more])] }); };
@@ -484,7 +495,7 @@ document.addEventListener("click", e => {
 /* ---------- used by Claude: the daily sweep (read only) and INVOICING-CREATE.md ---------- */
 window.apInvoiceQueue = () => allItems().map(({ job, rec, ...i }) => ({ ...i, stateNow: i.st }));
 window.apInvoiceSweep = () => ({ asOf: SWEEP.asOf || "", items: SWEEP.items || {}, extra: SWEEP.extra || [] });
-window.apInvoiceQueued = () => Object.entries(REC).filter(([id]) => stateOf(id) === "queued").map(([id, r]) => ({ id, type: r.type, amount: r.amount ?? null, po: r.po || "", note: r.note || "", lines: r.lines || [], claudeNote: r.claudeNote || "", visits: r.visits || [], customer: r.customer || "", property: r.property || "", queuedBy: r.stateBy || "" }));
+window.apInvoiceQueued = () => Object.entries(REC).filter(([id]) => stateOf(id) === "queued").map(([id, r]) => ({ id, type: r.type, amount: r.amount ?? null, po: r.po || "", note: r.note || "", summary: r.summary || "", lines: r.lines || [], claudeNote: r.claudeNote || "", visits: r.visits || [], customer: r.customer || "", property: r.property || "", queuedBy: r.stateBy || "" }));
 window.apInvoiceDrafted = async (id, res) => {
   if (!REC[id] || REC[id].state !== "queued") throw new Error(id + " is not queued");
   if (!/^INV-?\d+$/i.test(res.invNo || "")) throw new Error("invNo must look like INV-20261301");

@@ -179,13 +179,20 @@ It reads only; the single write is step 6.
    is on the list, add a line to that job's `flags`. If it matches a job not on the list, or no job, add to `extra`:
    `{id: "<job id>" or "flag-YYYYMMDD-n", bucket: "flag", customer, property, last, why}`.
 5. Recipients and drafts. On `invoicing.html` read `JSON.stringify(apInvoiceQueue())` and `JSON.stringify(apInvoiceSweep())`
-   in slices. For each item with `stateNow` of `todo`, keep its `items[id]` from the previous sweep if it has `to`, and build
-   one only if it is new:
-   `items[id] = {to: [{name, email, role, src}], draft: {subject, body}, note, flags: []}`.
+   in slices. For each item with `stateNow` of `todo`, keep its `to` from the previous sweep if it has one. Rebuild `summary`,
+   `sums`, `draft` and `note` whenever the job has no `summary` yet or its visit summaries changed since the last sweep
+   (`sumsFrom` differs). A completed visit with no summary note gets a flag, and is never filled in from the visit description:
+   `items[id] = {to: [{name, email, role, src}], summary, sums: {"<visit id>": text}, sumsFrom, draft: {subject, body}, note, flags: []}`.
+   - `summary`: the Invoice Summary, standing rule on every job, quoted or T&M (Jake, Nov 4 2026). Summarize every completed
+     visit's tech summary note on the job (read `ops_job_detail`) into customer-facing text: what was found and what was done, per
+     unit or area, in the techs' facts. Keep each finding, repair and result, and anything left incomplete. On a quoted
+     job, open with the quote number and scope, then the work. Never only the issue or visit description. No costs or internal notes.
+   - `sums`: the same work per visit, used on the job report, keyed by visit id (`JO20261205-1`).
+   - `sumsFrom`: the visit ids and the length of each note's text, e.g. `JO20261205-1:1893`.
    - `to`: who gets invoices for this job, best first. Check who received the last invoice or quote in Outlook, the job's
      Property Representative in BuildOps, and the BuildOps customer contacts. Business addresses only, never a guess. `src`
      says where it came from. Leave `to` empty rather than guessing.
-   - `draft`: a short job summary from the visit summaries and emails, written to the customer. Benefits first, plain
+   - `draft`: the email body, built around `summary`, written to the customer. Benefits first, plain
      language, no costs or internal notes, no sign-off. Leave out anything the visit reports don't say.
    - `note`: the invoice note, in the format already used: `00747 - Niagara Parks Generator Piping`.
 6. Save. Add `extra`, `items` and `asOf` to `sweep.json`'s object and call
