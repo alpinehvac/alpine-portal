@@ -116,19 +116,24 @@
     ];
     const tierHrs = mode === 'semi' ? modeTotal('semi') : total;
     syncPkgUI(mode);
+    syncOverrideUI(mode, bufferMult);
     tiers.forEach(t => {
       const cap = t.key.charAt(0).toUpperCase() + t.key.slice(1);
       document.getElementById(t.hoursId).textContent = fmt(tierHrs) + (mode === 'semi' ? ' semi-annual' : '');
-      const annualRevenue = tierHrs * t.rate * bufferMult;
-      document.getElementById(t.annualId).textContent = fmtCurrency(annualRevenue);
-      document.getElementById(t.monthlyId).textContent = fmtCurrency(annualRevenue / 12);
+      const price = priceFor(mode, t.key, tierHrs * t.rate * bufferMult);
+      document.getElementById(t.annualId).textContent = fmtCurrency(price.annual);
+      document.getElementById(t.monthlyId).textContent = fmtCurrency(price.monthly);
+      const cardEl = document.querySelector('.tier-card.tier-' + t.key);
+      if(cardEl) cardEl.classList.toggle('is-override', price.overridden);
       document.getElementById(t.bufferNoteId).textContent = bufferOn ? '+ 5% buffer' : '';
       const cmpEl = document.getElementById('tier' + cap + 'Compare');
       if(cmpEl){
         const fullMo = total * t.rate * bufferMult / 12;
-        cmpEl.textContent = (mode === 'semi' && total > 0)
+        const cmpTxt = (mode === 'semi' && total > 0)
           ? `vs Quarterly+ $${fmtCurrency(fullMo)}/mo · ${Math.round(tierHrs / total * 100)}% of full`
           : '';
+        const ovrTxt = price.overridden ? `Override · calculated $${fmtCurrency(price.calcAnnual / 12)}/mo` : '';
+        cmpEl.textContent = [ovrTxt, cmpTxt].filter(Boolean).join(' · ');
       }
       const featEl = document.getElementById('tier' + cap + 'Features');
       if(featEl) featEl.innerHTML = buildFeatureList(t.key, mode);
@@ -136,13 +141,15 @@
 
     // One-time service (retail rate, comprehensive inspection hours)
     const oneHrs = modeTotal('onetime');
-    const oneAmt = oneHrs * RETAIL_RATE * bufferMult;
+    const onePrice = priceFor('onetime', 'onetime', oneHrs * RETAIL_RATE * bufferMult);
     document.getElementById('oneTimeHours').textContent = fmt(oneHrs);
-    document.getElementById('oneTimeTotal').textContent = fmtCurrency(oneAmt);
+    document.getElementById('oneTimeTotal').textContent = fmtCurrency(onePrice.annual);
+    document.getElementById('oneTimeCard').classList.toggle('is-override', onePrice.overridden);
     document.getElementById('oneTimeBufferNote').textContent = bufferOn ? '+ 5% buffer' : '';
-    document.getElementById('oneTimeCompare').textContent = total > 0
-      ? `Base agreement: $${fmtCurrency(total * 150 * bufferMult / 12)}/mo · Semi-Annual Base: $${fmtCurrency(modeTotal('semi') * 150 * bufferMult / 12)}/mo`
-      : '';
+    document.getElementById('oneTimeCompare').textContent = [
+      onePrice.overridden ? `Override · calculated $${fmtCurrency(onePrice.calcAnnual)}` : '',
+      total > 0 ? `Base agreement: $${fmtCurrency(total * 150 * bufferMult / 12)}/mo · Semi-Annual Base: $${fmtCurrency(modeTotal('semi') * 150 * bufferMult / 12)}/mo` : ''
+    ].filter(Boolean).join(' · ');
     document.getElementById('oneTimeFeatures').innerHTML = ONE_TIME_FEATURES.map(f => `<li class="feat-yes">${f}</li>`).join('');
   }
 
@@ -260,6 +267,59 @@
       const card = document.querySelector('.tier-card.tier-' + k);
       if(card) card.classList.toggle('is-rec', rec === k && vis.includes(k));
     });
+  }
+
+  // ---- Manual price override (User View only) ----
+  // Stored per service option, so a Quarterly+ override never carries into Semi-Annual or One-Time.
+  // overrides[mode][key] = { annual, monthly }. One-Time uses key 'onetime' and only the annual slot.
+  let overrides = {};
+  function ovrNum(v){ const n = parseFloat(v); return n > 0 ? n : 0; }
+  // Enter one figure and the other is derived; enter both and each is used as typed.
+  function priceFor(mode, key, calcAnnual){
+    const o = (overrides[mode] || {})[key] || {};
+    const a = ovrNum(o.annual), m = ovrNum(o.monthly);
+    return {
+      annual: a || m * 12 || calcAnnual,
+      monthly: m || a / 12 || calcAnnual / 12,
+      calcAnnual,
+      overridden: !!(a || m),
+      mismatch: !!(a && m && Math.abs(a - m * 12) >= 1)
+    };
+  }
+  const OVR_ROWS = { min: 'ovrRowMin', core: 'ovrRowCore', premium: 'ovrRowPremium', onetime: 'ovrRowOnetime' };
+  const OVR_NAMES = { min: 'Base', core: 'Core', premium: 'Premium' };
+  const OVR_RATES = { min: 150, core: 300, premium: 900 };
+  function ovrInputs(){ return Array.from(document.querySelectorAll('#overridePanel input[data-ovr-key]')); }
+  // Puts the current service option's saved overrides into the inputs
+  function loadOverrideInputs(){
+    const set = overrides[getServiceMode()] || {};
+    ovrInputs().forEach(el => {
+      const o = set[el.dataset.ovrKey] || {};
+      el.value = o[el.dataset.ovrField] || '';
+    });
+  }
+  function syncOverrideUI(mode, bufferMult){
+    const vis = visiblePkgs(mode);
+    Object.keys(OVR_ROWS).forEach(k => {
+      const show = mode === 'onetime' ? k === 'onetime' : vis.includes(k);
+      document.getElementById(OVR_ROWS[k]).classList.toggle('ovr-hide', !show);
+    });
+    document.getElementById('ovrHint').textContent = mode === 'onetime'
+      ? 'Leave blank to use the calculated price.'
+      : 'Leave blank to use the calculated price. Enter one figure and the other follows; enter both and each is used as typed.';
+    // Calculated figures sit in the empty inputs as a reference
+    const hrs = modeTotal(mode);
+    ovrInputs().forEach(el => {
+      const k = el.dataset.ovrKey;
+      const calc = hrs * (k === 'onetime' ? RETAIL_RATE : OVR_RATES[k]) * bufferMult;
+      el.placeholder = fmtCurrency(el.dataset.ovrField === 'monthly' ? calc / 12 : calc);
+    });
+    const warnEl = document.getElementById('ovrWarn');
+    const off = mode === 'onetime' ? [] : vis.filter(k => priceFor(mode, k, 0).mismatch);
+    warnEl.style.display = off.length ? 'block' : 'none';
+    warnEl.textContent = off.length
+      ? `Annual and monthly don't match for ${off.map(k => OVR_NAMES[k]).join(', ')}: the customer will see both figures as typed, and the signature page uses the annual figure.`
+      : '';
   }
 
   function syncServiceModeClass(){
@@ -497,7 +557,22 @@
   render();
 
   document.getElementById('bufferToggle').addEventListener('change', render);
-  document.querySelectorAll('input[name="svcMode"]').forEach(r => r.addEventListener('change', render));
+  document.querySelectorAll('input[name="svcMode"]').forEach(r => r.addEventListener('change', function(){
+    loadOverrideInputs();
+    render();
+  }));
+  ovrInputs().forEach(el => el.addEventListener('input', function(){
+    const mode = getServiceMode(), key = el.dataset.ovrKey;
+    overrides[mode] = overrides[mode] || {};
+    overrides[mode][key] = overrides[mode][key] || {};
+    overrides[mode][key][el.dataset.ovrField] = el.value;
+    render();
+  }));
+  document.getElementById('ovrClear').addEventListener('click', function(){
+    delete overrides[getServiceMode()];
+    loadOverrideInputs();
+    render();
+  });
   PKG_KEYS.forEach(k => {
     const el = document.getElementById(PKG_IDS[k]);
     if(!el) return;
@@ -611,7 +686,8 @@
     const vis = visiblePkgs(mode);
     const tiers = allTiers.filter(t => vis.includes(t.key));
     const recKey = getPkgRec();
-    const oneTimeAmt = total * RETAIL_RATE * bufferMult;
+    const onePrice = priceFor('onetime', 'onetime', total * RETAIL_RATE * bufferMult);
+    const oneTimeAmt = onePrice.annual;
 
     const oneTimeCard = `
         <div style="border:1px solid #c9b8d4;border-top:4px solid #27636c;border-radius:4px;padding:14px;display:flex;flex-direction:column;">
@@ -620,7 +696,7 @@
           ${isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:2px;">$${RETAIL_RATE} / hr (retail)</div>`}
           <div style="font-size:22px;font-weight:700;color:#27636c;margin-top:6px;">$${fmtCurrency(oneTimeAmt)}<span style="font-size:10px;font-weight:500;color:#666;"> one-time</span></div>
           <div style="font-size:10.5px;color:#666;margin-top:2px;">+ Applicable Taxes</div>
-          ${isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">${fmt(total)} hrs × $${RETAIL_RATE}${bufferOn ? ' + 5% buffer' : ''}</div>`}
+          ${isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">${onePrice.overridden ? 'Manual override · calculated ' + '$' + fmtCurrency(onePrice.calcAnnual) : `${fmt(total)} hrs × $${RETAIL_RATE}${bufferOn ? ' + 5% buffer' : ''}`}</div>`}
           <hr style="border:none;border-top:1px solid #c9b8d4;margin:10px 0;">
           <ul style="margin:0;padding-left:14px;font-size:9.5px;color:#444;line-height:1.6;">
             ${buildPrintFeatureList('onetime', '#27636c', mode)}
@@ -628,10 +704,11 @@
         </div>`;
 
     const tierCards = oneTime ? oneTimeCard : tiers.map(t => {
-      const annualAmt = total * t.rate * bufferMult;
-      const monthlyAmt = annualAmt / 12;
+      const price = priceFor(mode, t.key, total * t.rate * bufferMult);
+      const annualAmt = price.annual;
+      const monthlyAmt = price.monthly;
       const rateRow    = isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:2px;">$${t.rate} / hr</div>`;
-      const formulaRow = isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">${fmt(total)}${mode === 'semi' ? ' semi-annual' : ''} hrs × $${t.rate}${bufferOn ? ' + 5% buffer' : ''}</div>`;
+      const formulaRow = isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">${price.overridden ? 'Manual override · calculated $' + fmtCurrency(price.calcAnnual) + ' / yr' : `${fmt(total)}${mode === 'semi' ? ' semi-annual' : ''} hrs × $${t.rate}${bufferOn ? ' + 5% buffer' : ''}`}</div>`;
       const annualLine = (!isCustomer || showAnnual)
         ? `<div style="font-size:10.5px;color:#666;margin-top:2px;">$${fmtCurrency(annualAmt)} / yr + Applicable Taxes</div>`
         : '';
@@ -700,7 +777,7 @@
               <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(oneTimeAmt * 1.13)} after tax (HST 13%)</div>
             </div>` : tiers.map(t => `<div>
               <div style="font-size:11.5px;color:#333;">☐ ${t.name}${mode === 'semi' ? ' — Semi-Annual' : ''}${t.key === recKey ? ' <span style="font-size:9.5px;color:#666;">(Recommended)</span>' : ''}</div>
-              <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(total * t.rate * bufferMult * 1.13)} / yr after tax (HST 13%)</div>
+              <div style="font-size:10px;color:#666;margin-top:1px;">$${fmtCurrency(priceFor(mode, t.key, total * t.rate * bufferMult).annual * 1.13)} / yr after tax (HST 13%)</div>
             </div>`).join('')}
           </div>
         </div>
@@ -828,6 +905,7 @@ function saSnapshot(){
     serviceMode: getServiceMode(),
     pkgShow: getPkgShow(),
     pkgRec: getPkgRec(),
+    overrides: JSON.parse(JSON.stringify(overrides)),
     lines: JSON.parse(JSON.stringify(lines))
   };
 }
@@ -849,6 +927,8 @@ function saApplySnapshot(snap){
   setServiceMode(snap.serviceMode);
   setPkgShow(snap.pkgShow);
   const recEl = document.getElementById('pkgRec'); if (recEl) recEl.value = snap.pkgRec || '';
+  overrides = JSON.parse(JSON.stringify(snap.overrides || {}));
+  loadOverrideInputs();
   render();
 }
 

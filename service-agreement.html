@@ -800,6 +800,20 @@
   .pkg-row select{ font-family:'Inter',sans-serif; font-size:12px; padding:4px 6px; border:1px solid var(--mist); border-radius:4px; color:var(--slate); background:#fff; }
   .pkg-sep{ width:1px; height:18px; background:var(--mist); }
   body.svc-onetime .pkg-row{ display:none !important; }
+  .ovr-panel{ margin-top:16px; padding:12px 14px; border:1px dashed var(--mist); border-radius:6px; background:#fff; font-family:'Inter',sans-serif; font-size:12px; color:var(--slate-mid); }
+  .ovr-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .ovr-hint{ flex:1 1 240px; font-size:11.5px; color:var(--stone); }
+  .ovr-clear{ font-family:'Inter',sans-serif; font-size:11.5px; font-weight:600; padding:4px 10px; border:1px solid var(--mist); border-radius:4px; background:#fff; color:var(--slate); cursor:pointer; }
+  .ovr-row{ display:grid; grid-template-columns:90px minmax(0,1fr) minmax(0,1fr); gap:10px; align-items:center; margin-top:8px; }
+  .ovr-row.ovr-hide{ display:none; }
+  .ovr-row-onetime{ grid-template-columns:90px minmax(0,1fr); }
+  .ovr-name{ font-weight:600; color:var(--slate); }
+  .ovr-field{ display:flex; align-items:center; gap:6px; min-width:0; }
+  .ovr-field span{ flex:none; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--stone); }
+  .ovr-field input{ flex:1 1 auto; min-width:0; width:100%; font-family:'Inter',sans-serif; font-size:12px; padding:5px 7px; border:1px solid var(--mist); border-radius:4px; color:var(--slate); background:#fff; }
+  .ovr-warn{ display:none; margin-top:10px; font-size:11.5px; font-weight:600; color:#b83227; }
+  .tier-card.is-override .tier-formula{ text-decoration:line-through; opacity:.6; }
+  @media(max-width:520px){ .ovr-row{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); } .ovr-name{ grid-column:1 / -1; } .ovr-row-onetime{ grid-template-columns:minmax(0,1fr); } }
   /* Recommended package badge */
   .tier-card{ position:relative; }
   .tier-rec-badge{ display:none; position:absolute; top:-11px; left:50%; transform:translateX(-50%); font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.8px; text-transform:uppercase; color:#fff; padding:3px 10px; border-radius:10px; white-space:nowrap; }
@@ -848,6 +862,7 @@
     .total-plate{ break-inside:avoid; }
     .rep-only{ display:block !important; }
     body.customer-mode .rep-only{ display:none !important; }
+    .ovr-panel{ display:none !important; }
   }
 </style>
 </head>
@@ -1175,6 +1190,33 @@
         <div class="tier-divider"></div>
         <ul class="tier-features" id="oneTimeFeatures"></ul>
       </div>
+    </div>
+    <div class="ovr-panel rep-only" id="overridePanel">
+      <div class="ovr-head">
+        <span class="svc-mode-lbl">Price Override</span>
+        <span class="ovr-hint" id="ovrHint"></span>
+        <button class="ovr-clear" id="ovrClear" type="button">Clear</button>
+      </div>
+      <div class="ovr-row" id="ovrRowMin">
+        <div class="ovr-name">Base</div>
+        <label class="ovr-field"><span>$ / yr</span><input type="number" id="ovrMinAnnual" data-ovr-key="min" data-ovr-field="annual" min="0" step="0.01" inputmode="decimal" aria-label="Base annual override"></label>
+        <label class="ovr-field"><span>$ / mo</span><input type="number" id="ovrMinMonthly" data-ovr-key="min" data-ovr-field="monthly" min="0" step="0.01" inputmode="decimal" aria-label="Base monthly override"></label>
+      </div>
+      <div class="ovr-row" id="ovrRowCore">
+        <div class="ovr-name">Core</div>
+        <label class="ovr-field"><span>$ / yr</span><input type="number" id="ovrCoreAnnual" data-ovr-key="core" data-ovr-field="annual" min="0" step="0.01" inputmode="decimal" aria-label="Core annual override"></label>
+        <label class="ovr-field"><span>$ / mo</span><input type="number" id="ovrCoreMonthly" data-ovr-key="core" data-ovr-field="monthly" min="0" step="0.01" inputmode="decimal" aria-label="Core monthly override"></label>
+      </div>
+      <div class="ovr-row" id="ovrRowPremium">
+        <div class="ovr-name">Premium</div>
+        <label class="ovr-field"><span>$ / yr</span><input type="number" id="ovrPremiumAnnual" data-ovr-key="premium" data-ovr-field="annual" min="0" step="0.01" inputmode="decimal" aria-label="Premium annual override"></label>
+        <label class="ovr-field"><span>$ / mo</span><input type="number" id="ovrPremiumMonthly" data-ovr-key="premium" data-ovr-field="monthly" min="0" step="0.01" inputmode="decimal" aria-label="Premium monthly override"></label>
+      </div>
+      <div class="ovr-row ovr-row-onetime" id="ovrRowOnetime">
+        <div class="ovr-name">One-Time</div>
+        <label class="ovr-field"><span>$</span><input type="number" id="ovrOnetimeAnnual" data-ovr-key="onetime" data-ovr-field="annual" min="0" step="0.01" inputmode="decimal" aria-label="One-time service price override"></label>
+      </div>
+      <div class="ovr-warn" id="ovrWarn"></div>
     </div>
   </div>
 
