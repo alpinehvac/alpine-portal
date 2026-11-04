@@ -212,7 +212,7 @@ function sitesHTML(maint) {
     '<div class="tbl-wrap"><table><thead><tr><th>Site</th><th>Visits this quarter</th><th>CLEAR report</th><th></th></tr></thead><tbody>' +
     sites.map(s => {
       const vq = (s.visits || []).filter(v => inQuarter(v.date, ui.quarter));
-      const c = readJSON('st_clear_' + s.id + '_' + ui.quarter);
+      const c = readJSON('st_clear_' + s.id + '_' + ui.quarter) || readJSON('st_clearlive_' + s.id);
       const cnt = col => c ? c.rows.filter(r => r.include && r.condition === col).length : 0;
       const status = !c ? '<span class="badge b-grey">Not started</span>' :
         '<span class="badge b-red">' + cnt('red') + '</span> <span class="badge b-amber">' + cnt('yellow') + '</span> <span class="badge b-teal">' + cnt('green') + '</span> ' +

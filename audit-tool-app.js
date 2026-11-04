@@ -138,6 +138,10 @@ window.addEventListener('beforeunload', () => { if (saveT) { clearTimeout(saveT)
 
 // ── scoring (playbook section 8) ─────────────────────────────────────
 function risk(a) { return a.cond && a.crit ? (6 - a.cond) * a.crit : null; }
+// Red / yellow / green condition, the same rule the CLEAR report uses: 1–2 red, 3 yellow, 4–5 green.
+function ryg(c) { c = Number(c); return !c ? '' : c <= 2 ? 'red' : c === 3 ? 'yellow' : 'green'; }
+const RYG_STYLE = { red: 'background:#B83227;color:#fff', yellow: 'background:#E8B23A;color:#111110', green: 'background:#2E8B62;color:#fff' };
+function rygPill(c) { const k = ryg(c); return k ? '<span style="' + RYG_STYLE[k] + ';font-size:10px;font-weight:700;letter-spacing:.04em;border-radius:3px;padding:1px 6px;white-space:nowrap">' + k.toUpperCase() + '</span>' : ''; }
 function band(r) { return r == null ? null : r >= 20 ? 'crit' : r >= 12 ? 'high' : r >= 6 ? 'mod' : 'low'; }
 const BAND_LABEL = { crit: 'Critical', high: 'High', mod: 'Moderate', low: 'Low' };
 function score(a) {
@@ -373,7 +377,7 @@ function tabAssets(sc) {
       '<td><input class="inp" data-f="assets.' + i + '.serves" value="' + esc(x.serves) + '" placeholder="Area served"></td>' +
       '<td><select class="sel" data-f="assets.' + i + '.cond" data-num="1" data-rr="1"><option value="">—</option>' + [5, 4, 3, 2, 1].map(n => '<option value="' + n + '"' + (x.cond == n ? ' selected' : '') + '>' + n + ' · ' + COND[n] + '</option>').join('') + '</select></td>' +
       '<td><select class="sel" data-f="assets.' + i + '.crit" data-num="1" data-rr="1"><option value="">—</option>' + [5, 4, 3, 2, 1].map(n => '<option value="' + n + '"' + (x.crit == n ? ' selected' : '') + '>' + n + ' · ' + CRIT[n] + '</option>').join('') + '</select></td>' +
-      '<td>' + (r == null ? '<span class="badge b-grey">Unscored</span>' : '<span class="badge b-' + b + '">' + r + ' · ' + BAND_LABEL[b] + '</span>') + (x.ai ? ' <span class="badge b-purple" title="Score suggested by Claude — confirm">AI</span>' : '') + '</td>' +
+      '<td>' + rygPill(x.cond) + ' ' + (r == null ? '<span class="badge b-grey">Unscored</span>' : '<span class="badge b-' + b + '">' + r + ' · ' + BAND_LABEL[b] + '</span>') + (x.ai ? ' <span class="badge b-purple" title="Score suggested by Claude — confirm">AI</span>' : '') + '</td>' +
       '<td style="white-space:nowrap"><button class="btn sm" data-act="asset-more" data-i="' + i + '">' + (ui.assetOpen === x.id ? 'Less' : 'Notes · ' + ((x.photos || []).length) + '📷') + '</button> <button class="btn sm danger" data-act="asset-del" data-i="' + i + '" aria-label="Delete asset">×</button></td></tr>' +
       (ui.assetOpen === x.id ? '<tr><td colspan="9" style="background:var(--soft)"><div class="grid">' +
         '<label class="fld">Serial<input class="inp" data-f="assets.' + i + '.serial" value="' + esc(x.serial) + '"></label>' +
@@ -517,7 +521,8 @@ function reportHtml(sc) {
       ((f.photos || []).filter(p => photoCache[p]).length ? '<div class="fphotos">' + f.photos.filter(p => photoCache[p]).map(p => '<img src="' + photoCache[p] + '" alt="">').join('') + '</div>' : '') + '</div>';
   };
   return '<div class="rpt" id="rpt">' +
-    '<div class="head"><div><div style="font-family:Oswald;letter-spacing:.12em;color:#6C5D8D;font-size:11px">ALPINE HVAC SERVICE INC.</div><h1>Building Performance Audit</h1>' +
+    '<div class="brandbar"><img src="images/alpine-logo-white.png" alt="Alpine HVAC Service"><span>Hydronics · Controls · Building Systems</span></div>' +
+    '<div class="head"><div><h1>Building Performance Audit</h1>' +
     '<div style="font-size:14px;margin-top:2px"><b>' + esc(c.building || c.company) + '</b></div><div style="color:#55666b">' + esc(c.address) + '</div></div>' +
     '<div class="meta">Audit date: ' + fmtD(a.visitDate) + '<br>Prepared for: ' + esc([c.contact, c.title].filter(Boolean).join(', ')) + '<br>' + esc(c.company) + '<br>Prepared by: Alpine HVAC</div></div>' +
 
@@ -529,6 +534,8 @@ function reportHtml(sc) {
     (a.summary.ifNothing ? '<p><b>If nothing changes:</b> ' + esc(a.summary.ifNothing) + '</p>' : '') +
     '<p><b>24-month plan budget:</b> ' + rng(tot[0], tot[1]) + '</p>' +
 
+    (() => { const n = k => a.assets.filter(x => ryg(x.cond) === k).length; return '<h2>Equipment condition</h2><div class="rygtiles"><div style="background:#FBE9E6;color:#9B2D20"><b>' + n('red') + '</b>Red: act now</div><div style="background:#FBF1D8;color:#7A5200"><b>' + n('yellow') + '</b>Yellow: monitor or plan repair</div><div style="background:#E3F3EA;color:#1E6B45"><b>' + n('green') + '</b>Green: good condition</div></div>'; })() +
+
     '<h2>Scorecard</h2><table><thead><tr><th>Category</th><th>Score</th><th style="width:40%"></th><th>Rating</th></tr></thead><tbody>' +
     CATS.map(ct => { const v = sc.cats[ct.key]; return '<tr><td>' + ct.n + '. ' + ct.label + '</td><td><b>' + v + '</b>/20</td><td><div class="bar"><i style="width:' + v * 5 + '%;background:' + catColor(v) + '"></i></div></td><td style="color:' + catColor(v) + ';font-weight:600">' + catBand(v) + '</td></tr>'; }).join('') +
     '<tr><td><b>Overall</b></td><td><b>' + sc.total + '</b>/100</td><td></td><td style="color:' + g.c + ';font-weight:700">Grade ' + g.l + '</td></tr></tbody></table>' +
@@ -537,8 +544,8 @@ function reportHtml(sc) {
     (ordered.slice(0, 5).map((f, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(f.title) + '</td><td>' + esc((CATS.find(x => x.n == f.category) || CATS[0]).short) + '</td><td>' + rng(num(f.costLow), num(f.costHigh)) + '</td><td>' + TIMING[f.timing || 'plan'] + '</td></tr>').join('') || '<tr><td colspan="5">—</td></tr>') + '</tbody></table>' +
 
     '<h2 class="pb">Risk register</h2><p style="color:#55666b;font-size:11px">Risk = (6 − condition) × criticality. Condition and criticality on a 1–5 scale; higher risk first.</p>' +
-    '<table><thead><tr><th>Asset</th><th>Type</th><th>Make / model</th><th>Year</th><th>Serves</th><th>Cond.</th><th>Crit.</th><th>Risk</th></tr></thead><tbody>' +
-    (reg.map(x => { const r = risk(x), b = band(r); const col = { crit: '#9B2C2C', high: '#C2611F', mod: '#A9821F', low: '#2E7D57' }[b] || '#7a888c'; return '<tr><td><b>' + esc(x.tag) + '</b></td><td>' + esc(x.type) + '</td><td>' + esc(x.make) + '</td><td>' + esc(x.year) + '</td><td>' + esc(x.serves) + '</td><td>' + (x.cond || '—') + '</td><td>' + (x.crit || '—') + '</td><td style="color:' + col + ';font-weight:700">' + (r == null ? '—' : r + ' ' + BAND_LABEL[b]) + '</td></tr>'; }).join('') || '<tr><td colspan="8">—</td></tr>') + '</tbody></table>' +
+    '<table><thead><tr><th>Asset</th><th>Type</th><th>Make / model</th><th>Year</th><th>Serves</th><th>Status</th><th>Cond.</th><th>Crit.</th><th>Risk</th></tr></thead><tbody>' +
+    (reg.map(x => { const r = risk(x), b = band(r); const col = { crit: '#9B2C2C', high: '#C2611F', mod: '#A9821F', low: '#2E7D57' }[b] || '#7a888c'; return '<tr><td><b>' + esc(x.tag) + '</b></td><td>' + esc(x.type) + '</td><td>' + esc(x.make) + '</td><td>' + esc(x.year) + '</td><td>' + esc(x.serves) + '</td><td>' + rygPill(x.cond) + '</td><td>' + (x.cond || '—') + '</td><td>' + (x.crit || '—') + '</td><td style="color:' + col + ';font-weight:700">' + (r == null ? '—' : r + ' ' + BAND_LABEL[b]) + '</td></tr>'; }).join('') || '<tr><td colspan="8">—</td></tr>') + '</tbody></table>' +
 
     '<h2>Findings by category</h2>' +
     CATS.map(ct => { const fs = a.findings.filter(f => f.category == ct.n); const notes = ct.key === 'equip' ? '' : a.checkNotes[ct.key]; return fs.length || notes ? '<h4 style="font-size:13.5px;margin-top:16px">' + ct.n + '. ' + ct.label + ' — ' + sc.cats[ct.key] + '/20</h4>' + (notes ? '<p>' + esc(notes) + '</p>' : '') + fs.map(findBlock).join('') : ''; }).join('') +

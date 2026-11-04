@@ -46,6 +46,9 @@ every Monday. Fill any gaps before generating:
 3. Account managers' customizations (hidden visits/photos, extra photos, sections, notes) are stored per customer
    and applied automatically when the reports are generated. Never change them.
 
+Needs-attention items for the current quarter come from the live CLEAR report; past quarters use their saved
+snapshot. Save a snapshot on each site's CLEAR tab if the quarter should be frozen for review.
+
 ## Step 3: Context per customer (read-only)
 
 For each customer with at least one visit in Q, or an active agreement:
