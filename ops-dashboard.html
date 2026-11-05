@@ -1215,6 +1215,23 @@ else {
     setTimeout(() => document.getElementById("jobs-import").scrollIntoView({ block: "start" }), 600);
   }
   const BOARD_KEYS = ["status", "billingStatus", "stage", "kind", "title", "type", "created", "completed", "visitsDone", "visitsTotal", "lastVisit", "nextVisit", "actualHrs", "budgetHrs", "techs"];
+  // Every record the daily read must open (JOB-DETAILS-REFRESH.md B1). The board only lists jobs, so maintenance records are
+  // added here: any on this week's dispatch, recently overdue or recently visited, and the other records at those sites, because
+  // a repair found on one record is often logged or invoiced on another. {all: true} re-reads every saved record; records last read before this rule went in are picked up once on their own.
+  window.apJobReadIds = async (opt) => {
+    opt = opt || {};
+    const D = window.__opsData || {}, ids = new Set((D.jobs || []).map(j => j.id));
+    const today = new Date().toISOString().slice(0, 10), back = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+    const idx = await getDoc(doc(db, "ops_job_detail", "_index"));
+    const I = idx.exists() ? JSON.parse(idx.data().json) : [];
+    const SA = /^SA\d+-\d+$/, sa = new Set();
+    (D.visits || []).forEach(v => { if (SA.test(v.job || "")) sa.add(v.job); });
+    (D.maintenance || []).forEach(m => { if (SA.test(m.id || "") && (m.due || "") >= back(120) && (m.due || "") <= today) sa.add(m.id); });
+    I.forEach(r => { if (SA.test(r.id) && (opt.all || (r.lastVisit || "") >= back(45) || r.nextVisit || (r.readAt || "") < "2026-11-05")) sa.add(r.id); });
+    [...sa].forEach(id => { const r = I.find(x => x.id === id) || (D.maintenance || []).find(x => x.id === id); if (!r) return; I.filter(x => SA.test(x.id) && x.id.split("-")[0] === id.split("-")[0] && x.property === r.property).sort((a, b) => (b.lastVisit || "").localeCompare(a.lastVisit || "")).slice(0, 6).forEach(x => sa.add(x.id)); });
+    sa.forEach(id => ids.add(id));
+    return [...ids];
+  };
   window.apSaveJobDetails = async (extra) => {
     extra = extra || {};
     const P = PENDING || {};
@@ -1240,6 +1257,7 @@ else {
     for (const id of ids) {
       const d = det[id] || old[id];
       if (!d) continue;
+      if (old[id] && old[id].fix) d.fix = old[id].fix; // corrections people made stay on the record through every BuildOps read
       const b = board[id];
       if (/^(OFFICE NOTES|-)?$/i.test((d.issue || "").trim())) d.issue = "";
       if (b) { d.board = {}; BOARD_KEYS.forEach(k => { if (b[k] != null) d.board[k] = b[k]; }); }
