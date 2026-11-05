@@ -116,9 +116,9 @@ without checking the agreement's other records.
 
 ### B2. QuickBooks bills and invoices (Windsor, read-only)
 
-1. Bills from the last 7 days: fields `bills__docnumber, bills__txndate, bills__totalamt, bills__vendorref,
+1. Bills from the last 90 days (a bill often lands weeks before its maintenance invoice shows the PO; `--merge` removes repeats): fields `bills__docnumber, bills__txndate, bills__totalamt, bills__vendorref,
    bills__privatenote, bills__line`. Invoices from the last 180 days: fields `invoices__docnumber, invoices__txndate,
-   invoices__totalamt, invoices__balance, invoices__customerref, invoices__privatenote`. Save both results to files.
+   invoices__totalamt, invoices__balance, invoices__customerref, invoices__privatenote, invoices__customermemo, invoices__line`. Save both results to files.
 2. `python3 -I job_match.py BILLS.json INVOICES.json jobs.json --merge > qb.json` (download `job_match.py` from the repo
    the same way as the reader). `--merge` marks each record so the portal adds the new bills to the ones it already has.
 
@@ -131,7 +131,7 @@ without checking the agreement's other records.
    `Follow-up Radar`, `Meeting Prep`, monthly `INVOICES` batches; newsletters and marketing. Judge by who wrote the
    email, not by the subject. A person's reply stays in even when the subject says `Do Not Reply`, `[EXTERNAL]` or carries
    a locate, ticket or reference number: forwarded notices often become the main job conversation.
-3. Match each remaining email to jobs on the board by: the job number (`JO2026xxxx` or `2026xxxx`), the PO number
+3. Match each remaining email to every record read in B1, maintenance records included, not only jobs on the board, by: the job number (`JO2026xxxx` or `2026xxxx`), the PO number
    (the 5 digits `00xxx`, with or without the P/TM/EQ prefix), an invoice number on the job, or a distinctive site
    name (`Niagara Parks Police`, `21 Hunter`, `35 Yale`, `Flanagan`, …). Skip generic addresses shared by many jobs
    (e.g. `80 King`) unless the PO or job number also appears.
@@ -142,6 +142,9 @@ without checking the agreement's other records.
    - Short site names used by the customer, such as `FS6` for Fire Station #6.
    - Thread: once one email in a thread matches a job, every person-written email in that thread goes to that job.
    - Customer: a person at a customer whose only open job on the board is this one, when the email is about that work.
+   - Maintenance: an email from or to a contact at a contract customer, about a visit, invoice or equipment at that site, goes to
+     the record with the nearest visit or invoice, within 21 days. Contract customers often write from a shared or personal address
+     (`portbic@gmail.com`) and never quote a number, so match the address and the site name as well.
 4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"` or
    `via: "Mike"` when the email was found only in that person's mailbox.
    `summary` is one factual line in your own words (≤200 characters), never copied access codes or personal details.
@@ -150,7 +153,8 @@ without checking the agreement's other records.
    and read the whole body, including the quoted history. Add a record for each earlier person-written message that
    is in that history and not yet on the job page, using its real date and sender. Leave `link` empty when that message
    can't be found in the mailbox: the save treats it as new by subject and date.
-6. Check the jobs coming up. For every job with a next visit in the next 14 days, search Jake's mailbox by its street
+6. Check the jobs coming up and the maintenance just done. For every job with a next visit in the next 14 days, and every
+   maintenance record with a visit or invoice in the last 14 days, search Jake's mailbox by its street
    address, site name, short site name and customer contact, last 60 days. Add anything missing. Cole's and Mike's mailboxes
    can't be text searched, so use the sender filter with the customer's domain and today's lists.
 7. Compare the emails with the schedule. If an email changes or conflicts with a job's dates (for example the customer's
