@@ -310,7 +310,7 @@ async function readJob(id) {
       ...ov.inventory.map(m => ({ name: m.name, desc: m.desc, qty: m.qty, uom: m.uom, source: "Inventory", from: m.source })),
       ...ov.purchased.map(m => ({ name: m.name, desc: m.desc, qty: null, uom: m.uom, source: "Purchased", po: m.po, received: m.received }))
     ],
-    invoiceItems: ov.invItems.filter(r => !/labou?r|travel|truck|mileage|hours?\b|trip charge|service call/i.test(r.name + " " + r.desc)).map(({ amount, ...r }) => r),
+    invoiceItems: (ov.invItems.length ? ov.invItems : v.invoices.flatMap(i => ((i.lines || {}).parts || []).map(p => ({ invoice: i.no, name: p.desc, desc: "" })))).filter(r => !/labou?r|travel|truck|mileage|hours?\b|trip charge|service call/i.test(r.name + " " + r.desc)).map(({ amount, ...r }) => r),
     readAt: new Date().toISOString()
   };
   const costs = {
