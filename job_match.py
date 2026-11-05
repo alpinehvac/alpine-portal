@@ -9,7 +9,8 @@ Usage:
   BILLS.json     Windsor get_data (connector "quickbooks") with fields
                  bills__docnumber, bills__txndate, bills__totalamt, bills__vendorref, bills__privatenote, bills__line
   INVOICES.json  Windsor get_data with fields
-                 invoices__docnumber, invoices__txndate, invoices__totalamt, invoices__balance, invoices__customerref, invoices__privatenote
+                 invoices__docnumber, invoices__txndate, invoices__totalamt, invoices__balance, invoices__customerref, invoices__privatenote,
+                 invoices__customermemo, invoices__line (the PO for maintenance records comes from these)
   JOBS.json      [{"id": "JO20261176", "po": "TM00747", "invoices": ["INV-20261290"]}, ...]
 
 Output: {"qb": {"JO20261176": {"poKeys", "poSharedWith", "bills", "qbInvoices", "billedQB", "qbAt"}}}
@@ -47,6 +48,19 @@ def bill_text(b):
 
 def main(bills_p, inv_p, jobs_p, merge=False):
     bills, invs, jobs = rows(bills_p), rows(inv_p), json.load(open(jobs_p))
+    # Maintenance records carry no PO in BuildOps: take it from their QuickBooks invoice's note or line, e.g. "00691 - SEMI ANNUALLY".
+    for j in jobs:
+        if po_key(j.get("po")):
+            continue
+        digits = {re.sub(r"\D", "", x) for x in j.get("invoices") or []} - {""}
+        for i in invs:
+            if re.sub(r"\D", "", i.get("invoices__docnumber") or "") in digits:
+                memo = i.get("invoices__customermemo") or {}
+                lines = " ".join(l.get("Description") or "" for l in i.get("invoices__line") or [])
+                m = PO_RE.search(" ".join([i.get("invoices__privatenote") or "", memo.get("value", "") if isinstance(memo, dict) else str(memo), lines]))
+                if m:
+                    j["po"] = m.group(1)
+                    break
     key_jobs = {}
     for j in jobs:
         k = po_key(j.get("po"))

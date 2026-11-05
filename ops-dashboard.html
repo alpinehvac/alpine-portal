@@ -1257,7 +1257,7 @@ else {
     for (const id of ids) {
       const d = det[id] || old[id];
       if (!d) continue;
-      if (old[id] && old[id].fix) d.fix = old[id].fix; // corrections people made stay on the record through every BuildOps read
+      if (old[id] && old[id].fix && !d.fix) d.fix = old[id].fix; // corrections people made stay on the record through every BuildOps read
       const b = board[id];
       if (/^(OFFICE NOTES|-)?$/i.test((d.issue || "").trim())) d.issue = "";
       if (b) { d.board = {}; BOARD_KEYS.forEach(k => { if (b[k] != null) d.board[k] = b[k]; }); }
