@@ -81,14 +81,31 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 
 ## Part B: Job pages
 
+### One report per piece of work (standing rule, Jake, Nov 5 2026)
+
+A job report must hold everything about the work, wherever BuildOps put it. Never tell Jake a report is missing something
+without checking the agreement's other records.
+
+1. `job.html` rolls a follow-up visit logged on another record of the same agreement and site into the report of the visit it
+   followed, with the invoice, labour and parts (`job-consolidate.js`). Opening either record shows the same report.
+2. The page lists anything needing a person under **Check before sending**: split visits, possible duplicate visits, visits
+   still scheduled after the work was done, invoices with no visits listed, hours logged vs billed, Review Needed visits,
+   missing summaries or hours, and open forms. In the run summary, add each new "Possible duplicate visit" and "Hours" line.
+3. Corrections stay in the portal, never in BuildOps. They're saved as `fix` on `ops_job_detail/{id}` and are re-applied over
+   every read: `{note, by, at, assetBySerial: {serial: name}, visitText: {visitId: text}, replace: [[from, to]], open: [text]}`.
+   `note` prints on the customer report. Match equipment by serial number, so a corrected label stays right if BuildOps is fixed later.
+
 ### B1. BuildOps read (photos, visit reports, hours, materials)
 
 1. Get the reader: `curl -sSf https://raw.githubusercontent.com/alpinehvac/alpine-portal/main/buildops-jobs.js`.
 2. In a logged-in `live.buildops.com` tab, paste the whole file with `javascript_exec` (BuildOps blocks loading
    outside scripts, so paste the text; don't `fetch` it). It returns `"alpineJobs ready"`.
-3. `alpineJobs.start([...every job id on the board...], true)`. It returns at once; the work runs in the background.
+3. Get the id list from the Field Operations page: `JSON.stringify(await window.apJobReadIds())`. That's every job on the
+   board plus the maintenance records that need reading: on this week's dispatch, overdue in the last 120 days, visited in the
+   last 45 days, and the other records at those sites. Never pass only the board's jobs: the board lists no maintenance records,
+   so they'd go stale. Then `alpineJobs.start([...those ids...], true)`. It returns at once; the work runs in the background.
 4. Poll `JSON.stringify(alpineJobs.status())` every 10–20 s with short calls until `running` is false and `left` is 0.
-   About 6–10 minutes for ~60 jobs. Re-run `alpineJobs.redo([...])` once for any id listed in `errors`.
+   About 10–15 minutes for ~60 jobs. Re-run `alpineJobs.redo([...])` once for any id listed in `errors`.
 5. Before hand-off, capture the QuickBooks match list:
    `JSON.stringify(Object.values(alpineJobs.result().costs).map(c => ({id: c.id, po: (alpineJobs.result().detail[c.id]||{}).po || "", invoices: (c.invoices||[]).map(i => i.no)})))`
    and save it as `jobs.json` in the working folder.
@@ -151,7 +168,8 @@ state. Skip quotes in the Archived section (`removed: true`) but keep them in `q
 
 ### B5. Check
 
-1. Open `job.html?id=<one job with a visit yesterday>` and confirm the visit, hours and photos show.
+1. Open `job.html?id=<one job with a visit yesterday>` and confirm the visit, hours and photos show. Do the same for one
+   maintenance record with a visit yesterday, and confirm its invoice shows if one exists.
 2. Add to the run summary: jobs read, visit reports, photos, QuickBooks bills matched, emails matched (Jake / Cole / Mike), any errors.
 
 ### B6. Invoicing sweep (Operations > Invoicing)

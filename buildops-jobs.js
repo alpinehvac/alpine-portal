@@ -8,6 +8,9 @@
 //   /job/view/<n>?tab=reports-invoices   header fields, invoices, link to the job report
 //   /job/view/<n>?tab=quotes             quote number(s), only when the job header shows a quote
 //   /maintenance/view/<SA#-n>?tab=reports-invoices   same, for maintenance records (ids like "SA1024-3")
+//   ?tab=scheduling                      every visit on the record, including ones still scheduled, with the
+//                                        equipment on each
+//   /invoice/view/<id>                   the latest invoices on the record: summary, labour hours and parts lines
 //   /jobreport/<rid>                     every visit's description, techs, summary notes, recommendations,
 //                                        technician notes, labour, field POs, parts, receipts, photos, tasks;
 //                                        assets, invoice items. Each grid is paged through to the end
@@ -163,7 +166,9 @@ async function readJobView(id) {
   await waitFor(() => /INVOICE\(S\) ISSUED|Invoice #/i.test(mainText()), 8000);
   const rep = [...document.querySelectorAll("main a[href*='/jobreport/']")].map(a => a.getAttribute("href")).find(h => /^\/jobreport\/[0-9a-f-]+$/.test(h));
   const T = tables();
-  let inv = rowsOf(T, ["Invoice #", "Amount", "Status"]).map(r => ({ no: r["Invoice #"], amount: num(r["Amount"]), status: r["Status"], issued: iso(r["Issue date"]), due: iso(r["Due date"]), by: r["Created by"] }));
+  const invLinks = {}; document.querySelectorAll("main a[href*='/invoice/view/']").forEach(a => { invLinks[a.textContent.trim()] = a.getAttribute("href"); });
+  const review = {}; rowsOf(T, ["Visit", "Review Status"]).forEach(r => { const m = String(r["Visit"]).match(/(\d+)/); if (m) review[m[1]] = clean(r["Review Status"]); });
+  let inv = rowsOf(T, ["Invoice #", "Amount", "Status"]).filter(r => /\d/.test(r["Invoice #"] || "")).map(r => ({ no: r["Invoice #"], amount: num(r["Amount"]), status: r["Status"], issued: iso(r["Issue date"]), due: iso(r["Due date"]), by: r["Created by"], visits: clean(r["Visits Included"]) }));
   if (!inv.length) { // long jobs show a compact list: number, visits, amount (no status or dates)
     const L = mainText().split("\n").map(x => x.trim()).filter(Boolean);
     const k = L.findIndex(x => /^TOTAL BILLED FOR JOB$/i.test(x));
@@ -172,12 +177,12 @@ async function readJobView(id) {
   const billedTotal = (() => { const m = mainText().match(/TOTAL BILLED FOR JOB\s*\$?\s*([\d,.]+)/i); return m ? num(m[1]) : null; })();
   const hasQuote = !isMaint(id) && !/\bNo Quotes\b/.test(mainText()) && /\bQuotes?\b/.test(mainText());
   const out = {
-    rid: rep ? rep.split("/").pop() : null, invoices: inv, billedTotal, issue: issueText(),
+    rid: rep ? rep.split("/").pop() : null, invoices: inv, billedTotal, issue: issueText(), review,
     h: {
-      customer: field("CUSTOMER"), billTo: field("BILLING CUSTOMER"), property: field("PROPERTY"), address: field("ADDRESS"),
-      authorizedBy: field("AUTHORIZED BY"), po: field("CUSTOMER PROVIDED P O NUMBER"), workOrder: field("WORK ORDER (CUSTOMER)"),
+      customer: field("CUSTOMER"), billTo: field("BILLING CUSTOMER"), property: field("PROPERTY"), address: field("ADDRESS") || field("PROPERTY ADDRESS"), agreement: field("SERVICE AGREEMENT NUMBER"),
+      authorizedBy: field("AUTHORIZED BY"), po: field("CUSTOMER PROVIDED P O NUMBER") || field("PURCHASE ORDER (CUSTOMER)"), workOrder: field("WORK ORDER (CUSTOMER)"),
       quoteSubtotal: num(field("QUOTE SUBTOTAL")), quoteTotal: num(field("QUOTE TOTAL")), costAmount: num(field("COST AMOUNT")),
-      nte: num(field("AMOUNT NOT TO EXCEED")), type: field("JOB TYPE"), pm: field("PROJECT MANAGER"), soldBy: field("SOLD BY"),
+      nte: num(field("AMOUNT NOT TO EXCEED")), type: field("JOB TYPE") || field("MAINTENANCE TYPE"), pm: field("PROJECT MANAGER"), soldBy: field("SOLD BY"),
       budgetHrs: num(field("TOTAL BUDGETED HOURS")), department: field("DEPARTMENTS")
     }
   };
@@ -188,7 +193,42 @@ async function readJobView(id) {
     await waitFor(() => document.querySelector("main a[href^='/quote/']"), 6000);
     out.quotes = [...new Set([...document.querySelectorAll("main a[href^='/quote/']")].map(a => a.textContent.trim()).filter(t => /^Q\d+/.test(t)))];
   }
+  // Every visit on the record, scheduled ones included (the job report only lists visits with a report).
+  nav((isMaint(id) ? "/maintenance/view/" + id : "/job/view/" + n) + "?tab=scheduling");
+  await waitFor(() => /Add Visit/.test(mainText()) && (/Visit #\d+/.test(mainText()) || /No visits/i.test(mainText())), 8000);
+  out.schedule = parseSchedule();
+  // Invoice lines, newest first: what was actually billed, to compare with what the techs logged.
+  for (const i of inv.slice().reverse().slice(0, 4)) {
+    const href = invLinks[i.no]; if (!href) continue;
+    try { i.lines = await readInvoice(href, i.no); } catch (e) { /* the invoice row still shows without its lines */ }
+  }
   return out;
+}
+
+function parseSchedule() {
+  const out = [];
+  [...document.querySelectorAll("main *")].filter(e => e.children.length === 0 && /^Visit #\d+$/.test(e.textContent.trim())).forEach(h => {
+    let n = h.parentElement;
+    for (let i = 0; i < 8 && n; i++) { const t = n.innerText; if (/Primary technician/i.test(t) && (t.match(/Visit #\d+/g) || []).length === 1) break; n = n.parentElement; }
+    if (!n) return;
+    const L = n.innerText.split("\n").map(s => s.trim()).filter(Boolean);
+    const after = lab => { const k = L.findIndex(s => s.toLowerCase() === lab.toLowerCase()); return k >= 0 ? clean(L[k + 1]) : ""; };
+    const v = L.findIndex(s => /^Visit #\d+$/.test(s));
+    const when = after("Scheduled for"), others = after("Additional technicians"), assets = after("Assets worked on");
+    out.push({ n: vnum(L[v].replace("#", "")), status: L[v + 1] || "", date: iso(when), time: (when.match(/\d{1,2}:\d{2}\s*[ap]m/i) || [""])[0], tech: after("Primary technician"), others: others ? others.split(/,\s*/) : [], desc: after("Visit Description"), assets: assets ? assets.split(/,\s*/) : [] });
+  });
+  return out;
+}
+
+async function readInvoice(href, no) {
+  nav(href);
+  if (!await waitFor(() => mainText().includes("Invoice " + no) && /Parts & Materials/.test(mainText()), 12000)) throw new Error("invoice did not load");
+  const L = mainText().split("\n").map(s => s.trim()).filter(Boolean);
+  const start = lab => L.findIndex(s => s === lab);
+  const lab = start("Labor"), par = start("Parts & Materials"), end = L.findIndex((s, i) => i > par && /^(Discounts & Fees|Subtotal)$/.test(s));
+  const rows = (a, b) => { const r = []; for (let i = a; i < b; i++) if (/^(Yes|No)$/.test(L[i]) && num(L[i + 1]) != null && /^\$/.test(L[i + 2] || "")) r.push({ desc: L[i - 1], qty: num(L[i + 1]) }); return r; };
+  const area = [...document.querySelectorAll("main textarea")].map(t => t.value).find(v => v && !/^Payment made/i.test(v) && v.trim() !== "x");
+  return { summary: (area || "").trim(), labour: lab >= 0 ? rows(lab, par).map(x => ({ desc: x.desc, hrs: x.qty })) : [], parts: par >= 0 ? rows(par, end > 0 ? end : L.length) : [] };
 }
 
 function issueText() {
@@ -255,11 +295,13 @@ async function readJob(id) {
   const v = await readJobView(id);
   PREP = "";
   const ov = v.rid ? await readOverview(v.rid) : { visits: [], jobRecs: [], jobTasks: [], assets: [], labour: [], inventory: [], purchased: [], invItems: [], invoiceSubtotal: null };
+  ov.visits.forEach(x => { x.review = v.review[x.n] || ""; const s = (v.schedule || []).find(y => y.n === x.n); if (s && !(x.assets || []).length) x.assets = s.assets; });
   const visits = ov.visits.filter(x => !/cancel/i.test(x.status || "")).sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.n || 0) - (b.n || 0));
   const strip = arr => arr.map(({ cost, unit, ...r }) => r);
   const detail = {
     id, kind: isMaint(id) ? "maintenance" : "job", url: "https://live.buildops.com/" + (isMaint(id) ? "maintenance/view/" + id : "job/view/" + id.replace(/^JO/, "")), propertyRep: PREP, reportUrl: v.rid ? "https://live.buildops.com/jobreport/" + v.rid : null,
     customer: v.h.customer, billTo: v.h.billTo, property: v.h.property, address: v.h.address, authorizedBy: v.h.authorizedBy,
+    agreement: v.h.agreement || (isMaint(id) ? id.split("-")[0] : ""), schedule: v.schedule || [], invoices: v.invoices.map(i => ({ no: i.no, summary: (i.lines && i.lines.summary) || "" })),
     quotes: v.quotes || [], po: v.h.po, workOrder: v.h.workOrder, type: v.h.type, department: v.h.department, pm: v.h.pm, soldBy: v.h.soldBy,
     budgetHrs: v.h.budgetHrs, issue: v.issue,
     visits: visits.map(x => ({ ...x, id: id + "-" + x.n, labour: strip(x.labour), parts: strip(x.parts), fieldPOs: strip(x.fieldPOs), receipts: strip(x.receipts) })),

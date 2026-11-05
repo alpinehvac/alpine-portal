@@ -242,6 +242,7 @@ tr.go{cursor:pointer}tr.go:hover td{background:rgba(16,68,78,0.035)}
   </div>
 </div>
 
+<script src="job-consolidate.js"></script>
 <script>
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -270,7 +271,7 @@ const phCap = p => [p.type ? p.type[0].toUpperCase() + p.type.slice(1) : "", p.c
 if (!CAN_BOARD) $("back").outerHTML = '<a class="back-link" href="job.html">&larr; All jobs</a>';
 else $("back").href = "ops-dashboard.html", $("back").innerHTML = "&larr; Field Operations";
 
-let J = null, C = null, SEL = new Set(), INV = null;
+let J = null, C = null, SEL = new Set(), INV = null, REVIEW = [];
 
 /* ---------- job list (job.html with no id) ---------- */
 window.apJobList = function (list, asOf) {
@@ -297,8 +298,8 @@ const visitHrs = v => sum(v.labour || [], l => l.hrs);
 const visitTechs = v => [v.tech, ...(v.others || [])].filter(Boolean);
 const doneVisits = () => (J.visits || []).filter(v => DONE.test(v.status || ""));
 
-window.apJobStart = function (detail, costs, inv) {
-  J = detail; C = costs; INV = inv || null;
+window.apJobStart = function (detail, costs, inv, review) {
+  J = detail; C = costs; INV = inv || null; REVIEW = review || [];
   const B = J.board || {};
   document.title = `${J.id} — ${J.customer || "Job"}`;
   const visits = (J.visits || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.n || 0) - (a.n || 0));
@@ -328,6 +329,9 @@ window.apJobStart = function (detail, costs, inv) {
     <div class="kpi"><div class="k-label">Next visit</div><div class="k-value" style="font-size:1.2rem">${fmtD(B.nextVisit)}</div><div class="k-sub">${B.nextVisit ? "" : "nothing scheduled"}</div></div>
     ${costK}
   </div>
+
+  ${J.fixNote ? `<section><h2>Correction</h2><div class="panel scope">${esc(J.fixNote)}</div></section>` : ""}
+  ${COSTS && REVIEW.length ? `<section><h2>Check before sending<span class="lock">Jake, Mike &amp; Cole</span></h2><div class="panel"><ul class="plain">${REVIEW.map(r => `<li><span class="tag ${r.sev === "fix" ? "red" : "amber"}">${r.sev === "fix" ? "Fix" : "Check"}</span> ${esc(r.text)}</li>`).join("")}</ul></div></section>` : ""}
 
   ${J.issue ? `<section><h2>Scope</h2><div class="panel scope">${esc(J.issue)}</div></section>` : ""}
 
@@ -383,12 +387,13 @@ function visitCard(v) {
   if ((v.assets || []).length) blocks.push(`<div class="blk"><h4>Equipment worked on</h4><div class="sumtxt">${esc(v.assets.join(", "))}</div></div>`);
   if ((v.photos || []).length) {
     const P = phSort(v.photos).filter(p => phUrl(p, 360));
-    blocks.push(`<div class="blk"><h4>Photos</h4>${P.length ? `<div class="ph-grid">${P.map(p => `<figure><a href="${esc(phUrl(p, 2000))}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(phUrl(p, 360))}" alt="${esc(phCap(p) || "Visit photo")}"></a><figcaption>${esc(phCap(p))}${p.rep === false ? ' <span class="tag grey">not in customer report</span>' : ""}</figcaption></figure>`).join("")}</div>` : ""}${P.length < v.photos.length ? `<div class="sumtxt">${v.photos.length - P.length} photo${v.photos.length - P.length > 1 ? "s" : ""} not loaded yet (added by the next daily refresh)${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">view in BuildOps ↗</a>` : ""}</div>` : ""}</div>`);
+    const vid = v.photos.filter(p => /\.(mov|mp4|m4v|avi|webm)$/i.test(p.file || p.src || "")).length, miss = v.photos.length - P.length - vid;
+    blocks.push(`<div class="blk"><h4>Photos</h4>${P.length ? `<div class="ph-grid">${P.map(p => `<figure><a href="${esc(phUrl(p, 2000))}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(phUrl(p, 360))}" alt="${esc(phCap(p) || "Visit photo")}"></a><figcaption>${esc(phCap(p))}${p.rep === false ? ' <span class="tag grey">not in customer report</span>' : ""}</figcaption></figure>`).join("")}</div>` : ""}${vid ? `<div class="sumtxt">${vid} video${vid > 1 ? "s" : ""}${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">view in BuildOps ↗</a>` : ""}</div>` : ""}${miss > 0 ? `<div class="sumtxt">${miss} photo${miss > 1 ? "s" : ""} not loaded yet (added by the next daily refresh)${J.reportUrl ? ` · <a href="${esc(J.reportUrl)}" target="_blank" rel="noopener" style="color:var(--teal)">view in BuildOps ↗</a>` : ""}</div>` : ""}</div>`);
   }
   return `<article class="visit" data-v="${esc(v.id)}">
     <div class="vh"><input type="checkbox" aria-label="Include visit ${esc(v.n)} in report" data-sel="${esc(v.id)}" ${SEL.has(v.id) ? "checked" : ""}>
       <div class="vdate">${fmtD(v.date)}<small>Visit #${esc(v.n)}</small></div>
-      <div><div class="vtitle">${esc(v.desc || "Visit")} ${st}</div><div class="vtech">${esc(techs.join(", ") || "No tech assigned")}</div>${first ? `<div class="vsum">${esc(first.text)}</div>` : ""}</div>
+      <div><div class="vtitle">${esc(v.desc || "Visit")} ${st}${v.fromRecord ? ` <span class="tag grey">logged on ${esc(v.fromRecord)}</span>` : ""}</div><div class="vtech">${esc(techs.join(", ") || "No tech assigned")}</div>${first ? `<div class="vsum">${esc(first.text)}</div>` : ""}</div>
       <div class="vright"><b>${h ? hrsTxt(h) : "—"}</b>${(v.photos || []).length ? v.photos.length + " photos" : ""}</div>
     </div>
     <div class="vb">${blocks.join("")}</div>
@@ -589,10 +594,11 @@ function reportHtml(V, o) {
   <div class="rp-info">
     <div><b>Customer</b> ${esc(J.customer || "")}</div><div><b>Job #</b> ${esc(J.id)}</div>
     <div><b>Site</b> ${esc(J.property || "")}</div><div><b>Customer PO</b> ${esc(J.po || "—")}</div>
-    <div><b>Address</b> ${esc((J.address || "").replace(/,\s*CA$/, ""))}</div>${(J.quotes || []).length ? `<div><b>Quote #</b> ${esc(J.quotes.join(", "))}</div>` : ""}<div><b>Visits</b> ${V.length}${o.hours ? ` · ${hrsTxt(totalHrs)} on site` : ""}</div>
+    <div><b>Address</b> ${esc((J.address || "").replace(/,\s*CA$/, ""))}</div>${(J.quotes || []).length ? `<div><b>Quote #</b> ${esc(J.quotes.join(", "))}</div>` : ""}${(J.invoices || []).filter(i => i.no).length ? `<div><b>Invoice #</b> ${esc(J.invoices.filter(i => i.no).map(i => i.no).join(", "))}</div>` : ""}<div><b>Visits</b> ${V.length}${o.hours ? ` · ${hrsTxt(totalHrs)} on site` : ""}</div>
     ${J.billTo && J.billTo !== J.customer ? `<div><b>Bill to</b> ${esc(J.billTo)}</div>` : ""}${J.authorizedBy ? `<div><b>Authorized by</b> ${esc(J.authorizedBy)}</div>` : ""}
     <div><b>Technicians</b> ${esc(techs.join(", "))}</div><div><b>Report date</b> ${esc(fmtLong(todayIso()))}</div>
   </div>`;
+  if (J.fixNote) h += `<div class="rp-h2">Correction</div><div class="rp-txt">${esc(J.fixNote)}</div>`;
   if (issueFirst) h += `<div class="rp-h2">Scope of work</div><div class="rp-txt">${esc(issueFirst)}</div>`;
   h += `<div class="rp-h2">${single ? "Work performed" : "Work performed by visit"}</div>`;
   h += V.map(v => {
@@ -612,6 +618,7 @@ function reportHtml(V, o) {
   if ((J.assets || []).length && V.length === (J.visits || []).filter(v => DONE.test(v.status || "") || (v.summaries || []).length).length) h += `<div class="rp-h2">Equipment serviced</div><table><thead><tr><th>Equipment</th><th>Make / model</th><th>Serial</th></tr></thead><tbody>${J.assets.map(a => `<tr><td>${esc(a.name)}</td><td>${esc([a.make, a.model].filter(Boolean).join(" "))}</td><td>${esc(a.serial || "")}</td></tr>`).join("")}</tbody></table>`;
   if (mats.length) h += `<div class="rp-h2">Materials supplied</div><table><thead><tr><th>Item</th><th class="num">Qty</th></tr></thead><tbody>${mats.map(m => `<tr><td>${esc(m.name)}${m.desc ? ` <span style="color:#777">— ${esc(m.desc)}</span>` : ""}</td><td class="num">${m.qty != null ? esc(m.qty) + (m.uom ? " " + esc(m.uom) : "") : ""}</td></tr>`).join("")}</tbody></table>`;
   if (o.recs && recs.length) h += `<div class="rp-h2">Recommendations</div><ul class="rp-recs">${recs.map(r => `<li><b>${esc(r.title || r.asset || "Recommendation")}</b>${r.text ? " — " + esc(r.text) : ""}${r.priority ? ` (${esc(r.priority)} priority)` : ""}</li>`).join("")}</ul>`;
+  if (o.internal && REVIEW.length) h += `<div class="rp-h2">Internal: check before sending</div><ul class="rp-recs">${REVIEW.map(r => `<li>${esc(r.text)}</li>`).join("")}</ul>`;
   if (o.internal) h += internalReport(V, totalHrs);
   if (o.sign) h += `<div class="rp-sign"><div>Alpine HVAC — ${esc(prepared)}</div><div>Customer signature / date</div></div>`;
   h += `<div class="rp-foot"><span>Questions about this report? Contact your Alpine account manager or reply to the email it came with.</span><span>${esc(J.id)} · ${esc(todayIso())}</span></div>`;
@@ -664,20 +671,30 @@ else {
       if (!s.exists()) { document.getElementById("view").innerHTML = ""; show("No job details saved yet. They're added by the daily Field Operations refresh."); }
       else window.apJobList(JSON.parse(s.data().json), s.data().asOf);
     } else {
-      const s = await getDoc(doc(db, "ops_job_detail", id));
+      let s = await getDoc(doc(db, "ops_job_detail", id));
       if (!s.exists()) {
         document.getElementById("view").innerHTML = `<div class="head"><div><h1>${id.replace(/[^A-Z0-9]/g, "")}</h1><p class="sub">No visit details saved for this job yet. The daily refresh adds every job on the Field Operations board.</p></div><div class="actions"><a class="btn" href="${/^Q/.test(id) ? "https://live.buildops.com/quote/list" : `https://live.buildops.com/job/view/${id.replace(/\D/g, "")}`}" target="_blank" rel="noopener">Open in BuildOps ↗</a></div></div>`;
       } else {
-        let costs = null;
-        if (owner) { try { const c = await getDoc(doc(db, "ops_job_costs", id)); if (c.exists()) costs = JSON.parse(c.data().json); } catch (e) { if (!denied(e)) throw e; } }
+        const readCosts = async k => { if (!owner) return null; try { const c = await getDoc(doc(db, "ops_job_costs", k)); return c.exists() ? JSON.parse(c.data().json) : null; } catch (e) { if (!denied(e)) throw e; return null; } };
+        const opened = JSON.parse(s.data().json);
+        const records = { [id]: { detail: opened, costs: await readCosts(id) } };
+        // Maintenance records: bring in the agreement's other records at this site so work split across them lands on one report.
+        if (window.apAgreementOf(id)) {
+          const ix = await getDoc(doc(db, "ops_job_detail", "_index"));
+          const others = (ix.exists() ? JSON.parse(ix.data().json) : []).filter(r => r.id !== id && window.apAgreementOf(r.id) === window.apAgreementOf(id) && r.property === opened.property).sort((a, b) => (b.lastVisit || "").localeCompare(a.lastVisit || "")).slice(0, 12);
+          await Promise.all(others.map(async r => { const d = await getDoc(doc(db, "ops_job_detail", r.id)); if (d.exists()) records[r.id] = { detail: JSON.parse(d.data().json), costs: await readCosts(r.id) }; }));
+        }
+        const R = window.apConsolidate(id, records);
+        const rid = R.primary, costs = R.C;
+        if (rid !== id) show(`${id.replace(/[^A-Z0-9-]/g, "")}'s work is part of this report, ${rid.replace(/[^A-Z0-9-]/g, "")}.`, true);
         let inv = null;
         if (owner) {
-          const safe = id.replace(/\//g, "_");
+          const safe = rid.replace(/\//g, "_");
           window.apMarkJobComplete = async jobId => { const who = ((sess && sess.name) || "").split(" ")[0] || "Someone"; await setDoc(doc(db, "ops_jobs", safe), { stage: "completed", stageBy: who, stageAt: new Date().toISOString(), jobId, updatedAt: serverTimestamp(), updatedBy: user.email }, { merge: true }); };
           try { const b = await getDoc(doc(db, "ops_jobs", safe)); window.apJobMarked = b.exists() && b.data().stage === "completed"; } catch (e) { if (!denied(e)) throw e; }
           if (new URLSearchParams(location.search).get("inv")) { try { const r = await getDoc(doc(db, "invoicing_data", safe)); if (r.exists()) inv = r.data(); } catch (e) { if (!denied(e)) throw e; } }
         }
-        window.apJobStart(JSON.parse(s.data().json), costs, inv);
+        window.apJobStart(R.J, costs, inv, R.review);
       }
     }
   } catch (e) {
