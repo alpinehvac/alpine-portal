@@ -19,14 +19,14 @@ Two outputs, both saved through the portal (no other writes anywhere):
 
 ## Mailboxes read
 
-This run reads four mailboxes, all read-only. Where the scheduled task's prompt says "Jake's Outlook", it means every
-mailbox listed here. Add a new mailbox only by adding it to this list.
+This run reads four mailboxes, all read-only. The scheduled task's prompt names the same four. To add a mailbox, add it
+to this list and to that prompt.
 
 1. **Jake:** `jake.gilmore@alpinehvac.ca` (his own mailbox, searched as below).
 2. **Cole:** `cole.hamilton@alpinehvac.ca` (shared mailbox, rules below).
 3. **Mike:** `mike.launder@alpinehvac.ca` (shared mailbox, rules below).
-4. **Shared contact mailbox:** `contact@alpinehvac.ca` (shared mailbox, rules below). As of Nov 3 2026 it isn't shared with
-   Jake yet, so it reports as not readable until it is. Use `via: "Contact"` on emails found only here.
+4. **Shared contact mailbox:** `contact@alpinehvac.ca` (shared mailbox, rules below). Use `via: "Contact"` on emails found
+   only here.
 5. **Shared mailbox rules.** Cole, Mike and contact@ share their Inbox and Sent Items with Jake as Reviewer, so for each:
    - Do this once, before Part A. Call `outlook_email_search` twice, with `mailboxOwnerEmail` = their address,
      `folderName` = `Inbox` and then `Sent Items`, `afterDateTime` = the previous run's date, `limit` 25, paging until
@@ -58,10 +58,10 @@ drafts, and any quote no longer open keeps its BuildOps status so the board drop
 `checks` only if the list could not be read. Quote and job numbers share digits: Q20261144 is not JO20261144, so
 never build a quote link from its number.
 
-Then read Outlook for every open quote (both mailboxes above, read-only) and set `quotes[].outlook`. In Jake's mailbox,
+Then read Outlook for every open quote (all mailboxes above, read-only) and set `quotes[].outlook`. In Jake's mailbox,
 searching the quote number finds the sent quote, because the number is in the quote body. Then search the thread subject
 or the customer contact for anything newer, and read the latest customer message and the latest message Alpine sent. In
-Cole's and Mike's mailboxes, match today's lists on the quote number, thread subject or customer contact. Use whichever mailbox has the
+Cole's, Mike's and contact@ mailboxes, match today's lists on the quote number, thread subject or customer contact. Use whichever mailbox has the
 newest message. If those lists have nothing new for a quote whose card has `by: "Cole"` or `by: "Mike"`, keep that card's previous
 `outlook` rather than marking it `notfound`. Fields:
 
@@ -122,11 +122,11 @@ without checking the agreement's other records.
 2. `python3 -I job_match.py BILLS.json INVOICES.json jobs.json --merge > qb.json` (download `job_match.py` from the repo
    the same way as the reader). `--merge` marks each record so the portal adds the new bills to the ones it already has.
 
-### B3. Outlook emails (both mailboxes, read-only)
+### B3. Outlook emails (all mailboxes, read-only)
 
 1. Jake's mailbox: search with `afterDateTime` = the previous run's date (yesterday on a normal day), no other filter,
-   `limit` 25, paging with `offset` until no more results. Cole's and Mike's mailboxes: use the lists from "Mailboxes read". Remove
-   duplicates, then apply steps 2 to 4 to both.
+   `limit` 25, paging with `offset` until no more results. Cole's, Mike's and contact@ mailboxes: use the lists from "Mailboxes
+   read". Remove duplicates, then apply steps 2 to 4 to all of them.
 2. Drop: senders `fireflies.ai`, `glassriverai.com`, `noreply`/`no-reply`; subjects starting `REPORT`, `Re: REPORTS`,
    `Follow-up Radar`, `Meeting Prep`, monthly `INVOICES` batches; newsletters and marketing. Judge by who wrote the
    email, not by the subject. A person's reply stays in even when the subject says `Do Not Reply`, `[EXTERNAL]` or carries
@@ -145,8 +145,8 @@ without checking the agreement's other records.
    - Maintenance: an email from or to a contact at a contract customer, about a visit, invoice or equipment at that site, goes to
      the record with the nearest visit or invoice, within 21 days. Contract customers often write from a shared or personal address
      (`portbic@gmail.com`) and never quote a number, so match the address and the site name as well.
-4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"` or
-   `via: "Mike"` when the email was found only in that person's mailbox.
+4. Record per match: `{date: "YYYY-MM-DD", from: "Name (Company)", subject, summary, link: webLink}`. Add `via: "Cole"`,
+   `via: "Mike"` or `via: "Contact"` when the email was found only in that mailbox.
    `summary` is one factual line in your own words (≤200 characters), never copied access codes or personal details.
    It must keep what matters to the job: dates, who owes what, approvals, changes to scope and reasons for delay.
 5. Read for full context, not from the preview. For every thread matched to a job, `read_resource` the newest message
@@ -155,7 +155,7 @@ without checking the agreement's other records.
    can't be found in the mailbox: the save treats it as new by subject and date.
 6. Check the jobs coming up and the maintenance just done. For every job with a next visit in the next 14 days, and every
    maintenance record with a visit or invoice in the last 14 days, search Jake's mailbox by its street
-   address, site name, short site name and customer contact, last 60 days. Add anything missing. Cole's and Mike's mailboxes
+   address, site name, short site name and customer contact, last 60 days. Add anything missing. Cole's, Mike's and contact@ mailboxes
    can't be text searched, so use the sender filter with the customer's domain and today's lists.
 7. Compare the emails with the schedule. If an email changes or conflicts with a job's dates (for example the customer's
    timing doesn't fit the next visit), add a flag to the board and list it first in the run summary.
