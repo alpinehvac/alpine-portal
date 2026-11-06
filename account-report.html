@@ -266,7 +266,7 @@ function summaryHTML(c, yc, jobs) {
   if (R.note) right += '<p class="note">' + esc(R.note) + '</p><p class="by">— ' + esc(R.signer) + '</p>';
   else {
     right += '<p><b>Routine care:</b> ' + (c.m ? plural(c.m, "maintenance visit") + ' kept your equipment on its schedule.' : 'no maintenance visits fell in this quarter.') + '</p>';
-    if (hl.length) right += '<p><b>Work completed:</b> ' + hl.map(j => esc(j.title || j.type || "Service visit") + (R.sites.length > 1 ? ' (' + esc(j.site.name) + ')' : '')).join("; ") + '.</p>';
+    if (hl.length) right += '<p><b>Work completed:</b> ' + hl.map(j => esc(String(j.title || j.type || "Service visit").replace(/[.\s]+$/, "")) + (R.sites.length > 1 ? ' (' + esc(j.site.name) + ')' : '')).join("; ") + '.</p>';
     if (att.length) right += '<p><b>Keeping an eye on:</b> ' + plural(att.length, "item") + (reds ? ', ' + reds + ' marked red' : '') + '. Details below, with our recommended next steps.</p>';
     else right += '<p><b>Equipment:</b> nothing flagged red or yellow this quarter.</p>';
   }
