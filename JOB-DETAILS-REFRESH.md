@@ -222,6 +222,26 @@ It reads only; the single write is step 6.
    This replaces `invoicing_data/sweep`. It never touches what people typed on the page.
 7. Summary line: to invoice (count), new since yesterday, in BuildOps but not QuickBooks, amount differences.
 
+### B7. Account Management backfill: older jobs and their emails (25 a day, Jake Nov 6 2026)
+
+Every job and finished maintenance record at every property should have a job page and its emails, not only the
+jobs on the board. Each run fills in a batch, after B6, in the same BuildOps session and mailboxes.
+
+1. Open `https://alpinehvac.github.io/alpine-portal/accounts.html`.
+   `JSON.stringify(await apAccountReports.backfillJobs(25))` → `{ids, left}`: records with no job page yet
+   (agreement properties first, newest first). If `ids` is not empty, read them with the job reader exactly as B1
+   (`alpineJobs.start(ids, true)`, poll, `handoff()`, `await window.apSaveJobDetails({})`).
+2. `JSON.stringify(await apAccountReports.emailBackfill(25))` → up to 25 records with a job page that have never been
+   email-matched, each with `property, address, customer, po, from, to`.
+3. For each: search the mailboxes in "Mailboxes read" (read-only) for the job number (`JO2026xxxx` and `2026xxxx`), the
+   PO number, the street address and the site name, from 30 days before `from` to 60 days after `to`. Cole's, Mike's and
+   contact@ can't be text searched: use the sender filter with the customer's email domain over the same window.
+   Apply B3 steps 2, 4 and 5 (drop list, record format, read the newest message of each thread for its history).
+4. Save with B4: `{"asOf": "<today>", "emails": {"<id>": {"emails": [...], "emailAt": "<today>"}}}`. Include every
+   record searched, with `"emails": []` when nothing matched, so it isn't searched again.
+5. Summary line: "Backfill: N job pages added (L left), M records email-matched (E emails found)". Stop the step,
+   not the run, if it would push the run past ~25 minutes; the next run continues.
+
 ## Field reference
 
 - Photos: `res.cloudinary.com/gobuildops/image/upload/<transform>/public/<path>`; the reader saves `<path>` per photo plus
