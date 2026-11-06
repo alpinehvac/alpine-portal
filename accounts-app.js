@@ -360,11 +360,24 @@ function propIndex() {
   // QuickBooks: match each invoice to a property by address, then by name; agreement billing addressed to the
   // owner (no property) goes to the customer's account; anything else becomes its own (older) property.
   const byAddr = new Map(), byName = new Map(), byCust = new Map();
+  const custsOf = p => [p.customer, p.billTo, p.account && p.account.customer].map(normName).filter(Boolean);
   P.forEach(p => {
-    [addrKey(p.address), addrKey(p.name)].filter(Boolean).forEach(k => { if (!byAddr.has(k)) byAddr.set(k, p.id); });
+    [...new Set([addrKey(p.address), addrKey(p.name)].filter(Boolean))].forEach(k => { const a = byAddr.get(k) || []; a.push(p.id); byAddr.set(k, a); });
     const n = normName(p.name); if (n) byName.set(n, byName.has(n) && byName.get(n) !== p.id ? null : p.id);
-    [p.customer, p.billTo].map(normName).filter(Boolean).forEach(n => { const a = byCust.get(n) || []; if (!a.includes(p.id)) a.push(p.id); byCust.set(n, a); });
+    custsOf(p).forEach(n => { const a = byCust.get(n) || []; if (!a.includes(p.id)) a.push(p.id); byCust.set(n, a); });
   });
+  const sameCust = (p, n) => n && custsOf(p).some(x => x === n || (x.length > 5 && n.length > 5 && (x.includes(n) || n.includes(x))));
+  const rank = (a, b) => (P.get(b).account ? 1 : 0) - (P.get(a).account ? 1 : 0) || P.get(b).jobs.length - P.get(a).jobs.length;
+  // An address only wins when the customer matches too: 25 Main St W is also Markland's billing office.
+  function placeQB(k, n) {
+    const cands = (k && byAddr.get(k)) || [], known = byCust.get(n) || [];
+    const mine = cands.filter(id => sameCust(P.get(id), n)).sort(rank);
+    if (mine.length) return mine[0];
+    if (known.length === 1) return known[0];
+    if (known.length > 1) return 'account';
+    if (cands.length) return cands.slice().sort(rank)[0];
+    return n && byName.get(n) || null;
+  }
   const account = {};
   // BuildOps invoices with no property (agreement billing): the agreement's only site, else the customer's account.
   unplaced.forEach(row => {
@@ -376,15 +389,15 @@ function propIndex() {
     if (boNos.has(String(no).replace(/^INV-/, ''))) return;
     const cust = custName((Q.c || [])[ci] || ''), n = normName(cust), k = addrKey(addr) || addrKey(cust);
     const row = { no, date: qbD(d), amount: amt || 0, balance: bal || 0, billTo: cust, src: 'QuickBooks' };
-    let pid = k && byAddr.get(k);
-    if (!pid && n) pid = byName.get(n) || ((byCust.get(n) || []).length === 1 ? byCust.get(n)[0] : null);
+    const pid = placeQB(k, n);
+    if (pid === 'account') { (account[n] = account[n] || []).push(row); return; }
     if (pid) { P.get(pid).inv.push(row); return; }
-    if (!k && (byCust.get(n) || []).length > 1) { (account[n] = account[n] || []).push(row); return; }
     const id = 'qb-' + (k || n || 'unknown').replace(/[^a-z0-9]+/g, '-');
     const label = /^[A-Z]{1,3}\d{4,}$/.test(cust) ? 'QuickBooks customer ' + cust : /^residential$/i.test(cust) ? 'Residential (no address on invoice)' : cust;
     const p = add(id, { name: k ? (/^\d/.test(cust) ? cust : (addr || cust)) : (label || 'Unknown customer'), customer: /^\d/.test(cust) ? '' : label, address: k ? (addr || cust) : '' });
     p.qbOnly = true; p.inv.push(row);
-    if (k && !byAddr.has(k)) byAddr.set(k, id);
+    if (k && !byAddr.has(k)) byAddr.set(k, [id]);
+    if (n && !byCust.has(n) && !/^\d/.test(cust)) byCust.set(n, [id]);
   });
   // Agreement properties: listed on an active agreement (site page) or with maintenance on one.
   P.forEach(p => {
