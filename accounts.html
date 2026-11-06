@@ -8,7 +8,13 @@
 <script>apGuard("accounts");</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- ALPINE ACCOUNT MANAGEMENT — one file per customer (accounts.html?c=<customer key>), or the customer list (accounts.html).
+<!-- ALPINE ACCOUNT MANAGEMENT
+       accounts.html                 every property Alpine has worked at, as tabs: agreement properties first, then the rest by last service
+       accounts.html?p=<property>    property file: every job (job page + emails), maintenance by quarter, invoices by month, quarterly report
+       accounts.html?p=<id>&mq=<q>   one maintenance quarter at a property: every record and visit with tech notes and photos
+       accounts.html?view=customers  agreement customers and their quarterly reports;  accounts.html?c=<key>  one customer's file
+       account_data/ac_bo_lists     BuildOps properties, jobs, maintenance records, invoices (weekly refresh Part D)
+       account_data/ac_qb_inv       QuickBooks invoices not in BuildOps, Aug 2023 on (weekly refresh Part D)
      Contains NO customer data: everything loads from Firestore after sign-in (owners only).
        account_data/ac_acct_<key>   contact, notes, report history + last-generated stamp (this page)
        site_data/st_site_<pid>      properties, assets, BuildOps visits (weekly BuildOps refresh)

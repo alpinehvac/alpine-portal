@@ -91,7 +91,8 @@ On `accounts.html`, in pieces of at most ~35 KB (`window.__m = String.raw\`…\`
 2. Poll `JSON.stringify(apAccountReports.status())` every 10 s until `running` is false.
 3. Retry once for any key in `errors`: `apAccountReports.start('<Q>', window.__msgs, ['<key>', ...])`.
 4. `JSON.stringify(apAccountReports.result())` → per customer: url (live link), message, stats, attention.
-5. Open one live link and confirm it loads with the right customer and quarter.
+5. Open one live link and confirm it loads with the right customer and quarter, in the Building Performance Audit look
+   (Alpine logo, "Quarterly Account Review" title, condition tiles, black footer). Add `&print=1` once to check the PDF.
 
 Regenerating the same quarter keeps the same link.
 

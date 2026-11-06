@@ -152,6 +152,18 @@ function attentionFor(c, q) {
   return out.sort((a, b) => (a.condition === b.condition ? 0 : a.condition === 'red' ? -1 : 1));
 }
 
+// Equipment condition counts (red / yellow / green) across the customer's sites for quarter q, same sources as attentionFor.
+function conditionFor(c, q) {
+  const n = { red: 0, yellow: 0, green: 0, assets: 0 };
+  c.sites.forEach(s => {
+    let r = q === CUR_Q ? readJSON('st_clearlive_' + s.id) : readJSON('st_clear_' + s.id + '_' + q);
+    if (!r) r = readJSON('st_clearlive_' + s.id) || readJSON('st_clear_' + s.id + '_' + q);
+    if (!r) { const ks = scanKeys('st_clear_' + s.id + '_').map(([k]) => k).sort(); if (ks.length) r = readJSON(ks[ks.length - 1]); }
+    ((r && r.rows) || []).filter(x => x.include !== false).forEach(x => { n.assets++; if (x.condition in n) n[x.condition]++; });
+  });
+  return n;
+}
+
 // ── Firestore (direct) ───────────────────────────────────────────────
 let FS = null;
 async function fs() {
@@ -240,6 +252,7 @@ async function buildSnapshot(c, q, opts) {
     agreements: activeAgreements(c).map(a => ({ id: a.id, tier: tierOf(a.type), start: a.startDate || '', end: a.endDate || '' })),
     stats: { quarter: countVisits(qVis), ytd: countVisits(vis) },
     attention: raw ? att : S.attention ? att.filter(a => !cu.hide.att[attKey(a)]) : [],
+    condition: S.attention || raw ? conditionFor(c, q) : null,
     sites
   };
 }
@@ -1008,6 +1021,35 @@ window.apAccountReports = {
     Q.r = [...by.values()]; Q.asOf = asOf || isoD(TODAY);
     localStorage.setItem('ac_qb_inv', JSON.stringify(Q)); PX = null;
     return { added, updated, total: Q.r.length };
+  },
+  // Weekly Part E: jobs / finished maintenance records with no job page yet (agreement properties first, newest first).
+  async backfillJobs(n) {
+    await loadJobIndex();
+    const out = [];
+    propIndex().list.slice().sort((a, b) => (b.sa - a.sa) || (b.last || '').localeCompare(a.last || '')).forEach(p => {
+      p.jobs.slice().sort((a, b) => (b.created || '').localeCompare(a.created || '')).forEach(j => { if (!jobIdx.by[j.id]) out.push(j.id); });
+      p.maint.filter(m => /complete|progress|closed/i.test(m.status || '') && (m.due || '') <= isoD(TODAY)).forEach(m => { if (!jobIdx.by[m.id]) out.push(m.id); });
+    });
+    const ids = [...new Set(out)];
+    return { ids: ids.slice(0, n || 40), left: ids.length };
+  },
+  // Weekly Part E: jobs with a page but never email-matched, with what to search for.
+  async emailBackfill(n) {
+    await loadJobIndex();
+    const P = propIndex().list, rows = [];
+    for (const p of P.slice().sort((a, b) => (b.sa - a.sa) || (b.last || '').localeCompare(a.last || ''))) {
+      for (const j of p.jobs.concat(p.maint.map(m => ({ id: m.id, created: m.due, completed: m.due, po: '' })))) {
+        if (!jobIdx.by[j.id]) continue;
+        rows.push({ id: j.id, property: p.name, address: p.address, customer: p.customer, po: j.po || '', from: j.created || '', to: j.completed || j.created || '' });
+      }
+    }
+    const out = [];
+    for (const r of rows) {
+      if (out.length >= (n || 40)) break;
+      const c = await jobCosts(r.id);
+      if (!c || !c.emailAt) out.push(r);
+    }
+    return out;
   },
   // Every property with its last service date, for checks and summaries.
   properties() { return propIndex().list.map(p => ({ id: p.id, name: p.name, customer: p.customer, address: p.address, sa: p.sa, qbOnly: !!p.qbOnly, first: p.first, last: p.last, jobs: p.jobs.length, maint: p.maint.length, invoices: p.inv.length, billed: Math.round(p.billed), open: Math.round(p.open) })); }

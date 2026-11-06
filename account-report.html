@@ -5,131 +5,177 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<title>Alpine HVAC — Service Report</title>
-<!-- ALPINE CUSTOMER SERVICE REPORT — the live link sent with each quarterly account review.
+<title>Alpine HVAC — Quarterly Account Review</title>
+<!-- ALPINE CUSTOMER QUARTERLY ACCOUNT REVIEW — the live link sent with each quarterly account review.
      account-report.html?t=<token>   (add &print=1 to open the print / Save-as-PDF view)
+     Same look as the Building Performance Audit (Roboto Slab + Inter, Alpine teal #1A6B6B, purple #9B8EC4, black footer).
      No login and no portal code: reads one snapshot, account_share/<token>, written from Account Management
-     by Jake or Mike. The snapshot holds only that customer's visits, tech notes and report photos (no dollar
-     amounts). Firestore rules allow reading a single token, never listing. Turning the link off deletes it. -->
+     by Jake, Mike or Cole. The snapshot holds only that customer's visits, tech notes, equipment condition and report
+     photos (no dollar amounts). Firestore rules allow reading a single token, never listing. Turning the link off deletes it. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--teal:#1A6B6B;--teal-dark:#114A4A;--purple:#9B8EC4;--ink:#111110;--muted:#5F6B6B;--bg:#F3F7F7;--card:#fff;--soft:#EAF2F2;
-  --line:rgba(17,17,16,0.1);--red:#B83227;--amber:#9A6B00;--green:#2E7D57}
+:root{--teal:#1A6B6B;--teal-dark:#124F4F;--purple:#9B8EC4;--purple-ink:#5B4F8A;--lav:#F1EEF8;--ink:#111110;--muted:#5E6666;--line:#DDDDDA;--bg:#F6F7F5;--card:#fff;
+  --red:#B5372B;--red-bg:#FBE9E6;--amber:#8A6400;--amber-bg:#FBF1D8;--amber-dot:#D99A1E;--green:#24734E;--green-bg:#E4F2EA}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55}
 button,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--teal);outline-offset:2px}
 a{color:var(--teal)}
-.top{background:var(--teal-dark);color:#fff}
-.top-in{max-width:1080px;margin:0 auto;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:.7rem;text-decoration:none;color:#fff}
-.brand svg{width:34px;height:34px}
-.brand b{font-family:'Oswald',sans-serif;font-size:16px;letter-spacing:.14em;text-transform:uppercase;display:block;line-height:1}
-.brand small{font-size:10px;letter-spacing:.12em;color:#BFE5E6;text-transform:uppercase}
-.top .sp{flex:1}
-.top .btn{border-color:rgba(255,255,255,.4);color:#fff;background:transparent}
-.hero{background:linear-gradient(135deg,var(--teal-dark),var(--teal) 70%,#3D7F86);color:#fff;padding:2rem 1.25rem 2.4rem}
-.hero-in{max-width:1080px;margin:0 auto}
-.kick{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#CDE9EA}
-h1{font-family:'Oswald',sans-serif;font-size:clamp(1.7rem,4.5vw,2.6rem);font-weight:700;text-transform:uppercase;line-height:1.1;margin:.3rem 0 .4rem}
-.hero p{color:#E3F2F2;font-size:.92rem}
-.wrap{max-width:1080px;margin:0 auto;padding:0 1.25rem 4rem}
-.controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;margin:-1.4rem 0 1.25rem;position:relative;box-shadow:0 6px 18px rgba(17,74,74,.08)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.seg button{background:none;border:none;padding:.45rem .9rem;font-size:.84rem;cursor:pointer}
+.slab{font-family:'Roboto Slab',Georgia,serif}
+.page{max-width:1060px;margin:0 auto;background:var(--card);min-height:100vh;box-shadow:0 0 0 1px var(--line)}
+.in{padding:0 2.25rem}
+/* header (same as the BPA) */
+.bp-top{display:flex;align-items:center;gap:1.1rem;padding:1.4rem 2.25rem 1.1rem;flex-wrap:wrap}
+.bp-logo{height:50px;width:auto;filter:brightness(0);display:block}
+.bp-tag{border-left:2px solid var(--teal);padding-left:.8rem;color:var(--teal);font-size:.8rem;line-height:1.35;font-weight:500}
+.bp-top .sp{flex:1}
+.badge-p{background:var(--purple);color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-radius:6px;padding:.4rem .8rem;white-space:nowrap}
+.btn{font-family:'Inter',sans-serif;font-size:.78rem;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:.45rem .85rem;background:#fff;cursor:pointer;text-decoration:none;color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:var(--teal)}
+.hero{display:flex;gap:1.5rem;align-items:flex-start;justify-content:space-between;padding:.6rem 2.25rem 1.3rem;flex-wrap:wrap}
+.hero h1{font-family:'Roboto Slab',Georgia,serif;font-weight:800;color:var(--teal);font-size:clamp(1.9rem,4.6vw,2.7rem);line-height:1.08;letter-spacing:-.01em}
+.hero h2{font-family:'Roboto Slab',Georgia,serif;font-weight:700;color:var(--teal);font-size:1.15rem;margin-top:.35rem}
+.hero .meta{color:var(--teal);font-size:.85rem;margin-top:.45rem}
+.scorebox{background:var(--teal);color:#fff;border-radius:12px;padding:1rem 1.2rem;min-width:230px}
+.scorebox .k{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.9}
+.scorebox b{display:block;font-family:'Roboto Slab',Georgia,serif;font-weight:800;font-size:2.7rem;line-height:1.05;margin-top:.15rem}
+.scorebox span{font-size:.8rem;opacity:.92}
+.rule{height:4px;background:var(--teal);margin:0 0 1.4rem}
+h3.sec{font-family:'Roboto Slab',Georgia,serif;font-weight:700;font-size:1.15rem;margin:1.6rem 0 .7rem;display:flex;align-items:baseline;gap:.7rem;flex-wrap:wrap}
+h3.sec small{font-family:'Inter',sans-serif;font-weight:400;font-size:.8rem;color:var(--muted)}
+/* condition tiles */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.tile{border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.8rem}
+.tile b{font-family:'Roboto Slab',Georgia,serif;font-weight:800;font-size:2.2rem;line-height:1}
+.tile .l{font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.tile .s{font-size:.82rem;color:var(--ink)}
+.tile.red{background:var(--red-bg);color:var(--red)}.tile.yellow{background:var(--amber-bg);color:var(--amber)}.tile.green{background:var(--green-bg);color:var(--green)}
+/* scorecard + summary */
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:1rem;margin-top:1rem}
+.cardx{border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem}
+.cap{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:.6rem}
+.bar{margin-bottom:.7rem;font-size:.86rem}
+.bar .t{display:flex;justify-content:space-between}
+.bar .t b{font-weight:700}
+.bar i{display:block;height:6px;border-radius:3px;background:#E7ECEB;margin-top:.3rem;overflow:hidden}
+.bar i em{display:block;height:100%;background:var(--teal);border-radius:3px}
+.bar.s i em{background:var(--purple)}.bar.p i em{background:#C5961F}
+.lavbox{background:var(--lav);border-radius:12px;padding:1rem 1.15rem;font-size:.88rem}
+.lavbox .cap{color:var(--purple-ink)}
+.lavbox p{margin-bottom:.55rem}.lavbox p:last-child{margin-bottom:0}
+.lavbox .note{white-space:pre-wrap}
+.lavbox .by{font-size:.8rem;color:var(--muted)}
+/* findings table */
+table.find{width:100%;border-collapse:collapse;font-size:.86rem}
+table.find th{text-align:left;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:.45rem .5rem;border-bottom:2px solid var(--ink)}
+table.find td{padding:.55rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
+.pill{display:inline-block;font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:.15rem .45rem;white-space:nowrap}
+.pill.red{background:var(--red);color:#fff}.pill.yellow{background:#E3B341;color:#3A2A00}.pill.green{background:var(--green);color:#fff}
+.pill.m{background:var(--green-bg);color:var(--green)}.pill.s{background:var(--lav);color:var(--purple-ink)}.pill.p{background:var(--amber-bg);color:var(--amber)}
+/* controls + work */
+.controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;border:1px solid var(--line);border-radius:10px;padding:.6rem .75rem;margin:1.6rem 0 .2rem;background:#FAFBFA}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.seg button{background:none;border:none;padding:.4rem .85rem;font-size:.82rem;cursor:pointer}
 .seg button.on{background:var(--teal);color:#fff}
-.sel{border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;font-size:.84rem;background:#fff;max-width:100%}
-.btn{font-family:'Oswald',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:8px;padding:.5rem .9rem;background:#fff;cursor:pointer;text-decoration:none;color:var(--ink);white-space:nowrap}
-.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.5rem}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem}
-.stat b{display:block;font-family:'Oswald',sans-serif;font-size:2rem;font-weight:600;line-height:1;color:var(--teal)}
-.stat span{font-size:.8rem;color:var(--muted)}
-h2{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:1.8rem 0 .75rem;display:flex;align-items:baseline;gap:.6rem}
-h2 small{font-family:'Inter',sans-serif;font-size:.78rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)}
-.attn{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.attn li{list-style:none;display:flex;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid var(--line);font-size:.88rem}
-.attn li:last-child{border-bottom:none}
-.dot{width:10px;height:10px;border-radius:50%;margin-top:.45rem;flex-shrink:0}
-.dot.red{background:var(--red)}.dot.yellow{background:#D99A1E}
-.pill{display:inline-block;font-size:.7rem;font-weight:600;border-radius:99px;padding:1px 8px;background:var(--soft);color:var(--teal);white-space:nowrap}
-.pill.m{background:#E5F4EC;color:var(--green)}.pill.s{background:#FBF2DC;color:var(--amber)}.pill.p{background:#EEEAF7;color:#5A4D86}
-.site{margin-bottom:1.5rem}
-.site-h{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem}
-.site-h b{font-family:'Oswald',sans-serif;font-size:1.05rem}
+.sel{border:1px solid var(--line);border-radius:8px;padding:.42rem .6rem;font-size:.82rem;background:#fff;max-width:100%}
+.site{margin-bottom:1.25rem}
+.site-h{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap;margin:1rem 0 .45rem;border-bottom:1px solid var(--line);padding-bottom:.3rem}
+.site-h b{font-family:'Roboto Slab',Georgia,serif;font-size:1.02rem;color:var(--teal)}
 .site-h span{font-size:.8rem;color:var(--muted)}
-.job{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:.55rem;overflow:hidden}
-.job>button{display:flex;width:100%;gap:.75rem;align-items:flex-start;text-align:left;background:none;border:0;padding:.85rem 1rem;cursor:pointer}
-.job>button:hover{background:#FAFCFC}
-.jdate{font-size:.78rem;color:var(--muted);white-space:nowrap;min-width:92px}
+.job{border:1px solid var(--line);border-radius:10px;margin-bottom:.5rem;overflow:hidden;background:#fff}
+.job>button{display:flex;width:100%;gap:.75rem;align-items:flex-start;text-align:left;background:none;border:0;padding:.75rem .95rem;cursor:pointer}
+.job>button:hover{background:#FAFBFA}
+.jdate{font-size:.78rem;color:var(--muted);white-space:nowrap;min-width:96px;padding-top:.1rem}
 .jt{flex:1}
 .jt b{font-weight:600;display:block}
 .jt span{font-size:.78rem;color:var(--muted)}
 .chev{width:16px;height:16px;flex-shrink:0;transition:transform .15s;margin-top:.25rem;fill:none;stroke:var(--muted);stroke-width:2}
 .job.open .chev{transform:rotate(90deg)}
-.jbody{display:none;padding:0 1rem 1rem 1rem;border-top:1px solid var(--line)}
+.jbody{display:none;padding:0 .95rem .9rem;border-top:1px solid var(--line)}
 .job.open .jbody{display:block}
-.visit{padding:.75rem 0;border-bottom:1px dashed var(--line);font-size:.86rem}
+.visit{padding:.7rem 0;border-bottom:1px dashed var(--line);font-size:.86rem}
 .visit:last-child{border-bottom:none}
 .visit .vh{display:flex;gap:.6rem;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
 .visit .vh b{color:var(--ink)}
-.sum{margin-top:.4rem;background:var(--soft);border-radius:8px;padding:.6rem .75rem;white-space:pre-wrap}
-.recs{margin:.45rem 0 0 1.1rem;font-size:.84rem}
+.sum{margin-top:.4rem;background:#F3F6F5;border-left:3px solid var(--teal);border-radius:6px;padding:.55rem .75rem;white-space:pre-wrap}
+.recs{margin:.4rem 0 0 1.1rem;font-size:.84rem}
 .ph{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.45rem;margin-top:.55rem}
 .ph a{display:block;position:relative}
-.ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--soft);display:block}
+.ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#EEF1F0;display:block}
 .ph em{position:absolute;left:4px;bottom:4px;font-style:normal;font-size:.66rem;background:rgba(0,0,0,.55);color:#fff;border-radius:4px;padding:0 5px;text-transform:capitalize}
-.note{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--purple);border-radius:12px;padding:1rem 1.1rem;margin-bottom:1.25rem;white-space:pre-wrap;font-size:.92rem}
-.note .by{margin-top:.4rem;font-size:.8rem;color:var(--muted)}
-.empty{background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:1.2rem;color:var(--muted);font-size:.88rem}
-.foot{margin-top:2.5rem;border-top:1px solid var(--line);padding-top:1rem;font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
-.msg{max-width:560px;margin:4rem auto;text-align:center;color:var(--muted)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:1.1rem;color:var(--muted);font-size:.88rem}
+.bp-foot{background:var(--ink);color:#fff;margin-top:2.5rem;padding:1.4rem 2.25rem;display:flex;gap:1.5rem;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.bp-foot .k{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C9C3E3}
+.bp-foot .site-url{font-family:'Roboto Slab',Georgia,serif;font-weight:800;font-size:1.8rem;line-height:1.1;color:#fff;text-decoration:none;display:block}
+.bp-foot .ph-no{font-family:'Roboto Slab',Georgia,serif;font-weight:700;font-size:1.25rem;color:var(--purple);text-decoration:none}
+.bp-foot small{display:block;font-size:.74rem;color:#B9B9B4;margin-top:.3rem}
+.bp-foot img{height:44px;opacity:.95}
+.msg{max-width:560px;margin:4rem auto;text-align:center;color:var(--muted);padding:0 1.25rem}
 #print{display:none}
-@media (max-width:720px){.stats{grid-template-columns:1fr 1fr}.jdate{min-width:0}.job>button{flex-wrap:wrap}}
+@media (max-width:760px){.in,.bp-top,.hero,.bp-foot{padding-left:1.1rem;padding-right:1.1rem}.tiles{grid-template-columns:1fr}.two{grid-template-columns:1fr}.jdate{min-width:0}.job>button{flex-wrap:wrap}.scorebox{width:100%}}
 
-/* ── print / PDF ── */
+/* ── print / PDF: the BPA layout, letter size ── */
 @media print{
-  @page{size:letter;margin:12mm}
-  body{background:#fff;font-size:9.5pt}
+  @page{size:letter;margin:0}
+  body{background:#fff;font-size:9.4pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #screen{display:none!important}
   #print{display:block}
-  .p-top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--teal);padding-bottom:7px}
-  .p-brand{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);font-size:14pt;line-height:1}
-  .p-brand small{display:block;font-weight:400;font-size:7pt;letter-spacing:.14em;color:var(--muted);margin-top:3px}
-  .p-meta{font-size:8pt;color:var(--muted);text-align:right}
-  .p-title{font-family:'Oswald',sans-serif;font-size:20pt;font-weight:600;text-transform:uppercase;line-height:1.1;margin:10px 0 2px}
-  .p-sub{font-size:9pt;color:var(--muted)}
-  .p-stats{display:flex;gap:8px;margin:10px 0}
-  .p-stats div{flex:1;background:var(--soft);border-radius:6px;padding:7px 9px;font-size:8pt;color:var(--muted)}
-  .p-stats b{display:block;font-family:'Oswald',sans-serif;font-size:17pt;line-height:1;color:var(--teal)}
-  .p-h{font-family:'Oswald',sans-serif;font-size:11pt;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--teal);margin:13px 0 5px;break-after:avoid}
-  .p-site{font-family:'Oswald',sans-serif;font-size:10.5pt;margin:9px 0 3px;break-after:avoid}
-  table.p{width:100%;border-collapse:collapse;font-size:8.5pt}
-  table.p th{text-align:left;font-size:7.5pt;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid #ccd;padding:3px 4px}
-  table.p td{border-bottom:1px solid #e3e7e7;padding:4px;vertical-align:top}
-  table.p tr{break-inside:avoid}
+  .pp{padding:13mm 13mm 0}
+  .p-top{display:flex;align-items:center;gap:12px}
+  .p-top img{height:40px;filter:brightness(0)}
+  .p-top .bp-tag{font-size:8.5pt}
+  .p-top .sp{flex:1}
+  .p-top .badge-p{font-size:7.5pt;padding:4px 9px}
+  .p-hero{display:flex;justify-content:space-between;gap:14px;margin:12px 0 10px}
+  .p-hero h1{font-family:'Roboto Slab',Georgia,serif;font-weight:800;color:var(--teal);font-size:25pt;line-height:1.05}
+  .p-hero h2{font-family:'Roboto Slab',Georgia,serif;font-weight:700;color:var(--teal);font-size:12pt;margin-top:4px}
+  .p-hero .meta{color:var(--teal);font-size:8.5pt;margin-top:4px}
+  .p-hero .scorebox{min-width:190px;padding:9px 12px;border-radius:9px}
+  .p-hero .scorebox b{font-size:24pt}
+  .p-hero .scorebox span{font-size:7.5pt}
+  .p-rule{height:3px;background:var(--teal);margin:0 -13mm 10px}
+  .p-h{font-family:'Roboto Slab',Georgia,serif;font-weight:700;font-size:11.5pt;margin:11px 0 6px;break-after:avoid}
+  .p-h small{font-family:'Inter';font-weight:400;font-size:8pt;color:var(--muted);margin-left:6px}
+  .tiles{gap:7px}.tile{padding:7px 10px;border-radius:7px}.tile b{font-size:18pt}.tile .l{font-size:7pt}.tile .s{font-size:8pt}
+  .two{gap:9px;margin-top:8px}.cardx{padding:9px 11px;border-radius:9px}.lavbox{padding:9px 11px;border-radius:9px;font-size:8.5pt}
+  .cap{font-size:7pt;margin-bottom:5px}.bar{font-size:8.5pt;margin-bottom:6px}.bar i{height:5px}
+  table.find{font-size:8.3pt}table.find th{font-size:6.8pt;padding:3px 4px}table.find td{padding:4px}
+  table.find tr{break-inside:avoid}
+  .pill{font-size:6.5pt;padding:1px 4px}
+  .p-site{font-family:'Roboto Slab',Georgia,serif;font-weight:700;color:var(--teal);font-size:10pt;margin:9px 0 3px;break-after:avoid}
+  .p-site span{font-family:'Inter';font-weight:400;font-size:7.8pt;color:var(--muted)}
   .p-sum{color:#333;margin-top:2px;white-space:pre-wrap}
-  .p-att li{list-style:none;padding:3px 0;font-size:8.5pt}
   .p-ph{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
   .p-ph figure{break-inside:avoid}
-  .p-ph img{width:100%;height:150px;object-fit:cover;border-radius:4px}
-  .p-ph figcaption{font-size:7.5pt;color:var(--muted);margin-top:2px}
-  .p-foot{margin-top:14px;border-top:1px solid #dde2e3;padding-top:6px;font-size:7.5pt;color:var(--muted);display:flex;justify-content:space-between}
+  .p-ph img{width:100%;height:140px;object-fit:cover;border-radius:5px}
+  .p-ph figcaption{font-size:7.3pt;color:var(--muted);margin-top:2px}
+  .p-foot{background:var(--ink);color:#fff;margin-top:14px;padding:10px 13mm;display:flex;justify-content:space-between;align-items:center;break-inside:avoid}
+  .p-foot .site-url{font-family:'Roboto Slab',Georgia,serif;font-weight:800;font-size:17pt;line-height:1.05;color:#fff;text-decoration:none}
+  .p-foot .ph-no{font-family:'Roboto Slab',Georgia,serif;font-weight:700;font-size:11pt;color:var(--purple)}
+  .p-foot small{display:block;font-size:6.8pt;color:#B9B9B4;margin-top:2px}
+  .p-foot img{height:30px}
 }
 </style>
 </head>
 <body>
-<div id="screen">
-  <header class="top"><div class="top-in">
-    <a class="brand" href="https://alpinehvac.ca" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="5" fill="#9B8EC4"/><path d="M4 18 L9.5 8 L13 13.5 L15.5 10 L20 18 Z" fill="#fff"/></svg>
-      <div><b>Alpine HVAC</b><small>Hydronics · Controls · Building Systems</small></div></a>
+<div id="screen"><div class="page">
+  <header class="bp-top">
+    <a href="https://alpinehvac.ca" target="_blank" rel="noopener"><img class="bp-logo" src="images/alpine-logo-white.png" alt="Alpine HVAC Service"></a>
+    <div class="bp-tag">Hydronics · Controls<br>Building Systems</div>
     <span class="sp"></span>
+    <span class="badge-p">Quarterly account review</span>
     <button class="btn" id="pdf" type="button">Save as PDF</button>
-  </div></header>
-  <section class="hero"><div class="hero-in" id="hero"><div class="kick">Service report</div><h1>Loading…</h1></div></section>
-  <main class="wrap" id="main"></main>
-</div>
+  </header>
+  <section class="hero" id="hero"><div><h1>Loading…</h1></div></section>
+  <div class="rule"></div>
+  <main class="in" id="main"></main>
+  <footer class="bp-foot">
+    <div><div class="k">Questions about your report? Call or visit</div><a class="site-url" href="https://alpinehvac.ca" target="_blank" rel="noopener">ALPINEHVAC.CA</a><a class="ph-no" href="tel:2894381175">289-438-1175</a>
+      <small>Alpine HVAC Service Inc. · 4241 Victoria Ave, Vineland, ON L0R 2E0 · TSSA Reg. FS-R-51098</small></div>
+    <img src="images/alpine-logo-white.png" alt="">
+  </footer>
+</div></div>
 <div id="print"></div>
 
 <script type="module">
@@ -142,7 +188,7 @@ const PH_OK = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpe?g|png|heic|heif|webp|gif)$/i;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtD = s => { if (!/^\d{4}-\d{2}-\d{2}/.test(s || "")) return ""; const [y, m, d] = s.slice(0, 10).split("-").map(Number); return MONTHS[m - 1] + " " + d + ", " + y; };
-const qLabel = q => { const [y, n] = q.split("-Q"); return "Q" + n + " " + y; };
+const fmtMonth = ms => { const d = new Date(ms); return ["January","February","March","April","May","June","July","August","September","October","November","December"][d.getMonth()] + " " + d.getFullYear(); };
 const ph = (src, w) => PH_OK.test(src || "") ? "https://res.cloudinary.com/gobuildops/image/upload/c_limit,w_" + w + ",q_auto,f_jpg/public/" + src : "";
 const plural = (n, one, many) => n + " " + (n === 1 ? one : (many || one + "s"));
 const params = new URLSearchParams(location.search);
@@ -152,7 +198,7 @@ let R = null, ui = { scope: "q", site: "", bucket: "" };
 const SH = k => !R.show || R.show[k] !== false;
 
 function fail(msg) {
-  $("hero").innerHTML = '<div class="kick">Service report</div><h1>Report unavailable</h1>';
+  $("hero").innerHTML = '<div><h1>Report unavailable</h1></div>';
   $("main").innerHTML = '<div class="msg"><p>' + esc(msg) + '</p><p style="margin-top:.75rem">Questions? Call Alpine HVAC at <a href="tel:2894381175">289-438-1175</a>.</p></div>';
 }
 
@@ -163,9 +209,7 @@ async function load() {
     if (!s.exists()) return fail("This report link has expired or been turned off.");
     R = JSON.parse(s.data().json);
   } catch (e) { console.error(e); return fail("We couldn't load this report right now. Please try again shortly."); }
-  document.title = "Alpine HVAC — " + R.customer + " — " + R.quarterLabel;
-  $("hero").innerHTML = '<div class="kick">' + esc(R.quarterLabel) + ' service report · ' + esc(R.months) + '</div><h1>' + esc(R.customer) + '</h1>' +
-    '<p>' + plural(R.sites.length, "property", "properties") + (R.tier ? ' · ' + esc(R.tier) + ' service agreement' : '') + ' · Prepared ' + esc(fmtD(new Date(R.generatedAt).toISOString())) + ' by ' + esc(R.signer) + '</p>';
+  document.title = "Alpine HVAC — " + R.customer + " — " + R.quarterLabel + " account review";
   render();
   buildPrint();
   if (params.get("print") === "1") printWhenReady();
@@ -189,36 +233,78 @@ function counts(jobs) {
   jobs.forEach(j => { c.v += j.visits.length; if (j.bucket === "Maintenance") c.m += j.visits.length; else if (j.bucket === "Jobs & projects") c.p++; else c.s++; });
   return c;
 }
+const typeLabel = b => b === "Jobs & projects" ? "Project" : b === "Service" ? "Service call" : "Maintenance";
+const pillFor = b => { const x = BUCKETS.find(k => k[0] === b) || BUCKETS[1]; return '<span class="pill ' + x[1] + '">' + esc(typeLabel(x[0])) + '</span>'; };
+
+// Shared blocks (screen and print): hero, condition tiles, scorecard + summary, findings.
+function heroHTML(c) {
+  const parts = [plural(c.m, "maintenance visit"), plural(c.s, "service call"), plural(c.p, "project")];
+  return '<div><h1>Quarterly Account Review</h1><h2>' + esc(R.customer) + '</h2>' +
+    '<div class="meta">' + plural(R.sites.length, "property", "properties") + ' · ' + esc(R.quarterLabel) + ' (' + esc(R.months) + ')' + (R.tier ? ' · ' + esc(R.tier) + ' service agreement' : '') + ' · Prepared ' + esc(fmtMonth(R.generatedAt)) + ' by ' + esc(R.signer) + '</div></div>' +
+    (SH("stats") ? '<div class="scorebox"><div class="k">Site visits · ' + esc(R.quarterLabel) + '</div><b>' + c.v + '</b><span>' + esc(parts.join(" · ")) + '</span></div>' : '');
+}
+function tilesHTML() {
+  const n = R.condition;
+  if (!SH("attention") || !n || !n.assets) return "";
+  return '<h3 class="sec">Equipment condition at a glance <small>' + plural(n.assets, "asset") + ' on your CLEAR report' + (R.sites.length > 1 ? 's' : '') + '</small></h3>' +
+    '<div class="tiles"><div class="tile red"><b>' + n.red + '</b><div><div class="l">Red</div><div class="s">Act now</div></div></div>' +
+    '<div class="tile yellow"><b>' + n.yellow + '</b><div><div class="l">Yellow</div><div class="s">Monitor or plan repair</div></div></div>' +
+    '<div class="tile green"><b>' + n.green + '</b><div><div class="l">Green</div><div class="s">Good condition</div></div></div></div>';
+}
+function highlights(jobs) {
+  return jobs.filter(j => j.bucket !== "Maintenance").map(j => ({ ...j, last: j.visits[j.visits.length - 1].date }))
+    .sort((a, b) => b.last.localeCompare(a.last)).slice(0, 3);
+}
+function summaryHTML(c, yc, jobs) {
+  const max = Math.max(c.m, c.s, c.p, 1);
+  const bar = (cls, label, n, sub) => '<div class="bar ' + cls + '"><div class="t"><span>' + label + '</span><b>' + n + (sub ? ' <span style="font-weight:400;color:var(--muted)">' + sub + '</span>' : '') + '</b></div><i><em style="width:' + Math.round(n / max * 100) + '%"></em></i></div>';
+  const left = SH("stats") ? '<div class="cardx"><div class="cap">This quarter · ' + esc(R.quarterLabel) + '</div>' +
+    bar("m", "Maintenance visits", c.m) + bar("s", "Service calls", c.s) + bar("p", "Jobs &amp; projects", c.p) +
+    (SH("ytd") ? '<div style="font-size:.8rem;color:var(--muted);margin-top:.5rem">' + esc(R.year) + ' to date: ' + plural(yc.v, "site visit") + ' across ' + plural(R.sites.length, "property", "properties") + '</div>' : '') + '</div>' : '';
+  const hl = highlights(jobs), att = R.attention || [], reds = att.filter(a => a.condition === "red").length;
+  let right = '<div class="lavbox"><div class="cap">What the quarter covered</div>';
+  if (R.note) right += '<p class="note">' + esc(R.note) + '</p><p class="by">— ' + esc(R.signer) + '</p>';
+  else {
+    right += '<p><b>Routine care:</b> ' + (c.m ? plural(c.m, "maintenance visit") + ' kept your equipment on its schedule.' : 'no maintenance visits fell in this quarter.') + '</p>';
+    if (hl.length) right += '<p><b>Work completed:</b> ' + hl.map(j => esc(j.title || j.type || "Service visit") + (R.sites.length > 1 ? ' (' + esc(j.site.name) + ')' : '')).join("; ") + '.</p>';
+    if (att.length) right += '<p><b>Keeping an eye on:</b> ' + plural(att.length, "item") + (reds ? ', ' + reds + ' marked red' : '') + '. Details below, with our recommended next steps.</p>';
+    else right += '<p><b>Equipment:</b> nothing flagged red or yellow this quarter.</p>';
+  }
+  right += '</div>';
+  return '<div class="two">' + left + right + '</div>';
+}
+function findingsHTML(siteFilter) {
+  const att = (R.attention || []).filter(a => !siteFilter || a.site === siteFilter);
+  if (!SH("attention") || !att.length) return "";
+  return '<h3 class="sec">Keeping an eye on <small>from your CLEAR condition reports</small></h3><table class="find"><thead><tr><th style="width:88px">Status</th><th>Equipment and what we found</th>' + (R.sites.length > 1 ? '<th style="width:28%">Property</th>' : '') + '</tr></thead><tbody>' +
+    att.map(a => '<tr><td><span class="pill ' + esc(a.condition) + '">' + esc(a.condition) + '</span></td><td><b>' + esc(a.tag) + '</b>' + (a.type ? ' · ' + esc(a.type) : '') + (a.note ? '<div>' + esc(a.note) + '</div>' : '') + '</td>' + (R.sites.length > 1 ? '<td>' + esc(a.site) + '</td>' : '') + '</tr>').join("") + '</tbody></table>';
+}
 
 function render() {
-  const jobs = jobsInScope();
-  const all = (() => { const keep = ui.bucket; ui.bucket = ""; const a = jobsInScope(); ui.bucket = keep; return a; })();
-  const c = counts(all);
-  const label = ui.scope === "q" ? R.quarterLabel : R.year + " year to date";
   if (!SH("ytd")) ui.scope = "q";
-  let h = '<div class="controls">' + (SH("ytd") ? '<div class="seg" role="group" aria-label="Period"><button data-scope="q" class="' + (ui.scope === "q" ? "on" : "") + '">' + esc(R.quarterLabel) + '</button><button data-scope="y" class="' + (ui.scope === "y" ? "on" : "") + '">' + esc(R.year) + ' YTD</button></div>' : '<b style="font-family:Oswald,sans-serif;letter-spacing:.04em">' + esc(R.quarterLabel) + '</b>') +
+  const keep = { ...ui }; ui.scope = "q"; ui.site = ""; ui.bucket = "";
+  const qJobs = jobsInScope(), qc = counts(qJobs); ui.scope = "y"; const yc = counts(jobsInScope()); Object.assign(ui, keep);
+  $("hero").innerHTML = heroHTML(qc);
+  const jobs = jobsInScope();
+  const label = ui.scope === "q" ? R.quarterLabel : R.year + " year to date";
+  const siteName = ui.site ? (R.sites.find(s => s.id === ui.site) || {}).name : "";
+  let h = tilesHTML() + summaryHTML(qc, yc, qJobs) + findingsHTML(siteName);
+  h += '<div class="controls">' + (SH("ytd") ? '<div class="seg" role="group" aria-label="Period"><button data-scope="q" class="' + (ui.scope === "q" ? "on" : "") + '">' + esc(R.quarterLabel) + '</button><button data-scope="y" class="' + (ui.scope === "y" ? "on" : "") + '">' + esc(R.year) + ' to date</button></div>' : '<b>' + esc(R.quarterLabel) + '</b>') +
     (R.sites.length > 1 ? '<select class="sel" id="site" aria-label="Property"><option value="">All properties</option>' + R.sites.map(s => '<option value="' + esc(s.id) + '"' + (s.id === ui.site ? " selected" : "") + '>' + esc(s.name) + '</option>').join("") + '</select>' : '') +
     '<select class="sel" id="bucket" aria-label="Type of work"><option value="">All work</option>' + BUCKETS.map(([b, , l]) => '<option value="' + esc(b) + '"' + (b === ui.bucket ? " selected" : "") + '>' + esc(l) + '</option>').join("") + '</select></div>';
-  if (R.note) h += '<div class="note">' + esc(R.note) + '<div class="by">— ' + esc(R.signer) + '</div></div>';
-  if (SH("stats")) h += '<div class="stats"><div class="stat"><b>' + c.m + '</b><span>maintenance visits</span></div><div class="stat"><b>' + c.s + '</b><span>service calls</span></div>' +
-    '<div class="stat"><b>' + c.p + '</b><span>jobs &amp; projects</span></div><div class="stat"><b>' + c.v + '</b><span>total site visits · ' + esc(label) + '</span></div></div>';
-  const att = (R.attention || []).filter(a => !ui.site || a.site === (R.sites.find(s => s.id === ui.site) || {}).name);
-  if (att.length) h += '<h2>Equipment to keep an eye on <small>from our condition (CLEAR) reports</small></h2><ul class="attn">' + att.map(a => '<li><span class="dot ' + esc(a.condition) + '"></span><div><b>' + esc(a.tag) + '</b>' + (a.type ? ' · ' + esc(a.type) : '') + (R.sites.length > 1 ? ' <span class="pill">' + esc(a.site) + '</span>' : '') + (a.note ? '<div>' + esc(a.note) + '</div>' : '') + '</div></li>').join("") + '</ul>';
-  h += '<h2>Work completed <small>' + esc(label) + ' · select any item for visit notes and photos</small></h2>';
+  h += '<h3 class="sec">Work completed <small>' + esc(label) + ' · select any item for visit notes and photos</small></h3>';
   if (!jobs.length) h += '<div class="empty">No visits recorded for this selection.</div>';
-  const sites = R.sites.filter(s => jobs.some(j => j.site.id === s.id));
-  sites.forEach(s => {
+  R.sites.filter(s => jobs.some(j => j.site.id === s.id)).forEach(s => {
     const js = jobs.filter(j => j.site.id === s.id).sort((a, b) => b.visits[b.visits.length - 1].date.localeCompare(a.visits[a.visits.length - 1].date));
     h += '<div class="site">' + (R.sites.length > 1 ? '<div class="site-h"><b>' + esc(s.name) + '</b><span>' + esc(s.address) + '</span></div>' : '') + js.map((j, i) => jobCard(j, s.id + "-" + i)).join("") + '</div>';
   });
-  h += '<div class="foot"><span>Alpine HVAC Service Inc. · 4241 Victoria Ave, Vineland, ON L0R 2E0 · <a href="tel:2894381175">289-438-1175</a> · <a href="https://alpinehvac.ca" target="_blank" rel="noopener">alpinehvac.ca</a></span><span>TSSA Reg. FS-R-51098</span></div>';
   $("main").innerHTML = h;
   document.querySelectorAll("[data-scope]").forEach(b => b.onclick = () => { ui.scope = b.dataset.scope; render(); });
   if ($("site")) $("site").onchange = e => { ui.site = e.target.value; render(); };
   $("bucket").onchange = e => { ui.bucket = e.target.value; render(); };
   document.querySelectorAll(".job>button").forEach(b => b.onclick = () => { const j = b.parentElement; j.classList.toggle("open"); b.setAttribute("aria-expanded", j.classList.contains("open")); });
 }
-function pillFor(b) { const x = BUCKETS.find(k => k[0] === b) || BUCKETS[1]; return '<span class="pill ' + x[1] + '">' + esc(x[0] === "Service" ? "Service call" : x[0] === "Jobs & projects" ? "Project" : "Maintenance") + '</span>'; }
+function recsHTML(list) { return (list || []).length ? '<div style="font-size:.8rem;font-weight:600;margin-top:.5rem">Recommendations</div><ul class="recs">' + list.map(r => '<li><b>' + esc(r.title || "Recommendation") + '</b>' + (r.text ? ' — ' + esc(r.text) : '') + '</li>').join("") + '</ul>' : ''; }
 function jobCard(j, id) {
   const last = j.visits[j.visits.length - 1], first = j.visits[0];
   const nPh = j.visits.reduce((t, v) => t + (v.photos || []).length, 0);
@@ -229,43 +315,39 @@ function jobCard(j, id) {
     '<div class="jbody" id="j' + esc(id) + '">' + j.visits.slice().reverse().map(v => '<div class="visit"><div class="vh"><b>' + esc(fmtD(v.date)) + '</b>' + (v.tech ? '<span>Technician: ' + esc(v.tech) + '</span>' : '') + '</div>' +
       (v.desc && v.desc !== j.title ? '<div style="margin-top:.25rem">' + esc(v.desc) + '</div>' : '') +
       (v.equipment ? '<div style="font-size:.8rem;color:var(--muted);margin-top:.2rem">Equipment: ' + esc(v.equipment) + '</div>' : '') +
-      (v.summary ? '<div class="sum">' + esc(v.summary) + '</div>' : '') +
-      ((v.recs || []).length ? '<div style="font-size:.8rem;font-weight:600;margin-top:.5rem">Recommendations</div><ul class="recs">' + v.recs.map(r => '<li><b>' + esc(r.title || "Recommendation") + '</b>' + (r.text ? ' — ' + esc(r.text) : '') + '</li>').join("") + '</ul>' : '') +
+      (v.summary ? '<div class="sum">' + esc(v.summary) + '</div>' : '') + recsHTML(v.recs) +
       ((v.photos || []).length ? '<div class="ph">' + v.photos.map(p => '<a href="' + esc(ph(p.src, 1800)) + '" target="_blank" rel="noopener"><img loading="lazy" src="' + esc(ph(p.src, 360)) + '" alt="' + esc(p.comment || p.type || "Visit photo") + '">' + (p.type ? '<em>' + esc(p.type) + '</em>' : '') + '</a>').join("") + '</div>' : '') +
-      '</div>').join("") +
-      ((j.recs || []).length ? '<div style="font-size:.8rem;font-weight:600;margin-top:.5rem">Recommendations</div><ul class="recs">' + j.recs.map(r => '<li><b>' + esc(r.title || "Recommendation") + '</b>' + (r.text ? ' — ' + esc(r.text) : '') + '</li>').join("") + '</ul>' : '') +
+      '</div>').join("") + recsHTML(j.recs) +
     '</div></div>';
 }
 
-// Print / PDF: the quarter, every property, plus the most relevant photos.
+// Print / PDF: the BPA layout. The quarter, every property, findings, then the most relevant photos.
 function buildPrint() {
   const keep = { ...ui }; ui.scope = "q"; ui.site = ""; ui.bucket = "";
   const jobs = jobsInScope(), c = counts(jobs);
   ui.scope = "y"; const yc = counts(jobsInScope()); Object.assign(ui, keep);
-  let h = '<div class="p-top"><div class="p-brand">Alpine HVAC<small>Hydronics · Controls · Building Systems</small></div><div class="p-meta">4241 Victoria Ave, Vineland, ON L0R 2E0<br>289-438-1175 · alpinehvac.ca</div></div>' +
-    '<div class="p-title">' + esc(R.customer) + '</div><div class="p-sub">' + esc(R.quarterLabel) + ' service report (' + esc(R.months) + ') · ' + plural(R.sites.length, "property", "properties") + ' · Prepared ' + esc(fmtD(new Date(R.generatedAt).toISOString())) + ' by ' + esc(R.signer) + '</div>' +
-    (R.note ? '<div style="border-left:3px solid #9B8EC4;padding:4px 8px;margin:8px 0;white-space:pre-wrap">' + esc(R.note) + ' — ' + esc(R.signer) + '</div>' : '') +
-    (SH("stats") ? '<div class="p-stats"><div><b>' + c.m + '</b>maintenance visits</div><div><b>' + c.s + '</b>service calls</div><div><b>' + c.p + '</b>jobs &amp; projects</div>' + (SH("ytd") ? '<div><b>' + yc.v + '</b>site visits ' + esc(R.year) + ' YTD</div>' : '') + '</div>' : '');
-  if ((R.attention || []).length) h += '<div class="p-h">Equipment to keep an eye on</div><ul class="p-att">' + R.attention.map(a => '<li><b style="color:' + (a.condition === "red" ? "#B83227" : "#9A6B00") + '">● ' + esc(a.tag) + '</b>' + (a.type ? ' (' + esc(a.type) + ')' : '') + (R.sites.length > 1 ? ' · ' + esc(a.site) : '') + (a.note ? ': ' + esc(a.note) : '') + '</li>').join("") + '</ul>';
-  h += '<div class="p-h">Work completed · ' + esc(R.quarterLabel) + '</div>';
+  let h = '<div class="pp"><div class="p-top"><img src="images/alpine-logo-white.png" alt="Alpine HVAC Service"><div class="bp-tag">Hydronics · Controls<br>Building Systems</div><span class="sp"></span><span class="badge-p">Quarterly account review</span></div>' +
+    '<div class="p-hero">' + heroHTML(c) + '</div></div><div class="p-rule"></div><div class="pp" style="padding-top:0">' +
+    tilesHTML().replace('class="sec"', 'class="p-h"') + summaryHTML(c, yc, jobs) + findingsHTML("").replace('class="sec"', 'class="p-h"');
+  h += '<div class="p-h">Work completed <small>' + esc(R.quarterLabel) + '</small></div>';
   if (!jobs.length) h += '<p>No visits recorded this quarter.</p>';
   R.sites.forEach(s => {
     const js = jobs.filter(j => j.site.id === s.id); if (!js.length) return;
-    if (R.sites.length > 1) h += '<div class="p-site">' + esc(s.name) + ' <span style="font-family:Inter;font-size:8pt;color:#5F6B6B">' + esc(s.address) + '</span></div>';
-    h += '<table class="p"><thead><tr><th style="width:17%">Date</th><th style="width:14%">Type</th><th>Work and visit summary</th></tr></thead><tbody>' +
+    if (R.sites.length > 1) h += '<div class="p-site">' + esc(s.name) + ' <span>' + esc(s.address) + '</span></div>';
+    h += '<table class="find"><thead><tr><th style="width:15%">Date</th><th style="width:13%">Type</th><th>Work and visit summary</th></tr></thead><tbody>' +
       js.flatMap(j => j.visits.map(v => ({ j, v }))).sort((a, b) => a.v.date.localeCompare(b.v.date)).map(({ j, v }) =>
-        '<tr><td>' + esc(fmtD(v.date)) + '</td><td>' + esc(j.bucket === "Jobs & projects" ? "Project" : j.bucket === "Service" ? "Service call" : "Maintenance") + '</td><td><b>' + esc(j.title || j.type || "Site visit") + '</b>' +
-        (v.desc && v.desc !== j.title ? ' — ' + esc(v.desc) : '') + (v.tech ? '<div style="color:#5F6B6B;font-size:7.5pt">' + esc(v.tech) + (v.equipment ? ' · ' + esc(v.equipment) : '') + '</div>' : '') +
+        '<tr><td>' + esc(fmtD(v.date)) + '</td><td>' + pillFor(j.bucket) + '</td><td><b>' + esc(j.title || j.type || "Site visit") + '</b>' +
+        (v.desc && v.desc !== j.title ? ' — ' + esc(v.desc) : '') + (v.tech ? '<div style="color:#5E6666;font-size:7.5pt">' + esc(v.tech) + (v.equipment ? ' · ' + esc(v.equipment) : '') + '</div>' : '') +
         (v.summary ? '<div class="p-sum">' + esc(v.summary.length > 700 ? v.summary.slice(0, 700) + "…" : v.summary) + '</div>' : '') +
         ((v.recs || []).length ? '<div class="p-sum"><b>Recommended:</b> ' + v.recs.map(r => esc(r.title + (r.text ? " — " + r.text : ""))).join("; ") + '</div>' : '') + '</td></tr>').join("") + '</tbody></table>';
   });
-  // Most relevant photos: commented and "after" shots first, at most 2 per visit, 12 total.
   const pics = [];
   jobs.forEach(j => j.visits.forEach(v => (v.photos || []).slice().sort((a, b) => score(b) - score(a)).slice(0, 2).forEach(p => pics.push({ p, j, v, s: score(p) }))));
   pics.sort((a, b) => b.s - a.s || b.v.date.localeCompare(a.v.date));
   const top = pics.slice(0, 12);
-  if (top.length) h += '<div class="p-h" style="break-before:auto">Photo highlights</div><div class="p-ph">' + top.map(x => '<figure><img src="' + esc(ph(x.p.src, 900)) + '" alt=""><figcaption>' + esc(fmtD(x.v.date)) + ' · ' + esc(x.p.comment || x.j.title || x.p.type || "") + (R.sites.length > 1 ? ' · ' + esc(x.j.site.name) : '') + '</figcaption></figure>').join("") + '</div>';
-  h += '<div class="p-foot"><span>Alpine HVAC Service Inc. · TSSA Reg. FS-R-51098</span><span>Full interactive report: ' + esc(location.href.replace(/&print=1/, "")) + '</span></div>';
+  if (top.length) h += '<div class="p-h">Photo highlights</div><div class="p-ph">' + top.map(x => '<figure><img src="' + esc(ph(x.p.src, 900)) + '" alt=""><figcaption>' + esc(fmtD(x.v.date)) + ' · ' + esc(x.p.comment || x.j.title || x.p.type || "") + (R.sites.length > 1 ? ' · ' + esc(x.j.site.name) : '') + '</figcaption></figure>').join("") + '</div>';
+  h += '</div><div class="p-foot"><div><div style="font-size:6.8pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#C9C3E3">Full interactive report: ' + esc(location.href.replace(/&print=1/, "")) + '</div><div class="site-url">ALPINEHVAC.CA</div><span class="ph-no">289-438-1175</span>' +
+    '<small>Alpine HVAC Service Inc. · 4241 Victoria Ave, Vineland, ON L0R 2E0 · TSSA Reg. FS-R-51098</small></div><img src="images/alpine-logo-white.png" alt=""></div>';
   $("print").innerHTML = h;
 }
 function score(p) { return (p.comment ? 2 : 0) + (/after/i.test(p.type || "") ? 2 : /during/i.test(p.type || "") ? 1 : 0); }
