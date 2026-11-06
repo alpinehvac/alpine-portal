@@ -372,7 +372,8 @@ function propIndex() {
     if (pid) { P.get(pid).inv.push(row); return; }
     if (!k && (byCust.get(n) || []).length > 1) { (account[n] = account[n] || []).push(row); return; }
     const id = 'qb-' + (k || n || 'unknown').replace(/[^a-z0-9]+/g, '-');
-    const p = add(id, { name: k ? (/^\d/.test(cust) ? cust : (addr || cust)) : (cust || 'Unknown customer'), customer: /^\d/.test(cust) ? '' : cust, address: k ? (addr || cust) : '' });
+    const label = /^[A-Z]{1,3}\d{4,}$/.test(cust) ? 'QuickBooks customer ' + cust : /^residential$/i.test(cust) ? 'Residential (no address on invoice)' : cust;
+    const p = add(id, { name: k ? (/^\d/.test(cust) ? cust : (addr || cust)) : (label || 'Unknown customer'), customer: /^\d/.test(cust) ? '' : label, address: k ? (addr || cust) : '' });
     p.qbOnly = true; p.inv.push(row);
     if (k && !byAddr.has(k)) byAddr.set(k, id);
   });
@@ -395,6 +396,7 @@ function propIndex() {
   return PX;
 }
 function propKey(p) { return encodeURIComponent(p.id); }
+function saBadge(p) { return tierBadge(/^(Base|Core|Premium)$/.test(p.tier || '') ? p.tier : 'Agreement'); }
 async function loadJobIndex() {
   if (jobIdx.rows) return;
   try { const F = await fs(); const s = await F.getDoc(F.doc(F.db, 'ops_job_detail', '_index')); jobIdx.rows = s.exists() ? JSON.parse(s.data().json) : []; }
@@ -423,7 +425,7 @@ function propTab(p) {
   const ytdVis = p.visits.filter(v => v.date >= y + '-01-01' && v.date <= isoD(TODAY)).length;
   const bits = [p.sa ? plural(ytdVis, 'visit') + ' ' + y : '', plural(p.jobs.length, 'job'), p.maint.length ? plural(p.maint.length, 'maint. record') : ''].filter(Boolean);
   return '<a class="ptab' + (p.sa ? ' sa' : '') + (p.qbOnly ? ' qb' : '') + '" href="accounts.html?p=' + propKey(p) + '">' +
-    '<span class="pt-top">' + (p.sa ? tierBadge(p.tier || 'Agreement') : p.qbOnly ? '<span class="badge b-grey">QuickBooks only</span>' : '') + '<span class="pt-when">' + esc(p.last ? fmtD(p.last) : '—') + '</span></span>' +
+    '<span class="pt-top">' + (p.sa ? saBadge(p) : p.qbOnly ? '<span class="badge b-grey">QuickBooks only</span>' : '') + '<span class="pt-when">' + esc(p.last ? fmtD(p.last) : '—') + '</span></span>' +
     '<b class="pt-name">' + esc(p.name || p.address || 'Unnamed property') + '</b>' +
     '<span class="pt-cust">' + esc(p.customer && p.customer !== p.name ? p.customer : p.address.split(',')[0] || '') + '</span>' +
     '<span class="pt-meta">' + esc(bits.join(' · ')) + (ytdJobs ? '' : '') + '</span></a>';
@@ -475,7 +477,7 @@ function renderProperty(id, mq) {
   let h = '<div class="crumb"><a href="accounts.html">Account Management</a> / ' + esc(p.name) + '</div>' +
     '<div class="head"><div><h1>' + esc(p.name) + '</h1><div class="sub">' + esc(p.address || '') + (p.customer ? ' · ' + (c ? '<a href="accounts.html?c=' + esc(c.key) + '">' + esc(p.customer) + '</a>' : esc(p.customer)) : '') +
     (p.billTo && normName(p.billTo) !== normName(p.customer) ? ' · billed to ' + esc(p.billTo) : '') + '</div>' +
-    '<div class="sub">' + (p.sa ? tierBadge(p.tier || 'Agreement') + ' ' + ag.map(a => '<a href="agreement.html?id=' + esc(a.id) + '">' + esc(a.id) + '</a>' + (a.endDate ? ' <span class="muted">(to ' + esc(fmtD(a.endDate)) + ')</span>' : '')).join(', ') : '<span class="badge b-grey">No service agreement</span>') +
+    '<div class="sub">' + (p.sa ? saBadge(p) + ' ' + ag.map(a => '<a href="agreement.html?id=' + esc(a.id) + '">' + esc(a.id) + '</a>' + (a.endDate ? ' <span class="muted">(to ' + esc(fmtD(a.endDate)) + ')</span>' : '')).join(', ') : '<span class="badge b-grey">No service agreement</span>') +
     (p.type ? ' <span class="muted">· ' + esc(p.type) + '</span>' : '') + '</div></div>' +
     '<div class="actions">' + (p.site ? '<a class="btn" href="site.html?p=' + esc(p.id) + '">Site page</a><a class="btn" href="site.html?p=' + esc(p.id) + '&view=clear">CLEAR report</a>' : '') +
     (p.qbOnly ? '' : '<a class="btn" href="' + BO + '/property/view/' + esc(p.id) + '" target="_blank" rel="noopener">BuildOps ↗</a>') + '</div></div>';
@@ -959,8 +961,40 @@ window.apAccountReports = {
     });
     return out;
   },
-  result() { return RUN.done.map(r => ({ key: r.key, customer: r.customer, quarter: r.quarter, url: r.url, message: r.message, stats: r.stats, attention: r.attention })); }
+  result() { return RUN.done.map(r => ({ key: r.key, customer: r.customer, quarter: r.quarter, url: r.url, message: r.message, stats: r.stats, attention: r.attention })); },
+  // Weekly refresh Part D. lists: alpineLists compact payload {asOf, props, jobs, maint, inv} (normally handed over
+  // in window.name by buildops-lists.js and saved on load). Never deletes: a smaller pull than last time is refused.
+  importLists(lists) {
+    const L = typeof lists === 'string' ? JSON.parse(lists) : lists, old = readJSON('ac_bo_lists');
+    if (!L || !Array.isArray(L.props) || !L.props.length || !Array.isArray(L.jobs)) throw new Error('not a BuildOps list payload');
+    if (old && old.props && (L.props.length < old.props.length * 0.9 || L.jobs.length < (old.jobs || []).length * 0.9)) throw new Error('refused: fewer properties/jobs than the saved pull (' + L.props.length + ' vs ' + old.props.length + ')');
+    localStorage.setItem('ac_bo_lists', JSON.stringify(L)); PX = null;
+    return { properties: L.props.length, jobs: L.jobs.length, maintenance: (L.maint || []).length, invoices: (L.inv || []).length };
+  },
+  // rows: [[docnumber, 'YYYYMMDD' | 'YYYY-MM-DD', total, balance, customer name, ship-to line 1], ...] from Windsor (QuickBooks).
+  // Merges by invoice number (newer values win); BuildOps invoice numbers (2026xxxx) are skipped because BuildOps lists them.
+  importQB(rows, asOf) {
+    const Q = readJSON('ac_qb_inv') || { v: 2, c: [], r: [] }, by = new Map(Q.r.map(r => [r[0], r]));
+    let added = 0, updated = 0;
+    (rows || []).forEach(([no, d, amt, bal, cust, addr]) => {
+      if (!no || /^(INV-)?2026\d{4}$/.test(no)) return;
+      let ci = Q.c.indexOf(cust || ''); if (ci < 0) { Q.c.push(cust || ''); ci = Q.c.length - 1; }
+      const row = [String(no), String(d || '').replace(/-/g, ''), +amt || 0, +bal || 0, ci, (addr || '') === (cust || '') ? '' : (addr || '')];
+      if (by.has(row[0])) updated++; else added++;
+      by.set(row[0], row);
+    });
+    Q.r = [...by.values()]; Q.asOf = asOf || isoD(TODAY);
+    localStorage.setItem('ac_qb_inv', JSON.stringify(Q)); PX = null;
+    return { added, updated, total: Q.r.length };
+  },
+  // Every property with its last service date, for checks and summaries.
+  properties() { return propIndex().list.map(p => ({ id: p.id, name: p.name, customer: p.customer, address: p.address, sa: p.sa, qbOnly: !!p.qbOnly, first: p.first, last: p.last, jobs: p.jobs.length, maint: p.maint.length, invoices: p.inv.length, billed: Math.round(p.billed), open: Math.round(p.open) })); }
 };
+// Hand-off from buildops-lists.js (window.name = "ALPINELISTS:{json}").
+if (typeof window.name === 'string' && window.name.startsWith('ALPINELISTS:')) {
+  try { const r = window.apAccountReports.importLists(window.name.slice(12)); window.name = ''; setTimeout(() => toast('BuildOps lists saved: ' + r.properties + ' properties, ' + r.jobs + ' jobs, ' + r.invoices + ' invoices'), 300); }
+  catch (e) { window.name = ''; setTimeout(() => toast('BuildOps lists not saved: ' + e.message), 300); }
+}
 
 // ── boot ─────────────────────────────────────────────────────────────
 if (qp.get('c')) { ui.q = qp.get('q') || CUR_Q; renderFile(qp.get('c')); }
