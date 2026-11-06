@@ -309,7 +309,7 @@ function qbD(s) { s = String(s || ''); return /^\d{8}$/.test(s) ? s.slice(0, 4) 
 function money(v) { const n = typeof v === 'number' ? v : parseFloat(String(v || '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; }
 function fmt$(n) { return (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function fmt$c(n) { return (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-const STREET_ALIAS = { highway: 'hwy', ontario: 'hwy', regional: 'hwy', county: 'hwy', rr: 'hwy', mount: 'mt', saint: 'st' };
+const STREET_ALIAS = { highway: 'hwy', ontario: 'hwy', on: 'hwy', regional: 'hwy', county: 'hwy', rr: 'hwy', mount: 'mt', saint: 'st' };
 // Street number + first word of the street name ("25 Main St. West, Suite 125" → "25 main"): enough to match
 // BuildOps addresses, QuickBooks ship-to lines and QuickBooks customers named by their address.
 function addrKey(s) {
@@ -332,7 +332,8 @@ function propIndex() {
   const Q = readJSON('ac_qb_inv') || { c: [], r: [] };
   const P = new Map(), today = isoD(TODAY);
   const add = (id, o) => { if (!P.has(id)) P.set(id, { id, name: '', customer: '', type: '', address: '', status: '', billTo: '', jobs: [], maint: [], inv: [], visits: [], account: null, site: null }); const p = P.get(id); Object.keys(o || {}).forEach(k => { if (o[k] && !p[k]) p[k] = o[k]; }); return p; };
-  (L.props || []).forEach(([id, name, status, customer, type, address, billTo]) => add(id, { name, status, customer: custName(customer), type, address: String(address || '').replace(/\s+CA$/, ''), billTo: custName(billTo) }));
+  const TEST = /^zz ?test|delete me/i;
+  (L.props || []).forEach(([id, name, status, customer, type, address, billTo]) => !TEST.test((name || '') + ' ' + (customer || '')) && add(id, { name, status, customer: custName(customer), type, address: String(address || '').replace(/\s+CA$/, ''), billTo: custName(billTo) }));
   const accts = accounts();
   accts.forEach(c => c.sites.forEach(s => { const p = add(s.id, { name: s.name, address: s.address, customer: custName(s.customer) || c.customer }); p.site = s; p.account = c;
     p.visits = (s.visits || []).filter(v => v.date && !/cancel/i.test(v.status || '')); }));
@@ -347,12 +348,14 @@ function propIndex() {
     if (!id || !pid) return;
     add(pid, { name: pname, customer: custName(customer) }).maint.push({ id, status, due: boD(due), type, saName, sa: String(id).replace(/-\d+$/, ''), hrs: money(hrs) });
   });
-  const boNos = new Set();
+  const boNos = new Set(), unplaced = [], jobProp = {};
+  P.forEach(p => p.jobs.forEach(j => { jobProp[j.id] = p.id; }));
   (L.inv || []).forEach(r => {
     const [no, , sa, job, amount, balance, pid, pname, issued, billTo, status] = r;
     if (!no) return; boNos.add(String(no).replace(/^INV-/, ''));
-    const p = pid ? add(pid, { name: pname }) : null; if (!p) return;
-    p.inv.push({ no, date: boD(issued), amount: money(amount), balance: money(balance), job, sa, status, billTo: custName(billTo), src: 'BuildOps' });
+    const row = { no, date: boD(issued), amount: money(amount), balance: money(balance), job, sa, status, billTo: custName(billTo), src: 'BuildOps' };
+    const id = pid && pid !== 'null' ? pid : jobProp[job];
+    if (id) add(id, { name: pname }).inv.push(row); else unplaced.push(row);
   });
   // QuickBooks: match each invoice to a property by address, then by name; agreement billing addressed to the
   // owner (no property) goes to the customer's account; anything else becomes its own (older) property.
@@ -363,6 +366,12 @@ function propIndex() {
     [p.customer, p.billTo].map(normName).filter(Boolean).forEach(n => { const a = byCust.get(n) || []; if (!a.includes(p.id)) a.push(p.id); byCust.set(n, a); });
   });
   const account = {};
+  // BuildOps invoices with no property (agreement billing): the agreement's only site, else the customer's account.
+  unplaced.forEach(row => {
+    const c = row.sa && accts.find(a => a.agreements.some(g => g.id === row.sa));
+    if (c && c.sites.length === 1 && P.has(c.sites[0].id)) { P.get(c.sites[0].id).inv.push(row); return; }
+    const n = normName(c ? c.customer : row.billTo); (account[n] = account[n] || []).push(row);
+  });
   (Q.r || []).forEach(([no, d, amt, bal, ci, addr]) => {
     if (boNos.has(String(no).replace(/^INV-/, ''))) return;
     const cust = custName((Q.c || [])[ci] || ''), n = normName(cust), k = addrKey(addr) || addrKey(cust);
