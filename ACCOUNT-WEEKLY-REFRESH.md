@@ -99,25 +99,10 @@ Feeds the property tabs on Account Management and each property file (jobs, main
 4. **Check:** `JSON.stringify(apAccountReports.properties().slice(0,5))` returns properties with `last` dates, and the
    Account Management page shows the "Service agreement properties" and "All other properties" sections.
 
-## Part E: job pages and emails for older jobs (backfill, at most 40 per run)
+## Part E: older job pages and emails
 
-Every job and finished maintenance record should have a job page with its emails. The daily job refresh covers active
-work; this part fills in the rest a batch at a time.
-
-1. On `accounts.html`: `JSON.stringify(await apAccountReports.backfillJobs(40))` → `{ids, left}`: up to 40 ids (agreement properties first,
-   newest first) that have no job page yet, and how many are left in total.
-2. If any: run the job reader on them as in Part B step 2 (`alpineJobs.start(ids, true)`, poll, `handoff()`,
-   `await window.apSaveJobDetails({})`).
-3. Emails for those ids and for `JSON.stringify(await apAccountReports.emailBackfill(40))` (jobs with a page but never
-   email-matched): for each, search Jake's mailbox (read-only, `outlook_email_search`) by the job number (`JO2026xxxx` and
-   `2026xxxx`), the PO number, and the property's street address or site name, within 30 days before the job was created
-   to 60 days after it was completed. Cole's and Mike's mailboxes: sender filter with the customer's email domain over
-   the same window. Keep person-written emails only (same drop list and duplicate rule as `JOB-DETAILS-REFRESH.md` B3).
-   Record `{date, from: "Name (Company)", subject, summary, link: webLink}` (+ `via` for Cole/Mike), summary one factual
-   line in your own words, ≤200 characters, never access codes or personal details.
-4. Save on Field Operations as in `JOB-DETAILS-REFRESH.md` B4 with
-   `{"asOf": "<today>", "emails": {"JO…": {"emails": [...], "emailAt": "<today>"}}}`. Include ids searched with no
-   match as `{"emails": [], "emailAt": "<today>"}` so they aren't searched again.
+Done daily, 25 a run, in `JOB-DETAILS-REFRESH.md` B7 (the daily refresh). Nothing to do here except report
+`JSON.stringify(await apAccountReports.backfillJobs(1))` → `left` in the summary.
 
 ## Live CLEAR reports
 
@@ -133,5 +118,5 @@ filled." Final summary (numbered, factual):
 2. Part B: jobs and maintenance records read, photos, errors
 3. Part C: customers updated, fields newly filled, customers still without a contact email
 4. Part D: properties / jobs / maintenance records / invoices saved, QuickBooks invoices added and updated
-5. Part E: job pages added, jobs email-matched (emails found), how many are left
+5. Part E: job pages still to backfill (`left`)
 6. Anything blocked and what needs Jake (e.g. a BuildOps login)
