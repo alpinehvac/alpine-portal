@@ -152,6 +152,18 @@ function attentionFor(c, q) {
   return out.sort((a, b) => (a.condition === b.condition ? 0 : a.condition === 'red' ? -1 : 1));
 }
 
+// Equipment condition counts (red / yellow / green) across the customer's sites for quarter q, same sources as attentionFor.
+function conditionFor(c, q) {
+  const n = { red: 0, yellow: 0, green: 0, assets: 0 };
+  c.sites.forEach(s => {
+    let r = q === CUR_Q ? readJSON('st_clearlive_' + s.id) : readJSON('st_clear_' + s.id + '_' + q);
+    if (!r) r = readJSON('st_clearlive_' + s.id) || readJSON('st_clear_' + s.id + '_' + q);
+    if (!r) { const ks = scanKeys('st_clear_' + s.id + '_').map(([k]) => k).sort(); if (ks.length) r = readJSON(ks[ks.length - 1]); }
+    ((r && r.rows) || []).filter(x => x.include !== false).forEach(x => { n.assets++; if (x.condition in n) n[x.condition]++; });
+  });
+  return n;
+}
+
 // ── Firestore (direct) ───────────────────────────────────────────────
 let FS = null;
 async function fs() {
@@ -240,6 +252,7 @@ async function buildSnapshot(c, q, opts) {
     agreements: activeAgreements(c).map(a => ({ id: a.id, tier: tierOf(a.type), start: a.startDate || '', end: a.endDate || '' })),
     stats: { quarter: countVisits(qVis), ytd: countVisits(vis) },
     attention: raw ? att : S.attention ? att.filter(a => !cu.hide.att[attKey(a)]) : [],
+    condition: S.attention || raw ? conditionFor(c, q) : null,
     sites
   };
 }
@@ -296,21 +309,363 @@ async function revoke(c, q) {
   saveAcct(rec);
 }
 
-// ── list view ────────────────────────────────────────────────────────
-let ui = { q: qp.get('q') || CUR_Q, filter: '', site: '' };
+// ── every property Alpine has worked at ──────────────────────────────
+// Built from (account_data, refreshed weekly by ACCOUNT-WEEKLY-REFRESH.md Part D):
+//   ac_bo_lists   BuildOps list pages read by buildops-lists.js: every property, job, maintenance record, invoice
+//   ac_qb_inv     QuickBooks invoices that are not BuildOps invoices (Windsor): work before BuildOps (Aug 2023 on)
+//                 and agreement billing done in QuickBooks
+// plus st_site_<pid> (agreement sites with every visit), ops_job_detail/_index (job pages) and
+// ops_job_costs/{id}.emails (Outlook context per job, read when a property is opened).
+const MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+function boD(s) { const m = String(s || '').match(/^([A-Za-z]{3})[a-z]*\.? (\d{1,2}), (\d{4})/); return m && m[1].toLowerCase() in MON ? isoD(new Date(+m[3], MON[m[1].toLowerCase()], +m[2])) : ''; }
+function qbD(s) { s = String(s || ''); return /^\d{8}$/.test(s) ? s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6) : ''; }
+function money(v) { const n = typeof v === 'number' ? v : parseFloat(String(v || '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; }
+function fmt$(n) { return (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function fmt$c(n) { return (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+const STREET_ALIAS = { highway: 'hwy', ontario: 'hwy', on: 'hwy', regional: 'hwy', county: 'hwy', rr: 'hwy', mount: 'mt', saint: 'st' };
+// Street number + first word of the street name ("25 Main St. West, Suite 125" → "25 main"): enough to match
+// BuildOps addresses, QuickBooks ship-to lines and QuickBooks customers named by their address.
+function addrKey(s) {
+  const t = String(s || '').toLowerCase().replace(/\(|\)/g, ' ');
+  const m = t.match(/(?:^|[^0-9a-z])(\d{1,6})(?:-\d{1,6})?\s+([a-z][a-z'.]*)/);
+  if (!m) return '';
+  let w = m[2].replace(/[^a-z]/g, ''); w = STREET_ALIAS[w] || w;
+  return /^(unit|suite|ste|floor|fl)$/.test(w) ? '' : m[1] + ' ' + w;
+}
+function normName(s) {
+  return String(s || '').toLowerCase().replace(/^\*+/, '').replace(/\bc\/o\b.*$/, '').replace(/#\s*\d+/g, '')
+    .replace(/\bprop\b\.?/g, 'property').replace(/\bcorp\b\.?/g, 'corporation')
+    .replace(/\b(inc|ltd|limited|corporation|co|the)\b\.?/g, '').replace(/[^a-z0-9]+/g, '');
+}
+const jobIdx = { rows: null, by: {} };   // ops_job_detail/_index: which jobs have a portal job page
+let PX = null;
+function propIndex() {
+  if (PX) return PX;
+  const L = readJSON('ac_bo_lists') || { props: [], jobs: [], maint: [], inv: [] };
+  const Q = readJSON('ac_qb_inv') || { c: [], r: [] };
+  const P = new Map(), today = isoD(TODAY);
+  const add = (id, o) => { if (!P.has(id)) P.set(id, { id, name: '', customer: '', type: '', address: '', status: '', billTo: '', jobs: [], maint: [], inv: [], visits: [], account: null, site: null }); const p = P.get(id); Object.keys(o || {}).forEach(k => { if (o[k] && !p[k]) p[k] = o[k]; }); return p; };
+  const TEST = /^zz ?test|delete me/i;
+  (L.props || []).forEach(([id, name, status, customer, type, address, billTo]) => !TEST.test((name || '') + ' ' + (customer || '')) && add(id, { name, status, customer: custName(customer), type, address: String(address || '').replace(/\s+CA$/, ''), billTo: custName(billTo) }));
+  const accts = accounts();
+  accts.forEach(c => c.sites.forEach(s => { const p = add(s.id, { name: s.name, address: s.address, customer: custName(s.customer) || c.customer }); p.site = s; p.account = c;
+    p.visits = (s.visits || []).filter(v => v.date && !/cancel/i.test(v.status || '')); }));
+  (L.jobs || []).forEach(r => {
+    const [id, boId, pid, pname, status, billing, issue, created, completed, type, po, customer, visits, invoices, sa, dept, soldBy, billed, quoted] = r;
+    if (!id || !pid) return;
+    if (boId) boJobPath[id] = '/job/view/' + boId;
+    add(pid, { name: pname, customer: custName(customer) }).jobs.push({ id, status, billing, issue, created: boD(created), completed: boD(completed), type, po, customer: custName(customer), visits: +visits || 0, invoices: String(invoices || '').split(/[,\s]+/).filter(x => /\d/.test(x)), sa, dept, soldBy, billed: money(billed), quoted: money(quoted) });
+  });
+  (L.maint || []).forEach(r => {
+    const [id, pid, pname, status, due, type, saName, customer, hrs] = r;
+    if (!id || !pid) return;
+    add(pid, { name: pname, customer: custName(customer) }).maint.push({ id, status, due: boD(due), type, saName, sa: String(id).replace(/-\d+$/, ''), hrs: money(hrs) });
+  });
+  const boNos = new Set(), unplaced = [], jobProp = {};
+  P.forEach(p => p.jobs.forEach(j => { jobProp[j.id] = p.id; }));
+  (L.inv || []).forEach(r => {
+    const [no, , sa, job, amount, balance, pid, pname, issued, billTo, status] = r;
+    if (!no) return; boNos.add(String(no).replace(/^INV-/, ''));
+    const row = { no, date: boD(issued), amount: money(amount), balance: money(balance), job, sa, status, billTo: custName(billTo), src: 'BuildOps' };
+    const id = pid && pid !== 'null' ? pid : jobProp[job];
+    if (id) add(id, { name: pname }).inv.push(row); else unplaced.push(row);
+  });
+  // QuickBooks: match each invoice to a property by address, then by name; agreement billing addressed to the
+  // owner (no property) goes to the customer's account; anything else becomes its own (older) property.
+  const byAddr = new Map(), byName = new Map(), byCust = new Map();
+  const custsOf = p => [p.customer, p.billTo, p.account && p.account.customer].map(normName).filter(Boolean);
+  P.forEach(p => {
+    [...new Set([addrKey(p.address), addrKey(p.name)].filter(Boolean))].forEach(k => { const a = byAddr.get(k) || []; a.push(p.id); byAddr.set(k, a); });
+    const n = normName(p.name); if (n) byName.set(n, byName.has(n) && byName.get(n) !== p.id ? null : p.id);
+    custsOf(p).forEach(n => { const a = byCust.get(n) || []; if (!a.includes(p.id)) a.push(p.id); byCust.set(n, a); });
+  });
+  const sameCust = (p, n) => n && custsOf(p).some(x => x === n || (x.length > 5 && n.length > 5 && (x.includes(n) || n.includes(x))));
+  const rank = (a, b) => (P.get(b).account ? 1 : 0) - (P.get(a).account ? 1 : 0) || P.get(b).jobs.length - P.get(a).jobs.length;
+  // An address only wins when the customer matches too: 25 Main St W is also Markland's billing office.
+  function placeQB(k, n) {
+    const cands = (k && byAddr.get(k)) || [], known = byCust.get(n) || [];
+    const mine = cands.filter(id => sameCust(P.get(id), n)).sort(rank);
+    if (mine.length) return mine[0];
+    if (known.length === 1) return known[0];
+    if (known.length > 1) return 'account';
+    if (cands.length) return cands.slice().sort(rank)[0];
+    return n && byName.get(n) || null;
+  }
+  const account = {};
+  // BuildOps invoices with no property (agreement billing): the agreement's only site, else the customer's account.
+  unplaced.forEach(row => {
+    const c = row.sa && accts.find(a => a.agreements.some(g => g.id === row.sa));
+    if (c && c.sites.length === 1 && P.has(c.sites[0].id)) { P.get(c.sites[0].id).inv.push(row); return; }
+    const n = normName(c ? c.customer : row.billTo); (account[n] = account[n] || []).push(row);
+  });
+  (Q.r || []).forEach(([no, d, amt, bal, ci, addr]) => {
+    if (boNos.has(String(no).replace(/^INV-/, ''))) return;
+    const cust = custName((Q.c || [])[ci] || ''), n = normName(cust), k = addrKey(addr) || addrKey(cust);
+    const row = { no, date: qbD(d), amount: amt || 0, balance: bal || 0, billTo: cust, src: 'QuickBooks' };
+    const pid = placeQB(k, n);
+    if (pid === 'account') { (account[n] = account[n] || []).push(row); return; }
+    if (pid) { P.get(pid).inv.push(row); return; }
+    const id = 'qb-' + (k || n || 'unknown').replace(/[^a-z0-9]+/g, '-');
+    const label = /^[A-Z]{1,3}\d{4,}$/.test(cust) ? 'QuickBooks customer ' + cust : /^residential$/i.test(cust) ? 'Residential (no address on invoice)' : cust;
+    const p = add(id, { name: k ? (/^\d/.test(cust) ? cust : (addr || cust)) : (label || 'Unknown customer'), customer: /^\d/.test(cust) ? '' : label, address: k ? (addr || cust) : '' });
+    p.qbOnly = true; p.inv.push(row);
+    if (k && !byAddr.has(k)) byAddr.set(k, [id]);
+    if (n && !byCust.has(n) && !/^\d/.test(cust)) byCust.set(n, [id]);
+  });
+  // Agreement properties: listed on an active agreement (site page) or with maintenance on one.
+  P.forEach(p => {
+    if (!p.account) { const c = accts.find(a => a.sites.some(s => s.id === p.id)); if (c) p.account = c; }
+    const dates = [];
+    p.jobs.forEach(j => { const d = j.completed || j.created; if (d) dates.push(d); });
+    p.visits.forEach(v => dates.push(v.date));
+    p.maint.forEach(m => { if (m.due && /complete|progress|closed/i.test(m.status || '')) dates.push(m.due); });
+    p.inv.forEach(i => { if (i.date) dates.push(i.date); });
+    const past = dates.filter(d => d <= today).sort();
+    p.first = past[0] || ''; p.last = past[past.length - 1] || '';
+    p.billed = p.inv.reduce((t, i) => t + i.amount, 0); p.open = p.inv.reduce((t, i) => t + i.balance, 0);
+    p.tier = p.account ? tierFor(p.account) : '';
+    p.sa = !!(p.account && activeAgreements(p.account).length);
+    p.accountBilling = p.sa || p.customer ? (account[normName(p.customer)] || account[normName(p.billTo)] || (p.account ? account[normName(p.account.customer)] : null) || []) : [];
+  });
+  PX = { list: [...P.values()].filter(p => p.last || p.sa || p.jobs.length || p.inv.length), asOf: L.asOf || '', qbAsOf: Q.asOf || '', account };
+  return PX;
+}
+function propKey(p) { return encodeURIComponent(p.id); }
+function saBadge(p) { return tierBadge(/^(Base|Core|Premium)$/.test(p.tier || '') ? p.tier : 'Agreement'); }
+async function loadJobIndex() {
+  if (jobIdx.rows) return;
+  try { const F = await fs(); const s = await F.getDoc(F.doc(F.db, 'ops_job_detail', '_index')); jobIdx.rows = s.exists() ? JSON.parse(s.data().json) : []; }
+  catch (e) { jobIdx.rows = []; }
+  jobIdx.rows.forEach(r => { jobIdx.by[r.id] = r; });
+}
+const costsCache = {};
+async function jobCosts(id) {
+  if (id in costsCache) return costsCache[id];
+  try { const F = await fs(); const s = await F.getDoc(F.doc(F.db, 'ops_job_costs', id)); costsCache[id] = s.exists() ? JSON.parse(s.data().json) : null; }
+  catch (e) { costsCache[id] = null; }
+  return costsCache[id];
+}
+const boJobPath = {};
+const jobLink = id => jobIdx.by[id] ? 'job.html?id=' + encodeURIComponent(id) : BO + (boJobPath[id] || (/^SA/i.test(id) ? '/maintenance/view/' + encodeURIComponent(id) : '/job/view/' + encodeURIComponent(String(id).replace(/^JO/, ''))));
+const jobAnchor = id => '<a class="jn" href="' + esc(jobLink(id)) + '"' + (jobIdx.by[id] ? '' : ' target="_blank" rel="noopener"') + '>' + esc(id) + (jobIdx.by[id] ? '' : ' ↗') + '</a>';
+
+// ── property tabs (Account Management home) ──────────────────────────
+function ago(iso) {
+  const d = parseD(iso); if (!d) return 'no service date';
+  const days = Math.round((TODAY - d) / 86400000);
+  return days < 1 ? 'today' : days < 45 ? days + ' days ago' : days < 600 ? Math.round(days / 30.4) + ' months ago' : (days / 365).toFixed(1) + ' years ago';
+}
+function propTab(p) {
+  const y = qYear(CUR_Q), ytdJobs = p.jobs.filter(j => (j.created || '') >= y).length;
+  const ytdVis = p.visits.filter(v => v.date >= y + '-01-01' && v.date <= isoD(TODAY)).length;
+  const bits = [p.sa ? plural(ytdVis, 'visit') + ' ' + y : '', plural(p.jobs.length, 'job'), p.maint.length ? plural(p.maint.length, 'maint. record') : ''].filter(Boolean);
+  return '<a class="ptab' + (p.sa ? ' sa' : '') + (p.qbOnly ? ' qb' : '') + '" href="accounts.html?p=' + propKey(p) + '">' +
+    '<span class="pt-top">' + (p.sa ? saBadge(p) : p.qbOnly ? '<span class="badge b-grey">QuickBooks only</span>' : '') + '<span class="pt-when">' + esc(p.last ? fmtD(p.last) : '—') + '</span></span>' +
+    '<b class="pt-name">' + esc(p.name || p.address || 'Unnamed property') + '</b>' +
+    '<span class="pt-cust">' + esc(p.customer && p.customer !== p.name ? p.customer : p.address.split(',')[0] || '') + '</span>' +
+    '<span class="pt-meta">' + esc(bits.join(' · ')) + (ytdJobs ? '' : '') + '</span></a>';
+}
+let ui = { q: qp.get('q') || CUR_Q, filter: '', site: '', show: 'all' };
+function renderProperties() {
+  document.title = 'Alpine HVAC — Account Management';
+  const IX = propIndex();
+  const all = IX.list.slice().sort((a, b) => (b.last || '').localeCompare(a.last || '') || a.name.localeCompare(b.name));
+  const sa = all.filter(p => p.sa), rest = all.filter(p => !p.sa);
+  const due = accounts().filter(c => activeAgreements(c).length && !(acctRec(c.key).reports || {})[LAST_Q]).length;
+  const yr = qYear(CUR_Q), active12 = all.filter(p => p.last && p.last >= isoD(new Date(TODAY.getTime() - 365 * 86400000))).length;
+  let h = '<div class="head"><div><h1>Account Management</h1><div class="sub">Every property Alpine has worked at. Service agreement properties first, then everything else from most recent work to oldest.</div></div>' +
+    '<div class="actions"><a class="btn" href="accounts.html?view=customers">Customers &amp; quarterly reports</a><a class="btn" href="service-agreements.html">Agreements</a><a class="btn" href="site-reports.html" title="Monthly maintenance checklist review">Maintenance checklists</a></div></div>';
+  if (!(readJSON('ac_bo_lists') || {}).props) h += '<div class="banner">The full property list has not been pulled from BuildOps yet. It fills in on the next weekly refresh (ACCOUNT-WEEKLY-REFRESH.md Part D); until then only agreement properties show.</div>';
+  h += '<div class="kpis"><div><b>' + all.length + '</b><span>properties worked at</span></div><div><b>' + sa.length + '</b><span>on a service agreement</span></div>' +
+    '<div><b>' + active12 + '</b><span>serviced in the last 12 months</span></div><div><b>' + plural(due, 'customer') + '</b><span>' + qLabel(LAST_Q) + ' reports not generated</span></div></div>';
+  h += '<div class="toolbar"><input class="inp" id="f-q" placeholder="Search property, address or customer" value="' + esc(ui.filter) + '" style="min-width:280px">' +
+    '<div class="seg" role="group" aria-label="Show"><button data-show="all" class="' + (ui.show === 'all' ? 'on' : '') + '">All</button><button data-show="12" class="' + (ui.show === '12' ? 'on' : '') + '">Last 12 months</button></div>' +
+    '<span class="spacer"></span><span class="muted" style="font-size:.76rem">BuildOps lists as of ' + esc(fmtD((IX.asOf || '').slice(0, 10))) + ' · QuickBooks since Aug 2023</span></div><div id="tabs"></div>';
+  $('main').innerHTML = h;
+  const draw = () => {
+    const f = ui.filter.toLowerCase(), since = isoD(new Date(TODAY.getTime() - 365 * 86400000));
+    const ok = p => (!f || (p.name + ' ' + p.address + ' ' + p.customer + ' ' + p.billTo).toLowerCase().includes(f)) && (ui.show === 'all' || p.sa || (p.last && p.last >= since));
+    const s1 = sa.filter(ok), s2 = rest.filter(ok);
+    $('tabs').innerHTML = '<h2>Service agreement properties <span class="note">' + plural(s1.length, 'property', 'properties') + ' · most recent work first</span></h2>' +
+      (s1.length ? '<div class="ptabs">' + s1.map(propTab).join('') + '</div>' : '<div class="card empty">No match.</div>') +
+      '<h2>All other properties <span class="note">' + plural(s2.length, 'property', 'properties') + ' · most recent work first, oldest at the bottom</span></h2>' +
+      (s2.length ? '<div class="ptabs">' + s2.map(propTab).join('') + '</div>' : '<div class="card empty">No match.</div>');
+  };
+  $('f-q').oninput = e => { ui.filter = e.target.value; draw(); };
+  document.querySelectorAll('[data-show]').forEach(b => b.onclick = () => { ui.show = b.dataset.show; document.querySelectorAll('[data-show]').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+  draw();
+}
+
+// ── one property: every job, maintenance quarter, invoice and email ──
+let PP = null;
+function renderProperty(id, mq) {
+  const IX = propIndex();
+  PP = IX.list.find(p => p.id === id);
+  if (!PP) { $('main').innerHTML = '<p class="crumb"><a href="accounts.html">← Account Management</a></p><p class="empty">Property not found. It may have been merged or renamed in BuildOps.</p>'; return; }
+  const p = PP, c = p.account;
+  document.title = 'Alpine HVAC — ' + p.name;
+  if (mq) return renderMaintQuarter(p, mq);
+  const yr = qYear(CUR_Q), today = isoD(TODAY);
+  const visY = p.visits.filter(v => v.date >= yr + '-01-01' && v.date <= today);
+  const billedY = p.inv.filter(i => (i.date || '') >= yr).reduce((t, i) => t + i.amount, 0);
+  const ag = c ? activeAgreements(c) : [];
+  let h = '<div class="crumb"><a href="accounts.html">Account Management</a> / ' + esc(p.name) + '</div>' +
+    '<div class="head"><div><h1>' + esc(p.name) + '</h1><div class="sub">' + esc(p.address || '') + (p.customer ? ' · ' + (c ? '<a href="accounts.html?c=' + esc(c.key) + '">' + esc(p.customer) + '</a>' : esc(p.customer)) : '') +
+    (p.billTo && normName(p.billTo) !== normName(p.customer) ? ' · billed to ' + esc(p.billTo) : '') + '</div>' +
+    '<div class="sub">' + (p.sa ? saBadge(p) + ' ' + ag.map(a => '<a href="agreement.html?id=' + esc(a.id) + '">' + esc(a.id) + '</a>' + (a.endDate ? ' <span class="muted">(to ' + esc(fmtD(a.endDate)) + ')</span>' : '')).join(', ') : '<span class="badge b-grey">No service agreement</span>') +
+    (p.type ? ' <span class="muted">· ' + esc(p.type) + '</span>' : '') + '</div></div>' +
+    '<div class="actions">' + (p.site ? '<a class="btn" href="site.html?p=' + esc(p.id) + '">Site page</a><a class="btn" href="site.html?p=' + esc(p.id) + '&view=clear">CLEAR report</a>' : '') +
+    (p.qbOnly ? '' : '<a class="btn" href="' + BO + '/property/view/' + esc(p.id) + '" target="_blank" rel="noopener">BuildOps ↗</a>') + '</div></div>';
+  h += '<div class="kpis"><div><b>' + esc(p.last ? fmtD(p.last) : '—') + '</b><span>last serviced · ' + esc(ago(p.last)) + '</span></div><div><b>' + esc(p.first ? fmtD(p.first) : '—') + '</b><span>first on record</span></div>' +
+    '<div><b>' + p.jobs.length + '</b><span>jobs &amp; service calls</span></div><div><b>' + (p.sa ? visY.length : p.maint.length) + '</b><span>' + (p.sa ? 'site visits ' + yr + ' to date' : 'maintenance records') + '</span></div>' +
+    '<div><b>' + fmt$(p.billed) + '</b><span>invoiced all time · ' + fmt$(billedY) + ' in ' + yr + '</span></div><div><b>' + fmt$(p.open) + '</b><span>open balance</span></div></div>';
+  h += '<div class="grid2"><div>' +
+    '<h2>Jobs <span class="note">every job at this property, newest first · open one for its emails</span></h2><div class="card" id="pp-jobs"></div>' +
+    '<h2>Maintenance by quarter <span class="note">open a quarter for every maintenance visit in it</span></h2><div id="pp-maint"></div>' +
+    '<h2>Invoices by month <span class="note">BuildOps and QuickBooks</span></h2><div id="pp-inv"></div></div>' +
+    '<div>' + (c ? '<h2>Quarterly report <span class="note">' + esc(c.customer) + (c.sites.length > 1 ? ', all ' + c.sites.length + ' properties' : '') + '</span></h2><div class="card panel" id="pp-report"></div>' : '') +
+    '<h2>Emails <span class="note">Jake, Mike and Cole\'s mailboxes, matched to each job</span></h2><div class="card panel" id="pp-mail"><p class="muted" style="font-size:.84rem">Loading…</p></div></div></div>';
+  $('main').innerHTML = h;
+  drawPropJobs(); drawPropMaint(); drawPropInv();
+  if (c) drawPropReport();
+  loadJobIndex().then(async () => {
+    drawPropJobs(); drawPropMaint();
+    const ids = [...new Set(p.jobs.map(j => j.id).concat(p.maint.map(m => m.id)).filter(x => jobIdx.by[x]))];
+    for (let i = 0; i < ids.length; i += 8) await Promise.all(ids.slice(i, i + 8).map(jobCosts));
+    if (PP !== p) return;
+    drawPropJobs(); drawPropMail();
+  });
+}
+function emailsOf(id) { const c = costsCache[id]; return (c && c.emails) || []; }
+function mailRow(m) {
+  return '<li><span class="muted">' + esc(fmtD(m.date)) + '</span> <b>' + (m.link ? '<a href="' + esc(m.link) + '" data-search="' + esc(m.subject || '') + '" target="_blank" rel="noopener">' + esc(m.subject || '(no subject)') + '</a>' : esc(m.subject || '(no subject)')) + '</b>' +
+    (m.from ? ' <span class="muted">· ' + esc(m.from) + '</span>' : '') + (m.summary ? '<div>' + esc(m.summary) + '</div>' : '') + '</li>';
+}
+function drawPropJobs() {
+  const p = PP, box = $('pp-jobs'); if (!box) return;
+  const js = p.jobs.slice().sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+  if (!js.length) { box.innerHTML = '<div class="empty">No jobs in BuildOps for this property' + (p.qbOnly ? ' (this work predates BuildOps; see invoices)' : '') + '.</div>'; return; }
+  box.innerHTML = js.map(j => {
+    const em = emailsOf(j.id), open = DONE_RE.test(j.status || '') ? 'b-grey' : 'b-amber';
+    return '<details class="pjob"><summary><span class="pj-id">' + jobAnchor(j.id) + '</span><span class="pj-t"><b>' + esc(cleanTitle(j.issue) || j.type || 'Job') + '</b><span class="muted">' + esc([j.type, j.po, j.dept].filter(Boolean).join(' · ')) + '</span></span>' +
+      '<span class="pj-d">' + esc(fmtD(j.created)) + (j.completed ? '<br><span class="muted">done ' + esc(fmtD(j.completed)) + '</span>' : '') + '</span>' +
+      '<span class="pj-s"><span class="badge ' + open + '">' + esc(j.status || '—') + '</span>' + (j.billing ? '<br><span class="muted">' + esc(j.billing) + '</span>' : '') + '</span>' +
+      '<span class="pj-b num">' + (j.billed ? fmt$(j.billed) : '') + (em.length ? '<br><span class="muted">' + plural(em.length, 'email') + '</span>' : '') + '</span></summary>' +
+      '<div class="pj-body">' + (j.invoices.length ? '<div class="muted" style="font-size:.78rem">Invoices: ' + esc(j.invoices.join(', ')) + '</div>' : '') +
+      (j.visits ? '<div class="muted" style="font-size:.78rem">' + plural(j.visits, 'visit') + (j.soldBy ? ' · sold by ' + esc(j.soldBy) : '') + (j.quoted ? ' · quoted ' + fmt$(j.quoted) : '') + '</div>' : '') +
+      (em.length ? '<ul class="mails">' + em.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(mailRow).join('') + '</ul>'
+        : '<p class="muted" style="font-size:.8rem;margin-top:.35rem">' + (jobIdx.by[j.id] ? 'No emails matched to this job yet.' : 'Emails are matched for jobs on Field Operations; this job has no job page.') + '</p>') +
+      '</div></details>';
+  }).join('');
+}
+// Maintenance quarters: BuildOps maintenance records by due date, with the visits the weekly refresh read.
+function maintQuarters(p) {
+  const qs = {};
+  p.maint.forEach(m => { const q = qOf(m.due); if (q) (qs[q] = qs[q] || { recs: [], visits: [] }).recs.push(m); });
+  p.visits.filter(v => v.bucket === 'Maintenance').forEach(v => { const q = qOf(v.date); if (q) (qs[q] = qs[q] || { recs: [], visits: [] }).visits.push(v); });
+  return Object.entries(qs).sort((a, b) => b[0].localeCompare(a[0]));
+}
+function drawPropMaint() {
+  const p = PP, box = $('pp-maint'); if (!box) return;
+  const qs = maintQuarters(p).filter(([q]) => q <= CUR_Q || true);
+  if (!qs.length) { box.innerHTML = '<div class="card empty">No maintenance records for this property.</div>'; return; }
+  box.innerHTML = '<div class="mq">' + qs.map(([q, x]) => {
+    const done = x.recs.filter(m => /complete|closed/i.test(m.status || '')).length, fut = q > CUR_Q;
+    return '<a class="mqt' + (q === CUR_Q ? ' cur' : '') + (fut ? ' fut' : '') + '" href="accounts.html?p=' + propKey(p) + '&mq=' + q + '"><b>' + esc(qLabel(q)) + '</b><span>' + plural(x.recs.length, 'record') + ' · ' + plural(x.visits.length, 'visit') + '</span><span class="muted">' + (fut ? 'scheduled' : done + ' of ' + x.recs.length + ' complete') + '</span></a>';
+  }).join('') + '</div>';
+}
+function drawPropInv() {
+  const p = PP, box = $('pp-inv'); if (!box) return;
+  const by = {};
+  p.inv.forEach(i => { const m = (i.date || '').slice(0, 7) || 'undated'; (by[m] = by[m] || []).push(i); });
+  const months = Object.keys(by).sort().reverse();
+  const invRow = i => '<tr><td>' + esc(i.no) + '</td><td>' + esc(fmtD(i.date)) + '</td><td>' + (i.job ? jobAnchor(i.job) : i.sa ? esc(i.sa) : '') + '</td><td><span class="src' + (i.src === 'QuickBooks' ? ' man' : '') + '">' + esc(i.src) + '</span>' + (i.status ? ' <span class="muted">' + esc(i.status) + '</span>' : '') + '</td><td class="num">' + fmt$c(i.amount) + '</td><td class="num' + (i.balance > 0.005 ? '" style="color:var(--red)' : '') + '">' + (i.balance > 0.005 ? fmt$c(i.balance) : 'paid') + '</td></tr>';
+  let h = months.length ? months.map((m, k) => {
+    const rows = by[m].sort((a, b) => (b.date || '').localeCompare(a.date || '')), tot = rows.reduce((t, i) => t + i.amount, 0);
+    const [y, mo] = m.split('-');
+    return '<details class="card imonth"' + (k < 3 ? ' open' : '') + '><summary><b>' + esc(mo ? MONTHS[+mo - 1] + ' ' + y : 'Undated') + '</b><span class="muted">' + plural(rows.length, 'invoice') + '</span><span class="num">' + fmt$c(tot) + '</span></summary>' +
+      '<table class="list inv"><thead><tr><th>Invoice</th><th>Date</th><th>Job</th><th>Source</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead><tbody>' + rows.map(invRow).join('') + '</tbody></table></details>';
+  }).join('') : '<div class="card empty">No invoices found for this property.</div>';
+  const acc = p.accountBilling || [];
+  if (acc.length) {
+    const tot = acc.reduce((t, i) => t + i.amount, 0);
+    h += '<details class="card imonth"><summary><b>Account billing</b><span class="muted">' + plural(acc.length, 'invoice') + ' to ' + esc(acc[0].billTo) + ' covering all their properties (agreement billing in QuickBooks)</span><span class="num">' + fmt$c(tot) + '</span></summary>' +
+      '<table class="list inv"><thead><tr><th>Invoice</th><th>Date</th><th></th><th>Source</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead><tbody>' + acc.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(invRow).join('') + '</tbody></table></details>';
+  }
+  box.innerHTML = h;
+}
+function drawPropMail() {
+  const p = PP, box = $('pp-mail'); if (!box) return;
+  const rows = p.jobs.concat(p.maint).flatMap(j => emailsOf(j.id).map(m => ({ ...m, job: j.id }))).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  box.innerHTML = rows.length ? '<ul class="mails">' + rows.slice(0, 40).map(m => mailRow(m).replace('</b>', '</b> <span class="badge b-grey">' + esc(m.job) + '</span>')).join('') + '</ul>' + (rows.length > 40 ? '<p class="muted" style="font-size:.76rem">Showing the latest 40 of ' + rows.length + '; each job lists all of its own.</p>' : '')
+    : '<p class="muted" style="font-size:.84rem">No emails matched to this property\'s jobs yet. The daily job refresh matches Jake\'s, Mike\'s and Cole\'s email to jobs on Field Operations.</p>';
+}
+function drawPropReport() {
+  const c = PP.account, box = $('pp-report'); if (!box) return;
+  const rec = acctRec(c.key), q = LAST_Q, r = (rec.reports || {})[q], l = rec.lastReport;
+  box.innerHTML = (l ? '<div class="rep-stamp">Last generated <b>' + esc(qLabel(l.quarter)) + '</b> on ' + esc(fmtStamp(l.at)) + ' by ' + esc(l.by) + '</div>' : '<div class="rep-stamp none">No report generated yet.</div>') +
+    '<div class="actions"><button class="btn primary" id="pp-gen">' + (r ? 'Regenerate ' : 'Generate ') + esc(qLabel(q)) + ' report</button>' +
+    (r ? '<a class="btn" href="' + esc(shareUrl(r.token)) + '" target="_blank" rel="noopener">Open live report ↗</a><a class="btn" href="' + esc(shareUrl(r.token)) + '&print=1" target="_blank" rel="noopener">PDF</a>' : '') +
+    '<a class="btn" href="accounts.html?c=' + esc(c.key) + '">Message, customize &amp; history</a></div>' +
+    '<p class="muted" style="font-size:.74rem;margin-top:.6rem">Covers every property on ' + esc(c.customer) + '\'s agreement. Each quarter the report is generated automatically and emailed to Mike (Jake CC\'d) to review and forward.</p>';
+  $('pp-gen').onclick = async () => {
+    if (r && !confirm('Regenerate ' + qLabel(q) + ' for ' + c.customer + '? The same customer link updates and the message is rewritten.')) return;
+    const b = $('pp-gen'); b.disabled = true; b.textContent = 'Generating…';
+    try { await generate(c, q, { source: 'on-demand' }); toast('Report generated'); }
+    catch (e) { console.error(e); toast(/permission/i.test(e.message) ? 'Not saved: only Jake, Mike and Cole can publish reports' : 'Could not generate: ' + e.message); }
+    drawPropReport();
+  };
+}
+// One maintenance quarter at a property: every record due in it and every maintenance visit, with tech notes.
+async function renderMaintQuarter(p, q) {
+  const x = (maintQuarters(p).find(([k]) => k === q) || [q, { recs: [], visits: [] }])[1];
+  const qs = maintQuarters(p).map(([k]) => k);
+  let h = '<div class="crumb"><a href="accounts.html">Account Management</a> / <a href="accounts.html?p=' + propKey(p) + '">' + esc(p.name) + '</a> / ' + esc(qLabel(q)) + ' maintenance</div>' +
+    '<div class="head"><div><h1>' + esc(qLabel(q)) + ' maintenance</h1><div class="sub">' + esc(p.name) + (p.address ? ' · ' + esc(p.address) : '') + ' · ' + esc(qMonths(q)) + '</div></div>' +
+    '<div class="actions">' + (qs.length > 1 ? '<select class="sel" id="mq-sel">' + qs.map(k => '<option value="' + k + '"' + (k === q ? ' selected' : '') + '>' + qLabel(k) + '</option>').join('') + '</select>' : '') +
+    (p.site ? '<a class="btn" href="site.html?p=' + esc(p.id) + '&q=' + esc(q) + '">Site page</a>' : '') + '</div></div>';
+  h += '<h2>Maintenance records <span class="note">' + plural(x.recs.length, 'record') + ' due this quarter</span></h2><div class="card">' +
+    (x.recs.length ? '<table class="list"><thead><tr><th>Record</th><th>Type</th><th>Due</th><th>Status</th><th class="num">Budget hrs</th></tr></thead><tbody>' +
+      x.recs.sort((a, b) => (a.due || '').localeCompare(b.due || '')).map(m => '<tr><td>' + jobAnchor(m.id) + '</td><td>' + esc(m.type || m.saName || '') + '</td><td>' + esc(fmtD(m.due)) + '</td><td><span class="badge ' + (/complete|closed/i.test(m.status || '') ? 'b-green' : 'b-amber') + '">' + esc(m.status || '—') + '</span></td><td class="num">' + (m.hrs || '') + '</td></tr>').join('') + '</tbody></table>'
+      : '<div class="empty">No maintenance records due this quarter.</div>') + '</div>';
+  h += '<h2>Maintenance visits <span class="note">' + plural(x.visits.length, 'visit') + ' · tech summaries and photos from the job pages</span></h2><div class="card" id="mq-visits"></div>';
+  $('main').innerHTML = h;
+  if ($('mq-sel')) $('mq-sel').onchange = e => { location.href = 'accounts.html?p=' + propKey(p) + '&mq=' + e.target.value; };
+  const groups = groupJobs(x.visits.map(v => ({ ...v, site: p.site || { id: p.id, name: p.name } })));
+  const draw = () => {
+    $('mq-visits').innerHTML = groups.length ? groups.map(J => {
+      const jid = detId(J.job);
+      return '<div class="job"><div class="job-top">' + (jid ? jobAnchor(jid) : '<b class="jn">' + esc(J.job || '') + '</b>') + (J.title ? '<span class="muted">' + esc(J.title) + '</span>' : '') + '</div>' +
+        '<ul class="visits">' + J.visits.map(v => '<li><b>' + esc(fmtD(v.date)) + '</b><div><span class="sm">' + esc([v.tech, v.others].filter(z => z && z !== '-').join(' + ')) + '</span>' +
+          (v.desc && cleanTitle(v.desc) !== J.title ? '<div>' + esc(v.desc) + '</div>' : '') + (v.assets && v.assets !== '-' ? '<div class="sm">Equipment: ' + esc(v.assets) + '</div>' : '') +
+          (v.summary ? '<div class="sumtxt">' + esc(v.summary) + '</div>' : '') +
+          ((v.recs || []).length ? '<div class="sm" style="margin-top:.3rem"><b>Recommended:</b> ' + v.recs.map(r => esc(r.title + (r.text ? ' — ' + r.text : ''))).join('; ') + '</div>' : '') +
+          ((v.photos || []).length ? '<div class="thumbs">' + v.photos.slice(0, 8).map(ph => '<a href="' + esc(phUrl(ph.src, 1600)) + '" target="_blank" rel="noopener"><img loading="lazy" src="' + esc(phUrl(ph.src, 160)) + '" alt="' + esc(ph.comment || ph.type || 'Visit photo') + '"></a>').join('') + '</div>' : '') +
+          '</div></li>').join('') + '</ul></div>';
+    }).join('') : '<div class="empty">No maintenance visits recorded' + (p.site ? '' : ' (visit detail is read for agreement properties)') + ' this quarter.</div>';
+  };
+  draw();
+  await loadJobIndex();
+  const ids = [...new Set(groups.map(J => J.job).filter(Boolean))];
+  for (let i = 0; i < ids.length; i += 8) await Promise.all(ids.slice(i, i + 8).map(jobDetail));
+  groups.forEach(J => enrich(J, detailCache[detId(J.job)]));
+  draw();
+}
+
+// ── customer list (quarterly reports) ────────────────────────────────
 function stampHTML(rec) {
   const l = rec.lastReport;
   if (!l) return '<span class="stamp none">Never generated</span>';
   const stale = l.quarter < LAST_Q;
   return '<span class="stamp' + (stale ? ' stale' : '') + '">' + esc(qLabel(l.quarter)) + ' · ' + esc(fmtD(isoD(new Date(l.at)))) + '</span>';
 }
-function renderList() {
-  document.title = 'Alpine HVAC — Account Management';
+function renderCustomers() {
+  document.title = 'Alpine HVAC — Customers & quarterly reports';
   const all = accounts();
   const [qf, qt] = qRangeISO(CUR_Q), [yf, yt] = ytdRangeISO(CUR_Q);
   const due = all.filter(c => !(acctRec(c.key).reports || {})[LAST_Q]).length;
-  let h = '<div class="head"><div><h1>Account Management</h1><div class="sub">Service agreement customers: every property, what happened this quarter and year to date, and the quarterly account review.</div></div>' +
-    '<div class="actions"><a class="btn" href="service-agreements.html">Agreements</a><a class="btn" href="site-reports.html" title="Monthly maintenance checklist review">Maintenance checklists</a></div></div>';
+  let h = '<div class="crumb"><a href="accounts.html">Account Management</a> / Customers</div><div class="head"><div><h1>Customers &amp; quarterly reports</h1><div class="sub">Service agreement customers: what happened this quarter and year to date, and the quarterly account review for all of their properties.</div></div>' +
+    '<div class="actions"><a class="btn" href="accounts.html">All properties</a><a class="btn" href="service-agreements.html">Agreements</a></div></div>';
   if (!all.length) return $('main').innerHTML = h + '<p class="empty">No customers yet. Customers appear here once the weekly BuildOps refresh has pulled their agreements and sites (Service Agreements &gt; Refresh).</p>';
   h += '<div class="kpis"><div><b>' + all.length + '</b><span>customers</span></div>' +
     '<div><b>' + all.reduce((t, c) => t + c.sites.length, 0) + '</b><span>properties</span></div>' +
@@ -355,7 +710,7 @@ function renderFile(key) {
   const isCur = ui.q === CUR_Q;
   const qS = countVisits(visitsFor(C, qf, qt).filter(v => !ui.site || v.site.id === ui.site)), yS = countVisits(visitsFor(C, yf, yt).filter(v => !ui.site || v.site.id === ui.site));
   const ag = activeAgreements(C);
-  let h = '<div class="crumb"><a href="accounts.html">Account Management</a> / ' + esc(C.customer) + '</div>' +
+  let h = '<div class="crumb"><a href="accounts.html">Account Management</a> / <a href="accounts.html?view=customers">Customers</a> / ' + esc(C.customer) + '</div>' +
     '<div class="head"><div><h1>' + esc(C.customer) + '</h1><div class="sub">' + tierBadge(tierFor(C)) + ' ' +
     (ag.length ? ag.map(a => '<a href="agreement.html?id=' + esc(a.id) + '">' + esc(a.id) + '</a>' + (a.endDate ? ' <span class="muted">(to ' + esc(fmtD(a.endDate)) + ')</span>' : '')).join(', ') : '<span class="muted">No active agreement</span>') +
     (managerOf(C) ? ' · Account manager: <b>' + esc(managerOf(C)) + '</b>' : '') + '</div></div>' +
@@ -373,7 +728,7 @@ function renderFile(key) {
     return '<div class="card prop' + (ui.site === s.id ? ' on' : '') + '" data-site="' + esc(s.id) + '" style="cursor:pointer"><div class="pn">' + esc(s.name) + '</div><div class="pa">' + esc(s.address || '') + '</div>' +
       '<div class="pc"><span class="badge b-grey">' + qLabel(ui.q) + ': ' + plural(a.total, 'visit') + '</span><span class="badge b-grey">YTD ' + y.total + '</span><span class="badge b-grey">' + plural((s.assets || []).length, 'asset') + '</span></div>' +
       '<div class="pc">' + clearBadge(s) + '</div>' +
-      '<div class="pl"><a href="site.html?p=' + esc(s.id) + '&q=' + esc(ui.q) + '">Site page</a><a href="site.html?p=' + esc(s.id) + '&q=' + esc(ui.q) + '&view=clear">CLEAR report</a><a href="' + BO + '/property/view/' + esc(s.id) + '" target="_blank" rel="noopener">BuildOps ↗</a></div></div>';
+      '<div class="pl"><a href="accounts.html?p=' + encodeURIComponent(s.id) + '">Property file</a><a href="site.html?p=' + esc(s.id) + '&q=' + esc(ui.q) + '">Site page</a><a href="site.html?p=' + esc(s.id) + '&q=' + esc(ui.q) + '&view=clear">CLEAR report</a><a href="' + BO + '/property/view/' + esc(s.id) + '" target="_blank" rel="noopener">BuildOps ↗</a></div></div>';
   }).join('') + (C.sites.length ? '' : '<p class="empty">No properties pulled from BuildOps yet.</p>') + '</div>';
 
   h += '<div class="grid2"><div><h2>Activity <span class="note">' + esc(qLabel(ui.q)) + (ui.site ? ' · ' + esc((C.sites.find(s => s.id === ui.site) || {}).name || '') + ' <a href="#" id="clr-site">show all properties</a>' : ' · all properties') + '</span></h2><div id="activity"></div>' +
@@ -641,9 +996,73 @@ window.apAccountReports = {
     });
     return out;
   },
-  result() { return RUN.done.map(r => ({ key: r.key, customer: r.customer, quarter: r.quarter, url: r.url, message: r.message, stats: r.stats, attention: r.attention })); }
+  result() { return RUN.done.map(r => ({ key: r.key, customer: r.customer, quarter: r.quarter, url: r.url, message: r.message, stats: r.stats, attention: r.attention })); },
+  // Weekly refresh Part D. lists: alpineLists compact payload {asOf, props, jobs, maint, inv} (normally handed over
+  // in window.name by buildops-lists.js and saved on load). Never deletes: a smaller pull than last time is refused.
+  importLists(lists) {
+    const L = typeof lists === 'string' ? JSON.parse(lists) : lists, old = readJSON('ac_bo_lists');
+    if (!L || !Array.isArray(L.props) || !L.props.length || !Array.isArray(L.jobs)) throw new Error('not a BuildOps list payload');
+    if (old && old.props && (L.props.length < old.props.length * 0.9 || L.jobs.length < (old.jobs || []).length * 0.9)) throw new Error('refused: fewer properties/jobs than the saved pull (' + L.props.length + ' vs ' + old.props.length + ')');
+    localStorage.setItem('ac_bo_lists', JSON.stringify(L)); PX = null;
+    return { properties: L.props.length, jobs: L.jobs.length, maintenance: (L.maint || []).length, invoices: (L.inv || []).length };
+  },
+  // rows: [[docnumber, 'YYYYMMDD' | 'YYYY-MM-DD', total, balance, customer name, ship-to line 1], ...] from Windsor (QuickBooks).
+  // Merges by invoice number (newer values win); BuildOps invoice numbers (2026xxxx) are skipped because BuildOps lists them.
+  importQB(rows, asOf) {
+    const Q = readJSON('ac_qb_inv') || { v: 2, c: [], r: [] }, by = new Map(Q.r.map(r => [r[0], r]));
+    let added = 0, updated = 0;
+    (rows || []).forEach(([no, d, amt, bal, cust, addr]) => {
+      if (!no || /^(INV-)?2026\d{4}$/.test(no)) return;
+      let ci = Q.c.indexOf(cust || ''); if (ci < 0) { Q.c.push(cust || ''); ci = Q.c.length - 1; }
+      const row = [String(no), String(d || '').replace(/-/g, ''), +amt || 0, +bal || 0, ci, (addr || '') === (cust || '') ? '' : (addr || '')];
+      if (by.has(row[0])) updated++; else added++;
+      by.set(row[0], row);
+    });
+    Q.r = [...by.values()]; Q.asOf = asOf || isoD(TODAY);
+    localStorage.setItem('ac_qb_inv', JSON.stringify(Q)); PX = null;
+    return { added, updated, total: Q.r.length };
+  },
+  // Weekly Part E: jobs / finished maintenance records with no job page yet (agreement properties first, newest first).
+  async backfillJobs(n) {
+    await loadJobIndex();
+    const out = [];
+    propIndex().list.slice().sort((a, b) => (b.sa - a.sa) || (b.last || '').localeCompare(a.last || '')).forEach(p => {
+      p.jobs.slice().sort((a, b) => (b.created || '').localeCompare(a.created || '')).forEach(j => { if (!jobIdx.by[j.id]) out.push(j.id); });
+      p.maint.filter(m => /complete|progress|closed/i.test(m.status || '') && (m.due || '') <= isoD(TODAY)).forEach(m => { if (!jobIdx.by[m.id]) out.push(m.id); });
+    });
+    const ids = [...new Set(out)];
+    return { ids: ids.slice(0, n || 40), left: ids.length };
+  },
+  // Weekly Part E: jobs with a page but never email-matched, with what to search for.
+  async emailBackfill(n) {
+    await loadJobIndex();
+    const P = propIndex().list, rows = [];
+    for (const p of P.slice().sort((a, b) => (b.sa - a.sa) || (b.last || '').localeCompare(a.last || ''))) {
+      for (const j of p.jobs.concat(p.maint.map(m => ({ id: m.id, created: m.due, completed: m.due, po: '' })))) {
+        if (!jobIdx.by[j.id]) continue;
+        rows.push({ id: j.id, property: p.name, address: p.address, customer: p.customer, po: j.po || '', from: j.created || '', to: j.completed || j.created || '' });
+      }
+    }
+    const out = [];
+    for (const r of rows) {
+      if (out.length >= (n || 40)) break;
+      const c = await jobCosts(r.id);
+      if (!c || !c.emailAt) out.push(r);
+    }
+    return out;
+  },
+  // Every property with its last service date, for checks and summaries.
+  properties() { return propIndex().list.map(p => ({ id: p.id, name: p.name, customer: p.customer, address: p.address, sa: p.sa, qbOnly: !!p.qbOnly, first: p.first, last: p.last, jobs: p.jobs.length, maint: p.maint.length, invoices: p.inv.length, billed: Math.round(p.billed), open: Math.round(p.open) })); }
 };
+// Hand-off from buildops-lists.js (window.name = "ALPINELISTS:{json}").
+if (typeof window.name === 'string' && window.name.startsWith('ALPINELISTS:')) {
+  try { const r = window.apAccountReports.importLists(window.name.slice(12)); window.name = ''; setTimeout(() => toast('BuildOps lists saved: ' + r.properties + ' properties, ' + r.jobs + ' jobs, ' + r.invoices + ' invoices'), 300); }
+  catch (e) { window.name = ''; setTimeout(() => toast('BuildOps lists not saved: ' + e.message), 300); }
+}
 
 // ── boot ─────────────────────────────────────────────────────────────
-if (qp.get('c')) { ui.q = qp.get('q') || CUR_Q; renderFile(qp.get('c')); } else renderList();
+if (qp.get('c')) { ui.q = qp.get('q') || CUR_Q; renderFile(qp.get('c')); }
+else if (qp.get('p')) renderProperty(qp.get('p'), qp.get('mq'));
+else if (qp.get('view') === 'customers') renderCustomers();
+else renderProperties();
 })();

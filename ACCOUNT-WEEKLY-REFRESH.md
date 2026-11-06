@@ -69,6 +69,56 @@ without manual work.
    `source` is `"BuildOps"`, `"QuickBooks"` or `"Outlook"`. Confirm `updated` matches the number of customers and
    list any `unmatched`.
 
+## Part D: every property Alpine has worked at (BuildOps lists + QuickBooks history)
+
+Feeds the property tabs on Account Management and each property file (jobs, maintenance quarters, invoices by month).
+
+1. **BuildOps lists.** `curl -sSf https://raw.githubusercontent.com/alpinehvac/alpine-portal/main/buildops-lists.js`.
+   In the logged-in BuildOps tab: `alpineLists.reset()` if `alpineLists` already exists, otherwise paste the whole
+   file, then `alpineLists.start()`. Poll `JSON.stringify(alpineLists.status())` every 15 s until `running` is false.
+   It reads every row of /property/list, /job/list, /maintenance/list and /invoice/list (about 2 minutes). If `err`
+   says `incomplete`, call `alpineLists.start()` once more; a gap of 1–2 rows after that is fine, note it.
+2. **Hand off.** In the same tab, build the compact payload and open Account Management with it (one call):
+   ```js
+   const S=JSON.parse(localStorage.getItem('__alpine_lists')), id=h=>(h||'').split('/').pop();
+   const C={v:1,asOf:new Date().toISOString(),
+    props:Object.values(S.rows.properties).map(r=>[id(r.companyName_href),r.companyName,r.status,r.customerName,r.customerPropertyTypeValue,r.propertyAddress,r.billingCustomerName]),
+    jobs:Object.values(S.rows.jobs).map(r=>[r.customIdentifier,id(r.customIdentifier_href),id(r.propertyName_href),r.propertyName,r.status,r.billingStatus,(r.issueDescription||'').slice(0,240),r.createdDate,r.completedDate,r.jobTypeName,r.customerProvidedPONumber,r.customerName,r.visitCount,r.invoices,r.serviceAgreementNumber,r.departments,r.soldByName,r.totalBilledJobComputed,r.amountQuoted]),
+    maint:Object.values(S.rows.maintenance).map(r=>[r.customIdentifier,id(r.propertyName_href),r.propertyName,r.status,r.dueDate,r.jobTypeName,r.serviceAgreementName,r.customerName,r.totalBudgetedHours,r.accountManagerValue]),
+    inv:Object.values(S.rows.invoices).map(r=>[r.invoiceNumber,id(r.invoiceNumber_href),r.serviceAgreementNumber,r.jobCustomIdentifier,r.totalAmount,r.outstandingBalance,id(r.propertyName_href),r.propertyName,r.issuedDate,r.billingCustomerName,r.status,r.projectName])};
+   window.name='ALPINELISTS:'+JSON.stringify(C); location.href='https://alpinehvac.github.io/alpine-portal/accounts.html';
+   ```
+   Account Management saves it on load and shows "BuildOps lists saved: N properties, M jobs, K invoices". It refuses
+   a pull with 10% fewer properties or jobs than the saved one (a partial read); report that and don't retry.
+3. **QuickBooks (Windsor `quickbooks`, `get_data` only).** Invoices from the last 120 days: fields
+   `invoices__docnumber, invoices__txndate, invoices__totalamt, invoices__balance, invoices__customerref, invoices__shipaddr`.
+   Build rows `[docnumber, txndate, totalamt, balance, customerref.name, shipaddr.Line1]` and save on `accounts.html`
+   (pieces of at most ~35 KB with `String.raw` if large):
+   `JSON.stringify(apAccountReports.importQB(ROWS, '<today>'))` → `{added, updated, total}`. Older invoices (back to
+   Aug 2023) are already stored; this only adds new ones and refreshes balances. BuildOps invoice numbers are skipped.
+4. **Check:** `JSON.stringify(apAccountReports.properties().slice(0,5))` returns properties with `last` dates, and the
+   Account Management page shows the "Service agreement properties" and "All other properties" sections.
+
+## Part E: job pages and emails for older jobs (backfill, at most 40 per run)
+
+Every job and finished maintenance record should have a job page with its emails. The daily job refresh covers active
+work; this part fills in the rest a batch at a time.
+
+1. On `accounts.html`: `JSON.stringify(await apAccountReports.backfillJobs(40))` → `{ids, left}`: up to 40 ids (agreement properties first,
+   newest first) that have no job page yet, and how many are left in total.
+2. If any: run the job reader on them as in Part B step 2 (`alpineJobs.start(ids, true)`, poll, `handoff()`,
+   `await window.apSaveJobDetails({})`).
+3. Emails for those ids and for `JSON.stringify(await apAccountReports.emailBackfill(40))` (jobs with a page but never
+   email-matched): for each, search Jake's mailbox (read-only, `outlook_email_search`) by the job number (`JO2026xxxx` and
+   `2026xxxx`), the PO number, and the property's street address or site name, within 30 days before the job was created
+   to 60 days after it was completed. Cole's and Mike's mailboxes: sender filter with the customer's email domain over
+   the same window. Keep person-written emails only (same drop list and duplicate rule as `JOB-DETAILS-REFRESH.md` B3).
+   Record `{date, from: "Name (Company)", subject, summary, link: webLink}` (+ `via` for Cole/Mike), summary one factual
+   line in your own words, ≤200 characters, never access codes or personal details.
+4. Save on Field Operations as in `JOB-DETAILS-REFRESH.md` B4 with
+   `{"asOf": "<today>", "emails": {"JO…": {"emails": [...], "emailAt": "<today>"}}}`. Include ids searched with no
+   match as `{"emails": [], "emailAt": "<today>"}` so they aren't searched again.
+
 ## Live CLEAR reports
 
 The weekly pull only replaces `st_site_<pid>`. The live CLEAR report (`st_clearlive_<pid>`) is never overwritten.
@@ -82,4 +132,6 @@ filled." Final summary (numbered, factual):
 1. Part A result (applied / blocked), agreement, site and visit counts, anything that couldn't load
 2. Part B: jobs and maintenance records read, photos, errors
 3. Part C: customers updated, fields newly filled, customers still without a contact email
-4. Anything blocked and what needs Jake (e.g. a BuildOps login)
+4. Part D: properties / jobs / maintenance records / invoices saved, QuickBooks invoices added and updated
+5. Part E: job pages added, jobs email-matched (emails found), how many are left
+6. Anything blocked and what needs Jake (e.g. a BuildOps login)
