@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — PO Numbers</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("po-numbers");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ALPINE PO NUMBERS — Operations > PO Numbers. Replaces the shared "PO NUMBERS" Apple note and its Archive note.
+     Contains NO PO data: everything loads live from Firestore after sign-in.
+       po_numbers/{00849}   one document per PO (doc id = 5-digit number, plus -1/-2 for split billing)
+       po_meta/config       { last: highest number issued, sections: [{id, name, monthly, month}] }
+     One shared number sequence; the letter is only the job type (M, TM, P, EQ, SC). New numbers are issued in a
+     Firestore transaction against po_meta/config.last, so two people can never get the same number.
+     Everyone on the team can view and search; only Jake, Mike, Clarissa and Cole (isAdmin in firestore.rules) can edit.
+     po-parse.js reads the Apple note text for the one-time import. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--purple:#6C5D8D;
+  --bg:#EAF2F3;--card:#FFFFFF;--ink:#10444E;--muted:#5A7A80;
+  --amber:#A9821F;--red:#B83227;--green:#2E7D57;
+  --border:rgba(16,68,78,0.12);--radius:8px;--radius-lg:14px;
+}
+html,body{min-height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+:focus-visible{outline:2px solid var(--teal-light);outline-offset:2px}
+.btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);text-decoration:none;border:1px solid rgba(16,68,78,0.25);border-radius:6px;padding:.5rem .85rem;background:var(--card);cursor:pointer;white-space:nowrap;display:inline-block}
+.btn:hover{border-color:var(--teal)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.primary:hover{background:var(--teal-dark)}
+.btn.danger{color:var(--red);border-color:rgba(184,50,39,.35)}
+.btn.sm{font-size:10px;padding:.3rem .55rem}
+.btn:disabled{opacity:.5;cursor:default}
+.wrap{max-width:1100px;margin:0 auto;padding:2rem 2rem 5rem}
+.banner{border-radius:var(--radius);padding:.7rem 1rem;font-size:.85rem;margin-bottom:1.25rem;background:rgba(224,112,94,0.08);border:1px solid rgba(224,112,94,0.4);color:var(--red)}
+.banner.info{background:rgba(42,138,142,0.1);border-color:rgba(42,138,142,0.4);color:var(--teal)}
+.crumb{font-size:.82rem;color:var(--muted);margin-bottom:.4rem}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3.6vw,2.2rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+.sub{color:var(--muted);margin-top:.35rem;font-size:.92rem;max-width:70ch}
+.actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:1.5rem}
+.kpi{padding:.9rem 1rem 1rem;border-right:1px solid var(--border)}
+.kpi:last-child{border-right:none}
+.k-label{font-size:.78rem;color:var(--muted);margin-bottom:.25rem}
+.k-value{font-family:'Oswald',sans-serif;font-size:1.55rem;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.k-sub{font-size:.76rem;color:var(--muted);margin-top:.2rem}
+.dim{color:var(--muted)}
+h2{font-family:'Oswald',sans-serif;font-size:1.02rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+
+/* Toolbar */
+.tools{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.search{flex:1 1 280px;position:relative}
+.search input{width:100%;font:inherit;font-size:1rem;padding:.7rem .9rem .7rem 2.4rem;border:1px solid rgba(16,68,78,.22);border-radius:10px;background:#fff;color:var(--ink)}
+.search svg{position:absolute;left:.8rem;top:50%;transform:translateY(-50%);width:17px;height:17px;fill:none;stroke:var(--muted);stroke-width:2}
+.tabs{display:inline-flex;border:1px solid rgba(16,68,78,.22);border-radius:10px;overflow:hidden;background:#fff}
+.tabs button{font:600 11px 'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase;border:0;background:none;color:var(--muted);padding:.65rem 1rem;cursor:pointer}
+.tabs button.on{background:var(--teal);color:#fff}
+.chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.25rem}
+.chip{font-size:.78rem;border:1px solid rgba(16,68,78,.2);background:#fff;border-radius:14px;padding:3px 11px;cursor:pointer;color:var(--ink)}
+.chip.on{background:var(--teal-dark);border-color:var(--teal-dark);color:#fff}
+
+/* Type colours (the Apple note used highlights for this) */
+.code{display:inline-block;font:600 .9rem 'Oswald',sans-serif;letter-spacing:.04em;padding:2px 9px;border-radius:6px;white-space:nowrap;cursor:pointer;border:1px solid transparent;font-variant-numeric:tabular-nums}
+.t-M{background:rgba(42,138,142,.16);color:#1D5A61}
+.t-TM{background:rgba(226,168,69,.2);color:#7A5D0E}
+.t-P{background:rgba(155,142,196,.24);color:#4E4268}
+.t-EQ{background:rgba(46,125,87,.15);color:#245F43}
+.t-SC{background:rgba(224,112,94,.16);color:#9A2A20}
+.t-SA,.t-{background:rgba(16,68,78,.08);color:var(--ink)}
+
+/* Sections + rows */
+.sec{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:1rem;box-shadow:0 1px 3px rgba(16,68,78,.06),0 4px 14px rgba(16,68,78,.05)}
+.sec-h{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.8rem 1.1rem;border-bottom:1px solid var(--border)}
+.sec-h .n{font-size:.78rem;color:var(--muted)}
+.sec-h .sp{flex:1}
+.sec-h .mo{font-size:.72rem;background:rgba(42,138,142,.14);color:var(--teal);border-radius:10px;padding:2px 8px}
+.row{display:flex;align-items:center;gap:.8rem;padding:.6rem 1.1rem;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.row .code{min-width:84px;text-align:center}
+.row .tx{flex:1;min-width:0}
+.row .tt{font-size:.93rem}
+.row .nt{font-size:.78rem;color:var(--muted)}
+.row .rb{display:flex;gap:.35rem;flex-shrink:0}
+.row .where{font-size:.72rem;color:var(--muted);white-space:nowrap}
+.empty{padding:1rem 1.1rem;color:var(--muted);font-size:.88rem}
+.legend{display:flex;gap:.9rem;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin:.25rem 0 1.5rem}
+.legend span{display:inline-flex;align-items:center;gap:.35rem}
+.legend .code{font-size:.72rem;padding:1px 6px;cursor:default}
+.more{font-size:.85rem;color:var(--muted);margin:.25rem 0 1rem}
+.more a{color:var(--teal);cursor:pointer;text-decoration:underline}
+
+/* Dialog */
+.scrim{position:fixed;inset:0;background:rgba(10,42,48,.45);z-index:950;display:flex;align-items:flex-start;justify-content:center;padding:6vh 1rem;overflow-y:auto}
+.dlg{background:#fff;border-radius:var(--radius-lg);width:100%;max-width:520px;padding:1.4rem 1.5rem;box-shadow:0 10px 40px rgba(10,42,48,.3)}
+.dlg h3{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:.2rem}
+.dlg p.s{font-size:.85rem;color:var(--muted);margin-bottom:1rem}
+.f{margin-bottom:.85rem}
+.f label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:.25rem}
+.f input,.f select,.f textarea{width:100%;font:inherit;font-size:.95rem;padding:.55rem .7rem;border:1px solid rgba(16,68,78,.25);border-radius:8px;background:#fff;color:var(--ink)}
+.f textarea{min-height:64px;resize:vertical}
+.typepick{display:flex;gap:.4rem;flex-wrap:wrap}
+.typepick button{border:2px solid transparent;font:600 .85rem 'Oswald',sans-serif;padding:.4rem .7rem;border-radius:8px;cursor:pointer;text-align:left;line-height:1.15}
+.typepick button small{display:block;font:400 .68rem 'Inter',sans-serif}
+.typepick button.on{border-color:var(--teal-dark)}
+.dlg .btns{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;margin-top:1.1rem}
+.dlg .btns .l{margin-right:auto;display:flex;gap:.5rem;flex-wrap:wrap}
+.done{text-align:center;padding:.5rem 0 .25rem}
+.done .big{font:700 2.4rem 'Oswald',sans-serif;letter-spacing:.04em;margin:.4rem 0}
+.list{font-size:.85rem;max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem .7rem;margin:.5rem 0}
+.list div{padding:2px 0}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:999;background:#10444E;color:#fff;font:500 13px 'Inter',sans-serif;padding:10px 16px;border-radius:8px;box-shadow:0 4px 14px rgba(10,42,48,.3)}
+.foot{margin-top:2rem;font-size:.8rem;color:var(--muted)}
+.foot a{color:var(--teal);cursor:pointer}
+@media (max-width:640px){
+  .wrap{padding:1.25rem 1rem 4rem}
+  .row{flex-wrap:wrap;gap:.5rem .7rem}
+  .row .code{min-width:0}
+  .row .tx{flex-basis:calc(100% - 110px)}
+  .row .rb{width:100%;justify-content:flex-end}
+  .kpi{border-right:none;border-bottom:1px solid var(--border)}
+}
+</style>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<main class="wrap" id="main">
+  <div id="banner"></div>
+  <div id="view"><p class="dim">Loading…</p></div>
+</main>
+<div id="modal"></div>
+<script src="po-parse.js"></script>
+<script type="module" src="po-numbers-app.js"></script>
+</body>
+</html>

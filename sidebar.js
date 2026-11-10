@@ -41,6 +41,7 @@
       { tool: "ops-dashboard", label: "Field Operations", match: ["ops-dashboard.html", "job.html", "job-profit.html"] },
       { tool: "invoicing", label: "Invoicing" },
       { tool: "items", label: "Item List" },
+      { tool: "po-numbers", label: "PO Numbers" },
       // Field techs can't open Field Operations but do use the job pages.
       { tool: "job", label: "Jobs", show: () => can("job") && !can("ops-dashboard"), match: ["job.html"] },
       { tool: "service-agreements", label: "Service Agreements", match: ["service-agreements.html", "agreement.html", "refresh.html"] },

@@ -29,6 +29,10 @@ const AP_TOOLS = {
   "job-profit":         { label: "Job Profit",                    roles: ["owner"], strict: true },   // retired: now Field Operations > Completed jobs; page redirects there
   "ops-dashboard":      { label: "Field Operations",              roles: ["owner", "field_ops"], strict: true }, // Jake, Mike + Cole (pipeline + materials); Completed jobs / profit shown to owners only
   "invoicing":          { label: "Invoicing",                     roles: ["owner", "field_ops"], strict: true }, // jobs ready to bill, review, email, queue for BuildOps: Jake, Mike + Cole (invoicing_data)
+  // PO Numbers: PILOT — admins only (Jake, Mike, Clarissa, Cole) while they review it.
+  // To open it to the whole team, change this line to: roles: ["sales", "ops", "support", "finance"] (and drop strict).
+  // Firestore already lets every team member read po_numbers; only admins can write (firestore.rules).
+  "po-numbers":         { label: "PO Numbers",                    roles: ["super_admin"], strict: true },
   "job":                { label: "Jobs",                          roles: ["owner", "field_ops", "ops"], strict: true }, // job pages: visits, tech reports, hours, materials, job reports; costs/invoices/emails Jake, Mike + Cole (Firestore ops_job_costs)
   "context":            { label: "Business Context",              roles: ["owner"], strict: true },   // single context log read by every dashboard refresh: Jake, Mike only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only

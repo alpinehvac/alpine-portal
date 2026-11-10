@@ -130,6 +130,16 @@ service cloud.firestore {
     match /items_meta/{doc=**} {
       allow read, write: if isFieldOps();
     }
+    // PO Numbers (po-numbers.html): one doc per PO + po_meta/config (counter, sections).
+    // Whole team reads; only admins (Jake, Mike, Clarissa, Cole) issue, edit or archive.
+    match /po_numbers/{doc=**} {
+      allow read: if isAdmin() || isSales() || isOps() || isFinance();
+      allow write: if isAdmin();
+    }
+    match /po_meta/{doc=**} {
+      allow read: if isAdmin() || isSales() || isOps() || isFinance();
+      allow write: if isAdmin();
+    }
     // Business Context log: one source of truth read by every dashboard refresh: owners only
     match /portal_context/{doc=**} {
       allow read, write: if isOwner();
