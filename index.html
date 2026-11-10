@@ -66,7 +66,7 @@ input::placeholder{color:var(--grey)}
   <input type="email" id="username" placeholder="firstname.lastname@alpinehvac.ca" autocomplete="username" autocapitalize="none">
   <label for="password">Password</label>
   <div class="pw-wrap">
-    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password">
     <button type="button" class="pw-eye" id="pw-eye" aria-label="Show password" title="Show password"><svg class="i-show" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="i-hide" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M3 3l18 18M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a10.6 10.6 0 0 0 5.4-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
   </div>
   <button class="btn" id="signin-btn" onclick="doLogin()">Sign In</button>
@@ -124,7 +124,7 @@ window.doLogin = async function () {
     const code = (e && e.code) || "";
     if (code === "auth/too-many-requests") showErr("Too many attempts. Wait a few minutes or reset your password.");
     else if (code === "auth/network-request-failed") showErr("Can't reach the sign-in service. Check your connection.");
-    else showErr("Email or password is incorrect. First time signing in? Use Set or reset my password.");
+    else showErr("Email or password is incorrect. First time signing in? Use Set or reset my password." + (code ? " (" + code + ")" : ""));
     $("password").value = "";
     setPwVisible(false);
     $("password").focus();
