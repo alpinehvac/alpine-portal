@@ -12,57 +12,83 @@ service cloud.firestore {
     // {doc=**} also covers each document's "versions" history subcollection.
     // ─────────────────────────────────────────────────────────────────
 
-    // ── Who's who (keep in sync with AP_USERS in auth.js) ──
+    // ── Who's who ──
+    // People and roles live in portal_users/{email}, managed on Users & Settings
+    // (users.html, owners only). An email with no portal_users record falls back
+    // to the built-in lists below (keep them in sync with AP_USERS in auth.js);
+    // a record with active == false has no access at all.
     function signedIn() {
       return request.auth != null && request.auth.token.email != null;
     }
     function email() {
       return request.auth.token.email.lower();
     }
+    function userPath() {
+      return /databases/$(database)/documents/portal_users/$(email());
+    }
+    function hasRecord() {
+      return exists(userPath());
+    }
+    // role is one of: owner, super_admin, finance, sales, support, field_ops, ops
+    function hasRole(role, fallback) {
+      return signedIn() && (hasRecord()
+        ? (get(userPath()).data.get('active', true) != false && role in get(userPath()).data.roles)
+        : email() in fallback);
+    }
     function isSales() {
-      return signedIn() && email() in [
+      return hasRole('sales', [
         'jake.gilmore@alpinehvac.ca',
         'mike.launder@alpinehvac.ca',
         'cole.hamilton@alpinehvac.ca',
         'natalie.townsend@alpinehvac.ca'
-      ];
+      ]);
     }
     function isAdmin() {
-      return signedIn() && email() in [
+      return hasRole('super_admin', [
         'jake.gilmore@alpinehvac.ca',
         'mike.launder@alpinehvac.ca',
         'clarissa.launder@alpinehvac.ca',
         'cole.hamilton@alpinehvac.ca'
-      ];
+      ]);
     }
     function isOwner() {
-      return signedIn() && email() in [
+      return hasRole('owner', [
         'jake.gilmore@alpinehvac.ca',
         'mike.launder@alpinehvac.ca'
-      ];
+      ]);
     }
     function isOps() {
-      return signedIn() && email() in [
+      return hasRole('ops', [
         'cole.hamilton@alpinehvac.ca',
         'steven.coles@alpinehvac.ca',
         'nick.drost@alpinehvac.ca',
         'tyson.marcoux@alpinehvac.ca',
         'brandon.launder@alpinehvac.ca',
         'matt.martin@alpinehvac.ca'
-      ];
+      ]);
     }
-    // Field Operations job pipeline (shared materials + task checklists): owners + Cole
+    // Field Operations job pipeline (shared materials + task checklists): owners + field_ops (Cole)
     function isFieldOps() {
-      return isOwner() || (signedIn() && email() in [
+      return isOwner() || hasRole('field_ops', [
         'cole.hamilton@alpinehvac.ca'
       ]);
     }
     function isFinance() {
-      return signedIn() && email() in [
+      return hasRole('finance', [
         'jake.gilmore@alpinehvac.ca',
         'mike.launder@alpinehvac.ca',
         'clarissa.launder@alpinehvac.ca'
-      ];
+      ]);
+    }
+
+    // Users & Settings: everyone can read their OWN record (sign-in needs it);
+    // owners read and manage everyone's. Each record must keep a roles list.
+    match /portal_users/{userEmail} {
+      allow get: if signedIn() && email() == userEmail;
+      allow read: if isOwner();
+      allow create, update: if isOwner() && userEmail == userEmail.lower()
+        && request.resource.data.roles is list && request.resource.data.name is string;
+      allow delete: if isOwner();
     }
 
     // Financial Position + Job Profit: finance only
@@ -95,6 +121,13 @@ service cloud.firestore {
     }
     // Invoicing: reviewed invoices (one doc per job) + the daily sweep (doc "sweep"): Jake, Mike and Cole
     match /invoicing_data/{doc=**} {
+      allow read, write: if isFieldOps();
+    }
+    // Item List (items.html): equipment, labour, materials price list + category tree: Jake, Mike and Cole
+    match /items_data/{doc=**} {
+      allow read, write: if isFieldOps();
+    }
+    match /items_meta/{doc=**} {
       allow read, write: if isFieldOps();
     }
     // Business Context log: one source of truth read by every dashboard refresh: owners only

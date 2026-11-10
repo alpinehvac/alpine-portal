@@ -255,7 +255,7 @@ window.apCloudMove = async function (fromColl, toColl, key) {
 // ── Boot sequence: hydrate first, then load the tool's real app script ──
 (async function boot() {
   const user = await currentUser();
-  if (!user || typeof apSessionFromEmail !== "function" || !apSessionFromEmail(user.email)) {
+  if (!user || typeof apSessionForUser !== "function" || !(await apSessionForUser(user.email))) {
     sessionStorage.removeItem("ap_session");
     window.location.href = "index.html";
     return;

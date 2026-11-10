@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Item List</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("items");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ITEM LIST: equipment, labour, materials and uncategorized items, laid out like BuildOps Settings > Item List.
+     One Firestore doc per item in items_data/{id}; the category tree lives in items_meta/categories.
+     Owners + field ops (Jake, Mike, Cole). Views, column layout and density are remembered per browser.
+     Import takes the CSV from BuildOps Item List > Export (same columns) and matches on Product Code, then Item Name + Description.
+     If the database rules aren't published yet the page works in this browser only (local mode) and offers to copy items in later. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--black:#EAF2F3;--off-black:#FFFFFF;--grey:#5A7A80;--white:#10444E;--amber:#A9821F;--red:#B83227;--green:#2E7D57;--border:rgba(16,68,78,0.12);--line:rgba(16,68,78,0.09);--radius-lg:14px;--row:10px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:14px;line-height:1.45}
+.wrap{max-width:none;margin:0 auto;padding:1.6rem 1.6rem 3rem}
+.crumb{font-size:.8rem;color:var(--grey)}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3vw,2.1rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+.btn{font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:none;background:var(--teal);color:#fff;border-radius:6px;padding:.55rem 1rem;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--teal-light)}
+.btn.ghost{background:var(--off-black);color:var(--teal);border:1px solid rgba(39,99,108,.35)}
+.btn.ghost:hover{background:var(--black)}
+.btn.danger{background:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;gap:.3rem;border-bottom:1px solid var(--border);margin:1rem 0 1.2rem}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:.6rem .9rem;font:500 .9rem 'Inter',sans-serif;color:var(--grey);cursor:pointer;margin-bottom:-1px}
+.tabs button.on{color:var(--teal);border-bottom-color:var(--teal);font-weight:600}
+.layout{display:grid;grid-template-columns:250px 1fr;gap:1.1rem;align-items:start}
+.panel{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg)}
+.side{padding:1rem;position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto}
+.search{position:relative}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:15px;height:15px;fill:none;stroke:var(--grey);stroke-width:2}
+.search input{padding-left:32px}
+input,select,textarea{font:inherit;font-size:.86rem;color:var(--white);background:var(--off-black);border:1px solid rgba(16,68,78,.22);border-radius:6px;padding:.45rem .6rem;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal-light)}
+input[type=checkbox]{width:15px;height:15px;accent-color:var(--teal);cursor:pointer;flex-shrink:0}
+.side-btns{display:flex;gap:.4rem;margin:.7rem 0 .8rem}
+.side-btns button{flex:1;font:500 .8rem 'Inter',sans-serif;padding:.38rem;border-radius:6px;border:1px solid rgba(39,99,108,.3);background:none;color:var(--teal);cursor:pointer}
+.tree{list-style:none;font-size:.86rem}
+.tree li{margin:1px 0}
+.tree .node{display:flex;align-items:center;gap:.45rem;padding:.32rem .3rem;border-radius:6px;cursor:pointer}
+.tree .node:hover{background:var(--black)}
+.tree .tw{width:16px;height:16px;border:none;background:none;color:var(--grey);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tree .tw svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.2;transition:transform .15s}
+.tree li.open > .node .tw svg{transform:rotate(90deg)}
+.tree .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree .cnt{font-size:.74rem;color:var(--grey)}
+.tree ul{list-style:none;margin-left:1.4rem;display:none}
+.tree li.open > ul{display:block}
+.main{padding:1rem 1rem .6rem;min-width:0}
+.kw-l{font:600 .66rem 'Inter',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--grey);margin-bottom:.3rem}
+.kw{max-width:300px;margin-bottom:.7rem}
+.toolbar{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem}
+.tb{position:relative}
+.tb > button{display:flex;align-items:center;gap:.4rem;font:500 .84rem 'Inter',sans-serif;color:var(--white);background:var(--off-black);border:1px solid rgba(16,68,78,.22);border-radius:6px;padding:.42rem .7rem;cursor:pointer;white-space:nowrap}
+.tb > button:hover,.tb.open > button{border-color:var(--teal-light);background:var(--black)}
+.tb > button svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tb > button .chev{width:12px;height:12px}
+.tb .badge{background:var(--teal);color:#fff;border-radius:9px;font-size:.7rem;padding:0 6px;line-height:1.5}
+.pop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:50;background:var(--off-black);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(16,68,78,.18);padding:.6rem;min-width:220px}
+.tb.open .pop{display:block}
+.tb.right .pop{left:auto;right:0}
+.pop h4{font:600 .68rem 'Inter',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--grey);margin:.3rem .3rem .45rem}
+.opt{display:flex;align-items:center;gap:.5rem;padding:.38rem .45rem;border-radius:6px;font-size:.85rem;cursor:pointer;width:100%;background:none;border:none;color:var(--white);text-align:left}
+.opt:hover{background:var(--black)}
+.opt.on{color:var(--teal);font-weight:600}
+.opt .mv{margin-left:auto;display:flex;gap:2px}
+.opt .mv span{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--grey);font-size:.8rem}
+.opt .mv span:hover{background:rgba(16,68,78,.1);color:var(--white)}
+.pop .sep{height:1px;background:var(--border);margin:.4rem 0}
+.pop .row2{display:flex;gap:.4rem;justify-content:flex-end;margin-top:.4rem}
+.pop .row2 button{font:500 .8rem 'Inter',sans-serif;background:none;border:none;color:var(--teal);cursor:pointer;padding:.25rem .4rem}
+.cols-list{max-height:340px;overflow:auto}
+.filt{display:grid;grid-template-columns:1fr;gap:.55rem;width:320px}
+.filt label{display:flex;flex-direction:column;gap:.25rem;font-size:.75rem;color:var(--grey)}
+.spacer{flex:1}
+.chips{display:flex;gap:.35rem;flex-wrap:wrap;margin:-.3rem 0 .7rem}
+.chip{display:flex;align-items:center;gap:.35rem;background:rgba(42,138,142,.12);color:var(--teal-dark);border-radius:14px;font-size:.76rem;padding:.2rem .35rem .2rem .65rem}
+.chip button{border:none;background:none;color:inherit;cursor:pointer;font-size:.95rem;line-height:1;padding:0 .2rem}
+.bulk{display:none;align-items:center;gap:.6rem;flex-wrap:wrap;background:var(--teal-dark);color:#fff;border-radius:8px;padding:.45rem .7rem;margin-bottom:.6rem;font-size:.84rem}
+.bulk.show{display:flex}
+.bulk button{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:5px;padding:.3rem .65rem;font:500 .8rem 'Inter',sans-serif;cursor:pointer}
+.bulk button:hover{background:rgba(255,255,255,.22)}
+.grid-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:calc(100vh - 290px);min-height:300px}
+table{border-collapse:separate;border-spacing:0;font-size:.84rem;table-layout:fixed;width:max-content;min-width:100%}
+th{position:sticky;top:0;z-index:2;background:#F6FAFA;font:600 .8rem 'Inter',sans-serif;color:var(--white);text-align:left;padding:.6rem .6rem;border-bottom:1px solid var(--border);white-space:nowrap;user-select:none}
+th .th-in{display:flex;align-items:center;gap:.3rem;cursor:pointer;overflow:hidden}
+th .th-in span{overflow:hidden;text-overflow:ellipsis}
+th .arrow{font-size:.7rem;color:var(--teal)}
+th .rs{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize}
+th .rs::after{content:'';position:absolute;right:3px;top:30%;height:40%;width:1px;background:rgba(16,68,78,.18)}
+th.ck,td.ck{width:44px;text-align:center;padding-left:.4rem;padding-right:.4rem}
+th.ck{z-index:3}
+td{padding:var(--row) .6rem;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--off-black)}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#F3F8F8}
+tbody tr.sel td{background:rgba(42,138,142,.09)}
+tbody tr.inactive td:not(.ck){color:var(--grey)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:.7rem;padding:1px 7px;border-radius:9px}
+.tag.green{background:rgba(46,125,87,.14);color:var(--green)}.tag.red{background:rgba(224,112,94,.16);color:var(--red)}.tag.grey{background:rgba(16,68,78,.08);color:var(--grey)}
+.dens-compact{--row:5px}.dens-comfortable{--row:15px}
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:1rem;font-size:.8rem;color:var(--grey);padding:.6rem .2rem 0}
+.pager select{width:auto;padding:.2rem .4rem}
+.pager button{background:none;border:none;cursor:pointer;color:var(--white);font-size:1.1rem;padding:0 .4rem}
+.pager button:disabled{color:var(--grey);opacity:.4;cursor:default}
+.empty{padding:2.5rem 1rem;text-align:center;color:var(--grey)}
+.msg{font-size:.82rem;color:var(--grey)}
+.msg.bad{color:var(--red)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:999;background:var(--teal-dark);color:#fff;font-size:.85rem;padding:.6rem 1rem;border-radius:8px;box-shadow:0 4px 14px rgba(10,42,48,.3);display:none}
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(10,42,48,.35);z-index:960;display:none}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--off-black);z-index:961;box-shadow:-8px 0 30px rgba(10,42,48,.2);transform:translateX(105%);transition:transform .2s;display:flex;flex-direction:column}
+body.dr-open .scrim{display:block}
+body.dr-open .drawer{transform:none}
+.dr-h{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.3rem;border-bottom:1px solid var(--border)}
+.dr-h h2{font-family:'Oswald',sans-serif;font-size:1.1rem;text-transform:uppercase;letter-spacing:.03em}
+.dr-h button{border:none;background:none;font-size:1.4rem;color:var(--grey);cursor:pointer}
+.dr-b{flex:1;overflow:auto;padding:1.1rem 1.3rem}
+.dr-b .g{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
+.dr-b label{display:flex;flex-direction:column;gap:.28rem;font-size:.76rem;color:var(--grey)}
+.dr-b label.full{grid-column:1/-1}
+.dr-b .ck-row{flex-direction:row;align-items:center;gap:.45rem;color:var(--white);font-size:.85rem}
+.dr-f{display:flex;gap:.6rem;align-items:center;padding:1rem 1.3rem;border-top:1px solid var(--border)}
+.meta{font-size:.76rem;color:var(--grey);margin-top:.4rem}
+/* categories tab */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;padding:1rem}
+.cat-card{background:var(--black);border-radius:10px;padding:.9rem 1rem}
+.cat-card .ch{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem}
+.cat-card .ch b{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.04em;flex:1}
+.cat-card ul{list-style:none;font-size:.85rem}
+.cat-card li{display:flex;align-items:center;gap:.5rem;padding:.28rem 0;border-top:1px solid var(--line)}
+.cat-card li span{flex:1}
+.cat-card small{color:var(--grey);font-size:.75rem;white-space:nowrap}
+.lnk{border:none;background:none;color:var(--teal);font:inherit;font-size:.76rem;cursor:pointer;text-decoration:underline}
+.lnk.danger{color:var(--red)}
+.lnk:disabled{color:var(--grey);opacity:.5;cursor:default;text-decoration:none}
+.add-row{display:flex;gap:.5rem;margin-top:.6rem}
+.banner{display:none;border-radius:10px;padding:.75rem 1rem;margin-top:1rem;font-size:.86rem;align-items:center;gap:.8rem;flex-wrap:wrap}
+.banner.show{display:flex}
+.banner span{flex:1;min-width:16rem}
+.banner.info{background:rgba(42,138,142,.12);color:var(--teal-dark)}
+.banner.warn{background:rgba(226,168,69,.16);color:#6E5410}
+/* import */
+.imp-sum{font-size:.85rem;background:var(--black);border-radius:8px;padding:.7rem .9rem;margin:.8rem 0}
+.imp-sum b{font-family:'Oswald',sans-serif;font-size:1rem}
+@media (max-width:980px){.layout{grid-template-columns:1fr}.side{position:static;max-height:none}.wrap{padding:1.2rem .8rem 3rem}.grid-wrap{max-height:none}}
+</style>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<main class="wrap">
+  <div class="crumb">Settings</div>
+  <div class="top">
+    <h1>Item List</h1>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn ghost" id="import-btn">Import CSV</button>
+      <button class="btn" id="add-btn">Add Item</button>
+    </div>
+  </div>
+  <div class="banner" id="mode-banner"></div>
+  <div class="tabs"><button class="on" data-tab="items">Item List</button><button data-tab="cats">Categories</button></div>
+
+  <section id="tab-items" class="layout">
+    <aside class="panel side">
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="cat-q" placeholder="Categories"></div>
+      <div class="side-btns"><button id="cat-all">Select All</button><button id="cat-none">Clear All</button></div>
+      <ul class="tree" id="tree"></ul>
+    </aside>
+
+    <div class="panel main">
+      <div class="kw-l">Keyword search</div>
+      <div class="search kw"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="kw" placeholder="Search All Items"></div>
+
+      <div class="toolbar">
+        <div class="tb" id="tb-view"><button><svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg><span id="view-name">Standard View</span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><div class="pop" id="pop-view"></div></div>
+        <div class="tb" id="tb-cols"><button><svg viewBox="0 0 24 24"><path d="M4 4h6v16H4zM14 4h6v16h-6z"/></svg>Columns<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><div class="pop" id="pop-cols"></div></div>
+        <div class="tb" id="tb-filt"><button><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>Filters<span class="badge" id="filt-badge" style="display:none"></span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><div class="pop" id="pop-filt"></div></div>
+        <div class="tb" id="tb-dens"><button><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Density<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><div class="pop" id="pop-dens"></div></div>
+        <div class="spacer"></div>
+        <div class="tb right" id="tb-exp"><button id="export-btn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>Export</button></div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="bulk" id="bulk"></div>
+      <div class="grid-wrap" id="grid-wrap"><table id="grid"><thead id="thead"></thead><tbody id="tbody"><tr><td class="empty">Loading items…</td></tr></tbody></table></div>
+      <div class="pager">
+        <span>Rows per page: <select id="per"><option>25</option><option>50</option><option selected>100</option><option>250</option></select></span>
+        <span id="range">0 of 0</span>
+        <button id="prev" aria-label="Previous page">&#8249;</button><button id="next" aria-label="Next page">&#8250;</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-cats" class="panel" style="display:none">
+    <div style="display:flex;align-items:center;gap:1rem;padding:1rem 1rem 0;flex-wrap:wrap">
+      <p class="msg" style="flex:1;min-width:16rem">Categories and subcategories used to group items. Renaming one updates every item in it. A category can only be deleted when no items use it.</p>
+      <div class="add-row" style="margin:0"><input id="new-cat" placeholder="New category" style="width:200px"><button class="btn" id="new-cat-btn">Add</button></div>
+    </div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Item editor">
+  <div class="dr-h"><h2 id="dr-title">Add Item</h2><button id="dr-x" aria-label="Close">&times;</button></div>
+  <div class="dr-b" id="dr-body"></div>
+  <div class="dr-f" id="dr-foot"></div>
+</aside>
+<input type="file" id="imp-file" accept=".csv,text/csv" style="display:none">
+<div class="toast" id="toast"></div>
+
+<script type="module" src="items-app.js"></script>
+</body>
+</html>

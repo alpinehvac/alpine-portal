@@ -2,7 +2,7 @@
 // Loaded automatically by auth.js on every portal page (not the login page,
 // and not when a page is shown inside a dashboard with ?embed=…).
 // Builds a collapsible sidebar: Home / Sales / Operations / Financials /
-// Business Context, each with a dropdown of its tools, filtered by role
+// Business Context / Users & Settings, each with a dropdown of its tools, filtered by role
 // through apHasAccess(). It replaces each page's old top bar and
 // "← Back to …" links, which are hidden (not deleted) so nothing on the
 // page itself changes.
@@ -40,6 +40,7 @@
       { label: "Dashboard", href: D("operations"), show: () => can("ops-dashboard"), match: [D("operations")] },
       { tool: "ops-dashboard", label: "Field Operations", match: ["ops-dashboard.html", "job.html", "job-profit.html"] },
       { tool: "invoicing", label: "Invoicing" },
+      { tool: "items", label: "Item List" },
       // Field techs can't open Field Operations but do use the job pages.
       { tool: "job", label: "Jobs", show: () => can("job") && !can("ops-dashboard"), match: ["job.html"] },
       { tool: "service-agreements", label: "Service Agreements", match: ["service-agreements.html", "agreement.html", "refresh.html"] },
@@ -54,6 +55,7 @@
       { tool: "pl-calculator", label: "P&L Calculator" },
     ] },
     { key: "context", label: "Business Context", icon: "ctx", tool: "context" },
+    { key: "users", label: "Users & Settings", icon: "users", tool: "users" },
   ];
   const EXT = {
     "lead-sheets": "https://netorg13787440-my.sharepoint.com/:x:/g/personal/natalie_townsend_alpinehvac_ca/IQDFyXX0JO36RaKmRK5rUj8TATpMgjfqE_WIuufYkn7YIIw?e=cX7qOq",
@@ -65,6 +67,7 @@
     ops: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
     fin: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     ctx: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/>',
+    users: '<path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1M16 3.5a4 4 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.6"/>',
     chev: '<path d="m9 6 6 6-6 6"/>',
     collapse: '<path d="m15 6-6 6 6 6"/>',
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',

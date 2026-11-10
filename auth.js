@@ -4,9 +4,10 @@
 // passwords live here. Data access is enforced by Firestore security
 // rules, which mirror these roles by email.
 //
-// To add or remove a person: update this list, add/delete their account in
-// Firebase > Authentication > Users, and update the email lists in the
-// Firestore rules.
+// People and roles are managed in the portal: Users & Settings (users.html,
+// owners only), stored in Firestore portal_users/{email}. The list below is the
+// built-in fallback, used only for an email that has no portal_users record
+// yet (the rules do the same), so nothing changes until the list is copied in.
 
 const AP_USERS = {
   "jake.gilmore@alpinehvac.ca":     { name: "Jake Gilmore",     roles: ["super_admin", "sales", "finance", "owner"] },
@@ -44,6 +45,19 @@ const AP_TOOLS = {
   "outbound":           { label: "Outbound",                      roles: ["sales"], strict: true }, // territory map + targets: outbound_data, sales only
   "lead-sheets":        { label: "Lead Sheets",                   roles: ["sales"] },
   "call-log":           { label: "Alpine Call Log / On-Call",     roles: ["ops"] },
+  "items":              { label: "Item List",                     roles: ["owner", "field_ops"], strict: true }, // equipment, labour, materials price list: Jake, Mike + Cole (items_data, items_meta)
+  "users":              { label: "Users & Settings",              roles: ["owner"], strict: true },   // people, roles, start pages, access: Jake, Mike only (portal_users)
+};
+
+// Roles, in the order shown on Users & Settings.
+const AP_ROLES = {
+  owner:       { label: "Owner",        note: "Business Context, Team Files, job profit, Users & Settings" },
+  super_admin: { label: "Super admin",  note: "Sees most tools, plus Team Hub and the P&L Calculator" },
+  finance:     { label: "Finance",      note: "Financial Position" },
+  sales:       { label: "Sales",        note: "Sales dashboard, Service Agreement Tracker, audits, outbound" },
+  support:     { label: "Support",      note: "Service Agreement Calculator" },
+  field_ops:   { label: "Field ops",    note: "Field Operations pipeline, invoicing, Item List, Account Management" },
+  ops:         { label: "Ops / tech",   note: "Job pages, site reports, call log" },
 };
 
 // Where each person lands after signing in (dashboard.html with no view).
@@ -56,18 +70,38 @@ const AP_START = {
 };
 function apStartPage(session) {
   const s = session || apGetSession();
-  return (s && AP_START[s.email]) || "dashboard.html?view=home";
+  return (s && (s.start || AP_START[s.email])) || "dashboard.html?view=home";
 }
 
 const AP_SESSION_KEY = "ap_session";
+const AP_FS_URL = "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
-// Builds the per-tab session after Firebase has verified the sign-in.
-// Returns null (and clears the session) if the email isn't on the portal list.
+// Builds the per-tab session from the built-in list (fallback only).
+// Returns null (and clears the session) if the email isn't on the list.
 function apSessionFromEmail(email) {
   const key = (email || "").trim().toLowerCase();
   const user = AP_USERS[key];
   if (!user) { sessionStorage.removeItem(AP_SESSION_KEY); return null; }
   const session = { username: key, email: key, name: user.name, roles: user.roles };
+  sessionStorage.setItem(AP_SESSION_KEY, JSON.stringify(session));
+  return session;
+}
+
+// Builds the per-tab session after Firebase has verified the sign-in.
+// Reads portal_users/{email} first (managed on Users & Settings); a disabled
+// record means no access. With no record, falls back to the built-in list.
+// Firestore rules enforce the same thing, so this only decides what the pages show.
+async function apSessionForUser(email) {
+  const key = (email || "").trim().toLowerCase();
+  let rec = null;
+  try {
+    const [fs, fb] = await Promise.all([import(AP_FS_URL), import("./ap-firebase.js")]);
+    const snap = await fs.getDoc(fs.doc(fb.db, "portal_users", key));
+    if (snap.exists()) rec = snap.data();
+  } catch (e) { /* rules not published yet or offline: use the built-in list */ }
+  if (!rec) return apSessionFromEmail(key);
+  if (rec.active === false || !Array.isArray(rec.roles) || !rec.roles.length) { sessionStorage.removeItem(AP_SESSION_KEY); return null; }
+  const session = { username: key, email: key, name: rec.name || key, roles: rec.roles, start: rec.start || null };
   sessionStorage.setItem(AP_SESSION_KEY, JSON.stringify(session));
   return session;
 }
