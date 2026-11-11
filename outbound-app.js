@@ -6,6 +6,7 @@
 //   ob_targets    researched buildings not yet contacted
 //   ob_claims     { targetId: { by, at } } — who is going after which target
 //   ob_geo        geocode cache { addressKey: { lat, lng, src, muni, t } }
+//   ob_coach      { rows: [ { weekOf, avg, change, working, notWorking, tweaks: [{ fix, say }] } ] } — weekly script brief for Jake's dashboard
 // st_site_* (site_data) adds agreement sites from the weekly BuildOps refresh.
 // Addresses are geocoded in the browser (OpenStreetMap Nominatim, 1 request/second)
 // the first time they appear, and cached for everyone in ob_geo.
@@ -1046,6 +1047,98 @@ function renderReports() {
     : '<p class="nr-meta">No daily reports filed yet. The morning refresh files each report Natalie emails Jake.</p>';
 }
 
+// ── Jake's outbound dashboard: top of the page, shown to Jake only ───
+// Funnel: knocks → conversations → pre-calls → audits → agreements, against the ACQ benchmarks.
+// Rows come from ob_knocks (daily Fireflies sync). k.convo and k.preCall are set by that sync;
+// rows filed before those fields existed fall back to the contact fields. Audits come from au_* (audit_data).
+const IS_JAKE = session.email === 'jake.gilmore@alpinehvac.ca';
+const SPRINT = 200, GOAL = 1000, WEEKLY = 15, EARLY = 50, EARLY_STAGE = 10;
+const isConvo = k => typeof k.convo === 'boolean' ? k.convo : !!(k.decisionMaker === true || k.contact || /manager|maint|facilit|owner|operations/i.test(k.role || ''));
+const mondayOf = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const jdSite = k => knockRef(k) || 'n:' + (normName(k.company) || k.id);
+function jdAudits() {
+  const out = [];
+  for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith('au_')) { const a = readJSON(key); if (a && a.id) out.push(a); } }
+  return out;
+}
+function jdFunnel() {
+  const mine = knocks.filter(k => k.type !== 'call' && /jake/i.test(k.rep || 'Jake'));
+  const conv = mine.filter(isConvo), pre = new Set(mine.filter(k => k.preCall).map(jdSite));
+  let audits = 0, signed = 0;
+  jdAudits().forEach(a => {
+    const c = a.client || {}, names = [c.company, c.building].map(normName).filter(Boolean), addr = addrKey(c.address);
+    const hit = mine.find(k => names.includes(normName(k.company)) || (addr && addrKey(k.address) === addr));
+    if (!hit && !/jake|knock|outbound/i.test(c.source || '')) return;
+    pre.add(hit ? jdSite(hit) : 'a:' + a.id);
+    if (['onsite', 'report', 'debriefed', 'won'].includes(a.status) || (a.status === 'lost' && a.visitDate)) audits++;
+    if (a.status === 'won') signed++;
+  });
+  return { mine, knocks: mine.length, conv: conv.length, dm: conv.filter(k => k.decisionMaker === true).length, pre: pre.size, audits, signed };
+}
+function jdStatus(actual, base, lo, hi, minBase) {
+  if (base < minBase) return '<span class="jd-st wait">Too early</span>';
+  const r = actual / base;
+  return r < lo ? '<span class="jd-st low">Below</span>' : r > hi ? '<span class="jd-st ok">Above</span>' : '<span class="jd-st ok">On track</span>';
+}
+const jdPct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+const jdRange = (n, lo, hi) => { const f = x => x < 10 ? (Math.round(x * 10) / 10) : Math.round(x); return f(n * lo) + '–' + f(n * hi); };
+function jdNextRows(f) {
+  const by = {};
+  f.mine.forEach(k => { const s = jdSite(k); (by[s] = by[s] || []).push(k); });   // knocks are sorted newest first
+  return Object.entries(by).map(([site, rows]) => ({ site, last: rows[0], booked: rows.some(r => r.preCall) }))
+    .filter(x => x.last.interest === 'Hot' || x.last.interest === 'Warm')
+    .sort((a, b) => (a.last.interest === 'Hot' ? 0 : 1) - (b.last.interest === 'Hot' ? 0 : 1) || (b.last.date || '').localeCompare(a.last.date || '')).slice(0, 6);
+}
+function renderJake() {
+  const el = $('jd'); if (!el || !IS_JAKE || EMBED) return;
+  const f = jdFunnel(), n = f.knocks, sprintDone = n >= SPRINT;
+  const thisWk = mondayOf(todayISO()), lastD = new Date(thisWk + 'T12:00:00'); lastD.setDate(lastD.getDate() - 7);
+  const lastWk = mondayOf(lastD.getFullYear() + '-' + String(lastD.getMonth() + 1).padStart(2, '0') + '-' + String(lastD.getDate()).padStart(2, '0'));
+  const inWk = w => f.mine.filter(k => k.date && mondayOf(k.date) === w).length;
+  const first = f.mine.reduce((m, k) => !m || (k.date && k.date < m) ? (k.date || m) : m, ''), weeks = first ? Math.floor((new Date(thisWk + 'T12:00:00') - new Date(mondayOf(first) + 'T12:00:00')) / (7 * DAY) + 0.5) + 1 : 0;
+  const avg = weeks ? n / weeks : 0;
+  const left = sprintDone ? GOAL - n : SPRINT - n, pace = sprintDone ? WEEKLY : avg;
+  const eta = n >= GOAL ? 'Done' : pace ? Math.ceil(left / pace) + ' wks' : '—';
+  const stage = (name, actual, rate, bench, exp, status, sub) => '<tr><td>' + name + (sub ? '<small>' + sub + '</small>' : '') + '</td><td class="num"><b>' + actual + '</b></td><td class="num">' + rate + '</td><td class="num">' + bench + '</td><td class="num">' + exp + '</td><td>' + status + '</td></tr>';
+  const coach = ((readJSON('ob_coach') || {}).rows || []).slice().sort((a, b) => (b.weekOf || '').localeCompare(a.weekOf || ''))[0];
+  const list = a => '<ol>' + (a || []).map(x => '<li>' + esc(x) + '</li>').join('') + '</ol>';
+  const coachHTML = coach ? '<div class="jd-coach"><div class="nr-meta">Week of ' + fmtDate(coach.weekOf) + (coach.avg != null ? ' · script score ' + esc(coach.avg) + '/16' : '') + (coach.change ? ' · ' + esc(coach.change) : '') + '</div>' +
+    '<div><h4>Working</h4>' + list(coach.working) + '</div><div><h4>Not working</h4>' + list(coach.notWorking) + '</div>' +
+    '<div><h4>Change next</h4><ol>' + (coach.tweaks || []).map(t => '<li>' + esc(t.fix) + (t.say ? '<span class="jd-say">“' + esc(t.say) + '”</span>' : '') + '</li>').join('') + '</ol></div></div>'
+    : '<p class="jd-foot">The next weekly coaching review fills this in.</p>';
+  const next = jdNextRows(f);
+  el.hidden = false;
+  el.innerHTML = '<div class="jd-head"><h2>My outbound dashboard</h2><span>Knocks and script update from your recordings · only you see this</span></div>' +
+    (sprintDone && n < SPRINT + WEEKLY * 2 ? '<div class="jd-alert"><b>Sprint complete.</b> Review the funnel below, fix the biggest drop-off, lock the script and hand it to Natalie. Pace is now ' + WEEKLY + ' knocks a week.</div>' : '') +
+    '<div class="jd-goals">' +
+      '<div class="jd-goal"><div class="lbl"><span>Sprint: first ' + SPRINT + ' knocks</span><span>' + jdPct(Math.min(n, SPRINT), SPRINT) + '</span></div><b>' + Math.min(n, SPRINT) + '</b> / ' + SPRINT + '<div class="jd-track"><i style="width:' + Math.min(100, 100 * n / SPRINT) + '%"></i></div></div>' +
+      '<div class="jd-goal"><div class="lbl"><span>Ultimate goal</span><span>' + jdPct(Math.min(n, GOAL), GOAL) + '</span></div><b>' + n.toLocaleString('en-CA') + '</b> / ' + GOAL.toLocaleString('en-CA') + '<div class="jd-track"><i style="width:' + Math.min(100, 100 * n / GOAL) + '%"></i></div></div></div>' +
+    '<div class="jd-tiles">' +
+      '<div class="metric"><div class="m-label">This week</div><div class="m-value">' + inWk(thisWk) + '</div><div class="m-sub">' + (sprintDone ? 'target ' + WEEKLY : 'sprint: as fast as possible') + '</div></div>' +
+      '<div class="metric"><div class="m-label">Last week</div><div class="m-value">' + inWk(lastWk) + '</div><div class="m-sub">knocks</div></div>' +
+      '<div class="metric"><div class="m-label">Average per week</div><div class="m-value">' + (Math.round(avg * 10) / 10) + '</div><div class="m-sub">' + weeks + ' week' + (weeks === 1 ? '' : 's') + ' since the first knock</div></div>' +
+      '<div class="metric"><div class="m-label">' + (sprintDone ? 'To 1,000 at ' + WEEKLY + '/wk' : 'To ' + SPRINT + ' at this pace') + '</div><div class="m-value">' + eta + '</div><div class="m-sub">' + left + ' knocks left</div></div></div>' +
+    '<div class="jd-grid"><div><h3>Funnel</h3><div style="overflow-x:auto"><table class="jd-t"><thead><tr><th>Stage</th><th class="num">Actual</th><th class="num">Rate</th><th class="num">Benchmark</th><th class="num">Expected at ' + n + ' knocks</th><th>Status</th></tr></thead><tbody>' +
+      stage('Knocks made', n, '', '', '', '<span class="jd-st wait">—</span>') +
+      stage('Conversations', f.conv, jdPct(f.conv, n), '20–30% of knocks', jdRange(n, .2, .3), jdStatus(f.conv, n, .2, .3, EARLY), f.dm + ' with a decision maker') +
+      stage('Pre-calls booked', f.pre, jdPct(f.pre, n), '3–5% of knocks', jdRange(n, .03, .05), jdStatus(f.pre, n, .03, .05, EARLY)) +
+      stage('Audits completed', f.audits, jdPct(f.audits, f.pre), '30–50% of pre-calls', jdRange(n, .009, .025), jdStatus(f.audits, f.pre, .3, .5, EARLY_STAGE)) +
+      stage('Agreements signed', f.signed, jdPct(f.signed, f.audits), '30–50% of audits', jdRange(n, .0027, .0125), jdStatus(f.signed, f.audits, .3, .5, EARLY_STAGE)) +
+      '</tbody></table></div><p class="jd-foot">Status starts at ' + EARLY + ' knocks, or ' + EARLY_STAGE + ' at the prior stage for audits and agreements. Only recorded doors count: record a short note at locked or no-answer doors too, or the conversation rate reads high.</p>' +
+      '<div class="jd-next"><h3>Hot and warm: book the pre-call</h3>' + (next.length ? '<ul>' + next.map(x => '<li><div>' + esc(x.last.company || '—') + '<small>' + esc(x.last.interest) + (x.last.contact ? ' · ' + esc(x.last.contact) : '') + ' · ' + fmtDate(x.last.date) + '</small></div><button class="btn sm' + (x.booked ? ' ghost' : '') + '" data-jd="' + esc(x.site) + '">' + (x.booked ? 'Booked: undo' : 'Pre-call booked') + '</button></li>').join('') + '</ul>' : '<p class="jd-foot">None open.</p>') + '</div></div>' +
+    '<div><h3>Script: what to tweak</h3>' + coachHTML + '</div></div>';
+}
+document.getElementById('jd')?.addEventListener('click', e => {
+  const b = e.target.closest('[data-jd]'); if (!b) return;
+  const cur = readJSON('ob_knocks') || { rows: [] }, rows = (cur.rows || []).filter(r => jdSite(r) === b.dataset.jd); if (!rows.length) return;
+  const on = rows.some(r => r.preCall), latest = rows.slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''))[0];
+  rows.forEach(r => { delete r.preCall; });
+  if (!on) latest.preCall = todayISO();
+  localStorage.setItem('ob_knocks', JSON.stringify(cur));
+  knocks.forEach(k => { const r = rows.find(x => x.id === k.id); if (r) { delete k.preCall; if (r.preCall) k.preCall = r.preCall; } });
+  renderJake();
+});
+
 function renderMetrics(fu, unplaced) {
   const n = leads.length, c = s => leads.filter(l => l.status === s).length;
   const worked = leads.filter(l => l.status !== 'Not contacted').length;
@@ -1098,6 +1191,7 @@ function renderAll(redrawMap) {
   renderMetrics(fu, un);
   renderKnocks();
   renderReports();
+  renderJake();
   renderWeek();
   renderFollowReq();
   fitInitial();
@@ -1129,6 +1223,11 @@ async function mergeImport(P) {
     (cur.rows || []).forEach(r => by[r.id] = r);
     P.data.rows.forEach(r => { if (!r.id || !Array.isArray(r.days)) return; by[r.id] = { rep: 'Natalie', ...r }; n++; });
     localStorage.setItem('ob_reports', JSON.stringify({ rows: Object.values(by), importedAt: Date.now(), importedBy: session.name }));
+  } else if (P.kind === 'coach') {       // one weekly script brief per weekOf
+    const cur = readJSON('ob_coach') || { rows: [] }, by = {};
+    (cur.rows || []).forEach(r => by[r.weekOf] = r);
+    P.data.rows.forEach(r => { if (!r.weekOf) return; by[r.weekOf] = r; n++; });
+    localStorage.setItem('ob_coach', JSON.stringify({ rows: Object.values(by).sort((a, b) => a.weekOf.localeCompare(b.weekOf)).slice(-26) }));
   } else if (P.kind === 'weeks') {
     const cur = readJSON('ob_knock_weeks') || { rows: [] }, by = {};
     (cur.rows || []).forEach(r => by[r.week] = r);
@@ -1141,14 +1240,14 @@ async function mergeImport(P) {
     localStorage.setItem('ob_touch_log', JSON.stringify(Object.values(by)));
   }
   await new Promise(r => setTimeout(r, 2500));
-  const k = { knocks: 'ob_knocks', weeks: 'ob_knock_weeks', reports: 'ob_reports' }[P.kind] || 'ob_touch_log';
+  const k = { knocks: 'ob_knocks', weeks: 'ob_knock_weeks', reports: 'ob_reports', coach: 'ob_coach' }[P.kind] || 'ob_touch_log';
   const st = typeof apSyncStatus === 'function' ? apSyncStatus() : { unsynced: [] };
   return P.kind + ': ' + n + ' rows merged' + (st.unsynced.includes(k) ? ' locally; cloud save still pending' : ' to the cloud') + '.';
 }
 
 // ── Import (used by the daily refresh via Claude in Chrome) ──────────
 // obImport.start(); obImport.add(base64Chunk) ...; await obImport.finish()
-// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches'|'weeks'|'contacts'|'reports', data}).
+// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches'|'weeks'|'contacts'|'reports'|'coach', data}).
 window.obImport = (() => {
   let parts = [];
   return {
@@ -1159,7 +1258,7 @@ window.obImport = (() => {
       parts = [];
       const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
       const P = JSON.parse(text);
-      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks' || P.kind === 'contacts' || P.kind === 'reports') return mergeImport(P);
+      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks' || P.kind === 'contacts' || P.kind === 'reports' || P.kind === 'coach') return mergeImport(P);
       const key = { leads: 'ob_leads', customers: 'ob_customers', targets: 'ob_targets' }[P.kind];
       if (!key || !P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
       if (P.kind === 'leads' && P.data.rows.length < 0.8 * ((readJSON('ob_leads') || { rows: [] }).rows.length)) throw new Error('Refusing: new lead list is more than 20% shorter than the current one (' + P.data.rows.length + ' rows). Check the sheet read.');
