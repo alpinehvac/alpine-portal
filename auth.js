@@ -186,10 +186,11 @@ document.addEventListener("click", e => {
   location.href = "ms-outlook://emails"; // the bare ms-outlook:// shows "unknown host" on Mac; emails and events open cleanly (tested Nov 3 2026)
 });
 
-// Left sidebar navigation (sidebar.js) on every page except the login page.
+// Left sidebar navigation (sidebar.js) on every page except the login page and the
+// tech phone app (tech.html has its own ☰ drawer; the sidebar sat on top of it).
 (function () {
   const f = (location.pathname.split("/").pop() || "").toLowerCase();
-  if (f === "" || f === "index.html" || window.__apSidebarLoading) return;
+  if (f === "" || f === "index.html" || f === "tech.html" || window.__apSidebarLoading) return;
   window.__apSidebarLoading = true;
   // ?embed=<view>: this page is a block inside a dashboard, so no sidebar.
   const embed = new URLSearchParams(location.search).get("embed");
