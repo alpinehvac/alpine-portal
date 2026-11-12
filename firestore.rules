@@ -119,6 +119,37 @@ service cloud.firestore {
       allow read: if isFieldOps();
       allow write: if isOwner();
     }
+    // ── Tech mobile (tech.html) ──
+    // Visits: the office (owners + field_ops) creates and assigns them; a tech reads only visits
+    // that list their email in techEmails, and may only change the visit's status fields.
+    match /fs_visits/{id} {
+      allow read: if isFieldOps() || (isOps() && email() in resource.data.techEmails);
+      allow create, delete: if isFieldOps();
+      allow update: if isFieldOps()
+        || (isOps() && email() in resource.data.techEmails
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusAt', 'statusBy', 'updatedAt']));
+    }
+    // Hours, visit summaries and photos: each record names its tech; techs read and write only their own.
+    match /fs_time/{id} {
+      allow read: if isFieldOps() || (isOps() && resource.data.tech == email());
+      allow create: if isFieldOps() || (isOps() && request.resource.data.tech == email());
+      allow update, delete: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
+    }
+    match /fs_reports/{id} {
+      // resource == null: a tech opening a visit before writing a summary (the doc doesn't exist yet)
+      allow read: if isFieldOps() || (isOps() && (resource == null || resource.data.tech == email()));
+      allow create: if isFieldOps() || (isOps() && request.resource.data.tech == email());
+      allow update: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
+      allow delete: if isFieldOps();
+    }
+    // Photos are stored in the document itself (compressed, under 900 KB) until Firebase Storage is switched on.
+    match /fs_photos/{id} {
+      allow read: if isFieldOps() || (isOps() && resource.data.tech == email());
+      allow create: if (isFieldOps() || (isOps() && request.resource.data.tech == email()))
+        && request.resource.data.data is string && request.resource.data.data.size() < 900000;
+      allow update: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
+      allow delete: if isFieldOps() || (isOps() && resource.data.tech == email());
+    }
     // Invoicing: reviewed invoices (one doc per job) + the daily sweep (doc "sweep"): Jake, Mike and Cole
     match /invoicing_data/{doc=**} {
       allow read, write: if isFieldOps();

@@ -6,7 +6,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/fireba
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, signOut
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBkkJDjV1g4omNpKoHVln5xADKLmVBEYZs",
@@ -20,7 +20,17 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Pages that must keep working with no signal (tech.html) set window.AP_OFFLINE_CACHE = true
+// before loading: Firestore then keeps a copy on the device and queues saves until it's back online.
+// Saves still go to the cloud; the device copy is only a waiting room, never the only copy.
+let _db;
+if (typeof window !== "undefined" && window.AP_OFFLINE_CACHE) {
+  try { _db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+  catch (e) { _db = getFirestore(app); }
+} else {
+  _db = getFirestore(app);
+}
+export const db = _db;
 
 // Resolves once Firebase has restored (or failed to restore) the signed-in user.
 export function currentUser() {

@@ -49,6 +49,7 @@ const AP_TOOLS = {
   "outbound":           { label: "Outbound",                      roles: ["sales"], strict: true }, // territory map + targets: outbound_data, sales only
   "lead-sheets":        { label: "Lead Sheets",                   roles: ["sales"] },
   "call-log":           { label: "Alpine Call Log / On-Call",     roles: ["ops"] },
+  "tech":               { label: "My Visits (techs)",              roles: ["ops", "field_ops", "owner"], strict: true }, // tech.html: phone app for techs (fs_visits, fs_time, fs_reports, fs_photos); techs see only visits assigned to them
   "items":              { label: "Item List",                     roles: ["owner", "field_ops"], strict: true }, // equipment, labour, materials price list: Jake, Mike + Cole (items_data, items_meta)
   "users":              { label: "Users & Settings",              roles: ["owner"], strict: true },   // people, roles, start pages, access: Jake, Mike only (portal_users)
 };
@@ -71,6 +72,11 @@ const AP_START = {
   "mike.launder@alpinehvac.ca":     "dashboard.html?view=operations",
   "cole.hamilton@alpinehvac.ca":    "dashboard.html?view=operations",
   "natalie.townsend@alpinehvac.ca": "dashboard.html?view=sales",
+  "steven.coles@alpinehvac.ca":     "tech.html",                      // field techs open straight to My Visits
+  "nick.drost@alpinehvac.ca":       "tech.html",
+  "tyson.marcoux@alpinehvac.ca":    "tech.html",
+  "brandon.launder@alpinehvac.ca":  "tech.html",
+  "matt.martin@alpinehvac.ca":      "tech.html",
 };
 function apStartPage(session) {
   const s = session || apGetSession();
