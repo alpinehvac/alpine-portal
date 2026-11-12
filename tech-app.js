@@ -234,7 +234,7 @@ function renderVisit(id) {
   $("app").innerHTML = banner() + `
     <button class="back" id="back">‹ My visits</button>
     <div class="vhead">${v.visitType ? `<div class="site">${esc(v.visitType)}</div>` : ""}<h2>${esc(v.title || v.customer || "Visit")}</h2><div class="site">${esc([v.title ? v.customer : "", v.site].filter(Boolean).join(" · "))}</div>
-      <div class="meta"><span class="chip ${esc(st)}">${esc(STATUS[st])}</span><span>${esc(dayLabel(v.date))}${v.time ? " · " + esc(v.time) : ""}</span>${(v.techNames || []).length > 1 ? `<span>with ${esc(v.techNames.filter(n => n !== MY_NAME).map(first).join(", "))}</span>` : ""}</div></div>
+      <div class="meta"><span class="chip ${overdueDays(v) ? "overdue" : esc(st)}">${esc(STATUS[st])}</span><span>${esc(dayLabel(v.date))}${v.time ? " · " + esc(v.time) : ""}</span>${(v.techNames || []).length > 1 ? `<span>with ${esc(v.techNames.filter(n => n !== MY_NAME).map(first).join(", "))}</span>` : ""}</div></div>
     <div class="statusbar">${st === "scheduled" ? `<button class="big" data-st="in_progress">Start visit</button>` : st === "in_progress" ? `<button class="big done" data-st="complete">Complete visit</button>` : `<button class="big ghost" data-st="in_progress">Reopen visit</button>`}</div>
     <div class="saved" id="st-saved" style="margin:-.8rem 0 .8rem"></div>
 
