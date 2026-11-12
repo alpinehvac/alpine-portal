@@ -181,6 +181,38 @@ body.office .office-only{display:block!important}
 .fab{position:fixed;right:1.1rem;bottom:calc(var(--sb) + 1.2rem);width:60px;height:60px;border-radius:50%;background:var(--teal-dark);color:#fff;border:none;font-size:2rem;line-height:1;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;z-index:40}
 .ts-week{margin-bottom:1rem}
 .ts-week h3{display:flex;justify-content:space-between}
+/* Schedule (#schedule): Week / 2 Weeks rows and Month grid. Status colours come from .scheduled/.in_progress/.overdue/.complete */
+.snav{display:flex;align-items:center;gap:.4rem;margin-bottom:.7rem}
+.snav h2{flex:1;min-width:0;text-align:center;font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:500;letter-spacing:.03em;text-transform:uppercase}
+.snav button{border:1px solid var(--border);background:var(--card);border-radius:10px;min-width:44px;height:40px;font-size:1.35rem;line-height:1;color:var(--teal-dark);cursor:pointer}
+.snav .tdy{font-size:.85rem;padding:0 .7rem}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.8rem;color:var(--muted);margin-bottom:.9rem}
+.legend span{display:flex;align-items:center;gap:.35rem}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--st-bar);display:inline-block;flex:none}
+.sd{display:flex;gap:.7rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .7rem;margin-bottom:.45rem}
+.sd.today{border:2px solid var(--teal);padding:calc(.55rem - 1px) calc(.7rem - 1px)}
+.sd-h{width:3rem;flex:none;text-align:center;font-family:'Oswald',sans-serif;line-height:1.1;align-self:center}
+.sd-h small{display:block;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sd-h b{display:block;font-size:1.35rem;font-weight:500}
+.sd.today .sd-h,.sd.today .sd-h small{color:var(--teal)}
+.sd-v{flex:1;min-width:0;display:flex;flex-direction:column;gap:.35rem;justify-content:center}
+.sd-none{font-size:.85rem;color:var(--muted)}
+.sc{display:block;background:var(--st-tile);border:1px solid var(--st-border);border-left:4px solid var(--st-bar);border-radius:8px;padding:.35rem .55rem;font-size:.86rem;text-decoration:none;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc b{font-weight:600;margin-right:.4rem}
+.wk-gap{height:.7rem}
+.mg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.45rem}
+.mg .wd{font-family:'Oswald',sans-serif;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding:.15rem 0 .3rem}
+.mg button{border:none;background:none;border-radius:10px;min-height:54px;padding:.25rem 0;display:flex;flex-direction:column;align-items:center;gap:.2rem;cursor:pointer;color:var(--ink)}
+.mg button.out{opacity:.4}
+.mg button.sel{background:rgba(39,99,108,.13)}
+.mg .n{width:1.85rem;height:1.85rem;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:.9rem}
+.mg .today .n{border:2px solid var(--teal);color:var(--teal);font-weight:600}
+.mg .dots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;align-items:center;font-size:.62rem;line-height:8px;color:var(--muted)}
+.sl{display:flex;gap:.8rem;align-items:flex-start;background:var(--st-tile);border:1px solid var(--st-border);border-left:5px solid var(--st-bar);border-radius:10px;padding:.6rem .75rem;margin-bottom:.45rem;text-decoration:none;color:var(--ink)}
+.sl .t{font-family:'Oswald',sans-serif;font-weight:500;width:4.4rem;flex:none}
+.sl .w{flex:1;min-width:0}
+.sl b{display:block;font-weight:600}
+.sl small{display:block;color:var(--muted);font-size:.82rem}
 .menu{position:absolute;right:.8rem;top:calc(var(--st) + 3.3rem);background:#fff;color:var(--ink);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.2);overflow:hidden;display:none;min-width:200px}
 .menu.on{display:block}
 .menu a,.menu button{display:block;width:100%;text-align:left;padding:.85rem 1rem;border:none;background:none;text-decoration:none;color:inherit;font-size:.95rem;cursor:pointer;border-top:1px solid var(--border)}
@@ -199,6 +231,7 @@ body.office .office-only{display:block!important}
   <div class="me"><span class="av" id="d-av"></span><div><b id="d-name"></b><small id="d-email"></small></div></div>
   <div class="dl">
     <a href="#" data-go="">Visits</a>
+    <a href="#schedule" data-go="schedule">Schedule</a>
     <a href="#timesheets" data-go="timesheets">Timesheets</a>
     <a href="ops-dashboard.html" class="office-only">Dispatch &amp; jobs (office)</a>
     <a href="dashboard.html" class="office-only">Full portal</a>

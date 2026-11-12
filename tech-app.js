@@ -134,8 +134,9 @@ function demoStore() {
   };
 }
 
-// ── State + routing (#v=<id> opens a visit, #timesheets my hours) ──
-let VISITS = [], LOADED = false, TOP = "scheduled", WHEN = "today", ALL = false, Q = "", unsub = [], BANNER = "";
+// ── State + routing (#v=<id> opens a visit, #timesheets my hours, #schedule calendar) ──
+// FROM: the screen a visit was opened from, so its back button returns there.
+let VISITS = [], LOADED = false, TOP = "scheduled", WHEN = "today", ALL = false, Q = "", unsub = [], BANNER = "", FROM = "";
 const route = () => { const m = location.hash.match(/v=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; };
 window.addEventListener("hashchange", render);
 
@@ -149,11 +150,13 @@ function banner() {
 function render() {
   unsub.forEach(f => { try { f(); } catch (e) {} }); unsub = [];
   closeDrawer();
-  document.querySelectorAll("[data-go]").forEach(a => a.classList.toggle("on", (a.dataset.go === "timesheets") === (location.hash === "#timesheets")));
-  if (location.hash === "#timesheets") return renderTimesheets();
+  const H = location.hash, page = H === "#timesheets" || H === "#schedule" ? H.slice(1) : "";
+  document.querySelectorAll("[data-go]").forEach(a => a.classList.toggle("on", a.dataset.go === page));
+  if (H === "#timesheets") { FROM = ""; return renderTimesheets(); }
+  if (H === "#schedule") { FROM = "schedule"; return renderSchedule(); }
   const id = route();
   if (id) return renderVisit(id);
-  renderList();
+  FROM = ""; renderList();
 }
 
 // ── List (laid out like the BuildOps app: Scheduled Visits / Open Work, Past / Today / Future) ──
@@ -220,19 +223,81 @@ function renderTimesheets() {
     $("app").innerHTML = h;
   }, subErr));
 }
+// ── Schedule: my visits on a calendar (Week / 2 Weeks / Month), weeks run Monday to Sunday ──
+const monday = s => { const x = new Date(s + "T12:00:00"); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return ymd(x); };
+const fmtD = (s, o) => new Date(s + "T12:00:00").toLocaleDateString("en-US", o);
+const stCls = v => overdueDays(v) ? "overdue" : esc(v.status || "scheduled");
+const SCH = { mode: "week", start: monday(TODAY), month: TODAY.slice(0, 8) + "01", day: TODAY };
+function renderSchedule() {
+  $("title").firstChild.textContent = "Schedule";
+  const byDay = {};
+  VISITS.filter(v => v.date && (ALL || (v.techEmails || []).includes(ME))).forEach(v => (byDay[v.date] = byDay[v.date] || []).push(v));
+  Object.values(byDay).forEach(L => L.sort((a, b) => tmin(a.time) - tmin(b.time)));
+  const who = v => ALL || (v.techNames || []).length > 1 ? " · " + (v.techNames || []).map(first).join(", ") : "";
+  const open = v => `href="#v=${encodeURIComponent(v.id)}"`;
+  const M = SCH.mode, span = M === "week" ? 7 : 14, unit = M === "month" ? "month" : M === "week" ? "week" : "2 weeks";
+  const label = M === "month" ? fmtD(SCH.month, { month: "long", year: "numeric" })
+    : fmtD(SCH.start, { month: "short", day: "numeric" }) + " – " + fmtD(addDays(SCH.start, span - 1), { month: "short", day: "numeric", year: "numeric" });
+  let h = banner() + `<div class="tabs" role="tablist">${[["week", "Week"], ["2w", "2 Weeks"], ["month", "Month"]].map(([k, l]) => `<button role="tab" data-sm="${k}" class="${M === k ? "on" : ""}" aria-selected="${M === k}">${l}</button>`).join("")}</div>`;
+  if (OFFICE) h += `<div class="tools"><label><input type="checkbox" id="all-t" ${ALL ? "checked" : ""}> Show every tech</label></div>`;
+  h += `<div class="snav"><button data-nav="-1" aria-label="Previous ${unit}">‹</button><h2>${esc(label)}</h2><button class="tdy" data-nav="0">Today</button><button data-nav="1" aria-label="Next ${unit}">›</button></div>`;
+  h += `<div class="legend">${[["scheduled", "Scheduled"], ["in_progress", "In progress"], ["overdue", "Overdue"], ["complete", "Complete"]].map(([c, l]) => `<span class="${c}"><i class="dot"></i>${l}</span>`).join("")}</div>`;
+  if (!LOADED) h += `<div class="empty">Loading your visits…</div>`;
+  else if (M !== "month") {
+    for (let i = 0; i < span; i++) {
+      const d = addDays(SCH.start, i), L = byDay[d] || [], t = d === TODAY;
+      if (i === 7) h += `<div class="wk-gap"></div>`;
+      h += `<div class="sd${t ? " today" : ""}"${t ? ' aria-current="date"' : ""}><div class="sd-h"><small>${fmtD(d, { weekday: "short" })}</small><b>${+d.slice(8)}</b><small>${fmtD(d, { month: "short" })}</small></div><div class="sd-v">`
+        + (L.length ? L.map(v => `<a class="sc ${stCls(v)}" ${open(v)}><b>${esc(v.time || "Any time")}</b>${esc((v.title || v.customer || "Visit") + who(v))}</a>`).join("") : `<span class="sd-none">Nothing booked</span>`) + `</div></div>`;
+    }
+  } else {
+    const mo = SCH.month.slice(0, 7), x = new Date(SCH.month + "T12:00:00"); x.setMonth(x.getMonth() + 1); x.setDate(0);
+    const last = ymd(x);
+    h += `<div class="mg">` + ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(w => `<div class="wd">${w}</div>`).join("");
+    let d = monday(SCH.month);
+    do {
+      for (let i = 0; i < 7; i++, d = addDays(d, 1)) {
+        const L = byDay[d] || [];
+        const dots = L.slice(0, 4).map(v => `<i class="dot ${stCls(v)}"></i>`).join("") + (L.length > 4 ? `<span>+${L.length - 4}</span>` : "");
+        h += `<button data-day="${d}" class="${d.slice(0, 7) !== mo ? "out " : ""}${d === TODAY ? "today " : ""}${d === SCH.day ? "sel" : ""}" aria-pressed="${d === SCH.day}" aria-label="${fmtD(d, { weekday: "long", month: "long", day: "numeric" })}: ${L.length ? L.length + " visit" + (L.length > 1 ? "s" : "") : "nothing booked"}"><span class="n">${+d.slice(8)}</span><span class="dots">${dots}</span></button>`;
+      }
+    } while (d <= last);
+    const L = byDay[SCH.day] || [];
+    h += `</div><div class="dayh" style="margin-top:1rem">${esc(DAYH(SCH.day))}</div>`
+      + (L.length ? L.map(v => `<a class="sl ${stCls(v)}" ${open(v)}><span class="t">${esc(v.time || "Any time")}</span><span class="w"><b>${esc(v.title || v.customer || "Visit")}</b><small>${esc([v.title ? v.customer : "", v.site].filter(Boolean).join(" · ") + who(v))}</small></span></a>`).join("") : `<div class="sd-none">Nothing booked</div>`);
+  }
+  $("app").innerHTML = h;
+  document.querySelectorAll("[data-sm]").forEach(b => b.onclick = () => {
+    const to = b.dataset.sm;
+    if (to === SCH.mode) return;
+    // Week → Month lands on today if it's in view, else the first day shown. Month → Week shows the picked day's week.
+    if (to === "month") { SCH.day = TODAY >= SCH.start && TODAY <= addDays(SCH.start, span - 1) ? TODAY : SCH.start; SCH.month = SCH.day.slice(0, 8) + "01"; }
+    else if (SCH.mode === "month") SCH.start = monday(SCH.day);
+    SCH.mode = to; renderSchedule();
+  });
+  document.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => {
+    const k = +b.dataset.nav;
+    if (!k) { SCH.start = monday(TODAY); SCH.month = TODAY.slice(0, 8) + "01"; SCH.day = TODAY; }
+    else if (SCH.mode === "month") { const m = new Date(SCH.month + "T12:00:00"); m.setMonth(m.getMonth() + k); SCH.month = ymd(m); SCH.day = SCH.month.slice(0, 7) === TODAY.slice(0, 7) ? TODAY : SCH.month; }
+    else SCH.start = addDays(SCH.start, k * span);
+    renderSchedule();
+  });
+  document.querySelectorAll("[data-day]").forEach(b => b.onclick = () => { SCH.day = b.dataset.day; SCH.month = SCH.day.slice(0, 8) + "01"; renderSchedule(); });
+  if ($("all-t")) $("all-t").onchange = e => { ALL = e.target.checked; renderSchedule(); };
+}
 const short = a => String(a || "").replace(/,\s*(ON|Ontario)\b.*$/i, "").replace(/,\s*CA(nada)?$/i, "");
 const tmin = t => { const m = String(t || "").match(/(\d{1,2}):?(\d{2})?\s*([ap])?/i); if (!m) return 9999; let h = +m[1] % 12; if (/p/i.test(m[3] || "")) h += 12; return h * 60 + (+m[2] || 0); };
 
 // ── Visit ──
 function renderVisit(id) {
   const v = VISITS.find(x => x.id === id);
-  if (!v) { $("app").innerHTML = banner() + `<button class="back" onclick="location.hash=''">‹ My visits</button><div class="empty">${LOADED ? "This visit isn't assigned to you, or it was removed." : "Loading…"}</div>`; return; }
+  if (!v) { $("app").innerHTML = banner() + `<button class="back" onclick="location.hash='${FROM}'">‹ ${FROM ? "Schedule" : "My visits"}</button><div class="empty">${LOADED ? "This visit isn't assigned to you, or it was removed." : "Loading…"}</div>`; return; }
   $("title").firstChild.textContent = v.jobNo || "Visit";
   const maps = v.address ? (/iPhone|iPad|Mac/.test(navigator.userAgent) ? "https://maps.apple.com/?q=" : "https://www.google.com/maps/search/?api=1&query=") + encodeURIComponent(v.address) : "";
   const tel = String(v.contactPhone || "").replace(/[^\d+]/g, "");
   const st = v.status || "scheduled";
   $("app").innerHTML = banner() + `
-    <button class="back" id="back">‹ My visits</button>
+    <button class="back" id="back">‹ ${FROM ? "Schedule" : "My visits"}</button>
     <div class="vhead">${v.visitType ? `<div class="site">${esc(v.visitType)}</div>` : ""}<h2>${esc(v.title || v.customer || "Visit")}</h2><div class="site">${esc([v.title ? v.customer : "", v.site].filter(Boolean).join(" · "))}</div>
       <div class="meta"><span class="chip ${overdueDays(v) ? "overdue" : esc(st)}">${esc(STATUS[st])}</span><span>${esc(dayLabel(v.date))}${v.time ? " · " + esc(v.time) : ""}</span>${(v.techNames || []).length > 1 ? `<span>with ${esc(v.techNames.filter(n => n !== MY_NAME).map(first).join(", "))}</span>` : ""}</div></div>
     <div class="statusbar">${st === "scheduled" ? `<button class="big" data-st="in_progress">Start visit</button>` : st === "in_progress" ? `<button class="big done" data-st="complete">Complete visit</button>` : `<button class="big ghost" data-st="in_progress">Reopen visit</button>`}</div>
@@ -269,7 +334,7 @@ function renderVisit(id) {
       <div class="saved" id="ph-saved"></div>
     </div>`;
 
-  $("back").onclick = () => { location.hash = ""; };
+  $("back").onclick = () => { location.hash = FROM; };
   document.querySelectorAll("[data-st]").forEach(b => b.onclick = async () => {
     const to = b.dataset.st;
     if (to === "complete" && !SUMMARY_SAVED && !confirm("You haven't saved a visit summary yet. Complete the visit anyway?")) return;
