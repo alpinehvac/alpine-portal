@@ -15,3 +15,7 @@ with BuildOps logged in). Read-only in BuildOps.
 Nothing entered in the portal is overwritten: renewal notes, checklist marks,
 CLEAR reports and sent/reviewed status are kept. Property instructions (site
 credentials) and dollar balances are never read.
+
+# Run locally
+
+Run `npm install` once, then `npm start` and open http://localhost:8080.
