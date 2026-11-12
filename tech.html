@@ -139,6 +139,47 @@ textarea.inp{min-height:140px;resize:vertical}
 
 .toast{position:fixed;left:50%;bottom:calc(var(--sb) + 1rem);transform:translateX(-50%);background:var(--teal-dark);color:#fff;padding:.7rem 1rem;border-radius:12px;font-size:.9rem;z-index:100;display:none;max-width:92vw;box-shadow:0 6px 24px rgba(0,0,0,.25)}
 .toast.bad{background:var(--red)}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90;display:none}
+.scrim.on{display:block}
+.drawer{position:fixed;top:0;bottom:0;left:0;width:min(82vw,330px);background:#F8FAFA;z-index:95;transform:translateX(-105%);transition:transform .22s ease;display:flex;flex-direction:column;padding:calc(var(--st) + 1rem) .9rem calc(var(--sb) + 1rem);overflow:auto;box-shadow:4px 0 24px rgba(0,0,0,.2)}
+.drawer.on{transform:none}
+.drawer .me{display:flex;gap:.8rem;align-items:center;padding:.3rem .2rem 1rem;border-bottom:1px solid var(--border)}
+.drawer .av{width:48px;height:48px;border-radius:50%;background:var(--teal-light);color:#fff;font-weight:600;font-size:1.1rem;display:flex;align-items:center;justify-content:center;flex:none}
+.drawer .me b{display:block;font-size:1.05rem}
+.drawer .me small{display:block;color:var(--muted);font-size:.82rem;word-break:break-all}
+.drawer .dl{padding:.6rem 0;border-bottom:1px solid var(--border)}
+.drawer .dl a,.drawer .dl button{display:block;width:100%;text-align:left;border:none;background:none;padding:.8rem .8rem;border-radius:10px;font-size:1.05rem;text-decoration:none;color:var(--ink);cursor:pointer}
+.drawer .dl a.on{background:rgba(39,99,108,.14);color:var(--teal-dark);font-weight:600}
+.drawer .out{margin-top:1.2rem;border:1px solid rgba(16,68,78,.3);background:#fff;border-radius:24px;padding:.8rem;font-weight:600;font-size:1rem;cursor:pointer}
+.drawer .ver{margin-top:auto;padding-top:1rem;text-align:right;color:var(--muted);font-size:.78rem}
+.office-only{display:none!important}
+body.office .office-only{display:block!important}
+
+/* BuildOps-style list */
+.toptabs{display:flex;margin:-1rem -1rem 1rem;background:var(--card);border-bottom:1px solid var(--border)}
+.toptabs button{flex:1;border:none;background:none;padding:.85rem .5rem .75rem;font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.02em;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer}
+.toptabs button.on{color:var(--teal-dark);border-bottom-color:var(--teal-dark)}
+.toptabs button span{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:500;margin-left:.3rem;opacity:.8}
+.search{position:relative;margin-bottom:.9rem}
+.search input{width:100%;border:1px solid rgba(16,68,78,.3);border-radius:10px;padding:.75rem .8rem .75rem 2.4rem;font-size:16px;background:#fff}
+.search::before{content:"⌕";position:absolute;left:.8rem;top:50%;transform:translateY(-52%);font-size:1.25rem;color:var(--muted)}
+.dayh{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:var(--ink);padding:.9rem 0 .4rem;border-bottom:1px solid var(--border);margin-bottom:.6rem}
+.vc{display:flex;gap:.8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.85rem .95rem .85rem .75rem;margin-bottom:.6rem;text-decoration:none;color:inherit}
+.vc:active{background:#F4F9F9}
+.vc .bar{width:6px;border-radius:4px;flex:none;background:var(--teal-light)}
+.vc.overdue .bar{background:#9B0F0F}.vc.in_progress .bar{background:#D9A436}.vc.complete .bar{background:var(--green)}
+.vc .body{flex:1;min-width:0}
+.vc .l1{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
+.od{background:#9B0F0F;color:#fff;border-radius:20px;padding:2px 10px;font-size:.78rem;font-weight:600}
+.vc .ty{font-size:.88rem;color:var(--muted);margin-top:.3rem}
+.vc .mid{display:flex;justify-content:space-between;gap:.6rem;align-items:flex-start}
+.vc .ti{font-weight:700;font-size:1.08rem;line-height:1.25;margin-top:.1rem}
+.vc .tm{text-align:right;white-space:nowrap;font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:500}
+.vc .tm small{display:block;font-family:'Inter',sans-serif;font-size:.8rem;color:var(--muted);font-weight:400}
+.vc .sub{font-size:.85rem;color:var(--muted);margin-top:.25rem}
+.fab{position:fixed;right:1.1rem;bottom:calc(var(--sb) + 1.2rem);width:60px;height:60px;border-radius:50%;background:var(--teal-dark);color:#fff;border:none;font-size:2rem;line-height:1;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;z-index:40}
+.ts-week{margin-bottom:1rem}
+.ts-week h3{display:flex;justify-content:space-between}
 .menu{position:absolute;right:.8rem;top:calc(var(--st) + 3.3rem);background:#fff;color:var(--ink);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.2);overflow:hidden;display:none;min-width:200px}
 .menu.on{display:block}
 .menu a,.menu button{display:block;width:100%;text-align:left;padding:.85rem 1rem;border:none;background:none;text-decoration:none;color:inherit;font-size:.95rem;cursor:pointer;border-top:1px solid var(--border)}
@@ -147,15 +188,28 @@ textarea.inp{min-height:140px;resize:vertical}
 </head>
 <body>
 <header>
+  <button class="hbtn" id="menu-btn" aria-label="Menu" aria-controls="drawer" aria-expanded="false">☰</button>
   <h1 id="title">My Visits<small id="who"></small></h1>
   <div class="sync" id="sync" title="Upload status"><i></i><span id="sync-t">Online</span></div>
-  <button class="hbtn" id="menu-btn" aria-label="Menu">☰</button>
-  <div class="menu" id="menu">
-    <a href="dashboard.html" id="m-portal">Open the full portal</a>
-    <button type="button" id="m-help">Add to Home Screen</button>
-    <button type="button" id="m-out">Sign out</button>
-  </div>
+  <button class="hbtn" id="search-btn" aria-label="Search">⌕</button>
 </header>
+<div class="scrim" id="scrim"></div>
+<nav class="drawer" id="drawer" aria-label="Menu">
+  <div class="me"><span class="av" id="d-av"></span><div><b id="d-name"></b><small id="d-email"></small></div></div>
+  <div class="dl">
+    <a href="#" data-go="">Visits</a>
+    <a href="#timesheets" data-go="timesheets">Timesheets</a>
+    <a href="ops-dashboard.html" class="office-only">Dispatch &amp; jobs (office)</a>
+    <a href="dashboard.html" class="office-only">Full portal</a>
+    <button type="button" id="m-pass">Change Password</button>
+  </div>
+  <div class="dl">
+    <button type="button" id="m-help">Help</button>
+    <button type="button" id="m-clear">Clear Cache and Restart</button>
+  </div>
+  <button type="button" class="out" id="m-out">Sign Out</button>
+  <div class="ver">Alpine My Visits · pilot v0.2</div>
+</nav>
 <main class="wrap" id="app"><div class="empty">Loading your visits…</div></main>
 
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-h"><div class="in" id="sheet-in"></div></div>

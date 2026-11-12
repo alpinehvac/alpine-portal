@@ -87,6 +87,8 @@ async function firestoreStore() {
       return live(q, cb, onErr);
     },
     time: (visitId, cb, onErr) => live(mine("fs_time", [where("visitId", "==", visitId)]), cb, onErr),
+    myTime: (cb, onErr) => live(query(C("fs_time"), where("tech", "==", ME)), cb, onErr),
+    resetPassword: async () => { const m = await import("./ap-firebase.js"); return m.sendPasswordResetEmail(m.auth, ME); },
     photos: (visitId, cb, onErr) => live(mine("fs_photos", [where("visitId", "==", visitId)]), cb, onErr),
     report: (visitId, cb, onErr) => onSnapshot(doc(db, "fs_reports", visitId + "__" + safeKey(ME)), s => cb(s.exists() ? s.data() : null), onErr),
     setStatus: (v, status) => updateDoc(doc(db, "fs_visits", v.id), { status, statusAt: new Date().toISOString(), statusBy: ME, updatedAt: serverTimestamp() }),
@@ -107,16 +109,19 @@ function demoStore() {
   let n = 1; const id = () => "demo" + (n++);
   const v = (o) => ({ id: id(), status: "scheduled", techEmails: [ME], techNames: [MY_NAME], ...o });
   D.visits.push(
-    v({ date: TODAY, time: "8:00 AM", jobNo: "JO-DEMO-101", customer: "Lakeview Medical Centre", site: "Main building", address: "120 Lakeshore Rd, St. Catharines, ON", contactName: "Paula Reyes (facilities)", contactPhone: "905-555-0142", scope: "RTU-2 not cooling. Tenant reports warm air on the 2nd floor east side since yesterday afternoon. Check refrigerant charge and condenser fan motor.", equipmentNotes: "Roof access by the east stairwell. Sign in at security first.", equipment: [{ name: "RTU-2", make: "Carrier", model: "48TC 7.5 ton", serial: "4519G20871" }] }),
-    v({ date: TODAY, time: "1:00 PM", jobNo: "SA1024-3", customer: "Harbour Street Lofts", site: "Mechanical room B1", address: "45 Harbour St, Port Dalhousie, ON", contactName: "Sam Ito (superintendent)", contactPhone: "905-555-0177", scope: "Quarterly maintenance: boilers 1 and 2, pumps, filters on the make-up air unit.", equipmentNotes: "Boiler 2 had a low-water alarm last quarter. Check the probe.", equipment: [{ name: "Boiler 1", make: "Viessmann", model: "Vitocrossal 300", serial: "7514388" }, { name: "Boiler 2", make: "Viessmann", model: "Vitocrossal 300", serial: "7514391" }] }),
-    v({ date: addDays(TODAY, 1), time: "9:30 AM", jobNo: "JO-DEMO-108", customer: "Northgate Public School", site: "Gym wing", address: "300 Northgate Ave, Welland, ON", contactName: "Front office", contactPhone: "905-555-0110", scope: "Replace the failed exhaust fan motor on EF-4 (part on the truck).", equipmentNotes: "", equipment: [{ name: "EF-4", make: "Greenheck", model: "CUE-140", serial: "" }] }),
-    v({ date: addDays(TODAY, -1), time: "10:00 AM", jobNo: "JO-DEMO-099", customer: "Lakeview Medical Centre", site: "Main building", address: "120 Lakeshore Rd, St. Catharines, ON", contactName: "Paula Reyes", contactPhone: "905-555-0142", scope: "Thermostat call, room 214.", status: "complete" }),
+    v({ date: TODAY, time: "8:00 AM", durationHrs: 3, visitType: "Service call", title: "RTU-2 not cooling", jobNo: "JO-DEMO-101", customer: "Lakeview Medical Centre", site: "Main building", address: "120 Lakeshore Rd, St. Catharines, ON", contactName: "Paula Reyes (facilities)", contactPhone: "905-555-0142", scope: "RTU-2 not cooling. Tenant reports warm air on the 2nd floor east side since yesterday afternoon. Check refrigerant charge and condenser fan motor.", equipmentNotes: "Roof access by the east stairwell. Sign in at security first.", equipment: [{ name: "RTU-2", make: "Carrier", model: "48TC 7.5 ton", serial: "4519G20871" }] }),
+    v({ date: TODAY, time: "1:00 PM", durationHrs: 4, visitType: "Maintenance", title: "Quarterly PM, boilers and MUA", jobNo: "SA1024-3", customer: "Harbour Street Lofts", site: "Mechanical room B1", address: "45 Harbour St, Port Dalhousie, ON", contactName: "Sam Ito (superintendent)", contactPhone: "905-555-0177", scope: "Quarterly maintenance: boilers 1 and 2, pumps, filters on the make-up air unit.", equipmentNotes: "Boiler 2 had a low-water alarm last quarter. Check the probe.", equipment: [{ name: "Boiler 1", make: "Viessmann", model: "Vitocrossal 300", serial: "7514388" }, { name: "Boiler 2", make: "Viessmann", model: "Vitocrossal 300", serial: "7514391" }] }),
+    v({ date: addDays(TODAY, 1), time: "9:30 AM", durationHrs: 2, visitType: "Service call", title: "EF-4 motor replacement", jobNo: "JO-DEMO-108", customer: "Northgate Public School", site: "Gym wing", address: "300 Northgate Ave, Welland, ON", contactName: "Front office", contactPhone: "905-555-0110", scope: "Replace the failed exhaust fan motor on EF-4 (part on the truck).", equipmentNotes: "", equipment: [{ name: "EF-4", make: "Greenheck", model: "CUE-140", serial: "" }] }),
+    v({ date: addDays(TODAY, -1), time: "10:00 AM", durationHrs: 1, visitType: "Service call", title: "Room 214 too warm", jobNo: "JO-DEMO-099", customer: "Lakeview Medical Centre", site: "Main building", address: "120 Lakeshore Rd, St. Catharines, ON", contactName: "Paula Reyes", contactPhone: "905-555-0142", scope: "Thermostat call, room 214.", status: "complete" }),
   );
+  D.visits.push(v({ date: addDays(TODAY, -3), time: "12:00 AM", durationHrs: 24, visitType: "NonBillable", title: "On-Call (Escalation)", customer: "Alpine HVAC", site: "On-call rotation", scope: "Weekend on-call. Log any calls you take." }));
   D.time.push({ id: id(), visitId: D.visits[3].id, tech: ME, techName: MY_NAME, date: addDays(TODAY, -1), hours: 1.5, type: "Regular", note: "" });
   D.reports[D.visits[3].id] = { summary: "Replaced the batteries in the room 214 thermostat and recalibrated. Room holding 22°C." };
   return {
     visits: cb => sub(() => cb(D.visits.slice())),
     time: (vid, cb) => sub(() => cb(D.time.filter(t => t.visitId === vid))),
+    myTime: cb => sub(() => cb(D.time.filter(t => t.tech === ME))),
+    resetPassword: async () => { await wait(); },
     photos: (vid, cb) => sub(() => cb(D.photos.filter(p => p.visitId === vid))),
     report: (vid, cb) => sub(() => cb(D.reports[vid] || null)),
     setStatus: async (v, status) => { await wait(); Object.assign(D.visits.find(x => x.id === v.id), { status }); emit(); },
@@ -129,8 +134,8 @@ function demoStore() {
   };
 }
 
-// ── State + routing (#v=<id> opens a visit) ──
-let VISITS = [], LOADED = false, TAB = "today", ALL = false, unsub = [], BANNER = "";
+// ── State + routing (#v=<id> opens a visit, #timesheets my hours) ──
+let VISITS = [], LOADED = false, TOP = "scheduled", WHEN = "today", ALL = false, Q = "", unsub = [], BANNER = "";
 const route = () => { const m = location.hash.match(/v=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; };
 window.addEventListener("hashchange", render);
 
@@ -143,43 +148,77 @@ function banner() {
 
 function render() {
   unsub.forEach(f => { try { f(); } catch (e) {} }); unsub = [];
+  closeDrawer();
+  document.querySelectorAll("[data-go]").forEach(a => a.classList.toggle("on", (a.dataset.go === "timesheets") === (location.hash === "#timesheets")));
+  if (location.hash === "#timesheets") return renderTimesheets();
   const id = route();
   if (id) return renderVisit(id);
   renderList();
 }
 
-// ── List ──
-function inTab(v) {
-  const done = v.status === "complete";
-  if (TAB === "done") return done;
-  if (done) return false;
-  if (TAB === "today") return (v.date || "") <= TODAY;
+// ── List (laid out like the BuildOps app: Scheduled Visits / Open Work, Past / Today / Future) ──
+const overdueDays = v => v.status !== "complete" && v.date && v.date < TODAY ? Math.round((new Date(TODAY + "T12:00:00") - new Date(v.date + "T12:00:00")) / 864e5) : 0;
+const DAYH = s => s ? new Date(s + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "2-digit" }).replace(",", "") : "No date";
+function inView(v) {
+  if (TOP === "open") return v.status !== "complete" && (v.status === "in_progress" || (v.date || "") <= TODAY);
+  if (WHEN === "past") return (v.date || "") < TODAY;
+  if (WHEN === "today") return v.date === TODAY;
   return (v.date || "") > TODAY;
+}
+function card(v) {
+  const od = overdueDays(v), st = v.status || "scheduled";
+  const hrs = v.durationHrs ? `<small>◷ ${esc(v.durationHrs)} hr${v.durationHrs == 1 ? "" : "s"}</small>` : "";
+  return `<a class="vc ${od ? "overdue" : esc(st)}" href="#v=${encodeURIComponent(v.id)}"><span class="bar"></span><div class="body">
+    <div class="l1"><span>${esc(STATUS[st])}</span>${od ? `<span class="od">${od} day${od > 1 ? "s" : ""} overdue</span>` : ""}</div>
+    ${v.visitType ? `<div class="ty">${esc(v.visitType)}</div>` : ""}
+    <div class="mid"><div class="ti">${esc(v.title || v.customer || "Visit")}</div><div class="tm">${esc(v.time || "")}${hrs}</div></div>
+    <div class="sub">${esc([v.title ? v.customer : "", v.site, short(v.address)].filter(Boolean).join(" · "))}${v.jobNo ? `<br>${esc(v.jobNo)}` : ""}${ALL || (v.techNames || []).length > 1 ? ` · ${esc((v.techNames || []).map(first).join(", "))}` : ""}</div>
+  </div></a>`;
 }
 function renderList() {
   $("title").firstChild.textContent = "My Visits";
-  const mine = v => ALL || (v.techEmails || []).includes(ME);
-  const pool = VISITS.filter(mine);
-  const count = t => pool.filter(v => { const k = TAB; TAB = t; const r = inTab(v); TAB = k; return r; }).length;
-  let list = pool.filter(inTab).sort((a, b) => TAB === "done" ? (b.date || "").localeCompare(a.date || "") : (a.date || "").localeCompare(b.date || "") || tmin(a.time) - tmin(b.time));
-  if (TAB === "done") list = list.slice(0, 40);
-  let h = banner();
-  h += `<div class="tabs" role="tablist">${[["today", "Today"], ["upcoming", "Upcoming"], ["done", "Done"]].map(([k, l]) => `<button role="tab" data-tab="${k}" class="${TAB === k ? "on" : ""}" aria-selected="${TAB === k}">${l}<span>${count(k)}</span></button>`).join("")}</div>`;
-  if (OFFICE) h += `<div class="tools"><button class="act" id="new-v">+ New visit</button><label><input type="checkbox" id="all-t" ${ALL ? "checked" : ""}> Show every tech</label></div>`;
+  const pool = VISITS.filter(v => ALL || (v.techEmails || []).includes(ME));
+  const q = Q.trim().toLowerCase();
+  const hit = v => !q || [v.jobNo, v.customer, v.site, v.address, v.title, v.scope].join(" ").toLowerCase().includes(q);
+  const openN = pool.filter(v => { const t = TOP; TOP = "open"; const r = inView(v); TOP = t; return r; }).length;
+  let list = pool.filter(v => inView(v) && hit(v));
+  const desc = TOP === "scheduled" && WHEN === "past";
+  list.sort((a, b) => (desc ? -1 : 1) * ((a.date || "").localeCompare(b.date || "") || tmin(a.time) - tmin(b.time)));
+  if (desc) list = list.slice(0, 60);
+  let h = `<div class="toptabs" role="tablist"><button data-top="scheduled" class="${TOP === "scheduled" ? "on" : ""}">Scheduled Visits</button><button data-top="open" class="${TOP === "open" ? "on" : ""}">Open Work${openN ? `<span>${openN}</span>` : ""}</button></div>` + banner();
+  if (TOP === "scheduled") h += `<div class="tabs" role="tablist">${[["past", "Past"], ["today", "Today"], ["future", "Future"]].map(([k, l]) => `<button role="tab" data-when="${k}" class="${WHEN === k ? "on" : ""}" aria-selected="${WHEN === k}">${l}</button>`).join("")}</div>`;
+  h += `<div class="search"><input id="q" type="search" placeholder="Search Job #, Property, Customer…" value="${esc(Q)}" aria-label="Search visits"></div>`;
+  if (OFFICE) h += `<div class="tools"><label><input type="checkbox" id="all-t" ${ALL ? "checked" : ""}> Show every tech</label></div>`;
   if (!LOADED) h += `<div class="empty">Loading your visits…</div>`;
-  else if (!list.length) h += `<div class="empty">${TAB === "today" ? "Nothing scheduled for today." : TAB === "upcoming" ? "No upcoming visits yet." : "No completed visits yet."}${OFFICE ? "" : "<br>New visits show up here as soon as the office assigns them."}</div>`;
-  else {
-    let last = null;
-    list.forEach(v => {
-      const d = TAB === "today" && v.date < TODAY ? "Still open from earlier" : dayLabel(v.date);
-      if (d !== last) { h += `<div class="day">${esc(d)}</div>`; last = d; }
-      h += `<a class="card" href="#v=${encodeURIComponent(v.id)}"><div class="top"><div><div class="time">${esc(v.time || "Any time")}</div><div class="cust">${esc(v.customer || "Customer")}</div><div class="site">${esc([v.site, short(v.address)].filter(Boolean).join(" · "))}</div></div><span class="chip ${esc(v.status || "scheduled")}">${esc(STATUS[v.status] || "Scheduled")}</span></div>${v.scope ? `<div class="desc">${esc(v.scope)}</div>` : ""}${ALL || (v.techNames || []).length > 1 ? `<div class="who">${esc((v.techNames || []).join(", "))}${v.jobNo ? " · " + esc(v.jobNo) : ""}</div>` : v.jobNo ? `<div class="who">${esc(v.jobNo)}</div>` : ""}</a>`;
-    });
-  }
+  else if (!list.length) h += `<div class="empty">${q ? "Nothing matches that search." : TOP === "open" ? "No open work. Nice." : WHEN === "today" ? "Nothing scheduled for today." : WHEN === "future" ? "No upcoming visits yet." : "No past visits."}${OFFICE || q ? "" : "<br>New visits show up here as soon as the office assigns them."}</div>`;
+  else { let last = null; list.forEach(v => { const d = DAYH(v.date); if (d !== last) { h += `<div class="dayh">${esc(d)}</div>`; last = d; } h += card(v); }); }
+  if (OFFICE) h += `<button class="fab" id="new-v" aria-label="New visit">+</button>`;
   $("app").innerHTML = h;
-  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; renderList(); });
+  document.querySelectorAll("[data-top]").forEach(b => b.onclick = () => { TOP = b.dataset.top; renderList(); });
+  document.querySelectorAll("[data-when]").forEach(b => b.onclick = () => { WHEN = b.dataset.when; renderList(); });
+  const qi = $("q"); qi.oninput = () => { Q = qi.value; const pos = qi.selectionStart; renderList(); const n = $("q"); n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} };
   if ($("new-v")) $("new-v").onclick = openNewVisit;
   if ($("all-t")) $("all-t").onchange = e => { ALL = e.target.checked; renderList(); };
+}
+
+// ── Timesheets: my hours by week ──
+function renderTimesheets() {
+  $("title").firstChild.textContent = "Timesheets";
+  $("app").innerHTML = banner() + `<div class="empty">Loading your hours…</div>`;
+  unsub.push(store.myTime(rows => {
+    const wk = d => { const x = new Date((d || TODAY) + "T12:00:00"); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return ymd(x); };
+    const weeks = {};
+    rows.forEach(r => { (weeks[wk(r.date)] = weeks[wk(r.date)] || []).push(r); });
+    const keys = Object.keys(weeks).sort().reverse().slice(0, 8);
+    let h = banner();
+    if (!keys.length) h += `<div class="empty">No hours logged yet. Hours you add on a visit show up here.</div>`;
+    keys.forEach(k => {
+      const R = weeks[k].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+      const tot = R.reduce((s, r) => s + (r.hours || 0), 0);
+      h += `<div class="sec ts-week"><h3><span>Week of ${esc(new Date(k + "T12:00:00").toLocaleDateString("en-CA", { month: "long", day: "numeric" }))}</span><span class="st hrs-total">${hrsTxt(tot)}</span></h3>${R.map(r => `<a class="row" href="#v=${encodeURIComponent(r.visitId)}" style="text-decoration:none;color:inherit"><div class="grow"><b>${hrsTxt(r.hours)}</b> ${esc(r.type || "")}<small>${esc(dayLabel(r.date))} · ${esc(r.customer || r.jobNo || "Visit")}${r.note ? " · " + esc(r.note) : ""}${r._pending ? " · waiting to upload" : ""}</small></div><span class="dim">›</span></a>`).join("")}</div>`;
+    });
+    $("app").innerHTML = h;
+  }, subErr));
 }
 const short = a => String(a || "").replace(/,\s*(ON|Ontario)\b.*$/i, "").replace(/,\s*CA(nada)?$/i, "");
 const tmin = t => { const m = String(t || "").match(/(\d{1,2}):?(\d{2})?\s*([ap])?/i); if (!m) return 9999; let h = +m[1] % 12; if (/p/i.test(m[3] || "")) h += 12; return h * 60 + (+m[2] || 0); };
@@ -194,7 +233,7 @@ function renderVisit(id) {
   const st = v.status || "scheduled";
   $("app").innerHTML = banner() + `
     <button class="back" id="back">‹ My visits</button>
-    <div class="vhead"><h2>${esc(v.customer || "Customer")}</h2><div class="site">${esc(v.site || "")}</div>
+    <div class="vhead">${v.visitType ? `<div class="site">${esc(v.visitType)}</div>` : ""}<h2>${esc(v.title || v.customer || "Visit")}</h2><div class="site">${esc([v.title ? v.customer : "", v.site].filter(Boolean).join(" · "))}</div>
       <div class="meta"><span class="chip ${esc(st)}">${esc(STATUS[st])}</span><span>${esc(dayLabel(v.date))}${v.time ? " · " + esc(v.time) : ""}</span>${(v.techNames || []).length > 1 ? `<span>with ${esc(v.techNames.filter(n => n !== MY_NAME).map(first).join(", "))}</span>` : ""}</div></div>
     <div class="statusbar">${st === "scheduled" ? `<button class="big" data-st="in_progress">Start visit</button>` : st === "in_progress" ? `<button class="big done" data-st="complete">Complete visit</button>` : `<button class="big ghost" data-st="in_progress">Reopen visit</button>`}</div>
     <div class="saved" id="st-saved" style="margin:-.8rem 0 .8rem"></div>
@@ -318,6 +357,8 @@ function openNewVisit() {
   const sh = $("sheet");
   $("sheet-in").innerHTML = `<h3 id="sheet-h">New visit</h3>
     <div class="two"><label class="field"><span>Date</span><input class="inp" type="date" id="n-date" value="${TODAY}"></label><label class="field"><span>Time</span><input class="inp" id="n-time" placeholder="8:00 AM"></label></div>
+    <div class="two"><label class="field"><span>Visit type</span><select class="inp" id="n-type"><option>Service call</option><option>Maintenance</option><option>Install</option><option>Quote / estimate</option><option>NonBillable</option><option>On-Call</option></select></label><label class="field"><span>Expected hours</span><input class="inp" id="n-dur" inputmode="decimal" placeholder="2"></label></div>
+    <label class="field"><span>Title</span><input class="inp" id="n-title" placeholder="e.g. RTU-2 not cooling"></label>
     <label class="field"><span>Customer</span><input class="inp" id="n-cust"></label>
     <div class="two"><label class="field"><span>Site</span><input class="inp" id="n-site" placeholder="Building or unit"></label><label class="field"><span>Job #</span><input class="inp" id="n-job"></label></div>
     <label class="field"><span>Address</span><input class="inp" id="n-addr"></label>
@@ -330,20 +371,37 @@ function openNewVisit() {
   $("n-cancel").onclick = () => sh.classList.remove("on");
   $("n-save").onclick = async () => {
     const picked = [...sh.querySelectorAll(".checks input:checked")];
-    const rec = { date: $("n-date").value, time: $("n-time").value.trim(), customer: $("n-cust").value.trim(), site: $("n-site").value.trim(), jobNo: $("n-job").value.trim(), address: $("n-addr").value.trim(), contactName: $("n-cname").value.trim(), contactPhone: $("n-cphone").value.trim(), scope: $("n-scope").value.trim(), equipmentNotes: $("n-eq").value.trim(), equipment: [], techEmails: picked.map(i => i.value), techNames: picked.map(i => i.dataset.name), status: "scheduled" };
+    const rec = { date: $("n-date").value, time: $("n-time").value.trim(), visitType: $("n-type").value, title: $("n-title").value.trim(), durationHrs: parseFloat($("n-dur").value) || null, customer: $("n-cust").value.trim(), site: $("n-site").value.trim(), jobNo: $("n-job").value.trim(), address: $("n-addr").value.trim(), contactName: $("n-cname").value.trim(), contactPhone: $("n-cphone").value.trim(), scope: $("n-scope").value.trim(), equipmentNotes: $("n-eq").value.trim(), equipment: [], techEmails: picked.map(i => i.value), techNames: picked.map(i => i.dataset.name), status: "scheduled" };
     if (!rec.customer || !rec.date || !rec.techEmails.length) { toast("Add a customer, a date and at least one tech.", true); return; }
     if (await save(() => store.addVisit(rec), $("n-saved"), "Visit saved")) { sh.classList.remove("on"); toast("Visit saved and sent to " + rec.techNames.map(first).join(", ")); }
   };
 }
 
-// ── Menu ──
-$("menu-btn").onclick = e => { e.stopPropagation(); $("menu").classList.toggle("on"); };
-document.addEventListener("click", () => $("menu").classList.remove("on"));
+// ── Drawer menu (same items as the BuildOps app where we have them) ──
+const drawer = $("drawer"), scrim = $("scrim");
+function openDrawer() { drawer.classList.add("on"); scrim.classList.add("on"); $("menu-btn").setAttribute("aria-expanded", "true"); }
+function closeDrawer() { drawer.classList.remove("on"); scrim.classList.remove("on"); $("menu-btn").setAttribute("aria-expanded", "false"); }
+$("menu-btn").onclick = openDrawer; scrim.onclick = closeDrawer;
+$("d-av").textContent = MY_NAME.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+$("d-name").textContent = MY_NAME; $("d-email").textContent = ME;
+if (OFFICE && !DEMO) document.body.classList.add("office");
+document.querySelectorAll("[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); location.hash = a.dataset.go; closeDrawer(); render(); });
+$("search-btn").onclick = () => { if (location.hash) location.hash = ""; setTimeout(() => { const q = $("q"); if (q) { q.focus(); q.scrollIntoView({ block: "center" }); } }, 50); };
 $("m-out").onclick = () => { if (PENDING && !confirm("Some saves haven't uploaded yet. Sign out anyway?")) return; if (typeof apLogout === "function") apLogout(); };
-$("m-help").onclick = () => alert(/iPhone|iPad/.test(navigator.userAgent)
-  ? "In Safari, tap the Share button (square with an arrow), then 'Add to Home Screen'. Alpine opens like an app from then on."
-  : "In Chrome, open the ⋮ menu and choose 'Add to Home screen' or 'Install app'.");
-if (DEMO) $("m-portal").style.display = "none";
+$("m-pass").onclick = async () => {
+  if (!confirm("Send a password reset link to " + ME + "?")) return;
+  closeDrawer();
+  try { await store.resetPassword(); toast("Check your email for a link to set a new password."); } catch (e) { toast("Couldn't send the email. Try again with a signal.", true); }
+};
+$("m-help").onclick = () => alert("Add Alpine to your home screen so it opens like an app:\n\n"
+  + (/iPhone|iPad/.test(navigator.userAgent) ? "In Safari, tap Share (the square with an arrow), then 'Add to Home Screen'." : "In Chrome, open the ⋮ menu and choose 'Add to Home screen' or 'Install app'.")
+  + "\n\nNo signal? Keep working. Saves wait on your phone and upload when you're back in coverage.\n\nSomething wrong? Call the office.");
+$("m-clear").onclick = async () => {
+  if (PENDING || !navigator.onLine) { alert("Wait until you have a signal and the top bar says Saved, so nothing waiting to upload is lost."); return; }
+  if (!confirm("Reload the app with fresh files? Your visits, hours and photos are already saved in the cloud.")) return;
+  try { const regs = await navigator.serviceWorker?.getRegistrations?.() || []; await Promise.all(regs.map(r => r.unregister())); const ks = await caches.keys(); await Promise.all(ks.filter(k => k.startsWith("alpine-tech-")).map(k => caches.delete(k))); } catch (e) {}
+  location.reload();
+};
 
 // ── Start ──
 // A visit's hours, summary or photos failed to load: say so without redrawing the page (no loops).
