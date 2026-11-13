@@ -135,11 +135,17 @@ service cloud.firestore {
       allow create: if isFieldOps() || (isOps() && request.resource.data.tech == email());
       allow update, delete: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
     }
-    match /fs_reports/{id} {
-      // resource == null: a tech opening a visit before writing a summary (the doc doesn't exist yet)
-      allow read: if isFieldOps() || (isOps() && (resource == null || resource.data.tech == email()));
-      allow create: if isFieldOps() || (isOps() && request.resource.data.tech == email());
-      allow update: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
+    // Visit summaries: a dated log, one entry per save. Everyone on the tools reads them (techs see the
+    // whole visit's story, the office sees all). Techs add entries signed as themselves and can fix their
+    // own until the visit is complete; the office can fix any. Entries are never deleted from the phone.
+    match /fs_summaries/{id} {
+      allow read: if isOps() || isFieldOps();
+      allow create: if (isOps() || isFieldOps()) && request.resource.data.tech == email()
+                    && request.resource.data.text is string && request.resource.data.text.size() < 20000;
+      allow update: if isFieldOps()
+                    || (isOps() && resource.data.tech == email()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "editedAt", "editedBy", "updatedAt"])
+                        && get(/databases/$(database)/documents/fs_visits/$(resource.data.visitId)).data.status != "complete");
       allow delete: if isFieldOps();
     }
     // Equipment at each site: everyone on the tools reads it; the office adds and edits units.

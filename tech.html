@@ -22,7 +22,7 @@
        fs_visits/{id}    one visit: customer, site, address, site contact, scope, equipment notes, date/time,
                          techEmails[] (who is assigned), status (scheduled / in_progress / complete). Office creates.
        fs_time/{id}      hours a tech logged against a visit (tech = their email)
-       fs_reports/{visitId}__{tech}   the tech's visit summary
+       fs_summaries/{id}              dated entries in a visit summary
        fs_photos/{id}    one compressed photo per doc (until Firebase Storage is on)
      Techs see and write only their own work (firestore.rules). Owners + field_ops see everything and add visits.
      Works with no signal: saves wait on the phone and upload when back in coverage; the screen says which.
@@ -127,6 +127,10 @@ textarea.inp{min-height:140px;resize:vertical}
 .ph img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;background:rgba(16,68,78,.08)}
 .ph figcaption{font-size:.7rem;color:var(--muted);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stamp{font-size:.78rem;color:var(--muted);margin-top:.3rem}
+.sumlog{margin-bottom:.6rem}
+.sument{border-left:3px solid var(--border);padding:.35rem 0 .35rem .65rem;margin:.4rem 0}
+.sument.mine{border-left-color:var(--teal-light)}
+.n-del[data-fix-sum]{color:var(--teal);font-weight:600;font-size:.8rem}
 .ph .badge{position:absolute;left:5px;top:5px;font-size:.66rem;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;padding:1px 6px}
 .ph .badge.bad{background:var(--red)}
 .ph .x{position:absolute;right:4px;top:4px;width:28px;height:28px;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:.9rem;cursor:pointer}

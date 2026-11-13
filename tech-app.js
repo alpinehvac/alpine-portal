@@ -4,7 +4,8 @@
 // Data (Firestore, see firestore.rules):
 //   fs_visits/{id}                visit; techEmails[] decides who sees it
 //   fs_time/{id}                  { visitId, jobNo, tech, techName, date, hours, type, note }
-//   fs_reports/{visitId}__{tech}  { visitId, jobNo, tech, techName, summary, savedAt }
+//   fs_summaries/{id}             one dated entry in a visit's summary log: { visitId, jobNo, customer, tech, techName, text, at,
+//                                 editedAt? }. Every save adds an entry; the writer can fix it until the visit is complete.
 //   fs_photos/{id}                { visitId, jobNo, tech, techName, caption, data (base64 JPEG, date stamped), w, h, takenAt, addedAt }
 //   fs_equipment/{id}             one unit at a site: { siteKey, customer, site, name, type, location, make, model, serial,
 //                                 installYear, refrigerant, charge, filters, belts, voltage, notes }. Office edits; techs read.
@@ -95,11 +96,12 @@ async function firestoreStore() {
     myTime: (cb, onErr) => live(query(C("fs_time"), where("tech", "==", ME)), cb, onErr),
     resetPassword: async () => { const m = await import("./ap-firebase.js"); return m.sendPasswordResetEmail(m.auth, ME); },
     photos: (visitId, cb, onErr) => live(mine("fs_photos", [where("visitId", "==", visitId)]), cb, onErr),
-    report: (visitId, cb, onErr) => onSnapshot(doc(db, "fs_reports", visitId + "__" + safeKey(ME)), s => cb(s.exists() ? s.data() : null), onErr),
+    summaries: (visitId, cb, onErr) => live(query(C("fs_summaries"), where("visitId", "==", visitId)), cb, onErr),
     setStatus: (v, status) => updateDoc(doc(db, "fs_visits", v.id), { status, statusAt: new Date().toISOString(), statusBy: ME, updatedAt: serverTimestamp() }),
     addTime: rec => addDoc(C("fs_time"), { ...rec, createdAt: serverTimestamp() }),
     delTime: id => deleteDoc(doc(db, "fs_time", id)),
-    saveReport: (v, summary) => setDoc(doc(db, "fs_reports", v.id + "__" + safeKey(ME)), { visitId: v.id, jobNo: v.jobNo || "", tech: ME, techName: MY_NAME, summary, savedAt: new Date().toISOString(), updatedAt: serverTimestamp() }, { merge: true }),
+    addSummary: (v, text) => addDoc(C("fs_summaries"), { visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", tech: ME, techName: MY_NAME, text, at: new Date().toISOString(), createdAt: serverTimestamp() }),
+    editSummary: (id, text) => updateDoc(doc(db, "fs_summaries", id), { text, editedAt: new Date().toISOString(), editedBy: ME, updatedAt: serverTimestamp() }),
     addPhoto: rec => addDoc(C("fs_photos"), { ...rec, createdAt: serverTimestamp() }),
     delPhoto: id => deleteDoc(doc(db, "fs_photos", id)),
     addVisit: rec => addDoc(C("fs_visits"), { ...rec, createdAt: serverTimestamp(), createdBy: ME, updatedAt: serverTimestamp() }),
@@ -120,7 +122,7 @@ async function firestoreStore() {
 
 function demoStore() {
   const subs = new Set(), wait = () => new Promise(r => setTimeout(r, 350));
-  const D = { visits: [], time: [], photos: [], reports: {}, clock: null, settings: null, equipment: [], notes: [] };
+  const D = { visits: [], time: [], photos: [], summaries: [], clock: null, settings: null, equipment: [], notes: [] };
   const emit = () => subs.forEach(f => f());
   const sub = f => { subs.add(f); f(); return () => subs.delete(f); };
   let n = 1; const id = () => "demo" + (n++);
@@ -149,18 +151,21 @@ function demoStore() {
   note(D.visits[0], "MAU-1", 41, "Steve Clarke", "Belts badly worn and glazed. Recommended replacement to Paula. Quote to follow.", true);
   note(D.visits[1], "Boiler 2", 95, "Steve Clarke", "Low-water alarm tripped twice. Cleaned the probe. Watch it next visit.");
   D.time.push({ id: id(), visitId: D.visits[3].id, tech: ME, techName: MY_NAME, date: addDays(TODAY, -1), hours: 1.5, type: "Regular", note: "" });
-  D.reports[D.visits[3].id] = { summary: "Replaced the batteries in the room 214 thermostat and recalibrated. Room holding 22°C.", techName: MY_NAME, savedAt: (() => { const d = new Date(); d.setDate(d.getDate() - 1); d.setHours(11, 42, 0, 0); return d.toISOString(); })() };
+  const at = (daysAgo, h, m) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(h, m, 0, 0); return d.toISOString(); };
+  D.summaries.push({ id: id(), visitId: D.visits[3].id, tech: ME, techName: MY_NAME, text: "Replaced the batteries in the room 214 thermostat and recalibrated. Room holding 22°C.", at: at(1, 11, 42) });
+  D.summaries.push({ id: id(), visitId: D.visits[1].id, tech: "steve.clarke@alpinehvac.ca", techName: "Steve Clarke", text: "Boiler 1 done: cleaned burner, checked combustion (CO2 9.1%). Starting on boiler 2 after lunch.", at: at(0, 12, 5) });
   return {
     visits: cb => sub(() => cb(D.visits.slice())),
     time: (vid, cb) => sub(() => cb(D.time.filter(t => t.visitId === vid))),
     myTime: cb => sub(() => cb(D.time.filter(t => t.tech === ME))),
     resetPassword: async () => { await wait(); },
     photos: (vid, cb) => sub(() => cb(D.photos.filter(p => p.visitId === vid))),
-    report: (vid, cb) => sub(() => cb(D.reports[vid] || null)),
+    summaries: (vid, cb) => sub(() => cb(D.summaries.filter(x => x.visitId === vid))),
     setStatus: async (v, status) => { await wait(); Object.assign(D.visits.find(x => x.id === v.id), { status }); emit(); },
     addTime: async rec => { await wait(); D.time.push({ id: id(), ...rec }); emit(); },
     delTime: async tid => { await wait(); D.time = D.time.filter(t => t.id !== tid); emit(); },
-    saveReport: async (v, summary) => { await wait(); D.reports[v.id] = { summary, techName: MY_NAME, savedAt: new Date().toISOString() }; emit(); },
+    addSummary: async (v, text) => { await wait(); D.summaries.push({ id: id(), visitId: v.id, tech: ME, techName: MY_NAME, text, at: new Date().toISOString() }); emit(); },
+    editSummary: async (sid, text) => { await wait(); Object.assign(D.summaries.find(x => x.id === sid), { text, editedAt: new Date().toISOString() }); emit(); },
     addPhoto: async rec => { await wait(); D.photos.push({ id: id(), ...rec }); emit(); },
     delPhoto: async pid => { await wait(); D.photos = D.photos.filter(p => p.id !== pid); emit(); },
     addVisit: async rec => { await wait(); D.visits.push({ id: id(), ...rec }); emit(); },
@@ -434,7 +439,8 @@ function reviewHours(v, complete) {
   $("r-save").onclick = async () => {
     const wH = Math.max(0, parseFloat($("r-work").value) || 0), tH = Math.max(0, parseFloat($("r-trav").value) || 0);
     if (wH > 24 || tH > 24) { toast("That's more than 24 hours. Check the numbers.", true); return; }
-    if (complete && !SUMMARY_SAVED && !confirm("You haven't saved a visit summary yet. Complete the visit anyway?")) return;
+    if (complete && SUMMARY_FLUSH && !(await SUMMARY_FLUSH())) return; // add what's typed in the summary box first
+    if (complete && !SUMMARY_SAVED && !confirm("You haven't added a visit summary yet. Complete the visit anyway?")) return;
     const note = $("r-note").value.trim(), detail = `Clock: ${totLine(t)}`;
     const common = { visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", tech: ME, techName: MY_NAME, date: CLOCK.date || TODAY, source: "clock", clockStart: CLOCK.startedAt, clockEnd: new Date(endAt).toISOString() };
     const ok = await save(async () => {
@@ -573,8 +579,24 @@ function unitSheet(v, u) {
   if ($("u-del")) $("u-del").onclick = async () => { if (confirm(`Delete ${u.name || "this unit"}? Its details will be gone from every visit to this site.`) && await save(() => store.delUnit(u.id), $("u-saved"), "Unit deleted")) sh.classList.remove("on"); };
 }
 
+// Fix a summary entry (the writer before the visit is complete, or the office any time). The edit is marked.
+function fixSummary(x) {
+  const sh = $("sheet");
+  $("sheet-in").innerHTML = `<h3 id="sheet-h">Edit summary entry</h3><p class="cl-sub" style="margin:-.5rem 0 .8rem">${esc(stampTxt(x.at))} · ${esc(shortName(x.techName || x.tech))}. It will show as edited.</p>
+    <textarea class="inp" id="fx-text" style="min-height:140px">${esc(x.text)}</textarea>
+    <div class="btnrow" style="margin-top:.7rem"><button class="big ghost" id="fx-cancel">Cancel</button><button class="big" id="fx-save">Save</button></div><div class="saved" id="fx-saved"></div>`;
+  sh.classList.add("on");
+  $("fx-cancel").onclick = () => sh.classList.remove("on");
+  $("fx-save").onclick = async () => {
+    const text = $("fx-text").value.trim();
+    if (!text) { toast("An entry can't be empty.", true); return; }
+    if (text === x.text) { sh.classList.remove("on"); return; }
+    if (await save(() => store.editSummary(x.id, text), $("fx-saved"), "Entry updated")) sh.classList.remove("on");
+  };
+}
+
 // ── Visit ──
-let SUMMARY_SAVED = false;
+let SUMMARY_SAVED = false, SUMMARY_FLUSH = null;
 function renderVisit(id) {
   const v = VISITS.find(x => x.id === id);
   if (!v) { $("app").innerHTML = banner() + `<button class="back" onclick="location.hash='${FROM}'">‹ ${FROM ? "Schedule" : "My visits"}</button><div class="empty">${LOADED ? "This visit isn't assigned to you, or it was removed." : "Loading…"}</div>`; return; }
@@ -614,11 +636,14 @@ function renderVisit(id) {
       <div class="saved" id="h-saved"></div>
     </div>
 
-    <div class="sec"><h3>Visit summary</h3>
-      <textarea class="inp" id="sum" placeholder="What you found, what you did, and anything the office or customer should know."></textarea>
-      <div class="btnrow" style="margin-top:.6rem"><button class="big" id="sum-save">Save summary</button></div>
+    <div class="sec"><h3>Visit summary <span class="st" id="sum-n"></span></h3>
+      <div id="sum-log" class="sumlog"></div>
+      <div id="sum-new">
+        <textarea class="inp" id="sum" placeholder="What you found, what you did, and anything the office or customer should know."></textarea>
+        <div class="btnrow" style="margin-top:.6rem"><button class="big" id="sum-save">Add to summary</button></div>
+        <div class="stamp">Each entry is dated and signed automatically. You can fix your own until the visit is complete.</div>
+      </div>
       <div class="saved" id="sum-saved"></div>
-      <div class="stamp" id="sum-stamp"></div>
     </div>
 
     <div class="sec"><h3>Photos <span class="st" id="ph-n"></span></h3>
@@ -680,16 +705,28 @@ function renderVisit(id) {
   unsub.push(store.equipment(siteKeyOf(v), units => { UNITS = units; drawEq(); }, subErr));
   unsub.push(store.notes(siteKeyOf(v), notes => { NOTES = notes; drawEq(); }, subErr));
 
-  // Summary
-  let typed = false; SUMMARY_SAVED = false;
-  const sum = $("sum");
-  sum.addEventListener("input", () => { typed = true; $("sum-saved").className = "saved"; $("sum-saved").textContent = "Not saved yet"; });
-  const saveSum = async () => { const text = sum.value.trim(); if (await save(() => store.saveReport(v, text), $("sum-saved"), "Summary saved")) { typed = false; SUMMARY_SAVED = !!text; } };
-  $("sum-save").onclick = saveSum;
-  sum.addEventListener("blur", () => { if (typed) saveSum(); });
-  unsub.push(store.report(v.id, r => {
-    if (!typed) { sum.value = (r && r.summary) || ""; SUMMARY_SAVED = !!(r && r.summary); }
-    $("sum-stamp").textContent = r && r.savedAt ? "Last saved " + stampTxt(r.savedAt) + (r.techName ? " by " + shortName(r.techName) : "") : "";
+  // Summary: a dated log. Each save adds an entry (date, time, who); nothing is overwritten.
+  const done = (v.status || "scheduled") === "complete", canFix = x => x.tech === ME && (!done || OFFICE) || OFFICE;
+  const sum = $("sum"), draftKey = "ap-sum-draft-" + v.id;
+  try { sum.value = localStorage.getItem(draftKey) || ""; } catch (e) {}
+  sum.addEventListener("input", () => { try { localStorage.setItem(draftKey, sum.value); } catch (e) {} $("sum-saved").className = "saved"; $("sum-saved").textContent = sum.value.trim() ? "Not added yet" : ""; });
+  const addSum = async () => {
+    if (!sum.isConnected) return true;
+    const text = sum.value.trim(); if (!text) return true;
+    const ok = await save(() => store.addSummary(v, text), $("sum-saved"), "Added to summary");
+    if (ok) { sum.value = ""; try { localStorage.removeItem(draftKey); } catch (e) {} SUMMARY_SAVED = true; }
+    return ok;
+  };
+  SUMMARY_FLUSH = addSum;
+  $("sum-save").onclick = addSum;
+  if (done && !OFFICE) $("sum-new").innerHTML = '<div class="stamp">The summary locked when this visit was completed. Ask the office if something needs to change.</div>';
+  SUMMARY_SAVED = false;
+  unsub.push(store.summaries(v.id, rows => {
+    rows.sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+    SUMMARY_SAVED = rows.some(x => x.tech === ME);
+    $("sum-n").textContent = rows.length ? rows.length + " entr" + (rows.length > 1 ? "ies" : "y") : "";
+    $("sum-log").innerHTML = rows.map(x => `<div class="sument${x.tech === ME ? " mine" : ""}"><div class="n-head"><b>${esc(stampTxt(x.at))}</b> · ${esc(shortName(x.techName || x.tech))}${x.editedAt ? `<span class="n-ago">edited ${esc(stampTxt(x.editedAt, true))}</span>` : ""}${x._pending ? '<span class="n-ago">waiting to upload</span>' : ""}${canFix(x) ? `<button class="n-del" data-fix-sum="${esc(x.id)}">Edit</button>` : ""}</div><div class="n-text">${esc(x.text)}</div></div>`).join("");
+    document.querySelectorAll("[data-fix-sum]").forEach(b => b.onclick = () => { const x = rows.find(r => r.id === b.dataset.fixSum); if (x) fixSummary(x); });
   }, subErr));
 
   // Photos
