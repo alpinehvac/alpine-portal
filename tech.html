@@ -154,6 +154,20 @@ textarea.inp{min-height:140px;resize:vertical}
 .drawer .dl a.on{background:rgba(39,99,108,.14);color:var(--teal-dark);font-weight:600}
 .drawer .out{margin-top:1.2rem;border:1px solid rgba(16,68,78,.3);background:#fff;border-radius:24px;padding:.8rem;font-weight:600;font-size:1rem;cursor:pointer}
 .drawer .ver{margin-top:auto;padding-top:1rem;text-align:right;color:var(--muted);font-size:.78rem}
+/* Equipment */
+.unit{border-top:1px solid var(--border);padding:.15rem 0}
+.unit:first-child{border-top:none}
+.unit summary{list-style:none;display:flex;gap:.7rem;align-items:flex-start;padding:.6rem 0;cursor:pointer}
+.unit summary::-webkit-details-marker{display:none}
+.unit summary::after{content:"›";margin-left:auto;color:var(--muted);font-size:1.3rem;line-height:1;transition:transform .15s}
+.unit[open] summary::after{transform:rotate(90deg)}
+.u-name{font-family:'Oswald',sans-serif;font-weight:600;font-size:1.05rem;min-width:4.2rem}
+.u-sum{font-size:.86rem;color:var(--muted);flex:1;min-width:0}
+.u-old{background:rgba(217,164,54,.2);color:#7A5C0E;border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:600;white-space:nowrap;align-self:center}
+.u-grid{display:grid;grid-template-columns:1fr 1fr;gap:.45rem .9rem;padding:0 0 .4rem}
+.u-grid div{display:flex;flex-direction:column;font-size:.9rem}
+.u-grid span{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.u-notes{background:rgba(217,164,54,.12);border-left:3px solid #D9A436;border-radius:6px;padding:.5rem .7rem;font-size:.88rem;white-space:pre-line;margin-top:.3rem}
 .owner-only{display:none!important}
 body.owner .owner-only{display:block!important}
 /* Time clock */

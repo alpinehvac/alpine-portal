@@ -6,6 +6,8 @@
 //   fs_time/{id}                  { visitId, jobNo, tech, techName, date, hours, type, note }
 //   fs_reports/{visitId}__{tech}  { visitId, jobNo, tech, techName, summary }
 //   fs_photos/{id}                { visitId, jobNo, tech, techName, caption, data (base64 JPEG), w, h }
+//   fs_equipment/{id}             one unit at a site: { siteKey, customer, site, name, type, location, make, model, serial,
+//                                 installYear, refrigerant, charge, filters, belts, voltage, notes }. Office edits; techs read.
 // Every save shows its state on screen: "Saved", "Waiting to upload" (no signal: Firestore keeps it on
 // the phone and uploads it when coverage returns) or a red error. Nothing lives only in the browser.
 // DEMO: tech.html?demo=1 runs on sample visits held in memory (nothing saved), for trying it out.
@@ -100,6 +102,9 @@ async function firestoreStore() {
     delPhoto: id => deleteDoc(doc(db, "fs_photos", id)),
     addVisit: rec => addDoc(C("fs_visits"), { ...rec, createdAt: serverTimestamp(), createdBy: ME, updatedAt: serverTimestamp() }),
     // Time clock: one running clock per tech (fs_clock/{tech}); company time rules in fs_settings/time
+    equipment: (siteKey, cb, onErr) => live(query(C("fs_equipment"), where("siteKey", "==", siteKey)), cb, onErr),
+    saveUnit: (id, rec) => id ? setDoc(doc(db, "fs_equipment", id), { ...rec, updatedBy: ME, updatedAt: serverTimestamp() }, { merge: true }) : addDoc(C("fs_equipment"), { ...rec, createdBy: ME, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }),
+    delUnit: id => deleteDoc(doc(db, "fs_equipment", id)),
     clock: (cb, onErr) => onSnapshot(doc(db, "fs_clock", safeKey(ME)), s => cb(s.exists() ? s.data() : null), onErr),
     setClock: c => setDoc(doc(db, "fs_clock", safeKey(ME)), { ...c, tech: ME, techName: MY_NAME, updatedAt: serverTimestamp() }),
     clearClock: () => deleteDoc(doc(db, "fs_clock", safeKey(ME))),
@@ -110,7 +115,7 @@ async function firestoreStore() {
 
 function demoStore() {
   const subs = new Set(), wait = () => new Promise(r => setTimeout(r, 350));
-  const D = { visits: [], time: [], photos: [], reports: {}, clock: null, settings: null };
+  const D = { visits: [], time: [], photos: [], reports: {}, clock: null, settings: null, equipment: [] };
   const emit = () => subs.forEach(f => f());
   const sub = f => { subs.add(f); f(); return () => subs.delete(f); };
   let n = 1; const id = () => "demo" + (n++);
@@ -122,6 +127,12 @@ function demoStore() {
     v({ date: addDays(TODAY, -1), time: "10:00 AM", durationHrs: 1, visitType: "Service call", title: "Room 214 too warm", jobNo: "JO-DEMO-099", customer: "Lakeview Medical Centre", site: "Main building", address: "120 Lakeshore Rd, St. Catharines, ON", contactName: "Paula Reyes", contactPhone: "905-555-0142", scope: "Thermostat call, room 214.", status: "complete" }),
   );
   D.visits.push(v({ date: addDays(TODAY, -3), time: "12:00 AM", durationHrs: 24, visitType: "NonBillable", title: "On-Call (Escalation)", customer: "Alpine HVAC", site: "On-call rotation", scope: "Weekend on-call. Log any calls you take." }));
+  const eq = (v, o) => D.equipment.push({ id: id(), siteKey: siteKeyOf(v), customer: v.customer, site: v.site, ...o });
+  eq(D.visits[0], { name: "RTU-1", type: "Rooftop unit", location: "Roof, west end", make: "Carrier", model: "48TC 6 ton", serial: "4417G10392", installYear: 2017, refrigerant: "R-410A", charge: "9.5 lb", filters: "4 × 20x25x2 MERV 8", belts: "A38", voltage: "575/3/60", notes: "" });
+  eq(D.visits[0], { name: "RTU-2", type: "Rooftop unit", location: "Roof, east end over 2nd floor", make: "Carrier", model: "48TC 7.5 ton", serial: "4519G20871", installYear: 2019, refrigerant: "R-410A", charge: "11.2 lb", filters: "4 × 16x25x2 MERV 8", belts: "A42", voltage: "575/3/60", notes: "Condenser fan motor replaced 2024. Economizer actuator sticks in cold weather." });
+  eq(D.visits[0], { name: "MAU-1", type: "Make-up air unit", location: "Roof, above main entrance", make: "Engineered Air", model: "DJ-30", serial: "EA-88213", installYear: 2009, refrigerant: "", charge: "", filters: "6 × 24x24x2", belts: "B54 (2)", voltage: "575/3/60", notes: "Unit is 17 years old. Belts worn at last PM." });
+  eq(D.visits[1], { name: "Boiler 1", type: "Boiler", location: "Mechanical room B1, left", make: "Viessmann", model: "Vitocrossal 300", serial: "7514388", installYear: 2014, refrigerant: "", charge: "", filters: "", belts: "", voltage: "120/1/60", notes: "" });
+  eq(D.visits[1], { name: "Boiler 2", type: "Boiler", location: "Mechanical room B1, right", make: "Viessmann", model: "Vitocrossal 300", serial: "7514391", installYear: 2014, refrigerant: "", charge: "", filters: "", belts: "", voltage: "120/1/60", notes: "Low-water alarm last quarter. Check the probe." });
   D.time.push({ id: id(), visitId: D.visits[3].id, tech: ME, techName: MY_NAME, date: addDays(TODAY, -1), hours: 1.5, type: "Regular", note: "" });
   D.reports[D.visits[3].id] = { summary: "Replaced the batteries in the room 214 thermostat and recalibrated. Room holding 22°C." };
   return {
@@ -138,6 +149,9 @@ function demoStore() {
     addPhoto: async rec => { await wait(); D.photos.push({ id: id(), ...rec }); emit(); },
     delPhoto: async pid => { await wait(); D.photos = D.photos.filter(p => p.id !== pid); emit(); },
     addVisit: async rec => { await wait(); D.visits.push({ id: id(), ...rec }); emit(); },
+    equipment: (k, cb) => sub(() => cb(D.equipment.filter(e => e.siteKey === k))),
+    saveUnit: async (uid, rec) => { await wait(); if (uid) Object.assign(D.equipment.find(e => e.id === uid), rec); else D.equipment.push({ id: id(), ...rec }); emit(); },
+    delUnit: async uid => { await wait(); D.equipment = D.equipment.filter(e => e.id !== uid); emit(); },
     clock: cb => sub(() => cb(D.clock)),
     setClock: async c => { await wait(); D.clock = { ...c, tech: ME }; emit(); },
     clearClock: async () => { await wait(); D.clock = null; emit(); },
@@ -464,6 +478,48 @@ function renderSettings() {
   };
 }
 
+// ── Equipment at the site (fs_equipment) ──
+// Units belong to a site, not a visit, so every visit to that site shows the same list.
+// Until site records come over from BuildOps, a site is known by its customer + site name.
+const siteKeyOf = v => v.siteId || (safeKey(v.customer) + "__" + safeKey(v.site || v.address || "main"));
+const CAN_EDIT_EQ = OFFICE || DEMO; // office keeps the equipment list (demo lets anyone try it)
+const UNIT_TYPES = ["Rooftop unit", "Furnace", "Boiler", "Make-up air unit", "Split system / condenser", "Heat pump", "Air handler", "Chiller", "Exhaust fan", "Unit heater", "Water heater", "Controls", "Other"];
+const UNIT_FIELDS = [["location", "Location"], ["make", "Make"], ["model", "Model"], ["serial", "Serial"], ["installYear", "Installed"], ["refrigerant", "Refrigerant"], ["charge", "Charge"], ["filters", "Filters"], ["belts", "Belts"], ["voltage", "Voltage"]];
+const ageOf = u => { const y = parseInt(u.installYear, 10); return y > 1950 && y <= new Date().getFullYear() ? new Date().getFullYear() - y : null; };
+function unitCard(u) {
+  const age = ageOf(u);
+  const rows = UNIT_FIELDS.filter(([k]) => u[k]).map(([k, l]) => `<div><span>${l}</span><b>${esc(k === "installYear" ? u[k] + (age !== null ? ` (${age} yr${age === 1 ? "" : "s"})` : "") : u[k])}</b></div>`).join("");
+  return `<details class="unit"><summary><span class="u-name">${esc(u.name || "Unit")}</span><span class="u-sum">${esc([u.type, [u.make, u.model].filter(Boolean).join(" ")].filter(Boolean).join(" · "))}${u.location ? `<br>${esc(u.location)}` : ""}</span>${age !== null && age >= 15 ? `<span class="u-old">${age} yrs</span>` : ""}</summary>
+    <div class="u-grid">${rows || '<div><span>Details</span><b>None recorded yet</b></div>'}</div>
+    ${u.notes ? `<div class="u-notes">${esc(u.notes)}</div>` : ""}
+    ${CAN_EDIT_EQ ? `<button class="act" data-edit-u="${esc(u.id)}" style="margin-top:.6rem">Edit unit</button>` : ""}</details>`;
+}
+function unitSheet(v, u) {
+  u = u || {};
+  const sh = $("sheet"), f = (k, l, ph) => `<label class="field"><span>${l}</span><input class="inp" id="u-${k}" value="${esc(u[k] ?? "")}" placeholder="${esc(ph || "")}"></label>`;
+  $("sheet-in").innerHTML = `<h3 id="sheet-h">${u.id ? "Edit unit" : "Add a unit"}</h3><p class="cl-sub" style="margin:-.5rem 0 .8rem">${esc([v.customer, v.site].filter(Boolean).join(" · "))}</p>
+    <div class="two">${f("name", "Name or tag", "e.g. RTU-2")}<label class="field"><span>Type</span><select class="inp" id="u-type">${UNIT_TYPES.map(t => `<option ${u.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
+    ${f("location", "Where it is", "e.g. Roof, east end")}
+    <div class="two">${f("make", "Make")}${f("model", "Model")}</div>
+    <div class="two">${f("serial", "Serial")}${f("installYear", "Year installed", "e.g. 2017")}</div>
+    <div class="two">${f("refrigerant", "Refrigerant", "e.g. R-410A")}${f("charge", "Charge", "e.g. 11.2 lb")}</div>
+    <div class="two">${f("filters", "Filters", "e.g. 4 × 16x25x2")}${f("belts", "Belts", "e.g. A42")}</div>
+    ${f("voltage", "Voltage", "e.g. 575/3/60")}
+    <label class="field"><span>Notes for the next tech</span><textarea class="inp" id="u-notes" style="min-height:80px">${esc(u.notes || "")}</textarea></label>
+    <div class="btnrow">${u.id ? `<button class="big ghost" id="u-del" style="flex:0 0 auto;padding:0 1rem;color:var(--red)">Delete</button>` : ""}<button class="big ghost" id="u-cancel">Cancel</button><button class="big" id="u-save">Save unit</button></div><div class="saved" id="u-saved"></div>`;
+  sh.classList.add("on");
+  $("u-cancel").onclick = () => sh.classList.remove("on");
+  $("u-save").onclick = async () => {
+    const rec = { siteKey: siteKeyOf(v), customer: v.customer || "", site: v.site || "", type: $("u-type").value, notes: $("u-notes").value.trim() };
+    ["name", ...UNIT_FIELDS.map(([k]) => k)].forEach(k => rec[k] = $("u-" + k).value.trim());
+    if (!rec.name) { toast("Give the unit a name or tag, like RTU-2.", true); return; }
+    if (rec.installYear && !ageOf(rec)) { toast("Year installed should be a year, like 2017.", true); return; }
+    if (rec.installYear) rec.installYear = parseInt(rec.installYear, 10);
+    if (await save(() => store.saveUnit(u.id || null, rec), $("u-saved"), "Unit saved")) sh.classList.remove("on");
+  };
+  if ($("u-del")) $("u-del").onclick = async () => { if (confirm(`Delete ${u.name || "this unit"}? Its details will be gone from every visit to this site.`) && await save(() => store.delUnit(u.id), $("u-saved"), "Unit deleted")) sh.classList.remove("on"); };
+}
+
 // ── Visit ──
 let SUMMARY_SAVED = false;
 function renderVisit(id) {
@@ -485,7 +541,11 @@ function renderVisit(id) {
       ${v.contactName || tel ? `<div class="row"><div class="grow">${esc(v.contactName || "Site contact")}<small>${esc(v.contactPhone || "")}${v.contactEmail ? " · " + esc(v.contactEmail) : ""}</small></div>${tel ? `<a class="act" href="tel:${esc(tel)}">Call</a>` : ""}</div>` : ""}
     </div>
     ${v.scope ? `<div class="sec"><h3>What to do</h3><div class="pre">${esc(v.scope)}</div></div>` : ""}
-    ${v.equipmentNotes || (v.equipment || []).length ? `<div class="sec"><h3>Equipment</h3>${v.equipmentNotes ? `<div class="pre" style="margin-bottom:.5rem">${esc(v.equipmentNotes)}</div>` : ""}${(v.equipment || []).length ? `<ul class="eq">${v.equipment.map(e => `<li><b>${esc(e.name || "Unit")}</b> ${esc([e.make, e.model].filter(Boolean).join(" "))}${e.serial ? `<br><small>Serial ${esc(e.serial)}</small>` : ""}</li>`).join("")}</ul>` : ""}</div>` : ""}
+    <div class="sec"><h3>Equipment at this site <span class="st" id="eq-n"></span></h3>
+      ${v.equipmentNotes ? `<div class="pre" style="margin-bottom:.6rem">${esc(v.equipmentNotes)}</div>` : ""}
+      <div id="eq-list"><div class="cl-sub">Loading equipment…</div></div>
+      ${CAN_EDIT_EQ ? `<button class="addph" id="eq-add" style="border-style:solid">+ Add a unit</button>` : ""}
+    </div>
 
     <div class="sec"><h3>My hours <span class="st hrs-total" id="hrs-t"></span></h3>
       <div id="hrs-list"></div>
@@ -530,6 +590,18 @@ function renderVisit(id) {
     $("hrs-t").textContent = own.length ? hrsTxt(own.reduce((s, r) => s + (r.hours || 0), 0)) : "";
     $("hrs-list").innerHTML = own.length ? own.map(r => `<div class="row"><div class="grow"><b>${hrsTxt(r.hours)}</b> ${esc(r.type || "")}${r.tech !== ME ? " · " + esc(first(r.techName)) : ""}<small>${esc(dayLabel(r.date))}${r.note ? " · " + esc(r.note) : ""}${r._pending ? " · waiting to upload" : ""}</small></div>${r.tech === ME || OFFICE ? `<button class="del" data-del-t="${esc(r.id)}">Remove</button>` : ""}</div>`).join("") : `<div class="empty" style="padding:.3rem 0;text-align:left">No hours logged on this visit yet.</div>`;
     document.querySelectorAll("[data-del-t]").forEach(b => b.onclick = () => { if (confirm("Remove these hours?")) save(() => store.delTime(b.dataset.delT), $("h-saved"), "Hours removed"); });
+  }, subErr));
+
+  // Equipment at the site
+  if ($("eq-add")) $("eq-add").onclick = () => unitSheet(v);
+  unsub.push(store.equipment(siteKeyOf(v), units => {
+    const old = (v.equipment || []).filter(e => !units.some(u => (u.name || "").toLowerCase() === (e.name || "").toLowerCase()));
+    units.sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true }));
+    $("eq-n").textContent = units.length + old.length ? (units.length + old.length) + " unit" + (units.length + old.length > 1 ? "s" : "") : "";
+    $("eq-list").innerHTML = units.map(unitCard).join("")
+      + old.map(e => unitCard({ ...e, id: "" })).join("")
+      + (units.length + old.length ? "" : `<div class="cl-sub">No equipment recorded for this site yet.${CAN_EDIT_EQ ? " Add the units so techs know what's here." : " Tell the office what you find."}</div>`);
+    document.querySelectorAll("[data-edit-u]").forEach(b => { const u = units.find(x => x.id === b.dataset.editU); if (u) b.onclick = e => { e.preventDefault(); unitSheet(v, u); }; else b.remove(); });
   }, subErr));
 
   // Summary

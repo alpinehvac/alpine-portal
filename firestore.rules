@@ -142,6 +142,11 @@ service cloud.firestore {
       allow update: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
       allow delete: if isFieldOps();
     }
+    // Equipment at each site: everyone on the tools reads it; the office adds and edits units.
+    match /fs_equipment/{id} {
+      allow read: if isOps() || isFieldOps();
+      allow create, update, delete: if isFieldOps();
+    }
     // Time clock: each tech has one running clock (fs_clock/{tech}); they read and write only their own.
     match /fs_clock/{id} {
       allow read: if isFieldOps() || (isOps() && (resource == null || resource.data.tech == email()));
