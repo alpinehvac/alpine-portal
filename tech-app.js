@@ -4,10 +4,12 @@
 // Data (Firestore, see firestore.rules):
 //   fs_visits/{id}                visit; techEmails[] decides who sees it
 //   fs_time/{id}                  { visitId, jobNo, tech, techName, date, hours, type, note }
-//   fs_reports/{visitId}__{tech}  { visitId, jobNo, tech, techName, summary }
-//   fs_photos/{id}                { visitId, jobNo, tech, techName, caption, data (base64 JPEG), w, h }
+//   fs_reports/{visitId}__{tech}  { visitId, jobNo, tech, techName, summary, savedAt }
+//   fs_photos/{id}                { visitId, jobNo, tech, techName, caption, data (base64 JPEG, date stamped), w, h, takenAt, addedAt }
 //   fs_equipment/{id}             one unit at a site: { siteKey, customer, site, name, type, location, make, model, serial,
 //                                 installYear, refrigerant, charge, filters, belts, voltage, notes }. Office edits; techs read.
+//   fs_notes/{id}                 dated note on a site or unit: { siteKey, unitId ("" = whole site), unitName, customer, site,
+//                                 visitId, jobNo, text, warn, by, byName, at (ISO, stamped automatically) }. Never edited.
 // Every save shows its state on screen: "Saved", "Waiting to upload" (no signal: Firestore keeps it on
 // the phone and uploads it when coverage returns) or a red error. Nothing lives only in the browser.
 // DEMO: tech.html?demo=1 runs on sample visits held in memory (nothing saved), for trying it out.
@@ -97,7 +99,7 @@ async function firestoreStore() {
     setStatus: (v, status) => updateDoc(doc(db, "fs_visits", v.id), { status, statusAt: new Date().toISOString(), statusBy: ME, updatedAt: serverTimestamp() }),
     addTime: rec => addDoc(C("fs_time"), { ...rec, createdAt: serverTimestamp() }),
     delTime: id => deleteDoc(doc(db, "fs_time", id)),
-    saveReport: (v, summary) => setDoc(doc(db, "fs_reports", v.id + "__" + safeKey(ME)), { visitId: v.id, jobNo: v.jobNo || "", tech: ME, techName: MY_NAME, summary, updatedAt: serverTimestamp() }, { merge: true }),
+    saveReport: (v, summary) => setDoc(doc(db, "fs_reports", v.id + "__" + safeKey(ME)), { visitId: v.id, jobNo: v.jobNo || "", tech: ME, techName: MY_NAME, summary, savedAt: new Date().toISOString(), updatedAt: serverTimestamp() }, { merge: true }),
     addPhoto: rec => addDoc(C("fs_photos"), { ...rec, createdAt: serverTimestamp() }),
     delPhoto: id => deleteDoc(doc(db, "fs_photos", id)),
     addVisit: rec => addDoc(C("fs_visits"), { ...rec, createdAt: serverTimestamp(), createdBy: ME, updatedAt: serverTimestamp() }),
@@ -105,6 +107,9 @@ async function firestoreStore() {
     equipment: (siteKey, cb, onErr) => live(query(C("fs_equipment"), where("siteKey", "==", siteKey)), cb, onErr),
     saveUnit: (id, rec) => id ? setDoc(doc(db, "fs_equipment", id), { ...rec, updatedBy: ME, updatedAt: serverTimestamp() }, { merge: true }) : addDoc(C("fs_equipment"), { ...rec, createdBy: ME, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }),
     delUnit: id => deleteDoc(doc(db, "fs_equipment", id)),
+    notes: (siteKey, cb, onErr) => live(query(C("fs_notes"), where("siteKey", "==", siteKey)), cb, onErr),
+    addNote: rec => addDoc(C("fs_notes"), { ...rec, by: ME, byName: MY_NAME, at: new Date().toISOString(), createdAt: serverTimestamp() }),
+    delNote: id => deleteDoc(doc(db, "fs_notes", id)),
     clock: (cb, onErr) => onSnapshot(doc(db, "fs_clock", safeKey(ME)), s => cb(s.exists() ? s.data() : null), onErr),
     setClock: c => setDoc(doc(db, "fs_clock", safeKey(ME)), { ...c, tech: ME, techName: MY_NAME, updatedAt: serverTimestamp() }),
     clearClock: () => deleteDoc(doc(db, "fs_clock", safeKey(ME))),
@@ -115,7 +120,7 @@ async function firestoreStore() {
 
 function demoStore() {
   const subs = new Set(), wait = () => new Promise(r => setTimeout(r, 350));
-  const D = { visits: [], time: [], photos: [], reports: {}, clock: null, settings: null, equipment: [] };
+  const D = { visits: [], time: [], photos: [], reports: {}, clock: null, settings: null, equipment: [], notes: [] };
   const emit = () => subs.forEach(f => f());
   const sub = f => { subs.add(f); f(); return () => subs.delete(f); };
   let n = 1; const id = () => "demo" + (n++);
@@ -133,8 +138,18 @@ function demoStore() {
   eq(D.visits[0], { name: "MAU-1", type: "Make-up air unit", location: "Roof, above main entrance", make: "Engineered Air", model: "DJ-30", serial: "EA-88213", installYear: 2009, refrigerant: "", charge: "", filters: "6 × 24x24x2", belts: "B54 (2)", voltage: "575/3/60", notes: "Unit is 17 years old. Belts worn at last PM." });
   eq(D.visits[1], { name: "Boiler 1", type: "Boiler", location: "Mechanical room B1, left", make: "Viessmann", model: "Vitocrossal 300", serial: "7514388", installYear: 2014, refrigerant: "", charge: "", filters: "", belts: "", voltage: "120/1/60", notes: "" });
   eq(D.visits[1], { name: "Boiler 2", type: "Boiler", location: "Mechanical room B1, right", make: "Viessmann", model: "Vitocrossal 300", serial: "7514391", installYear: 2014, refrigerant: "", charge: "", filters: "", belts: "", voltage: "120/1/60", notes: "Low-water alarm last quarter. Check the probe." });
+  const note = (v, unitName, daysAgo, byName, text, warn) => {
+    const u = D.equipment.find(e => e.siteKey === siteKeyOf(v) && e.name === unitName);
+    const at = new Date(); at.setDate(at.getDate() - daysAgo); at.setHours(14, 20, 0, 0);
+    D.notes.push({ id: id(), siteKey: siteKeyOf(v), unitId: u ? u.id : "", unitName: u ? u.name : "", customer: v.customer, site: v.site, text, warn: !!warn, by: byName.toLowerCase().replace(/\W+/g, ".") + "@alpinehvac.ca", byName, at: at.toISOString() });
+  };
+  note(D.visits[0], "", 9, "Cole Bryant", "Security desk now asks for photo ID and the work order number before giving out the roof key.", true);
+  note(D.visits[0], "RTU-2", 22, "Steve Clarke", "Economizer actuator stuck closed again. Freed it up and lubed the linkage. Will need replacing if it keeps happening.");
+  note(D.visits[0], "RTU-2", 850, "Nick Dawson", "Replaced condenser fan motor (OFM). Amp draw normal after.");
+  note(D.visits[0], "MAU-1", 41, "Steve Clarke", "Belts badly worn and glazed. Recommended replacement to Paula. Quote to follow.", true);
+  note(D.visits[1], "Boiler 2", 95, "Steve Clarke", "Low-water alarm tripped twice. Cleaned the probe. Watch it next visit.");
   D.time.push({ id: id(), visitId: D.visits[3].id, tech: ME, techName: MY_NAME, date: addDays(TODAY, -1), hours: 1.5, type: "Regular", note: "" });
-  D.reports[D.visits[3].id] = { summary: "Replaced the batteries in the room 214 thermostat and recalibrated. Room holding 22°C." };
+  D.reports[D.visits[3].id] = { summary: "Replaced the batteries in the room 214 thermostat and recalibrated. Room holding 22°C.", techName: MY_NAME, savedAt: (() => { const d = new Date(); d.setDate(d.getDate() - 1); d.setHours(11, 42, 0, 0); return d.toISOString(); })() };
   return {
     visits: cb => sub(() => cb(D.visits.slice())),
     time: (vid, cb) => sub(() => cb(D.time.filter(t => t.visitId === vid))),
@@ -145,13 +160,16 @@ function demoStore() {
     setStatus: async (v, status) => { await wait(); Object.assign(D.visits.find(x => x.id === v.id), { status }); emit(); },
     addTime: async rec => { await wait(); D.time.push({ id: id(), ...rec }); emit(); },
     delTime: async tid => { await wait(); D.time = D.time.filter(t => t.id !== tid); emit(); },
-    saveReport: async (v, summary) => { await wait(); D.reports[v.id] = { summary }; emit(); },
+    saveReport: async (v, summary) => { await wait(); D.reports[v.id] = { summary, techName: MY_NAME, savedAt: new Date().toISOString() }; emit(); },
     addPhoto: async rec => { await wait(); D.photos.push({ id: id(), ...rec }); emit(); },
     delPhoto: async pid => { await wait(); D.photos = D.photos.filter(p => p.id !== pid); emit(); },
     addVisit: async rec => { await wait(); D.visits.push({ id: id(), ...rec }); emit(); },
     equipment: (k, cb) => sub(() => cb(D.equipment.filter(e => e.siteKey === k))),
     saveUnit: async (uid, rec) => { await wait(); if (uid) Object.assign(D.equipment.find(e => e.id === uid), rec); else D.equipment.push({ id: id(), ...rec }); emit(); },
     delUnit: async uid => { await wait(); D.equipment = D.equipment.filter(e => e.id !== uid); emit(); },
+    notes: (k, cb) => sub(() => cb(D.notes.filter(x => x.siteKey === k))),
+    addNote: async rec => { await wait(); D.notes.push({ id: id(), ...rec, by: ME, byName: MY_NAME, at: new Date().toISOString() }); emit(); },
+    delNote: async nid => { await wait(); D.notes = D.notes.filter(x => x.id !== nid); emit(); },
     clock: cb => sub(() => cb(D.clock)),
     setClock: async c => { await wait(); D.clock = { ...c, tech: ME }; emit(); },
     clearClock: async () => { await wait(); D.clock = null; emit(); },
@@ -486,13 +504,48 @@ const CAN_EDIT_EQ = OFFICE || DEMO; // office keeps the equipment list (demo let
 const UNIT_TYPES = ["Rooftop unit", "Furnace", "Boiler", "Make-up air unit", "Split system / condenser", "Heat pump", "Air handler", "Chiller", "Exhaust fan", "Unit heater", "Water heater", "Controls", "Other"];
 const UNIT_FIELDS = [["location", "Location"], ["make", "Make"], ["model", "Model"], ["serial", "Serial"], ["installYear", "Installed"], ["refrigerant", "Refrigerant"], ["charge", "Charge"], ["filters", "Filters"], ["belts", "Belts"], ["voltage", "Voltage"]];
 const ageOf = u => { const y = parseInt(u.installYear, 10); return y > 1950 && y <= new Date().getFullYear() ? new Date().getFullYear() - y : null; };
-function unitCard(u) {
+// Dated notes: every note is stamped with the date and who wrote it, newest first, never overwritten.
+const noteDate = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" }); };
+const noteAgo = iso => {
+  const days = Math.floor((Date.now() - new Date(iso)) / 864e5);
+  if (isNaN(days)) return "";
+  if (days < 1) return "today"; if (days === 1) return "yesterday"; if (days < 14) return days + " days ago";
+  if (days < 60) return Math.round(days / 7) + " weeks ago"; if (days < 730) return Math.round(days / 30.4) + " months ago";
+  return Math.floor(days / 365) + " years ago";
+};
+const shortName = n => { const p = String(n || "").trim().split(/\s+/); return p.length > 1 ? p[0] + " " + p[p.length - 1][0] + "." : p[0] || ""; };
+const byNewest = (a, b) => String(b.at || "").localeCompare(String(a.at || ""));
+function noteRow(x) {
+  const mine = x.by === ME, canDel = mine || OFFICE || DEMO;
+  return `<div class="note${x.warn ? " warn" : ""}"><div class="n-head">${x.warn ? "⚠ " : ""}<b>${esc(noteDate(x.at))}</b> · ${esc(shortName(x.byName || x.by))}${x.unitName && !x._inUnit ? ` · ${esc(x.unitName)}` : ""}<span class="n-ago">${esc(noteAgo(x.at))}</span>${x._pending ? '<span class="n-ago">waiting to upload</span>' : ""}${canDel ? `<button class="n-del" data-del-note="${esc(x.id)}" aria-label="Delete note">✕</button>` : ""}</div><div class="n-text">${esc(x.text)}</div></div>`;
+}
+function noteSheet(v, u) {
+  const sh = $("sheet");
+  $("sheet-in").innerHTML = `<h3 id="sheet-h">${u ? "Note on " + esc(u.name || "this unit") : "Note on this site"}</h3>
+    <p class="cl-sub" style="margin:-.5rem 0 .8rem">${esc([v.customer, v.site].filter(Boolean).join(" · "))} · dated ${esc(noteDate(new Date().toISOString()))}, signed ${esc(shortName(MY_NAME))}</p>
+    <label class="field"><span>What should the next tech know?</span><textarea class="inp" id="n-text" style="min-height:110px" placeholder="${u ? "e.g. Belts glazed, recommended replacement. Economizer actuator sticking." : "e.g. Gate code changed. Ask for Paula, not the front desk."}"></textarea></label>
+    <label class="tog" style="margin:.2rem 0 .8rem"><input type="checkbox" id="n-warn"> <span>Flag as a warning (shows at the top for every visit here)</span></label>
+    <div class="btnrow"><button class="big ghost" id="n-cancel">Cancel</button><button class="big" id="n-save">Add note</button></div><div class="saved" id="n-saved"></div>`;
+  sh.classList.add("on");
+  setTimeout(() => $("n-text").focus(), 50);
+  $("n-cancel").onclick = () => sh.classList.remove("on");
+  $("n-save").onclick = async () => {
+    const text = $("n-text").value.trim();
+    if (!text) { toast("Write the note first.", true); return; }
+    const rec = { siteKey: siteKeyOf(v), unitId: u ? u.id : "", unitName: u ? (u.name || "") : "", customer: v.customer || "", site: v.site || "", visitId: v.id, jobNo: v.jobNo || "", text, warn: $("n-warn").checked };
+    if (await save(() => store.addNote(rec), $("n-saved"), "Note added")) sh.classList.remove("on");
+  };
+}
+
+function unitCard(u, notes) {
+  notes = notes || [];
   const age = ageOf(u);
   const rows = UNIT_FIELDS.filter(([k]) => u[k]).map(([k, l]) => `<div><span>${l}</span><b>${esc(k === "installYear" ? u[k] + (age !== null ? ` (${age} yr${age === 1 ? "" : "s"})` : "") : u[k])}</b></div>`).join("");
-  return `<details class="unit"><summary><span class="u-name">${esc(u.name || "Unit")}</span><span class="u-sum">${esc([u.type, [u.make, u.model].filter(Boolean).join(" ")].filter(Boolean).join(" · "))}${u.location ? `<br>${esc(u.location)}` : ""}</span>${age !== null && age >= 15 ? `<span class="u-old">${age} yrs</span>` : ""}</summary>
+  return `<details class="unit"><summary><span class="u-name">${esc(u.name || "Unit")}</span><span class="u-sum">${esc([u.type, [u.make, u.model].filter(Boolean).join(" ")].filter(Boolean).join(" · "))}${u.location ? `<br>${esc(u.location)}` : ""}</span>${notes.some(x => x.warn) ? `<span class="u-old u-warn">⚠</span>` : ""}${age !== null && age >= 15 ? `<span class="u-old">${age} yrs</span>` : ""}${notes.length ? `<span class="u-nc">${notes.length} note${notes.length > 1 ? "s" : ""}</span>` : ""}</summary>
     <div class="u-grid">${rows || '<div><span>Details</span><b>None recorded yet</b></div>'}</div>
-    ${u.notes ? `<div class="u-notes">${esc(u.notes)}</div>` : ""}
-    ${CAN_EDIT_EQ ? `<button class="act" data-edit-u="${esc(u.id)}" style="margin-top:.6rem">Edit unit</button>` : ""}</details>`;
+    ${u.notes ? `<div class="u-notes"><span class="n-lbl">About this unit</span>${esc(u.notes)}</div>` : ""}
+    <div class="notes">${notes.map(x => noteRow({ ...x, _inUnit: true })).join("") || (u.id ? '<div class="cl-sub">No notes yet.</div>' : "")}</div>
+    <div class="btnrow" style="margin-top:.6rem">${u.id ? `<button class="act" data-note-u="${esc(u.id)}">+ Add note</button>` : ""}${CAN_EDIT_EQ && u.id ? `<button class="act" data-edit-u="${esc(u.id)}">Edit unit</button>` : ""}</div></details>`;
 }
 function unitSheet(v, u) {
   u = u || {};
@@ -505,7 +558,7 @@ function unitSheet(v, u) {
     <div class="two">${f("refrigerant", "Refrigerant", "e.g. R-410A")}${f("charge", "Charge", "e.g. 11.2 lb")}</div>
     <div class="two">${f("filters", "Filters", "e.g. 4 × 16x25x2")}${f("belts", "Belts", "e.g. A42")}</div>
     ${f("voltage", "Voltage", "e.g. 575/3/60")}
-    <label class="field"><span>Notes for the next tech</span><textarea class="inp" id="u-notes" style="min-height:80px">${esc(u.notes || "")}</textarea></label>
+    <label class="field"><span>About this unit (standing info, always shown; dated notes are added from the unit card)</span><textarea class="inp" id="u-notes" style="min-height:80px">${esc(u.notes || "")}</textarea></label>
     <div class="btnrow">${u.id ? `<button class="big ghost" id="u-del" style="flex:0 0 auto;padding:0 1rem;color:var(--red)">Delete</button>` : ""}<button class="big ghost" id="u-cancel">Cancel</button><button class="big" id="u-save">Save unit</button></div><div class="saved" id="u-saved"></div>`;
   sh.classList.add("on");
   $("u-cancel").onclick = () => sh.classList.remove("on");
@@ -543,7 +596,9 @@ function renderVisit(id) {
     ${v.scope ? `<div class="sec"><h3>What to do</h3><div class="pre">${esc(v.scope)}</div></div>` : ""}
     <div class="sec"><h3>Equipment at this site <span class="st" id="eq-n"></span></h3>
       ${v.equipmentNotes ? `<div class="pre" style="margin-bottom:.6rem">${esc(v.equipmentNotes)}</div>` : ""}
+      <div id="site-warn"></div>
       <div id="eq-list"><div class="cl-sub">Loading equipment…</div></div>
+      <div class="site-notes"><div class="sn-h">Site notes <button class="act" id="sn-add">+ Add note</button></div><div id="sn-list" class="notes"></div></div>
       ${CAN_EDIT_EQ ? `<button class="addph" id="eq-add" style="border-style:solid">+ Add a unit</button>` : ""}
     </div>
 
@@ -563,6 +618,7 @@ function renderVisit(id) {
       <textarea class="inp" id="sum" placeholder="What you found, what you did, and anything the office or customer should know."></textarea>
       <div class="btnrow" style="margin-top:.6rem"><button class="big" id="sum-save">Save summary</button></div>
       <div class="saved" id="sum-saved"></div>
+      <div class="stamp" id="sum-stamp"></div>
     </div>
 
     <div class="sec"><h3>Photos <span class="st" id="ph-n"></span></h3>
@@ -594,15 +650,35 @@ function renderVisit(id) {
 
   // Equipment at the site
   if ($("eq-add")) $("eq-add").onclick = () => unitSheet(v);
-  unsub.push(store.equipment(siteKeyOf(v), units => {
+  // Units and dated notes come from two live lists; redraw when either changes, keeping open cards open.
+  let UNITS = null, NOTES = [];
+  const drawEq = () => {
+    if (!UNITS || !$("eq-list")) return;
+    const open = new Set([...document.querySelectorAll("#eq-list details[open]")].map(d => d.dataset.u));
+    const units = UNITS.slice().sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true }));
     const old = (v.equipment || []).filter(e => !units.some(u => (u.name || "").toLowerCase() === (e.name || "").toLowerCase()));
-    units.sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true }));
+    const notes = NOTES.slice().sort(byNewest), forUnit = id => notes.filter(x => x.unitId === id);
+    const known = new Set(units.map(u => u.id));
+    const siteNotes = notes.filter(x => !x.unitId || !known.has(x.unitId)); // notes on a deleted unit stay visible here
     $("eq-n").textContent = units.length + old.length ? (units.length + old.length) + " unit" + (units.length + old.length > 1 ? "s" : "") : "";
-    $("eq-list").innerHTML = units.map(unitCard).join("")
+    $("eq-list").innerHTML = units.map(u => unitCard(u, forUnit(u.id))).join("")
       + old.map(e => unitCard({ ...e, id: "" })).join("")
       + (units.length + old.length ? "" : `<div class="cl-sub">No equipment recorded for this site yet.${CAN_EDIT_EQ ? " Add the units so techs know what's here." : " Tell the office what you find."}</div>`);
+    [...$("eq-list").querySelectorAll("details")].forEach((d, i) => { d.dataset.u = units[i] ? units[i].id : "old" + i; if (open.has(d.dataset.u)) d.open = true; });
+    $("sn-list").innerHTML = siteNotes.map(noteRow).join("") || '<div class="cl-sub">Gate codes, who to ask for, parking, anything the next tech should know about the site.</div>';
+    const warns = notes.filter(x => x.warn);
+    $("site-warn").innerHTML = warns.length ? `<div class="warnbox"><b>Heads up at this site</b>${warns.map(x => `<div>⚠ ${x.unitName ? `<b>${esc(x.unitName)}:</b> ` : ""}${esc(x.text)} <span class="n-ago">${esc(noteDate(x.at))} · ${esc(shortName(x.byName))}</span></div>`).join("")}</div>` : "";
     document.querySelectorAll("[data-edit-u]").forEach(b => { const u = units.find(x => x.id === b.dataset.editU); if (u) b.onclick = e => { e.preventDefault(); unitSheet(v, u); }; else b.remove(); });
-  }, subErr));
+    document.querySelectorAll("[data-note-u]").forEach(b => { const u = units.find(x => x.id === b.dataset.noteU); if (u) b.onclick = e => { e.preventDefault(); noteSheet(v, u); }; });
+    document.querySelectorAll("[data-del-note]").forEach(b => b.onclick = async e => {
+      e.preventDefault(); e.stopPropagation();
+      const x = NOTES.find(n => n.id === b.dataset.delNote);
+      if (x && confirm(`Delete this note from ${noteDate(x.at)}?`)) await save(() => store.delNote(x.id), null, "Note deleted");
+    });
+  };
+  $("sn-add").onclick = () => noteSheet(v, null);
+  unsub.push(store.equipment(siteKeyOf(v), units => { UNITS = units; drawEq(); }, subErr));
+  unsub.push(store.notes(siteKeyOf(v), notes => { NOTES = notes; drawEq(); }, subErr));
 
   // Summary
   let typed = false; SUMMARY_SAVED = false;
@@ -611,7 +687,10 @@ function renderVisit(id) {
   const saveSum = async () => { const text = sum.value.trim(); if (await save(() => store.saveReport(v, text), $("sum-saved"), "Summary saved")) { typed = false; SUMMARY_SAVED = !!text; } };
   $("sum-save").onclick = saveSum;
   sum.addEventListener("blur", () => { if (typed) saveSum(); });
-  unsub.push(store.report(v.id, r => { if (!typed) { sum.value = (r && r.summary) || ""; SUMMARY_SAVED = !!(r && r.summary); } }, subErr));
+  unsub.push(store.report(v.id, r => {
+    if (!typed) { sum.value = (r && r.summary) || ""; SUMMARY_SAVED = !!(r && r.summary); }
+    $("sum-stamp").textContent = r && r.savedAt ? "Last saved " + stampTxt(r.savedAt) + (r.techName ? " by " + shortName(r.techName) : "") : "";
+  }, subErr));
 
   // Photos
   $("ph-add").onclick = () => { const f = $("ph-in"); f.value = ""; f.onchange = () => addPhotos(v, [...f.files]); f.click(); };
@@ -619,7 +698,7 @@ function renderVisit(id) {
     rows.sort((a, b) => (a.takenAt || "").localeCompare(b.takenAt || ""));
     $("ph-n").textContent = rows.length ? rows.length + " photo" + (rows.length > 1 ? "s" : "") : "";
     const up = [...UPLOADING.values()].filter(u => u.visitId === v.id);
-    $("ph").innerHTML = rows.map(p => `<figure><img src="data:image/jpeg;base64,${p.data}" alt="${esc(p.caption || "Visit photo")}" loading="lazy">${p._pending ? '<span class="badge">waiting</span>' : ""}${p.tech === ME || OFFICE ? `<button class="x" data-del-p="${esc(p.id)}" aria-label="Delete photo">✕</button>` : ""}${p.tech !== ME ? `<figcaption>${esc(first(p.techName))}</figcaption>` : ""}</figure>`).join("")
+    $("ph").innerHTML = rows.map(p => `<figure><img src="data:image/jpeg;base64,${p.data}" alt="${esc(p.caption || "Visit photo")}" loading="lazy">${p._pending ? '<span class="badge">waiting</span>' : ""}${p.tech === ME || OFFICE ? `<button class="x" data-del-p="${esc(p.id)}" aria-label="Delete photo">✕</button>` : ""}<figcaption>${esc(stampTxt(p.takenAt, true))}${p.tech !== ME ? " · " + esc(first(p.techName)) : ""}</figcaption></figure>`).join("")
       + up.map(u => `<figure><img src="${u.preview}" alt=""><span class="badge ${u.failed ? "bad" : ""}">${u.failed ? "failed" : "saving"}</span></figure>`).join("");
     document.querySelectorAll("[data-del-p]").forEach(b => b.onclick = () => { if (confirm("Delete this photo?")) save(() => store.delPhoto(b.dataset.delP), $("ph-saved"), "Photo deleted"); });
   }, subErr));
@@ -638,8 +717,47 @@ function refreshClock() {
 }
 
 // Photos: shrink on the phone (longest side 1600 px, JPEG) so each fits in one database record.
+// Each photo is stamped with when it was taken: from the camera's own record (EXIF) when the photo has one,
+// so a picture chosen from the gallery later keeps its real time; otherwise the moment it was added.
 const UPLOADING = new Map();
-async function shrink(file) {
+async function photoTime(file) {
+  try {
+    const b = new DataView(await file.slice(0, 196608).arrayBuffer());
+    if (b.getUint16(0) !== 0xFFD8) throw 0;
+    let p = 2;
+    while (p + 4 < b.byteLength) {
+      const m = b.getUint16(p), len = b.getUint16(p + 2);
+      if (m === 0xFFE1 && b.getUint32(p + 4) === 0x45786966) { // "Exif"
+        const t = p + 10, le = b.getUint16(t) === 0x4949;
+        const u16 = o => b.getUint16(t + o, le), u32 = o => b.getUint32(t + o, le);
+        const tagIn = (ifd, want) => { const n = u16(ifd); for (let i = 0; i < n; i++) { const e = ifd + 2 + i * 12; if (u16(e) === want) return e; } return null; };
+        const str = e => { const off = u32(e + 8); let s = ""; for (let i = 0; i < 19; i++) s += String.fromCharCode(b.getUint8(t + off + i)); return s; };
+        const ifd0 = u32(4), ex = tagIn(ifd0, 0x8769);
+        const e = (ex && tagIn(u32(ex + 8), 0x9003)) || tagIn(ifd0, 0x0132); // DateTimeOriginal, else DateTime
+        const mt = e && str(e).match(/^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);
+        if (mt) { const d = new Date(+mt[1], mt[2] - 1, +mt[3], +mt[4], +mt[5], +mt[6]); if (!isNaN(d) && d <= new Date(Date.now() + 864e5)) return d; }
+        break;
+      }
+      if ((m & 0xFF00) !== 0xFF00 || m === 0xFFDA) break;
+      p += 2 + len;
+    }
+  } catch (e) { /* no camera record: fall through */ }
+  return new Date();
+}
+const stampTxt = (iso, short) => {
+  const d = new Date(iso); if (isNaN(d)) return "";
+  const day = d.toLocaleDateString("en-CA", { month: "short", day: "numeric", ...(short && d.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }) });
+  return day + (short ? " " : ", ") + d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+};
+function burnStamp(ctx, w, h, lines) {
+  const fs = Math.max(14, Math.round(Math.min(w, h) * 0.032)), padX = Math.round(fs * 0.6), lh = Math.round(fs * 1.3);
+  ctx.font = `600 ${fs}px -apple-system, "Segoe UI", Roboto, sans-serif`; ctx.textBaseline = "middle";
+  const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), bw = tw + padX * 2, bh = lh * lines.length + Math.round(fs * 0.5);
+  ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(w - bw - fs * 0.5, h - bh - fs * 0.5, bw, bh);
+  ctx.fillStyle = "#fff";
+  lines.forEach((l, i) => ctx.fillText(l, w - bw - fs * 0.5 + padX, h - bh - fs * 0.5 + Math.round(fs * 0.25) + lh * (i + 0.5)));
+}
+async function shrink(file, stampLines) {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
@@ -648,6 +766,7 @@ async function shrink(file) {
       const w = Math.round(img.naturalWidth * k), h = Math.round(img.naturalHeight * k);
       const c = document.createElement("canvas"); c.width = w; c.height = h;
       c.getContext("2d").drawImage(img, 0, 0, w, h);
+      if (stampLines) burnStamp(c.getContext("2d"), w, h, stampLines);
       const data = c.toDataURL("image/jpeg", q).split(",")[1];
       if (data.length < 880000) return { data, w, h, preview: c.toDataURL("image/jpeg", 0.4) };
     }
@@ -660,9 +779,10 @@ async function addPhotos(v, files) {
   for (const f of files) {
     const key = Math.random().toString(36).slice(2);
     try {
-      const s = await shrink(f);
+      const when = await photoTime(f);
+      const s = await shrink(f, [stampTxt(when.toISOString()), [v.customer, v.jobNo].filter(Boolean).join(" · ")].filter(Boolean));
       UPLOADING.set(key, { visitId: v.id, preview: s.preview }); render();
-      const done = await save(() => store.addPhoto({ visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", tech: ME, techName: MY_NAME, caption: "", data: s.data, w: s.w, h: s.h, takenAt: new Date().toISOString() }), $("ph-saved"), "Photo saved");
+      const done = await save(() => store.addPhoto({ visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", tech: ME, techName: MY_NAME, caption: "", data: s.data, w: s.w, h: s.h, takenAt: when.toISOString(), addedAt: new Date().toISOString() }), $("ph-saved"), "Photo saved");
       if (done) { ok++; UPLOADING.delete(key); } else UPLOADING.get(key).failed = true;
     } catch (e) { toast("One photo couldn't be read. Try taking it again.", true); UPLOADING.delete(key); }
   }
