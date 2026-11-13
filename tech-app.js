@@ -255,6 +255,15 @@ function renderList() {
 }
 
 // ── Timesheets: my hours by week ──
+// Hours split by kind: work (regular), overtime and travel, with billable travel called out.
+function hrsSplit(rows) {
+  const sum = f => rows.filter(f).reduce((s, r) => s + (r.hours || 0), 0);
+  const work = sum(r => !r.type || r.type === "Regular"), ot = sum(r => r.type === "Overtime"), trav = sum(r => r.type === "Travel");
+  const bill = sum(r => r.type === "Travel" && r.billable), other = sum(r => r.type && !["Regular", "Overtime", "Travel"].includes(r.type));
+  const parts = [["Work", work], ["Overtime", ot], ["Travel", trav], ["Other", other]].filter(([, h]) => h > 0);
+  if (!parts.length) return "";
+  return `<div class="hsplit">${parts.map(([l, h]) => `<span><small>${l}</small><b>${hrsTxt(h)}</b>${l === "Travel" && bill ? `<em>${bill === trav ? "billable" : hrsTxt(bill) + " billable"}</em>` : ""}</span>`).join("")}</div>`;
+}
 function renderTimesheets() {
   $("title").firstChild.textContent = "Timesheets";
   $("app").innerHTML = banner() + `<div class="empty">Loading your hours…</div>`;
@@ -268,7 +277,7 @@ function renderTimesheets() {
     keys.forEach(k => {
       const R = weeks[k].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
       const tot = R.reduce((s, r) => s + (r.hours || 0), 0);
-      h += `<div class="sec ts-week"><h3><span>Week of ${esc(new Date(k + "T12:00:00").toLocaleDateString("en-CA", { month: "long", day: "numeric" }))}</span><span class="st hrs-total">${hrsTxt(tot)}</span></h3>${R.map(r => `<a class="row" href="#v=${encodeURIComponent(r.visitId)}" style="text-decoration:none;color:inherit"><div class="grow"><b>${hrsTxt(r.hours)}</b> ${esc(r.type || "")}<small>${esc(dayLabel(r.date))} · ${esc(r.customer || r.jobNo || "Visit")}${r.note ? " · " + esc(r.note) : ""}${r._pending ? " · waiting to upload" : ""}</small></div><span class="dim">›</span></a>`).join("")}</div>`;
+      h += `<div class="sec ts-week"><h3><span>Week of ${esc(new Date(k + "T12:00:00").toLocaleDateString("en-CA", { month: "long", day: "numeric" }))}</span><span class="st hrs-total">${hrsTxt(tot)}</span></h3>${hrsSplit(R)}${R.map(r => `<a class="row" href="#v=${encodeURIComponent(r.visitId)}" style="text-decoration:none;color:inherit"><div class="grow"><b>${hrsTxt(r.hours)}</b> ${esc(r.type || "")}<small>${esc(dayLabel(r.date))} · ${esc(r.customer || r.jobNo || "Visit")}${r.note ? " · " + esc(r.note) : ""}${r._pending ? " · waiting to upload" : ""}</small></div><span class="dim">›</span></a>`).join("")}</div>`;
     });
     $("app").innerHTML = h;
   }, subErr));
@@ -625,6 +634,7 @@ function renderVisit(id) {
     </div>
 
     <div class="sec"><h3>My hours <span class="st hrs-total" id="hrs-t"></span></h3>
+      <div id="hrs-split"></div>
       <div id="hrs-list"></div>
       <div class="two" style="margin-top:.6rem">
         <label class="field"><span>Date</span><input class="inp" type="date" id="h-date" value="${esc(v.date && v.date <= TODAY ? v.date : TODAY)}"></label>
@@ -669,6 +679,7 @@ function renderVisit(id) {
     const own = OFFICE ? rows : rows.filter(r => r.tech === ME);
     own.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     $("hrs-t").textContent = own.length ? hrsTxt(own.reduce((s, r) => s + (r.hours || 0), 0)) : "";
+    $("hrs-split").innerHTML = hrsSplit(own);
     $("hrs-list").innerHTML = own.length ? own.map(r => `<div class="row"><div class="grow"><b>${hrsTxt(r.hours)}</b> ${esc(r.type || "")}${r.tech !== ME ? " · " + esc(first(r.techName)) : ""}<small>${esc(dayLabel(r.date))}${r.note ? " · " + esc(r.note) : ""}${r._pending ? " · waiting to upload" : ""}</small></div>${r.tech === ME || OFFICE ? `<button class="del" data-del-t="${esc(r.id)}">Remove</button>` : ""}</div>`).join("") : `<div class="empty" style="padding:.3rem 0;text-align:left">No hours logged on this visit yet.</div>`;
     document.querySelectorAll("[data-del-t]").forEach(b => b.onclick = () => { if (confirm("Remove these hours?")) save(() => store.delTime(b.dataset.delT), $("h-saved"), "Hours removed"); });
   }, subErr));
