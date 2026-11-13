@@ -154,6 +154,23 @@ textarea.inp{min-height:140px;resize:vertical}
 .drawer .dl a.on{background:rgba(39,99,108,.14);color:var(--teal-dark);font-weight:600}
 .drawer .out{margin-top:1.2rem;border:1px solid rgba(16,68,78,.3);background:#fff;border-radius:24px;padding:.8rem;font-weight:600;font-size:1rem;cursor:pointer}
 .drawer .ver{margin-top:auto;padding-top:1rem;text-align:right;color:var(--muted);font-size:.78rem}
+.owner-only{display:none!important}
+body.owner .owner-only{display:block!important}
+/* Time clock */
+.clock{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1rem;margin:1rem 0 1.2rem;text-align:center}
+.clock.travel{border-color:#7FB3D9;background:#F1F7FC}.clock.work{border-color:rgba(46,125,87,.45);background:#F1FAF5}
+.clock.lunch,.clock.coffee{border-color:rgba(217,164,54,.6);background:#FFF8E9}
+.clock .cl-state{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.clock .cl-time{font-family:'Oswald',sans-serif;font-size:2.6rem;font-weight:500;line-height:1.1;margin:.15rem 0;font-variant-numeric:tabular-nums}
+.cl-sub{font-size:.84rem;color:var(--muted)}
+.clock .big{width:100%;margin-top:.7rem}
+.clock .cl-row{display:flex;gap:.6rem}.clock .cl-row.two .big{flex:1}
+.clock.idle .cl-row:first-child .big{margin-top:0}
+.linkbtn{display:block;width:100%;border:none;background:none;color:var(--teal);font-weight:500;padding:.8rem 0 .1rem;cursor:pointer;font-size:.92rem}
+.tog{display:flex;gap:.7rem;align-items:flex-start;padding:.6rem 0;border-top:1px solid var(--border)}
+.tog:first-of-type{border-top:none;padding-top:0}
+.tog input{width:22px;height:22px;margin-top:.1rem;accent-color:var(--teal);flex:none}
+.tog small{display:block;color:var(--muted);font-size:.8rem;font-weight:400}
 .office-only{display:none!important}
 body.office .office-only{display:block!important}
 
@@ -233,6 +250,7 @@ body.office .office-only{display:block!important}
     <a href="#" data-go="">Visits</a>
     <a href="#schedule" data-go="schedule">Schedule</a>
     <a href="#timesheets" data-go="timesheets">Timesheets</a>
+    <a href="#settings" data-go="settings" class="owner-only">Time rules (owners)</a>
     <a href="ops-dashboard.html" class="office-only">Dispatch &amp; jobs (office)</a>
     <a href="dashboard.html" class="office-only">Full portal</a>
     <button type="button" id="m-pass">Change Password</button>

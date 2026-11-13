@@ -142,6 +142,17 @@ service cloud.firestore {
       allow update: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
       allow delete: if isFieldOps();
     }
+    // Time clock: each tech has one running clock (fs_clock/{tech}); they read and write only their own.
+    match /fs_clock/{id} {
+      allow read: if isFieldOps() || (isOps() && (resource == null || resource.data.tech == email()));
+      allow create, update: if (isOps() || isFieldOps()) && request.resource.data.tech == email();
+      allow delete: if isFieldOps() || (isOps() && resource.data.tech == email());
+    }
+    // Company time rules (paid breaks, drive time, rounding): everyone on the tools reads, owners change.
+    match /fs_settings/{id} {
+      allow read: if isOps() || isFieldOps();
+      allow write: if isOwner();
+    }
     // Photos are stored in the document itself (compressed, under 900 KB) until Firebase Storage is switched on.
     match /fs_photos/{id} {
       allow read: if isFieldOps() || (isOps() && resource.data.tech == email());

@@ -38,6 +38,7 @@ if (DEMO && !SESSION) SESSION = { email: "demo.tech@alpinehvac.ca", name: "Demo 
 if (!SESSION) throw new Error("not signed in");
 const ME = SESSION.email, MY_NAME = SESSION.name || ME;
 const OFFICE = (SESSION.roles || []).some(r => r === "field_ops" || r === "owner");
+const OWNER = DEMO || (SESSION.roles || []).includes("owner"); // owners set the time rules
 
 $("who").textContent = (DEMO ? "Demo · " : "") + MY_NAME + (OFFICE ? " · office view" : "");
 document.title = "My Visits · Alpine HVAC";
@@ -98,12 +99,18 @@ async function firestoreStore() {
     addPhoto: rec => addDoc(C("fs_photos"), { ...rec, createdAt: serverTimestamp() }),
     delPhoto: id => deleteDoc(doc(db, "fs_photos", id)),
     addVisit: rec => addDoc(C("fs_visits"), { ...rec, createdAt: serverTimestamp(), createdBy: ME, updatedAt: serverTimestamp() }),
+    // Time clock: one running clock per tech (fs_clock/{tech}); company time rules in fs_settings/time
+    clock: (cb, onErr) => onSnapshot(doc(db, "fs_clock", safeKey(ME)), s => cb(s.exists() ? s.data() : null), onErr),
+    setClock: c => setDoc(doc(db, "fs_clock", safeKey(ME)), { ...c, tech: ME, techName: MY_NAME, updatedAt: serverTimestamp() }),
+    clearClock: () => deleteDoc(doc(db, "fs_clock", safeKey(ME))),
+    settings: (cb, onErr) => onSnapshot(doc(db, "fs_settings", "time"), s => cb(s.exists() ? s.data() : null), onErr),
+    saveSettings: o => setDoc(doc(db, "fs_settings", "time"), { ...o, updatedBy: ME, updatedAt: serverTimestamp() }, { merge: true }),
   };
 }
 
 function demoStore() {
   const subs = new Set(), wait = () => new Promise(r => setTimeout(r, 350));
-  const D = { visits: [], time: [], photos: [], reports: {} };
+  const D = { visits: [], time: [], photos: [], reports: {}, clock: null, settings: null };
   const emit = () => subs.forEach(f => f());
   const sub = f => { subs.add(f); f(); return () => subs.delete(f); };
   let n = 1; const id = () => "demo" + (n++);
@@ -131,6 +138,11 @@ function demoStore() {
     addPhoto: async rec => { await wait(); D.photos.push({ id: id(), ...rec }); emit(); },
     delPhoto: async pid => { await wait(); D.photos = D.photos.filter(p => p.id !== pid); emit(); },
     addVisit: async rec => { await wait(); D.visits.push({ id: id(), ...rec }); emit(); },
+    clock: cb => sub(() => cb(D.clock)),
+    setClock: async c => { await wait(); D.clock = { ...c, tech: ME }; emit(); },
+    clearClock: async () => { await wait(); D.clock = null; emit(); },
+    settings: cb => sub(() => cb(D.settings)),
+    saveSettings: async o => { await wait(); D.settings = { ...(D.settings || {}), ...o }; emit(); },
   };
 }
 
@@ -150,9 +162,10 @@ function banner() {
 function render() {
   unsub.forEach(f => { try { f(); } catch (e) {} }); unsub = [];
   closeDrawer();
-  const H = location.hash, page = H === "#timesheets" || H === "#schedule" ? H.slice(1) : "";
+  const H = location.hash, page = H === "#timesheets" || H === "#schedule" || H === "#settings" ? H.slice(1) : "";
   document.querySelectorAll("[data-go]").forEach(a => a.classList.toggle("on", a.dataset.go === page));
   if (H === "#timesheets") { FROM = ""; return renderTimesheets(); }
+  if (H === "#settings") { FROM = ""; return renderSettings(); }
   if (H === "#schedule") { FROM = "schedule"; return renderSchedule(); }
   const id = route();
   if (id) return renderVisit(id);
@@ -288,7 +301,171 @@ function renderSchedule() {
 const short = a => String(a || "").replace(/,\s*(ON|Ontario)\b.*$/i, "").replace(/,\s*CA(nada)?$/i, "");
 const tmin = t => { const m = String(t || "").match(/(\d{1,2}):?(\d{2})?\s*([ap])?/i); if (!m) return 9999; let h = +m[1] % 12; if (/p/i.test(m[3] || "")) h += 12; return h * 60 + (+m[2] || 0); };
 
+// ── Time clock ──
+// The tech taps On my way → Start work → Lunch / Coffee → Resume → Complete. Each tap is an event with the
+// phone's time (so it works with no signal). At the end the app works out paid hours from the company's
+// time rules (fs_settings/time, set by owners under ☰ > Time rules) and the tech checks them before saving.
+const TIME_DEFAULTS = {
+  travelPaid: true,          // drive time between jobs is paid
+  travelBillable: true,      // and charged to the customer
+  firstTripPaid: true,       // the first drive of the day (from home) is paid
+  lunchPaid: false,          // lunch break is unpaid
+  coffeePaid: true,          // short coffee breaks are paid…
+  coffeeMaxMin: 15,          // …up to this many minutes each; anything longer is unpaid
+  roundTo: 15,               // round each entry to this many minutes (0 = exact)
+  roundMode: "nearest",      // nearest | up | down
+  breakReminderMin: 45,      // remind a tech whose break has run this long
+  clockReminderHours: 10,    // remind a tech whose clock has run this many hours
+};
+let CLOCK = null, TIMECFG = { ...TIME_DEFAULTS }, MYTIME = [];
+const STATE_LABEL = { travel: "On the way", work: "Working", lunch: "On lunch", coffee: "Coffee break" };
+const mins = ms => Math.max(0, ms / 60000);
+const hm = m => { m = Math.round(m); const h = Math.floor(m / 60); return h ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`; };
+const clockTxt = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+function roundMin(m, cfg) {
+  const r = +cfg.roundTo || 0; if (!r) return Math.round(m);
+  const f = cfg.roundMode === "up" ? Math.ceil : cfg.roundMode === "down" ? Math.floor : Math.round;
+  return f(m / r) * r;
+}
+// Totals for a clock: minutes in each state, and what's paid under the rules.
+function clockTotals(c, cfg, endAt = Date.now()) {
+  const ev = (c && c.events) || [], t = { travel: 0, work: 0, lunch: 0, coffee: 0, coffeePaid: 0 };
+  ev.forEach((e, i) => {
+    const end = i + 1 < ev.length ? Date.parse(ev[i + 1].at) : endAt, m = mins(end - Date.parse(e.at));
+    if (t[e.s] === undefined) return;
+    t[e.s] += m;
+    if (e.s === "coffee") t.coffeePaid += cfg.coffeePaid ? Math.min(m, +cfg.coffeeMaxMin || 0) : 0;
+  });
+  const travelPaid = cfg.travelPaid && !(c.firstOfDay && !cfg.firstTripPaid) ? t.travel : 0;
+  const workPaid = t.work + (cfg.lunchPaid ? t.lunch : 0) + t.coffeePaid;
+  return { ...t, travelPaid, workPaid, workH: roundMin(workPaid, cfg) / 60, travelH: roundMin(travelPaid, cfg) / 60 };
+}
+const lastEvent = c => (c && c.events && c.events.length) ? c.events[c.events.length - 1] : null;
+
+function clockPanel(v) {
+  const st = v.status || "scheduled";
+  if (CLOCK && CLOCK.visitId && CLOCK.visitId !== v.id) {
+    const other = VISITS.find(x => x.id === CLOCK.visitId);
+    return `<div class="clock idle"><div class="cl-state">Your clock is running on another visit</div><div class="cl-sub">${esc(STATE_LABEL[CLOCK.state] || "")} · ${esc(other ? (other.title || other.customer) : CLOCK.customer || "another visit")}</div><a class="big ghost" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:.7rem" href="#v=${encodeURIComponent(CLOCK.visitId)}">Go to that visit</a></div>`;
+  }
+  if (!CLOCK || CLOCK.visitId !== v.id) {
+    if (st === "complete") return `<div class="statusbar"><button class="big ghost" data-st="in_progress">Reopen visit</button></div>`;
+    return `<div class="clock idle"><div class="cl-row"><button class="big" data-clk="travel">🚚 On my way</button></div><div class="cl-row"><button class="big ghost" data-clk="work">Already here, start work</button></div></div>`;
+  }
+  const e = lastEvent(CLOCK), tot = clockTotals(CLOCK, TIMECFG), brk = CLOCK.state === "lunch" || CLOCK.state === "coffee";
+  const paidNote = CLOCK.state === "lunch" ? (TIMECFG.lunchPaid ? "Lunch is paid" : "Lunch is unpaid") : CLOCK.state === "coffee" ? (TIMECFG.coffeePaid ? `Paid up to ${TIMECFG.coffeeMaxMin} min` : "Coffee breaks are unpaid") : CLOCK.state === "travel" ? (TIMECFG.travelPaid ? (CLOCK.firstOfDay && !TIMECFG.firstTripPaid ? "First drive of the day is unpaid" : "Drive time is paid") : "Drive time is unpaid") : "";
+  let btns = "";
+  if (CLOCK.state === "travel") btns = `<button class="big" data-clk="work">Arrived, start work</button><button class="linkbtn" data-clk="cancel">Cancel trip</button>`;
+  else if (CLOCK.state === "work") btns = `<div class="cl-row two"><button class="big ghost" data-clk="lunch">🥪 Lunch</button><button class="big ghost" data-clk="coffee">☕ Coffee</button></div><button class="big done" data-clk="complete">Complete visit</button><button class="linkbtn" data-clk="leave">Leave site, coming back later</button>`;
+  else if (brk) btns = `<button class="big" data-clk="work">Back to work</button>`;
+  return `<div class="clock ${esc(CLOCK.state)}" aria-live="polite">
+    <div class="cl-state">${esc(STATE_LABEL[CLOCK.state] || "")}</div>
+    <div class="cl-time" id="clk-t">${clockTxt(Date.now() - Date.parse(e.at))}</div>
+    <div class="cl-sub">${paidNote ? esc(paidNote) + " · " : ""}<span id="clk-tot">${totLine(tot)}</span></div>
+    ${btns}</div>`;
+}
+const totLine = t => [t.travel ? "Drive " + hm(t.travel) : "", t.work ? "Work " + hm(t.work) : "", t.lunch + t.coffee ? "Breaks " + hm(t.lunch + t.coffee) : ""].filter(Boolean).join(" · ") || "Just started";
+
+async function clockAction(v, a) {
+  const now = new Date().toISOString();
+  const base = { visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", visitTitle: v.title || "" };
+  if (a === "travel" || (a === "work" && (!CLOCK || CLOCK.visitId !== v.id))) {
+    const firstOfDay = !MYTIME.some(r => r.date === TODAY && (r.type === "Travel" || r.type === "Regular"));
+    const ok = await save(() => store.setClock({ ...base, state: a, startedAt: now, date: TODAY, firstOfDay, events: [{ s: a, at: now }] }), $("st-saved"), a === "travel" ? "Clock started: on the way" : "Clock started: working");
+    if (ok && (v.status || "scheduled") === "scheduled") save(() => store.setStatus(v, "in_progress"));
+    return;
+  }
+  if (a === "cancel") { if (confirm("Cancel this trip? The drive time won't be recorded.")) save(() => store.clearClock(), $("st-saved"), "Trip cancelled"); return; }
+  if (a === "complete" || a === "leave") return reviewHours(v, a === "complete");
+  if (CLOCK.state === a) return;
+  save(() => store.setClock({ ...CLOCK, state: a, events: [...(CLOCK.events || []), { s: a, at: now }] }), $("st-saved"), a === "work" ? "Back to work" : STATE_LABEL[a] + " started");
+}
+
+// End of visit (or leaving to come back): show the hours worked out from the clock, let the tech fix them, then save.
+function reviewHours(v, complete) {
+  const endAt = Date.now(), t = clockTotals(CLOCK, TIMECFG, endAt), cfg = TIMECFG;
+  const line = (l, m, paid) => m ? `<div class="row"><div class="grow">${l}</div><b>${hm(m)}</b><small style="margin-left:.5rem">${paid}</small></div>` : "";
+  const sh = $("sheet");
+  $("sheet-in").innerHTML = `<h3 id="sheet-h">${complete ? "Complete visit" : "Leave site"}: check your hours</h3>
+    <div class="sec">
+      ${line("Drive", t.travel, t.travelPaid ? "paid" : "unpaid")}
+      ${line("Work", t.work, "paid")}
+      ${line("Lunch", t.lunch, cfg.lunchPaid ? "paid" : "unpaid")}
+      ${line("Coffee", t.coffee, t.coffeePaid >= t.coffee - 0.5 ? (t.coffee ? "paid" : "") : hm(t.coffeePaid) + " paid")}
+    </div>
+    <p class="cl-sub" style="margin:-.3rem 0 .8rem">Rounded to ${cfg.roundTo ? cfg.roundTo + " minutes (" + cfg.roundMode + ")" : "the minute"}. Change anything that's not right.</p>
+    <div class="two"><label class="field"><span>Work hours</span><input class="inp" id="r-work" inputmode="decimal" value="${+t.workH.toFixed(2)}"></label><label class="field"><span>Drive hours${cfg.travelBillable ? " (billable)" : ""}</span><input class="inp" id="r-trav" inputmode="decimal" value="${+t.travelH.toFixed(2)}"></label></div>
+    <label class="field"><span>Note (optional)</span><input class="inp" id="r-note" placeholder="${complete ? "" : "e.g. back tomorrow with the part"}"></label>
+    <div class="btnrow"><button class="big ghost" id="r-cancel">Keep clock running</button><button class="big ${complete ? "done" : ""}" id="r-save">Save hours${complete ? " and complete" : ""}</button></div><div class="saved" id="r-saved"></div>`;
+  sh.classList.add("on");
+  $("r-cancel").onclick = () => sh.classList.remove("on");
+  $("r-save").onclick = async () => {
+    const wH = Math.max(0, parseFloat($("r-work").value) || 0), tH = Math.max(0, parseFloat($("r-trav").value) || 0);
+    if (wH > 24 || tH > 24) { toast("That's more than 24 hours. Check the numbers.", true); return; }
+    if (complete && !SUMMARY_SAVED && !confirm("You haven't saved a visit summary yet. Complete the visit anyway?")) return;
+    const note = $("r-note").value.trim(), detail = `Clock: ${totLine(t)}`;
+    const common = { visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", tech: ME, techName: MY_NAME, date: CLOCK.date || TODAY, source: "clock", clockStart: CLOCK.startedAt, clockEnd: new Date(endAt).toISOString() };
+    const ok = await save(async () => {
+      if (wH) await store.addTime({ ...common, hours: wH, type: "Regular", note: [note, detail].filter(Boolean).join(" · "), breaks: { lunchMin: Math.round(t.lunch), coffeeMin: Math.round(t.coffee), lunchPaid: !!cfg.lunchPaid } });
+      if (tH) await store.addTime({ ...common, hours: tH, type: "Travel", billable: !!cfg.travelBillable, note: note || "" });
+      await store.clearClock();
+      if (complete) await store.setStatus(v, "complete");
+    }, $("r-saved"), complete ? "Visit completed" : "Hours saved");
+    if (ok) { sh.classList.remove("on"); if (document.activeElement) document.activeElement.blur(); render(); toast(complete ? `Visit completed · ${wH + tH} h saved` : `${wH + tH} h saved · clock stopped`); }
+  };
+}
+
+// Live timer + reminders while a clock is running.
+let remindedKey = "";
+setInterval(() => {
+  if (!CLOCK) return;
+  const e = lastEvent(CLOCK); if (!e) return;
+  const el = $("clk-t"); if (el) el.textContent = clockTxt(Date.now() - Date.parse(e.at));
+  const tt = $("clk-tot"); if (tt) tt.textContent = totLine(clockTotals(CLOCK, TIMECFG));
+  const onBreak = (CLOCK.state === "lunch" || CLOCK.state === "coffee") && mins(Date.now() - Date.parse(e.at)) >= (+TIMECFG.breakReminderMin || 9999);
+  const long = mins(Date.now() - Date.parse(CLOCK.startedAt)) >= (+TIMECFG.clockReminderHours || 99) * 60;
+  const key = onBreak ? "b" + e.at : long ? "l" + CLOCK.startedAt : "";
+  if (key && key !== remindedKey) {
+    remindedKey = key;
+    toast(onBreak ? `Your ${CLOCK.state === "lunch" ? "lunch" : "coffee break"} has been running ${hm(mins(Date.now() - Date.parse(e.at)))}. Tap "Back to work" if you're done.` : `Your clock has been running over ${TIMECFG.clockReminderHours} hours. Did you forget to stop it?`, true);
+    try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (x) {}
+  }
+}, 1000);
+
+// ── Time rules (owners): what's paid, what's billable, rounding, reminders ──
+function renderSettings() {
+  $("title").firstChild.textContent = "Time rules";
+  if (!OWNER) { $("app").innerHTML = `<div class="empty">Only owners can change the time rules.</div>`; return; }
+  const c = TIMECFG, yn = (id, on, label, help) => `<label class="tog"><input type="checkbox" id="${id}" ${on ? "checked" : ""}><span><b>${label}</b>${help ? `<small>${help}</small>` : ""}</span></label>`;
+  $("app").innerHTML = banner() + `
+    <div class="sec"><h3>Driving</h3>
+      ${yn("s-tp", c.travelPaid, "Drive time is paid", "Time between tapping On my way and Arrived.")}
+      ${yn("s-tb", c.travelBillable, "Drive time is billed to the customer")}
+      ${yn("s-fp", c.firstTripPaid, "First drive of the day is paid", "Turn off if the drive from home to the first job isn't paid.")}
+    </div>
+    <div class="sec"><h3>Breaks</h3>
+      ${yn("s-lp", c.lunchPaid, "Lunch is paid")}
+      ${yn("s-cp", c.coffeePaid, "Coffee breaks are paid")}
+      <label class="field"><span>Paid coffee break, up to (minutes each)</span><input class="inp" id="s-cm" inputmode="numeric" value="${esc(c.coffeeMaxMin)}"></label>
+    </div>
+    <div class="sec"><h3>Rounding</h3>
+      <div class="two"><label class="field"><span>Round each entry to</span><select class="inp" id="s-rt">${[[0, "Exact minute"], [5, "5 minutes"], [6, "6 minutes (0.1 h)"], [15, "15 minutes"], [30, "30 minutes"]].map(([v, l]) => `<option value="${v}" ${+c.roundTo === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      <label class="field"><span>Direction</span><select class="inp" id="s-rm">${[["nearest", "Nearest"], ["up", "Always up"], ["down", "Always down"]].map(([v, l]) => `<option value="${v}" ${c.roundMode === v ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+    </div>
+    <div class="sec"><h3>Reminders</h3>
+      <div class="two"><label class="field"><span>Break running longer than (min)</span><input class="inp" id="s-br" inputmode="numeric" value="${esc(c.breakReminderMin)}"></label>
+      <label class="field"><span>Clock running longer than (hours)</span><input class="inp" id="s-ch" inputmode="numeric" value="${esc(c.clockReminderHours)}"></label></div>
+    </div>
+    <div class="btnrow"><button class="big" id="s-save">Save time rules</button></div><div class="saved" id="s-saved"></div>
+    <p class="cl-sub" style="margin-top:1rem">These rules apply to everyone's clock from the next time they stop it. Hours already saved don't change.</p>`;
+  $("s-save").onclick = () => {
+    const n = (id, d) => { const x = parseFloat($(id).value); return isFinite(x) && x >= 0 ? x : d; };
+    save(() => store.saveSettings({ travelPaid: $("s-tp").checked, travelBillable: $("s-tb").checked, firstTripPaid: $("s-fp").checked, lunchPaid: $("s-lp").checked, coffeePaid: $("s-cp").checked, coffeeMaxMin: n("s-cm", 15), roundTo: +$("s-rt").value, roundMode: $("s-rm").value, breakReminderMin: n("s-br", 45), clockReminderHours: n("s-ch", 10) }), $("s-saved"), "Time rules saved");
+  };
+}
+
 // ── Visit ──
+let SUMMARY_SAVED = false;
 function renderVisit(id) {
   const v = VISITS.find(x => x.id === id);
   if (!v) { $("app").innerHTML = banner() + `<button class="back" onclick="location.hash='${FROM}'">‹ ${FROM ? "Schedule" : "My visits"}</button><div class="empty">${LOADED ? "This visit isn't assigned to you, or it was removed." : "Loading…"}</div>`; return; }
@@ -300,7 +477,7 @@ function renderVisit(id) {
     <button class="back" id="back">‹ ${FROM ? "Schedule" : "My visits"}</button>
     <div class="vhead">${v.visitType ? `<div class="site">${esc(v.visitType)}</div>` : ""}<h2>${esc(v.title || v.customer || "Visit")}</h2><div class="site">${esc([v.title ? v.customer : "", v.site].filter(Boolean).join(" · "))}</div>
       <div class="meta"><span class="chip ${overdueDays(v) ? "overdue" : esc(st)}">${esc(STATUS[st])}</span><span>${esc(dayLabel(v.date))}${v.time ? " · " + esc(v.time) : ""}</span>${(v.techNames || []).length > 1 ? `<span>with ${esc(v.techNames.filter(n => n !== MY_NAME).map(first).join(", "))}</span>` : ""}</div></div>
-    <div class="statusbar">${st === "scheduled" ? `<button class="big" data-st="in_progress">Start visit</button>` : st === "in_progress" ? `<button class="big done" data-st="complete">Complete visit</button>` : `<button class="big ghost" data-st="in_progress">Reopen visit</button>`}</div>
+    <div id="clock-box">${clockPanel(v)}</div>
     <div class="saved" id="st-saved" style="margin:-.8rem 0 .8rem"></div>
 
     <div class="sec"><h3>Site</h3>
@@ -335,14 +512,8 @@ function renderVisit(id) {
     </div>`;
 
   $("back").onclick = () => { location.hash = FROM; };
-  document.querySelectorAll("[data-st]").forEach(b => b.onclick = async () => {
-    const to = b.dataset.st;
-    if (to === "complete" && !SUMMARY_SAVED && !confirm("You haven't saved a visit summary yet. Complete the visit anyway?")) return;
-    b.disabled = true;
-    const msg = to === "complete" ? "Visit completed" : "Visit started";
-    if (await save(() => store.setStatus(v, to), $("st-saved"), msg)) toast(msg + (navigator.onLine ? "" : " · will upload when you're back in coverage"));
-    if (b.isConnected) b.disabled = false;
-  });
+  wireClock(v);
+
 
   // Hours
   const hIn = $("h-hrs"), step = d => { const x = Math.max(0, Math.round(((parseFloat(hIn.value) || 0) + d) * 4) / 4); hIn.value = x; };
@@ -362,7 +533,7 @@ function renderVisit(id) {
   }, subErr));
 
   // Summary
-  let SUMMARY_SAVED = false, typed = false;
+  let typed = false; SUMMARY_SAVED = false;
   const sum = $("sum");
   sum.addEventListener("input", () => { typed = true; $("sum-saved").className = "saved"; $("sum-saved").textContent = "Not saved yet"; });
   const saveSum = async () => { const text = sum.value.trim(); if (await save(() => store.saveReport(v, text), $("sum-saved"), "Summary saved")) { typed = false; SUMMARY_SAVED = !!text; } };
@@ -380,6 +551,18 @@ function renderVisit(id) {
       + up.map(u => `<figure><img src="${u.preview}" alt=""><span class="badge ${u.failed ? "bad" : ""}">${u.failed ? "failed" : "saving"}</span></figure>`).join("");
     document.querySelectorAll("[data-del-p]").forEach(b => b.onclick = () => { if (confirm("Delete this photo?")) save(() => store.delPhoto(b.dataset.delP), $("ph-saved"), "Photo deleted"); });
   }, subErr));
+}
+
+function wireClock(v) {
+  document.querySelectorAll("[data-clk]").forEach(b => b.onclick = async () => { b.disabled = true; await clockAction(v, b.dataset.clk); if (b.isConnected) b.disabled = false; });
+  document.querySelectorAll("#clock-box [data-st]").forEach(b => b.onclick = () => save(() => store.setStatus(v, "in_progress"), $("st-saved"), "Visit reopened"));
+}
+// Clock or time rules changed: redraw just the clock on an open visit (keeps whatever the tech is typing).
+function refreshClock() {
+  const id = route(), box = $("clock-box");
+  if (!id || !box) return;
+  const v = VISITS.find(x => x.id === id); if (!v) return;
+  box.innerHTML = clockPanel(v); wireClock(v);
 }
 
 // Photos: shrink on the phone (longest side 1600 px, JPEG) so each fits in one database record.
@@ -450,6 +633,7 @@ $("menu-btn").onclick = openDrawer; scrim.onclick = closeDrawer;
 $("d-av").textContent = MY_NAME.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 $("d-name").textContent = MY_NAME; $("d-email").textContent = ME;
 if (OFFICE && !DEMO) document.body.classList.add("office");
+if (OWNER) document.body.classList.add("owner");
 document.querySelectorAll("[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); location.hash = a.dataset.go; closeDrawer(); render(); });
 $("search-btn").onclick = () => { if (location.hash) location.hash = ""; setTimeout(() => { const q = $("q"); if (q) { q.focus(); q.scrollIntoView({ block: "center" }); } }, 50); };
 $("m-out").onclick = () => { if (PENDING && !confirm("Some saves haven't uploaded yet. Sign out anyway?")) return; if (typeof apLogout === "function") apLogout(); };
@@ -485,6 +669,9 @@ function err(e) {
   try { store = DEMO ? demoStore() : await firestoreStore(); }
   catch (e) { err(e); return; }
   syncUi();
+  store.clock(c => { CLOCK = c; refreshClock(); }, e => console.error(e));
+  store.settings(c => { TIMECFG = { ...TIME_DEFAULTS, ...(c || {}) }; refreshClock(); if (location.hash === "#settings" && !document.activeElement?.closest?.("#app")) render(); }, e => console.error(e));
+  store.myTime(rows => { MYTIME = rows; }, e => console.error(e));
   store.visits(rows => { VISITS = rows; LOADED = true; BANNER = ""; const id = route(); if (!id || !document.activeElement || document.activeElement === document.body) render(); }, err);
   render();
 })();
