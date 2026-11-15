@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alpine HVAC — Users &amp; Settings</title>
-<script src="auth.js"></script>
-<script src="qrcode.js"></script>
+<script src="auth.js?v=2"></script>
+<script src="qrcode.js?v=1"></script>
 <script>if (typeof apGuard === "function") apGuard("users");</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -272,7 +272,10 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") qrClose(); }
 $("qr-close").onclick = qrClose;
 $("qr-print").onclick = () => window.print();
 function showQr(u) {
-  const url = AP_HOME + "#email=" + encodeURIComponent(u.email);
+  // AP_HOME comes from auth.js; fall back in case the browser still has an older auth.js cached.
+  const home = (typeof AP_HOME === "string" && AP_HOME) || "https://basecamp.alpinehvac.ca/";
+  if (typeof qrcode !== "function") { listMsg("The QR code tool didn't load. Press Ctrl+F5 to reload the page, then try again.", true); return; }
+  const url = home + "#email=" + encodeURIComponent(u.email);
   const q = qrcode(0, "M"); q.addData(url); q.make();
   $("qr-img").innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
   $("qr-name").textContent = u.name; $("qr-em").textContent = u.email; $("qr-url").textContent = url;
