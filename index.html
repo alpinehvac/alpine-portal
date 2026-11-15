@@ -81,8 +81,17 @@ const $ = id => document.getElementById(id);
 function showErr(msg) { const e = $("err"); e.textContent = msg; e.style.display = "block"; $("info").style.display = "none"; }
 function showInfo(msg) { const i = $("info"); i.textContent = msg; i.style.display = "block"; $("err").style.display = "none"; }
 
-// Already signed in on this device: skip the form.
-const existing = await currentUser();
+// Arrived from a sign-in QR code (Users & Settings): basecamp.alpinehvac.ca/#email=name@alpinehvac.ca.
+// Fill in the email, put the cursor in the password box, and tidy the address bar.
+const qrEmail = (() => { try { return (new URLSearchParams(location.hash.slice(1)).get("email") || "").trim().toLowerCase(); } catch (e) { return ""; } })();
+if (qrEmail) {
+  $("username").value = qrEmail;
+  history.replaceState(null, "", location.pathname + location.search);
+}
+
+// Already signed in on this device: skip the form (unless the QR code is for someone else).
+let existing = await currentUser();
+if (existing && qrEmail && existing.email.toLowerCase() !== qrEmail) { await signOut(auth); existing = null; }
 if (existing) {
   if (await apSessionForUser(existing.email)) {
     // Signed in already: go back to the page that sent us here (portal pages only), else the dashboard.
@@ -104,6 +113,7 @@ function setPwVisible(on) {
 $("pw-eye").addEventListener("click", () => { setPwVisible($("password").type === "password"); $("password").focus(); });
 
 $("password").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+if (qrEmail) $("password").focus();
 $("username").addEventListener("keydown", e => { if (e.key === "Enter") $("password").focus(); });
 
 window.doLogin = async function () {

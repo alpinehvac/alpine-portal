@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alpine HVAC — Users &amp; Settings</title>
 <script src="auth.js"></script>
+<script src="qrcode.js"></script>
 <script>if (typeof apGuard === "function") apGuard("users");</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -43,6 +44,16 @@ td small{display:block;color:var(--grey);font-size:.76rem}
 .acts{text-align:right;white-space:nowrap}
 .link{border:none;background:none;color:var(--teal);font:inherit;font-size:.78rem;cursor:pointer;text-decoration:underline;margin-left:.6rem}
 .link.danger{color:var(--red)}
+.qr-back{position:fixed;inset:0;background:rgba(16,68,78,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:1rem}
+.qr-back.on{display:flex}
+.qr-card{background:#fff;border-radius:16px;padding:1.6rem 1.6rem 1.3rem;max-width:380px;width:100%;text-align:center;color:#10444E;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.qr-card h2{font-family:'Oswald',sans-serif;font-size:1.3rem;margin:0 0 .15rem}
+.qr-card .em{font-size:.85rem;color:var(--grey);margin-bottom:.9rem}
+.qr-card .qr svg{width:230px;height:230px;display:block;margin:0 auto}
+.qr-card ol{text-align:left;font-size:.84rem;line-height:1.45;margin:.9rem 0 .3rem;padding-left:1.2rem}
+.qr-card .url{font-size:.72rem;color:var(--grey);word-break:break-all;margin:.5rem 0 1rem}
+.qr-card .btns{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap}
+@media print{body>*:not(.qr-back){display:none!important}.qr-back{position:static;background:none;display:flex!important}.qr-card{box-shadow:none}.qr-card .btns{display:none}}
 .link:disabled{color:var(--grey);opacity:.5;cursor:default;text-decoration:none}
 .opens{color:var(--grey);font-size:.82rem;max-width:22rem}
 .opens summary{cursor:pointer;color:var(--teal)}
@@ -192,6 +203,7 @@ function render() {
       <td>${u.active ? '<span class="tag green">Active</span>' : '<span class="tag red">Disabled</span>'}${u.source === "built-in" ? '<span class="tag grey">Built-in list</span>' : ""}${u.updatedAt ? `<small>Updated ${esc(fmtD(u.updatedAt))}${u.updatedBy ? " by " + esc(u.updatedBy.split("@")[0]) : ""}</small>` : ""}</td>
       <td class="acts">
         <button class="link" data-a="edit" data-e="${esc(u.email)}" ${ro ? "disabled" : ""}>Edit</button>
+        <button class="link" data-a="qr" data-e="${esc(u.email)}" ${u.active ? "" : "disabled"}>QR code</button>
         <button class="link" data-a="reset" data-e="${esc(u.email)}">Password link</button>
         <button class="link ${u.active ? "danger" : ""}" data-a="toggle" data-e="${esc(u.email)}" ${ro || self ? "disabled" : ""}>${u.active ? "Disable" : "Enable"}</button>
         ${!u.builtIn && u.source === "db" ? `<button class="link danger" data-a="delete" data-e="${esc(u.email)}" ${ro || self ? "disabled" : ""}>Delete</button>` : ""}
@@ -218,6 +230,7 @@ function ownersAfter(email, next) {
 async function act(a, email) {
   const u = LIST.find(x => x.email === email); if (!u) return;
   if (a === "edit") return openEditor(u);
+  if (a === "qr") return showQr(u);
   if (a === "reset") {
     if (!confirm(`Email ${email} a link to set or reset their password?`)) return;
     try { await sendPasswordResetEmail(auth, email); listMsg("Password link sent to " + email + "."); }
@@ -237,6 +250,35 @@ async function act(a, email) {
     try { await deleteDoc(doc(db, "portal_users", email)); listMsg(u.name + " removed."); load(); }
     catch (e) { listMsg("Delete failed (" + (e.code || e) + ").", true); }
   }
+}
+
+// ── Sign-in QR code: scanning it opens Basecamp on the phone with this person's email filled in.
+// The email rides after "#", so it stays on the phone and is never sent to the web server.
+const qrBack = document.createElement("div");
+qrBack.className = "qr-back";
+qrBack.innerHTML = `<div class="qr-card" role="dialog" aria-modal="true" aria-labelledby="qr-name">
+  <h2 id="qr-name"></h2><div class="em" id="qr-em"></div>
+  <div class="qr" id="qr-img"></div>
+  <ol><li>Point your phone's camera at the code and tap the link.</li>
+  <li>Basecamp opens with your email filled in. Type your password and tap Sign In.</li>
+  <li>First time? Tap <b>Set or reset my password</b> instead, and use the link in your email.</li>
+  <li>Then add Basecamp to your home screen: Share, then Add to Home Screen (iPhone), or the ⋮ menu, then Add to Home screen (Android).</li></ol>
+  <div class="url" id="qr-url"></div>
+  <div class="btns"><button class="btn" id="qr-print">Print</button><button class="btn ghost" id="qr-copy">Copy link</button><button class="btn ghost" id="qr-close">Close</button></div></div>`;
+document.body.appendChild(qrBack);
+const qrClose = () => qrBack.classList.remove("on");
+qrBack.addEventListener("click", e => { if (e.target === qrBack) qrClose(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") qrClose(); });
+$("qr-close").onclick = qrClose;
+$("qr-print").onclick = () => window.print();
+function showQr(u) {
+  const url = AP_HOME + "#email=" + encodeURIComponent(u.email);
+  const q = qrcode(0, "M"); q.addData(url); q.make();
+  $("qr-img").innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  $("qr-name").textContent = u.name; $("qr-em").textContent = u.email; $("qr-url").textContent = url;
+  $("qr-copy").textContent = "Copy link";
+  $("qr-copy").onclick = async () => { try { await navigator.clipboard.writeText(url); $("qr-copy").textContent = "Copied"; } catch (e) { prompt("Copy this link:", url); } };
+  qrBack.classList.add("on");
 }
 
 $("seed").onclick = async () => {

@@ -83,6 +83,9 @@ function apStartPage(session) {
   return (s && (s.start || AP_START[s.email])) || "dashboard.html?view=home";
 }
 
+// The portal's public address. Sign-in QR codes (Users & Settings) point here.
+const AP_HOME = "https://basecamp.alpinehvac.ca/";
+
 const AP_SESSION_KEY = "ap_session";
 const AP_FS_URL = "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
