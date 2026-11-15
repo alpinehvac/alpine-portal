@@ -9,6 +9,10 @@
 // built-in fallback, used only for an email that has no portal_users record
 // yet (the rules do the same), so nothing changes until the list is copied in.
 
+// Always use the secure address: someone who types or bookmarks http://basecamp... is moved to https://.
+// (GitHub's "Enforce HTTPS" setting does the same on the server; this covers until it's switched on.)
+if (location.protocol === "http:" && /(^|\.)alpinehvac\.ca$/i.test(location.hostname)) location.replace("https:" + location.href.slice(5));
+
 const AP_USERS = {
   "jake.gilmore@alpinehvac.ca":     { name: "Jake Gilmore",     roles: ["super_admin", "sales", "finance", "owner"] },
   "mike.launder@alpinehvac.ca":     { name: "Mike Launder",     roles: ["super_admin", "sales", "finance", "owner"] },
