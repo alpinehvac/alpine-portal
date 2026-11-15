@@ -39,6 +39,7 @@
     { key: "operations", label: "Operations", icon: "ops", items: [
       { label: "Dashboard", href: D("operations"), show: () => can("ops-dashboard"), match: [D("operations")] },
       { tool: "ops-dashboard", label: "Field Operations", match: ["ops-dashboard.html", "job.html", "job-profit.html"] },
+      { tool: "quotes", label: "Quotes" },
       { tool: "invoicing", label: "Invoicing" },
       { tool: "items", label: "Item List" },
       { tool: "po-numbers", label: "PO Numbers" },

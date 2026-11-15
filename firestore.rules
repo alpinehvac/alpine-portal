@@ -199,6 +199,19 @@ service cloud.firestore {
       allow read, write: if isFieldOps();
     }
     // Item List (items.html): equipment, labour, materials price list + category tree: Jake, Mike and Cole
+    // Quotes (quotes.html): Jake, Mike + Cole build and track customer quotes. Numbering in
+    // quotes_meta/counter; company defaults (margin, labour rate, HST, terms) in quotes_meta/settings,
+    // which only owners change.
+    match /quotes/{id} {
+      allow read, write: if isFieldOps();
+    }
+    match /quotes_meta/counter {
+      allow read, write: if isFieldOps();
+    }
+    match /quotes_meta/settings {
+      allow read: if isFieldOps();
+      allow write: if isOwner();
+    }
     match /items_data/{doc=**} {
       allow read, write: if isFieldOps();
     }

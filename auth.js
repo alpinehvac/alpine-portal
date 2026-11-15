@@ -54,6 +54,7 @@ const AP_TOOLS = {
   "lead-sheets":        { label: "Lead Sheets",                   roles: ["sales"] },
   "call-log":           { label: "Alpine Call Log / On-Call",     roles: ["ops"] },
   "tech":               { label: "My Visits (techs)",              roles: ["ops", "field_ops", "owner"], strict: true }, // tech.html: phone app for techs (fs_visits, fs_time, fs_summaries, fs_photos); techs see only visits assigned to them
+  "quotes":             { label: "Quotes",                        roles: ["owner", "field_ops"], strict: true }, // customer quotes priced from the Item List (margin formula, labour rate, HST, PDF): Jake, Mike + Cole (quotes, quotes_meta)
   "items":              { label: "Item List",                     roles: ["owner", "field_ops"], strict: true }, // equipment, labour, materials price list: Jake, Mike + Cole (items_data, items_meta)
   "users":              { label: "Users & Settings",              roles: ["owner"], strict: true },   // people, roles, start pages, access: Jake, Mike only (portal_users)
 };
@@ -65,7 +66,7 @@ const AP_ROLES = {
   finance:     { label: "Finance",      note: "Financial Position" },
   sales:       { label: "Sales",        note: "Sales dashboard, Service Agreement Tracker, audits, outbound" },
   support:     { label: "Support",      note: "Service Agreement Calculator" },
-  field_ops:   { label: "Field ops",    note: "Field Operations pipeline, invoicing, Item List, Account Management" },
+  field_ops:   { label: "Field ops",    note: "Field Operations pipeline, quotes, invoicing, Item List, Account Management" },
   ops:         { label: "Ops / tech",   note: "Job pages, site reports, call log" },
 };
 
