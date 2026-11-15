@@ -119,6 +119,19 @@ service cloud.firestore {
       allow read: if isFieldOps();
       allow write: if isOwner();
     }
+    // Report a problem + automatic error reports (ap-report.js): anyone signed in can file one,
+    // signed as themselves. An Apps Script on XSite's Google account emails new ones to the
+    // XSite support team and marks them emailed (it reads them as a project member, not through
+    // these rules). In the app, only owners can read or tidy them.
+    match /support_reports/{id} {
+      allow create: if signedIn() && request.resource.data.by == email()
+        && request.resource.data.kind in ['report', 'error']
+        && request.resource.data.message is string && request.resource.data.message.size() < 5000
+        && request.resource.data.emailed == false
+        && (!('photo' in request.resource.data) || (request.resource.data.photo is string && request.resource.data.photo.size() < 750000));
+      allow read, update, delete: if isOwner();
+    }
+
     // ── Tech mobile (tech.html) ──
     // Visits: the office (owners + field_ops) creates and assigns them; a tech reads only visits
     // that list their email in techEmails, and may only change the visit's status fields.

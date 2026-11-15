@@ -884,7 +884,12 @@ $("m-pass").onclick = async () => {
 };
 $("m-help").onclick = () => alert("Add Alpine to your home screen so it opens like an app:\n\n"
   + (/iPhone|iPad/.test(navigator.userAgent) ? "In Safari, tap Share (the square with an arrow), then 'Add to Home Screen'." : "In Chrome, open the ⋮ menu and choose 'Add to Home screen' or 'Install app'.")
-  + "\n\nNo signal? Keep working. Saves wait on your phone and upload when you're back in coverage.\n\nSomething wrong? Call the office.");
+  + "\n\nNo signal? Keep working. Saves wait on your phone and upload when you're back in coverage.\n\nSomething wrong? Tap Report a problem in this menu, or call the office.");
+$("m-report").onclick = () => {
+  closeDrawer();
+  if (window.apReport) window.apReport.open();
+  else document.addEventListener("ap-report-ready", () => window.apReport.open(), { once: true });
+};
 $("m-clear").onclick = async () => {
   if (PENDING || !navigator.onLine) { alert("Wait until you have a signal and the top bar says Saved, so nothing waiting to upload is lost."); return; }
   if (!confirm("Reload the app with fresh files? Your visits, hours and photos are already saved in the cloud.")) return;

@@ -72,6 +72,7 @@
     chev: '<path d="m9 6 6 6-6 6"/>',
     collapse: '<path d="m15 6-6 6 6 6"/>',
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
     ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   };
   const svg = (k, cls) => `<svg class="${cls || "sb-ic"}" viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
@@ -137,6 +138,8 @@
   #ap-sb .sb-a.child{font-size:12.5px;padding-left:22px;position:relative}
   #ap-sb .sb-a.child::before{content:'';position:absolute;left:10px;top:50%;width:7px;height:1px;background:rgba(255,255,255,.3)}
   #ap-sb .sb-a.dash{font-weight:600;color:#BFE5E6}
+  #ap-sb .sb-rep{border-top:1px solid rgba(255,255,255,.08);padding:6px 10px}
+  #ap-sb .sb-rep .sb-row{color:rgba(255,255,255,.7);font-size:11.5px}
   #ap-sb .sb-foot{border-top:1px solid rgba(255,255,255,.08);padding:12px 14px;display:flex;align-items:center;gap:10px}
   #ap-sb .sb-user{display:flex;align-items:center;gap:10px;min-width:0;flex:1;font-size:12px;color:rgba(255,255,255,.75)}
   #ap-sb .sb-av{width:30px;height:30px;border-radius:50%;background:#3D818A;color:#fff;display:flex;align-items:center;justify-content:center;font:600 12px 'Oswald',sans-serif;flex-shrink:0}
@@ -190,6 +193,7 @@
       <div class="sb-word">Alpine HVAC<small>Internal Portal</small></div>
       <button class="sb-tog" type="button" title="Collapse sidebar" aria-label="Collapse sidebar">${svg("collapse", "")}</button></div>
       <nav class="sb-scroll" aria-label="Sections">${nav.map(group).join("")}</nav>
+      <div class="sb-rep"><button class="sb-row" type="button" title="Report a problem">${svg("flag")}<span class="sb-label">Report a problem</span></button></div>
       <div class="sb-foot"><div class="sb-user" title="${esc(session.name)}"><div class="sb-av">${esc(initials)}</div><span>${esc(session.name)}</span></div>
       <button class="sb-out" type="button">Sign out</button></div>`;
     const burger = document.createElement("button"); burger.id = "ap-sb-burger"; burger.type = "button"; burger.setAttribute("aria-label", "Open menu"); burger.innerHTML = svg("menu", "");
@@ -197,6 +201,11 @@
     document.body.prepend(scrim); document.body.prepend(burger); document.body.prepend(aside);
 
     aside.querySelector(".sb-tog").onclick = () => { collapsed = !collapsed; root.classList.toggle("ap-sb-c", collapsed); LS.set("ap_sb_collapsed", collapsed ? "1" : "0"); window.dispatchEvent(new Event("resize")); };
+    aside.querySelector(".sb-rep .sb-row").onclick = () => {
+      root.classList.remove("ap-sb-m");
+      if (window.apReport) window.apReport.open();
+      else document.addEventListener("ap-report-ready", () => window.apReport.open(), { once: true });
+    };
     aside.querySelector(".sb-out").onclick = () => { if (typeof apLogout === "function") apLogout(); };
     aside.querySelectorAll(".sb-g > .sb-row").forEach(b => b.onclick = () => {
       const g = b.parentElement;

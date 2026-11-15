@@ -205,3 +205,13 @@ document.addEventListener("click", e => {
   const s = document.createElement("script"); s.src = embed ? "ap-embed.js" : "sidebar.js";
   (document.head || document.documentElement).appendChild(s);
 })();
+
+// Report a problem + automatic error reports (ap-report.js) on every signed-in page,
+// including the tech app. Not on the sign-in page: nobody is signed in there yet.
+(function () {
+  const f = (location.pathname.split("/").pop() || "").toLowerCase();
+  if (f === "" || f === "index.html" || window.__apReportLoading) return;
+  window.__apReportLoading = true;
+  const s = document.createElement("script"); s.type = "module"; s.src = "ap-report.js?v=1";
+  (document.head || document.documentElement).appendChild(s);
+})();
