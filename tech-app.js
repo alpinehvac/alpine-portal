@@ -16,7 +16,7 @@
 // DEMO: tech.html?demo=1 runs on sample visits held in memory (nothing saved), for trying it out.
 
 import {
-  collection, doc, query, where, onSnapshot, setDoc, addDoc, deleteDoc, updateDoc, serverTimestamp
+  collection, doc, query, where, onSnapshot, setDoc, addDoc, deleteDoc, updateDoc, serverTimestamp, getDocs
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
@@ -839,9 +839,24 @@ async function addPhotos(v, files) {
 }
 
 // ── Office: new visit sheet ──
-function openNewVisit() {
-  const techs = Object.entries(typeof AP_USERS === "object" ? AP_USERS : {}).filter(([, u]) => (u.roles || []).includes("ops")).map(([email, u]) => ({ email, name: u.name }));
-  if (DEMO) techs.unshift({ email: ME, name: MY_NAME });
+// Who can be sent on a visit: everyone with the Ops / tech role. That's the built-in list in auth.js plus
+// anyone added in Users & Settings (portal_users), where a saved record wins over the built-in one.
+let PEOPLE = null;
+async function assignableTechs() {
+  const map = new Map();
+  Object.entries(typeof AP_USERS === "object" ? AP_USERS : {}).forEach(([email, u]) => map.set(email.toLowerCase(), { email: email.toLowerCase(), name: u.name, roles: u.roles || [], active: true }));
+  if (!DEMO) {
+    try {
+      if (!PEOPLE) { const { db } = await import("./ap-firebase.js"); PEOPLE = (await getDocs(collection(db, "portal_users"))).docs.map(d => ({ email: d.id.toLowerCase(), ...d.data() })); }
+      PEOPLE.forEach(p => map.set(p.email, { email: p.email, name: p.name || p.email, roles: p.roles || [], active: p.active !== false }));
+    } catch (e) { /* not allowed to read the user list: built-in list only */ }
+  }
+  const list = [...map.values()].filter(u => u.active && u.roles.includes("ops")).map(u => ({ email: u.email, name: u.name }));
+  if (DEMO || !list.some(t => t.email === ME)) list.push({ email: ME, name: MY_NAME });   // the office can always book themselves
+  return list.sort((a, b) => a.name.localeCompare(b.name));
+}
+async function openNewVisit() {
+  const techs = await assignableTechs();
   const sh = $("sheet");
   $("sheet-in").innerHTML = `<h3 id="sheet-h">New visit</h3>
     <div class="two"><label class="field"><span>Date</span><input class="inp" type="date" id="n-date" value="${TODAY}"></label><label class="field"><span>Time</span><input class="inp" id="n-time" placeholder="8:00 AM"></label></div>

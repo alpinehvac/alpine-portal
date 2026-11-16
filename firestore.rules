@@ -85,7 +85,9 @@ service cloud.firestore {
     // owners read and manage everyone's. Each record must keep a roles list.
     match /portal_users/{userEmail} {
       allow get: if signedIn() && email() == userEmail;
-      allow read: if isOwner();
+      // Owners manage the list; field ops (Cole) read it so the tech app can offer everyone with the
+      // Ops / tech role when booking a visit. Names and roles only, no passwords live here.
+      allow read: if isOwner() || isFieldOps();
       allow create, update: if isOwner() && userEmail == userEmail.lower()
         && request.resource.data.roles is list && request.resource.data.name is string;
       allow delete: if isOwner();
