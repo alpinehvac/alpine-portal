@@ -39,6 +39,9 @@
     { key: "operations", label: "Operations", icon: "ops", items: [
       { label: "Dashboard", href: D("operations"), show: () => can("ops-dashboard"), match: [D("operations")] },
       { tool: "ops-dashboard", label: "Field Operations", match: ["ops-dashboard.html", "job.html", "job-profit.html"] },
+      // The tech app (tech.html): opens on its Schedule; My Visits is the visit list.
+      { tool: "tech", label: "Schedule", href: "tech.html#schedule", match: [] },
+      { tool: "tech", label: "My Visits", href: "tech.html#visits", match: [] },
       { tool: "quotes", label: "Quotes" },
       { tool: "invoicing", label: "Invoicing" },
       { tool: "items", label: "Item List" },
