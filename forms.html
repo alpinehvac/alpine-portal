@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Checklists</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("forms");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- CHECKLISTS: Mike's site forms from BuildOps (Settings > Forms), copied one for one, plus every checklist
+     a tech has filled in on a visit and its customer link. Owners + field ops (Jake, Mike, Cole).
+     Data: forms/{id} (+ forms/_index, the list techs pick from), form_entries/{id}, form_shares/{token}. See forms-lib.js. -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--black:#EAF2F3;--off-black:#FFFFFF;--grey:#5A7A80;--white:#10444E;--amber:#A9821F;--red:#B83227;--green:#2E7D57;--border:rgba(16,68,78,0.12);--line:rgba(16,68,78,0.09);--radius-lg:14px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:14px;line-height:1.45}
+.wrap{max-width:1200px;margin:0 auto;padding:1.6rem 1.6rem 4rem}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3vw,2.1rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+h2{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.sub{color:var(--grey);font-size:.88rem;margin-top:.3rem;max-width:760px}
+.btn{font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:none;background:var(--teal);color:#fff;border-radius:6px;padding:.55rem 1rem;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block}
+.btn:hover{background:var(--teal-light)}
+.btn.ghost{background:var(--off-black);color:var(--teal);border:1px solid rgba(39,99,108,.35)}
+.btn.danger{background:none;color:var(--red);border:1px solid rgba(184,50,39,.35)}
+.btn.sm{padding:.35rem .7rem;font-size:.72rem}
+.btn:disabled{opacity:.5;cursor:default}
+.panel{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.2rem;margin-bottom:1.1rem}
+input,select{font:inherit;font-size:.88rem;color:var(--white);background:var(--off-black);border:1px solid rgba(16,68,78,.22);border-radius:6px;padding:.45rem .6rem}
+.tabs{display:flex;gap:.3rem;border-bottom:1px solid var(--border);margin:0 0 1rem;flex-wrap:wrap}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:.55rem .9rem;font:500 .9rem 'Inter',sans-serif;color:var(--grey);cursor:pointer;margin-bottom:-1px}
+.tabs button.on{color:var(--teal);border-bottom-color:var(--teal);font-weight:600}
+.tabs button small{font-size:.75rem;opacity:.8;margin-left:.2rem}
+.bar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem}
+.bar input{min-width:260px;flex:1;max-width:420px}
+table.list{width:100%;border-collapse:collapse;font-size:.86rem}
+table.list th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--grey);font-weight:600;padding:.5rem .6rem;border-bottom:1px solid var(--border)}
+table.list td{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+table.list tr.row{cursor:pointer}
+table.list tr.row:hover td{background:rgba(39,99,108,.05)}
+table.list td small{display:block;color:var(--grey);font-size:.78rem}
+.num{text-align:right;white-space:nowrap}
+.tag{display:inline-block;font-size:.7rem;font-weight:600;border-radius:20px;padding:2px 9px;white-space:nowrap;background:rgba(90,122,128,.14);color:var(--grey)}
+.tag.done{background:rgba(46,125,87,.14);color:var(--green)}
+.tag.open{background:rgba(169,130,31,.14);color:#6B5210}
+.empty{color:var(--grey);text-align:center;padding:2rem}
+.toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:var(--teal-dark);color:#fff;padding:.6rem 1rem;border-radius:8px;font-size:.86rem;display:none;z-index:1000}
+.toast.bad{background:var(--red)}
+.modal-back{position:fixed;inset:0;background:rgba(16,68,78,.45);display:none;align-items:flex-start;justify-content:center;z-index:900;padding:5vh 1rem 1rem}
+.modal-back.on{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:780px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.modal .mh{padding:1rem 1.2rem .6rem;display:flex;gap:.6rem;align-items:center;border-bottom:1px solid var(--line)}
+.modal .mh h2{flex:1}
+.modal .mb{overflow:auto;padding:1rem 1.2rem 1.2rem}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 16px;padding:10px 12px;background:#F4F8F8;border-radius:8px;font-size:.85rem;margin-bottom:12px}
+.meta span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--grey)}
+.linkbox{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(39,99,108,.3);border-radius:8px}
+.linkbox input{flex:1;min-width:240px}
+/* read-only form (same classes as the customer copy) */
+.cr-h{font:600 .95rem 'Oswald',sans-serif;letter-spacing:.03em;text-transform:uppercase;color:var(--teal-dark);margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid rgba(39,99,108,.25)}
+.cr-text{margin:8px 0 3px;font-weight:500}
+.cr-text p{margin:0}.cr-text ul,.cr-text ol{margin:2px 0 2px 20px}
+.cr-check{display:flex;gap:9px;align-items:flex-start;padding:3px 0;color:var(--grey)}
+.cr-check.on{color:var(--white)}
+.cr-check .box{flex:none;width:16px;height:16px;border:1.5px solid #9fb3b7;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-top:2px;color:#fff}
+.cr-check.on .box{background:var(--teal);border-color:var(--teal)}
+.cr-ans{display:flex;gap:10px;align-items:baseline;padding:3px 0;border-bottom:1px dotted rgba(16,68,78,.15);min-height:1.6em}
+.cr-ans span{color:var(--grey);font-size:.84rem;min-width:110px}
+.cr-ans.long{display:block}.cr-ans.long b{display:block;white-space:pre-wrap;font-weight:500}
+.cr-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 18px}
+.cr-sign{display:block;max-width:300px;height:auto;border-bottom:1px solid var(--white);margin-top:4px}
+.cr-img{display:block;max-width:100%;max-height:360px;margin:8px auto;border-radius:6px}
+.imp-log{font-size:.84rem;color:var(--grey);margin-top:.6rem;white-space:pre-line}
+@media (max-width:700px){.wrap{padding:1rem .8rem 3rem}.bar input{min-width:0}}
+</style>
+</head>
+<body>
+<main class="wrap" id="app"><div class="empty">Loading checklists…</div></main>
+
+<div class="modal-back" id="mod"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mod-h">
+  <div class="mh"><h2 id="mod-h"></h2><span id="mod-acts"></span><button class="btn ghost sm" id="mod-close">Close</button></div>
+  <div class="mb" id="mod-b"></div>
+</div></div>
+<input type="file" id="imp-file" accept=".json,application/json" hidden>
+<div class="toast" id="toast"></div>
+<script type="module" src="forms-app.js?v=1"></script>
+</body>
+</html>

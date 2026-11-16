@@ -1,8 +1,8 @@
 // Alpine tech app: keeps the My Visits screen opening with no signal (basements, rooftops).
 // Only the files listed here are cached, network first; every other portal page is left alone.
 // Visit data is not cached here: Firestore keeps its own copy and queues saves (see ap-firebase.js).
-const CACHE = "alpine-tech-v10";
-const FILES = ["tech.html", "tech-app.js", "auth.js", "ap-firebase.js", "ap-report.js", "tech.webmanifest", "images/tech-icon-192.png"];
+const CACHE = "alpine-tech-v11";
+const FILES = ["tech.html", "tech-app.js", "auth.js", "ap-firebase.js", "ap-report.js", "forms-lib.js?v=1", "tech.webmanifest", "images/tech-icon-192.png"];
 const FB = /^https:\/\/www\.gstatic\.com\/firebasejs\//;
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("alpine-tech-") && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

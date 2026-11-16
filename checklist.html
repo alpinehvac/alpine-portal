@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&/(^|\.)alpinehvac\.ca$/i.test(location.hostname))location.replace("https:"+location.href.slice(5));</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Alpine HVAC · Site checklist</title>
+<!-- CUSTOMER COPY OF A SITE CHECKLIST: the private link a tech or the office sends after a visit.
+     checklist.html?k=<token>  (add &print=1 to open the print / Save as PDF box straight away)
+     No login and no portal code: reads one snapshot, form_shares/<token>, written from the tech app or the
+     Checklists page. It holds only that checklist (the form, the answers, customer, site, job number, tech name).
+     Firestore rules allow reading a single token, never listing. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#27636C;--teal-dark:#10444E;--ink:#1d2b30;--muted:#5A7A80;--line:#dde6e8;--bg:#EAF2F3;--green:#2E7D57}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+.page{max-width:820px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 0 0 1px var(--line)}
+.band{background:var(--teal-dark);color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:1rem;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.band img{height:46px;display:block}
+.band .t{text-align:right;font-family:'Oswald',sans-serif;letter-spacing:.05em;text-transform:uppercase}
+.band .t b{display:block;font-size:1.25rem}
+.band .t span{font-size:.8rem;opacity:.85}
+.in{padding:18px 22px 26px}
+.tools{display:flex;justify-content:flex-end;gap:.5rem;margin-bottom:10px}
+.btn{font:600 .78rem 'Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase;border:none;background:var(--teal);color:#fff;border-radius:6px;padding:.55rem 1rem;cursor:pointer}
+h1{font-family:'Oswald',sans-serif;font-size:1.6rem;text-transform:uppercase;color:var(--teal-dark);line-height:1.15}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 18px;margin:12px 0 16px;padding:12px 14px;background:#F4F8F8;border-radius:8px;font-size:.88rem}
+.meta div span{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.status{display:inline-block;font-size:.72rem;font-weight:600;border-radius:20px;padding:2px 10px;margin-left:.4rem;vertical-align:middle;background:rgba(169,130,31,.14);color:#6B5210}
+.status.done{background:rgba(46,125,87,.14);color:var(--green)}
+.cr-h{font:600 1rem 'Oswald',sans-serif;letter-spacing:.03em;text-transform:uppercase;color:var(--teal-dark);margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid rgba(39,99,108,.25);page-break-after:avoid}
+#form>.cr-h:first-child{display:none}
+.cr-text{margin:8px 0 3px;font-weight:500}
+.cr-text p{margin:0}.cr-text ul,.cr-text ol{margin:2px 0 2px 20px}
+.cr-check{display:flex;gap:9px;align-items:flex-start;padding:3px 0;color:var(--muted)}
+.cr-check.on{color:var(--ink)}
+.cr-check .box{flex:none;width:17px;height:17px;border:1.5px solid #9fb3b7;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1;margin-top:2px;color:#fff}
+.cr-check.on .box{background:var(--teal);border-color:var(--teal);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cr-ans{display:flex;gap:10px;align-items:baseline;padding:3px 0;border-bottom:1px dotted var(--line)}
+.cr-ans span{color:var(--muted);font-size:.85rem;min-width:110px}
+.cr-ans b{font-weight:600}
+.cr-ans.long{display:block}.cr-ans.long b{display:block;white-space:pre-wrap;font-weight:500}
+.cr-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 18px}
+.cr-sign{display:block;max-width:300px;height:auto;border-bottom:1px solid var(--ink);margin-top:4px}
+.cr-img{display:block;max-width:100%;max-height:420px;margin:8px auto;border-radius:6px}
+.foot{margin-top:22px;font-size:.78rem;color:var(--muted);text-align:center;border-top:1px solid var(--line);padding-top:10px}
+.msg{padding:60px 22px;text-align:center;color:var(--muted)}
+@media print{
+  @page{size:letter;margin:12mm 12mm 14mm}
+  body{background:#fff;font-size:10pt}
+  .page{box-shadow:none;max-width:none}
+  .tools{display:none}
+  .cr-check,.cr-ans,.cr-row{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="band"><img src="images/alpine-logo-white.png" alt="Alpine HVAC"><div class="t"><b>Site checklist</b><span id="band-sub"></span></div></div>
+  <div class="in" id="app"><div class="msg">Loading checklist…</div></div>
+</div>
+<script type="module">
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { reportHtml, esc } from "./forms-lib.js?v=1";
+
+const app = initializeApp({ apiKey: "AIzaSyBkkJDjV1g4omNpKoHVln5xADKLmVBEYZs", authDomain: "alpine-hvac-portal.firebaseapp.com", projectId: "alpine-hvac-portal" });
+const db = getFirestore(app);
+const $ = id => document.getElementById(id);
+const k = new URLSearchParams(location.search).get("k") || "";
+const fmt = iso => iso ? new Date(iso).toLocaleString("en-CA", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+const fmtDay = s => s ? new Date(s + "T12:00:00").toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" }) : "";
+
+(async () => {
+  if (!/^[a-f0-9]{20,64}$/.test(k)) { $("app").innerHTML = `<div class="msg">This link isn't complete. Ask Alpine HVAC to send it again.</div>`; return; }
+  let s;
+  try { s = await getDoc(doc(db, "form_shares", k)); }
+  catch (e) { console.error(e); $("app").innerHTML = `<div class="msg">This checklist couldn't be opened. Check your connection, or ask Alpine HVAC to send the link again.</div>`; return; }
+  if (!s.exists()) { $("app").innerHTML = `<div class="msg">This checklist link has been turned off. Ask Alpine HVAC for a new one.</div>`; return; }
+  const d = s.data(), done = d.status === "done";
+  document.title = d.formName + " · Alpine HVAC";
+  $("band-sub").textContent = d.jobNo || "";
+  const row = (l, v) => v ? `<div><span>${esc(l)}</span>${esc(v)}</div>` : "";
+  $("app").innerHTML = `<div class="tools"><button class="btn" id="pdf">Print / Save as PDF</button></div>
+    <h1>${esc(d.formName)}<span class="status ${done ? "done" : ""}">${done ? "Completed" : "In progress"}</span></h1>
+    <div class="meta">${row("Customer", d.customer)}${row("Site", [d.site, d.formSite && d.formSite !== d.site ? d.formSite : ""].filter(Boolean).join(" · "))}${row("Address", d.address)}${row("Job", d.jobNo)}${row("Visit date", fmtDay(d.visitDate))}${row("Technician", d.techName)}${row(done ? "Completed" : "Started", fmt(done ? d.doneAt : d.startedAt))}</div>
+    <div id="form">${reportHtml({ rows: d.rows || [], images: d.images || {} }, d.answers || {})}</div>
+    <div class="foot">Alpine HVAC Service Inc. · 4241 Victoria Ave., Vineland, ON L0R 2E0 · 289-438-1175 · alpinehvac.ca${d.updatedAt && d.updatedAt.toDate ? " · Updated " + esc(fmt(d.updatedAt.toDate().toISOString())) : ""}</div>`;
+  $("pdf").onclick = () => print();
+  if (/[?&]print=1/.test(location.search)) setTimeout(() => print(), 600);
+})();
+</script>
+</body>
+</html>

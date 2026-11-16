@@ -288,6 +288,34 @@ body.office .office-only{display:block!important}
 .menu.on{display:block}
 .menu a,.menu button{display:block;width:100%;text-align:left;padding:.85rem 1rem;border:none;background:none;text-decoration:none;color:inherit;font-size:.95rem;cursor:pointer;border-top:1px solid var(--border)}
 .menu :first-child{border-top:none}
+/* Checklists (site forms) */
+button.row{width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;cursor:pointer;color:inherit;font:inherit}
+.row .chip.complete{background:rgba(46,125,87,.12);border-color:rgba(46,125,87,.35);color:var(--green)}
+.row .chip.in_progress{background:rgba(169,130,31,.12);border-color:rgba(169,130,31,.35);color:#6B5210}
+.pf-list{margin-top:.6rem;max-height:58vh;overflow:auto}
+.pf-h{font:600 .74rem 'Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:.8rem 0 .2rem}
+.sheet .in:has(.cform){max-height:96vh}
+.ce-top{position:sticky;top:-1rem;background:var(--bg);padding:.2rem 0 .5rem;margin-bottom:.4rem;z-index:2}
+.ce-top h3{margin-bottom:.2rem}
+.cform{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.8rem .9rem}
+.cf-h{font:600 1rem 'Oswald',sans-serif;letter-spacing:.03em;text-transform:uppercase;color:var(--teal-dark);margin:1rem 0 .4rem;padding-bottom:.25rem;border-bottom:2px solid rgba(39,99,108,.2)}
+.cform>.cf-h:first-child{margin-top:0;text-align:center;border:0}
+.cf-text{font-size:.95rem;margin:.55rem 0 .25rem;font-weight:500}
+.cf-text p{margin:0}.cf-text ul,.cf-text ol{margin:.2rem 0 .2rem 1.2rem}
+.cf-check{display:flex;gap:.7rem;align-items:flex-start;padding:.5rem 0;min-height:44px;cursor:pointer}
+.cf-check input{width:24px;height:24px;flex:none;accent-color:var(--teal);margin-top:.05rem}
+.cf-field{display:block;margin:.3rem 0 .5rem}
+.cf-field>span{display:block;font-size:.8rem;color:var(--muted);margin-bottom:.2rem}
+.cf-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem}
+.cf-req{font-style:normal;font-size:.7rem;color:var(--red);margin-left:.35rem}
+.cf-img{display:block;max-width:100%;height:auto;margin:.4rem auto;border-radius:8px}
+.cf-cap{font-size:.8rem;color:var(--muted);text-align:center}
+.cform .inp:disabled{background:#f3f7f7;color:var(--ink);opacity:1}
+.ce-btns{position:sticky;bottom:calc(-1rem - var(--sb));background:var(--bg);padding:.7rem 0 .2rem;margin-top:.6rem}
+.sharebox{background:#fff;border:1px solid rgba(39,99,108,.35);border-radius:12px;padding:.8rem .9rem;margin-top:.8rem}
+.sharebox p{font-size:.84rem;color:var(--muted);margin:.2rem 0 .5rem}
+.cf-pad{display:block;width:100%;max-width:600px;aspect-ratio:3/1;background:#fff;border:1px dashed rgba(16,68,78,.35);border-radius:10px;touch-action:none;margin-bottom:.4rem}
+.act.danger{background:rgba(184,50,39,.08);color:var(--red)}
 </style>
 </head>
 <body>

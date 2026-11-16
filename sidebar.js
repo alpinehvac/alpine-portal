@@ -43,6 +43,7 @@
       { tool: "tech", label: "Schedule", href: "tech.html#schedule", match: [] },
       { tool: "tech", label: "My Visits", href: "tech.html#visits", match: [] },
       { tool: "quotes", label: "Quotes" },
+      { tool: "forms", label: "Checklists" },
       { tool: "invoicing", label: "Invoicing" },
       { tool: "items", label: "Item List" },
       { tool: "po-numbers", label: "PO Numbers" },

@@ -11,13 +11,15 @@
 //                                 installYear, refrigerant, charge, filters, belts, voltage, notes }. Office edits; techs read.
 //   fs_notes/{id}                 dated note on a site or unit: { siteKey, unitId ("" = whole site), unitName, customer, site,
 //                                 visitId, jobNo, text, warn, by, byName, at (ISO, stamped automatically) }. Never edited.
+//   forms/{id}, form_entries/{id}, form_shares/{token}   checklists on a visit and the customer's copy (see forms-lib.js)
 // Every save shows its state on screen: "Saved", "Waiting to upload" (no signal: Firestore keeps it on
 // the phone and uploads it when coverage returns) or a red error. Nothing lives only in the browser.
 // DEMO: tech.html?demo=1 runs on sample visits held in memory (nothing saved), for trying it out.
 
 import {
-  collection, doc, query, where, onSnapshot, setDoc, addDoc, deleteDoc, updateDoc, serverTimestamp, getDocs
+  collection, doc, query, where, onSnapshot, setDoc, addDoc, deleteDoc, updateDoc, serverTimestamp, getDocs, getDoc
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import * as CF from "./forms-lib.js?v=1";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -117,12 +119,32 @@ async function firestoreStore() {
     clearClock: () => deleteDoc(doc(db, "fs_clock", safeKey(ME))),
     settings: (cb, onErr) => onSnapshot(doc(db, "fs_settings", "time"), s => cb(s.exists() ? s.data() : null), onErr),
     saveSettings: o => setDoc(doc(db, "fs_settings", "time"), { ...o, updatedBy: ME, updatedAt: serverTimestamp() }, { merge: true }),
+    // Checklists: the index (name + site of every form) loads once; a form loads when it's opened.
+    formIndex: async () => { const s = await getDoc(doc(db, "forms", "_index")); return s.exists() ? (s.data().forms || []) : []; },
+    getForm: async fid => { const s = await getDoc(doc(db, "forms", fid)); return s.exists() ? { id: s.id, ...s.data() } : null; },
+    entries: (visitId, cb, onErr) => live(mine("form_entries", [where("visitId", "==", visitId)]), cb, onErr),
+    addEntry: rec => addDoc(C("form_entries"), { ...rec, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }),
+    saveEntry: (eid, patch) => updateDoc(doc(db, "form_entries", eid), { ...patch, updatedAt: serverTimestamp() }),
+    delEntry: eid => deleteDoc(doc(db, "form_entries", eid)),
+    setShare: (token, snap) => setDoc(doc(db, "form_shares", token), { ...snap, by: snap.by || ME, updatedAt: serverTimestamp() }),
   };
 }
 
 function demoStore() {
   const subs = new Set(), wait = () => new Promise(r => setTimeout(r, 350));
-  const D = { visits: [], time: [], photos: [], summaries: [], clock: null, settings: null, equipment: [], notes: [] };
+  const D = { visits: [], time: [], photos: [], summaries: [], clock: null, settings: null, equipment: [], notes: [], entries: [] };
+  const DEMO_FORM = { id: "demo-form", name: "RTU 1 - Heating Comprehensive", site: "Lakeview", rows: [
+    [{ k: "section_header", t: "h", label: "RTU 1 - Heating Comprehensive" }], [{ k: "text_block", t: "text", html: "<p>Carrier</p><p>M# 48TC 6 ton</p><p>S# 4417G10392</p>" }],
+    [{ k: "section_header-1", t: "h", label: "Section 1)" }], [{ k: "text_item", t: "short", label: "Technician Name", req: true }], [{ k: "date_picker", t: "date", label: "Date", req: true }],
+    [{ k: "section_header-2", t: "h", label: "Section 2) Heating Inspection" }], [{ k: "text_block-1", t: "text", html: "<p>Comprehensive - Turn Off Rooftop for the following inspection</p>" }],
+    [{ k: "checkbox_item", t: "check", label: "Remove Blower Belt" }], [{ k: "checkbox_item-1", t: "check", label: "Inspect Blower Bearings" }], [{ k: "checkbox_item-2", t: "check", label: "Replace Blower Belt" }],
+    [{ k: "text_block-2", t: "text", html: "<p>Replace Return Air Filters</p>" }], [{ k: "checkbox_item-3", t: "check", label: "Yes" }], [{ k: "checkbox_item-4", t: "check", label: "No" }],
+    [{ k: "section_header-3", t: "h", label: "Section 3) Turn On Power" }], [{ k: "text_block-3", t: "text", html: "<p>Manifold Gas Pressure</p>" }], [{ k: "text_item-1", t: "short", label: "Low Fire \u201cwc" }, { k: "text_item-2", t: "short", label: "High Fire \u201cwc" }],
+    [{ k: "text_block-4", t: "text", html: "<p>Temperature Rise At Full Heating Capacity</p>" }], [{ k: "text_item-3", t: "short", label: "short answer text" }],
+    [{ k: "multiple_options", t: "select", label: "Lead system is", opts: ["System 1", "System 2"] }],
+    [{ k: "checkbox_list", t: "multi", label: "Overall condition", opts: ["1 (Poor)", "2", "3", "4", "5 (Excellent)"] }],
+    [{ k: "text_block-5", t: "text", html: "<p>Comments/Recommendations</p>" }], [{ k: "multiline_text_item", t: "long", label: "response below", lines: 4 }],
+    [{ k: "signature", t: "sign", label: "Signature" }]] };
   const emit = () => subs.forEach(f => f());
   const sub = f => { subs.add(f); f(); return () => subs.delete(f); };
   let n = 1; const id = () => "demo" + (n++);
@@ -180,6 +202,13 @@ function demoStore() {
     clearClock: async () => { await wait(); D.clock = null; emit(); },
     settings: cb => sub(() => cb(D.settings)),
     saveSettings: async o => { await wait(); D.settings = { ...(D.settings || {}), ...o }; emit(); },
+    formIndex: async () => [{ id: DEMO_FORM.id, name: DEMO_FORM.name, site: DEMO_FORM.site }],
+    getForm: async fid => fid === DEMO_FORM.id ? DEMO_FORM : null,
+    entries: (vid, cb) => sub(() => cb(D.entries.filter(x => x.visitId === vid))),
+    addEntry: async rec => { await wait(); const e = { id: id(), ...rec }; D.entries.push(e); emit(); return { id: e.id }; },
+    saveEntry: async (eid, patch) => { await wait(); Object.assign(D.entries.find(x => x.id === eid), patch); emit(); },
+    delEntry: async eid => { await wait(); D.entries = D.entries.filter(x => x.id !== eid); emit(); },
+    setShare: async () => { await wait(); },
   };
 }
 
@@ -670,6 +699,12 @@ function renderVisit(id) {
       ${CAN_EDIT_EQ ? `<button class="addph" id="eq-add" style="border-style:solid">+ Add a unit</button>` : ""}
     </div>
 
+    <div class="sec"><h3>Checklists <span class="st" id="cl-n"></span></h3>
+      <div id="cl-list"><div class="cl-sub">Loading…</div></div>
+      <button class="addph" id="cl-add" style="border-style:solid">+ Add a checklist</button>
+      <div class="saved" id="cl-saved"></div>
+    </div>
+
     <div class="sec"><h3>My hours <span class="st hrs-total" id="hrs-t"></span></h3>
       <div id="hrs-split"></div>
       <div id="hrs-list"></div>
@@ -753,6 +788,19 @@ function renderVisit(id) {
   unsub.push(store.equipment(siteKeyOf(v), units => { UNITS = units; drawEq(); }, subErr));
   unsub.push(store.notes(siteKeyOf(v), notes => { NOTES = notes; drawEq(); }, subErr));
 
+  // Checklists on this visit
+  $("cl-add").onclick = () => pickForm(v);
+  unsub.push(store.entries(v.id, rows => {
+    rows.sort((a, b) => String(a.startedAt || "").localeCompare(String(b.startedAt || "")));
+    ENTRIES = rows;
+    $("cl-n").textContent = rows.length ? rows.length + "" : "";
+    $("cl-list").innerHTML = rows.length ? rows.map(x => {
+      const p = x.total ? `${x.filled || 0} of ${x.total}` : "";
+      return `<button class="row clrow" data-cl="${esc(x.id)}"><div class="grow"><b>${esc(x.formName)}</b><small>${esc([x.formSite, x.tech !== ME ? shortName(x.techName) : "", x.status === "done" ? "Done " + stampTxt(x.doneAt, true) : "In progress" + (p ? " · " + p : ""), x._pending ? "waiting to upload" : ""].filter(Boolean).join(" · "))}</small></div><span class="chip ${x.status === "done" ? "complete" : "in_progress"}">${x.status === "done" ? "Done" : "Open"}</span></button>`;
+    }).join("") : `<div class="cl-sub">No checklists on this visit yet. Add the site's form for each unit you work on.</div>`;
+    document.querySelectorAll("[data-cl]").forEach(b => b.onclick = () => openEntry(v, b.dataset.cl));
+  }, subErr));
+
   // Summary: a dated log. Each save adds an entry (date, time, who); nothing is overwritten.
   const done = (v.status || "scheduled") === "complete", canFix = x => x.tech === ME && (!done || OFFICE) || OFFICE;
   const sum = $("sum"), draftKey = "ap-sum-draft-" + v.id;
@@ -787,6 +835,139 @@ function renderVisit(id) {
       + up.map(u => `<figure><img src="${u.preview}" alt=""><span class="badge ${u.failed ? "bad" : ""}">${u.failed ? "failed" : "saving"}</span></figure>`).join("");
     document.querySelectorAll("[data-del-p]").forEach(b => b.onclick = () => { if (confirm("Delete this photo?")) save(() => store.delPhoto(b.dataset.delP), $("ph-saved"), "Photo deleted"); });
   }, subErr));
+}
+
+// ── Checklists (site forms) ──
+// The office imports the forms (forms.html); a tech adds one to a visit, fills it in (saves as they go, works
+// with no signal), marks it done, and sends the customer a private link to a read-only copy that prints to PDF.
+let ENTRIES = [], FORM_INDEX = null;
+const FORMS = {};
+async function loadForm(fid) {
+  if (!FORMS[fid]) { const f = await store.getForm(fid); if (f) FORMS[fid] = f; }
+  return FORMS[fid] || null;
+}
+async function pickForm(v) {
+  const sh = $("sheet");
+  $("sheet-in").innerHTML = `<h3 id="sheet-h">Add a checklist</h3><p class="cl-sub" style="margin:-.5rem 0 .8rem">${esc([v.customer, v.site].filter(Boolean).join(" · "))}</p>
+    <input class="inp" id="pf-q" placeholder="Search: unit, building, type (e.g. AHU 2, boiler, 21 King)" autocomplete="off">
+    <div id="pf-list" class="pf-list"><div class="cl-sub">Loading forms…</div></div>
+    <div class="btnrow" style="margin-top:.8rem"><button class="big ghost" id="pf-cancel">Cancel</button></div>`;
+  sh.classList.add("on");
+  $("pf-cancel").onclick = () => sh.classList.remove("on");
+  try { if (!FORM_INDEX) FORM_INDEX = await store.formIndex(); }
+  catch (e) { console.error(e); $("pf-list").innerHTML = `<div class="cl-sub">Couldn't load the forms. ${navigator.onLine ? "Tell the office." : "You need a signal the first time."}</div>`; return; }
+  const all = FORM_INDEX.filter(f => f.active !== false).map(f => ({ ...f, score: CF.siteScore(f, v) }));
+  const nat = (a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true });
+  const draw = () => {
+    const q = $("pf-q").value.trim().toLowerCase(), words = q.split(/\s+/).filter(Boolean);
+    const hit = f => words.every(w => (f.name + " " + f.site).toLowerCase().includes(w));
+    const list = all.filter(hit);
+    const here = list.filter(f => f.score > 0).sort((a, b) => b.score - a.score || nat(a, b));
+    const rest = list.filter(f => !f.score).sort((a, b) => nat(a, b) || (a.site || "").localeCompare(b.site || ""));
+    const row = f => `<button class="row" data-pf="${esc(f.id)}"><div class="grow"><b>${esc(f.name)}</b><small>${esc(f.site || "Any site")}</small></div><span class="dim">›</span></button>`;
+    $("pf-list").innerHTML = !all.length ? `<div class="cl-sub">No forms yet. The office imports them on the Checklists page.</div>`
+      : (here.length ? `<div class="pf-h">For this site</div>${here.slice(0, 60).map(row).join("")}` : "")
+      + (rest.length ? `<div class="pf-h">${here.length ? "Other forms" : "All forms"}</div>${rest.slice(0, q ? 80 : 40).map(row).join("")}${rest.length > (q ? 80 : 40) ? `<div class="cl-sub">${rest.length - (q ? 80 : 40)} more. Search to narrow it down.</div>` : ""}` : "")
+      + (!here.length && !rest.length ? `<div class="cl-sub">No form matches "${esc(q)}".</div>` : "");
+    document.querySelectorAll("[data-pf]").forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const form = await loadForm(b.dataset.pf).catch(() => null);
+      if (!form) { b.disabled = false; toast(navigator.onLine ? "Couldn't open that form." : "That form isn't on this phone yet. Open it once with a signal.", true); return; }
+      const answers = CF.prefill(form, MY_NAME, TODAY), pr = CF.progress(form, answers);
+      const rec = { formId: form.id, formName: form.name, formSite: form.site || "", visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", site: v.site || "", address: v.address || "", visitDate: v.date || "", tech: ME, techName: MY_NAME, answers, filled: pr.filled, total: pr.total, status: "draft", startedAt: new Date().toISOString() };
+      let ref = null;
+      const ok = await save(async () => { ref = await store.addEntry(rec); }, $("cl-saved"), "Checklist added");
+      if (ok && ref) openEntry(v, ref.id, { id: ref.id, ...rec });
+      else sh.classList.remove("on");
+    });
+  };
+  $("pf-q").oninput = draw; draw();
+  setTimeout(() => $("pf-q").focus(), 50);
+}
+// The customer's copy: everything the read-only page needs, so it never reads the visit or the form.
+function shareSnap(v, e, form, answers) {
+  return { by: e.tech, entryId: e.id, formName: form.name, formSite: form.site || "", rows: form.rows || [], images: form.images || {}, answers,
+    customer: e.customer || v.customer || "", site: e.site || v.site || "", address: e.address || v.address || "", jobNo: e.jobNo || v.jobNo || "",
+    visitDate: e.visitDate || v.date || "", techName: e.techName || "", status: e.status || "draft", doneAt: e.doneAt || null, startedAt: e.startedAt || null };
+}
+const shareUrl = t => new URL(CF.SHARE_PAGE + "?k=" + t, location.href).href;
+async function openEntry(v, eid, fresh) {
+  const sh = $("sheet");
+  let e = ENTRIES.find(x => x.id === eid) || fresh;
+  if (!e) return;
+  $("sheet-in").innerHTML = `<h3 id="sheet-h">${esc(e.formName)}</h3><div class="cl-sub">Opening…</div>`;
+  sh.classList.add("on");
+  const form = await loadForm(e.formId).catch(() => null);
+  if (!form) { $("sheet-in").innerHTML = `<h3 id="sheet-h">${esc(e.formName)}</h3><div class="cl-sub">${navigator.onLine ? "This form was removed or can't be opened. Tell the office." : "This form isn't on this phone yet. Open it once with a signal."}</div><div class="btnrow" style="margin-top:.8rem"><button class="big ghost" id="ce-close">Close</button></div>`; $("ce-close").onclick = () => sh.classList.remove("on"); return; }
+  const mine = e.tech === ME, done = e.status === "done";
+  const locked = !OFFICE && (!mine || done);
+  const draw = () => {
+    $("sheet-in").innerHTML = `<div class="ce-top"><h3 id="sheet-h">${esc(e.formName)}</h3>
+      <p class="cl-sub">${esc([e.formSite, e.customer, e.jobNo].filter(Boolean).join(" · "))}</p>
+      <p class="cl-sub">${esc(shortName(e.techName))} · started ${esc(stampTxt(e.startedAt, true))}${e.status === "done" ? " · <b>done " + esc(stampTxt(e.doneAt, true)) + "</b>" : ""}</p></div>
+      ${locked && done ? `<div class="banner">This checklist is done and locked. Ask the office if something needs to change.</div>` : ""}
+      <div class="cform" id="ce-form">${CF.fillHtml(form, e.answers, locked)}</div>
+      <div class="saved" id="ce-saved"></div>
+      <div id="ce-share"></div>
+      <div class="btnrow ce-btns">
+        <button class="big ghost" id="ce-close">Close</button>
+        ${!locked && e.status !== "done" ? `<button class="big" id="ce-done">Mark done</button>` : ""}
+        ${e.status === "done" ? `<button class="big" id="ce-link">Customer copy</button>` : ""}
+      </div>
+      <div class="btnrow" style="margin-top:.5rem">
+        ${OFFICE && e.status === "done" ? `<button class="act" id="ce-reopen">Reopen for changes</button>` : ""}
+        ${(OFFICE || (mine && e.status !== "done")) ? `<button class="act danger" id="ce-del">Delete checklist</button>` : ""}
+      </div>`;
+    wire();
+  };
+  let timer = null;
+  const flush = async () => {
+    clearTimeout(timer); timer = null;
+    const root = $("ce-form"); if (!root || locked) return true;
+    const answers = { ...(e.answers || {}), ...CF.readAnswers(root) }, pr = CF.progress(form, answers);
+    if (JSON.stringify(answers) === JSON.stringify(e.answers || {})) return true;
+    e = { ...e, answers, filled: pr.filled, total: pr.total };
+    return save(async () => {
+      await store.saveEntry(e.id, { answers, filled: pr.filled, total: pr.total, lastBy: ME });
+      if (e.shareToken) await store.setShare(e.shareToken, shareSnap(v, e, form, answers));
+    }, $("ce-saved"), `Saved · ${pr.filled} of ${pr.total}`);
+  };
+  const wire = () => {
+    const root = $("ce-form");
+    CF.wireSignatures(root, locked);
+    if (!locked) { root.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(flush, 1200); }); root.addEventListener("change", () => { clearTimeout(timer); timer = setTimeout(flush, 300); }); }
+    $("ce-close").onclick = async () => { await flush(); sh.classList.remove("on"); };
+    if ($("ce-done")) $("ce-done").onclick = async () => {
+      await flush();
+      const pr = CF.progress(form, e.answers);
+      if (pr.missing.length) { toast("Fill in the required items first: " + pr.missing.map(i => i.label).slice(0, 3).join(", ") + ".", true); return; }
+      if (pr.filled < pr.total && !confirm(`${pr.total - pr.filled} item${pr.total - pr.filled > 1 ? "s are" : " is"} still blank. Mark it done anyway?`)) return;
+      const doneAt = new Date().toISOString();
+      if (await save(async () => { await store.saveEntry(e.id, { status: "done", doneAt, doneBy: ME }); e = { ...e, status: "done", doneAt }; if (e.shareToken) await store.setShare(e.shareToken, shareSnap(v, e, form, e.answers)); }, $("ce-saved"), "Checklist done")) { draw(); $("ce-saved").className = "saved ok"; $("ce-saved").textContent = "Done. Tap Customer copy to send the customer a link."; }
+    };
+    if ($("ce-reopen")) $("ce-reopen").onclick = async () => {
+      if (await save(async () => { await store.saveEntry(e.id, { status: "draft", doneAt: null, reopenedBy: ME, reopenedAt: new Date().toISOString() }); e = { ...e, status: "draft", doneAt: null }; if (e.shareToken) await store.setShare(e.shareToken, shareSnap(v, e, form, e.answers)); }, $("ce-saved"), "Reopened")) draw();
+    };
+    if ($("ce-del")) $("ce-del").onclick = async () => {
+      if (!confirm(`Delete this ${e.formName} checklist and everything filled in on it?`)) return;
+      clearTimeout(timer);
+      if (await save(() => store.delEntry(e.id), $("cl-saved"), "Checklist deleted")) sh.classList.remove("on");
+    };
+    if ($("ce-link")) $("ce-link").onclick = async () => {
+      let token = e.shareToken;
+      const ok = await save(async () => {
+        if (!token) { token = CF.newToken(); await store.setShare(token, shareSnap(v, { ...e, shareToken: token }, form, e.answers)); await store.saveEntry(e.id, { shareToken: token, sharedAt: new Date().toISOString() }); e = { ...e, shareToken: token }; }
+        else await store.setShare(token, shareSnap(v, e, form, e.answers));
+      }, $("ce-saved"), "Customer copy ready");
+      if (!ok) return;
+      const url = shareUrl(token);
+      $("ce-share").innerHTML = `<div class="sharebox"><b>Customer copy</b><p>Anyone with this link can see this one checklist (read only) and save it as a PDF.</p><input class="inp" readonly value="${esc(url)}" id="ce-url">
+        <div class="btnrow" style="margin-top:.5rem">${navigator.share ? '<button class="act" id="ce-send">Send…</button>' : ""}<button class="act" id="ce-copy">Copy link</button><a class="act" href="${esc(url)}" target="_blank" rel="noopener">Open / PDF</a></div></div>`;
+      if ($("ce-send")) $("ce-send").onclick = () => navigator.share({ title: e.formName + " · Alpine HVAC", text: `${e.formName} checklist from Alpine HVAC${e.customer ? " for " + e.customer : ""}.`, url }).catch(() => {});
+      $("ce-copy").onclick = async () => { try { await navigator.clipboard.writeText(url); toast("Link copied"); } catch (x) { $("ce-url").select(); toast("Press and hold the link to copy it."); } };
+    };
+  };
+  draw();
 }
 
 function wireClock(v) {
