@@ -147,15 +147,47 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const fmtD = ts => { const d = ts && ts.toDate ? ts.toDate() : null; return d ? d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" }) : ""; };
 const ROLE_ORDER = Object.keys(AP_ROLES);
 const ROLE_TAG = { owner: "purple", super_admin: "purple", finance: "amber", sales: "teal", support: "teal", field_ops: "green", ops: "green" };
+// Start pages, grouped like the sidebar headings. [address, label, sidebar heading, tool id (who can open it)]
 const STARTS = [
-  ["", "Default (Home)"],
-  ["dashboard.html?view=home", "Home"],
-  ["dashboard.html?view=sales", "Sales dashboard"],
-  ["dashboard.html?view=operations", "Operations dashboard"],
-  ["dashboard.html?view=financials", "Financial dashboard"],
-  ["tech.html#schedule", "Tech app: Schedule"],
+  ["", "Default (Home, or the Schedule for techs)", ""],
+  ["dashboard.html?view=home", "Home", "Home"],
+  ["dashboard.html?view=sales", "Sales dashboard", "Sales", "service-agreements"],
+  ["service-agreement.html", "SA Calculator", "Sales", "service-agreement"],
+  ["sales-strategy.html", "Sales Strategy", "Sales", "sales-strategy"],
+  ["audit-tool.html", "Building Performance Audit", "Sales", "audit-tool"],
+  ["audit-playbook.html", "Audit Playbook", "Sales", "audit-playbook"],
+  ["case-studies.html", "Case Studies", "Sales", "case-studies"],
+  ["outbound.html", "Outbound", "Sales", "outbound"],
+  ["dashboard.html?view=operations", "Operations dashboard", "Operations", "ops-dashboard"],
+  ["ops-dashboard.html", "Field Operations", "Operations", "ops-dashboard"],
+  ["crew-board.html", "Crew Board", "Operations", "crew-board"],
+  ["tech.html#schedule", "Schedule (tech app)", "Operations", "tech"],
+  ["tech.html#visits", "My Visits (tech app)", "Operations", "tech"],
+  ["quotes.html", "Quotes", "Operations", "quotes"],
+  ["forms.html", "Checklists", "Operations", "forms"],
+  ["invoicing.html", "Invoicing", "Operations", "invoicing"],
+  ["items.html", "Item List", "Operations", "items"],
+  ["po-numbers.html", "PO Numbers", "Operations", "po-numbers"],
+  ["service-agreements.html", "Service Agreements", "Operations", "service-agreements"],
+  ["accounts.html", "Account Management", "Operations", "accounts"],
+  ["team-hub.html", "Team Hub", "Operations", "team-hub"],
+  ["dashboard.html?view=financials", "Financial dashboard", "Financials", "cash-dashboard"],
+  ["cash-dashboard.html", "Financial Position", "Financials", "cash-dashboard"],
+  ["pl-calculator.html", "P&L Calculator", "Financials", "pl-calculator"],
+  ["context.html", "Business Context", "Business Context", "context"],
+  ["users.html", "Users & Settings", "Users & Settings", "users"],
 ];
 const startLabel = v => (STARTS.find(s => s[0] === v) || [0, v || "Home"])[1];
+// The drop-down, with a heading per sidebar section. Pages the chosen roles can't open are greyed out.
+function startOptions(roles, current) {
+  const ok = s => !s[3] || (s[3] === "service-agreements" ? roles.includes("sales") : apHasAccess({ roles }, s[3]));
+  const groups = [...new Set(STARTS.map(s => s[2]))];
+  const other = current && !STARTS.some(s => s[0] === current) ? `<option value="${esc(current)}" selected>${esc(current)}</option>` : "";
+  return other + groups.map(g => {
+    const opts = STARTS.filter(s => s[2] === g).map(s => `<option value="${esc(s[0])}"${ok(s) ? "" : " disabled"}${s[0] === current ? " selected" : ""}>${esc(s[1])}${ok(s) ? "" : " (no access)"}</option>`).join("");
+    return g ? `<optgroup label="${esc(g)}">${opts}</optgroup>` : opts;
+  }).join("");
+}
 const opensFor = roles => Object.keys(AP_TOOLS).filter(id => id !== "job-profit" && apHasAccess({ roles }, id)).map(id => AP_TOOLS[id].label);
 
 const me = await currentUser();
@@ -298,7 +330,7 @@ $("seed").onclick = async () => {
 };
 
 // ── Editor ──
-$("ed-start").innerHTML = STARTS.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+$("ed-start").innerHTML = startOptions([], "");
 $("ed-roles").innerHTML = ROLE_ORDER.map(r => `<label><input type="checkbox" value="${r}"><span>${esc(AP_ROLES[r].label)}<small>${esc(AP_ROLES[r].note)}</small></span></label>`).join("");
 const edRoles = () => [...$("ed-roles").querySelectorAll("input:checked")].map(i => i.value);
 function preview() {
@@ -306,14 +338,16 @@ function preview() {
   $("ed-preview").textContent = o.length ? "Can open: " + o.join(", ") : "Pick at least one role.";
 }
 $("ed-roles").addEventListener("change", preview);
+// Re-grey the start pages for the roles now ticked; a start page they can no longer open goes back to Default.
+$("ed-roles").addEventListener("change", () => { const cur = $("ed-start").value; $("ed-start").innerHTML = startOptions(edRoles(), cur); if ($("ed-start").value !== cur || $("ed-start").selectedOptions[0]?.disabled) $("ed-start").value = ""; });
 
 function openEditor(u) {
   EDIT = u || null;
   $("ed-title").textContent = u ? "Edit " + u.name : "Add person";
   $("ed-name").value = u ? u.name : "";
   $("ed-email").value = u ? u.email : ""; $("ed-email").readOnly = !!u;
-  $("ed-start").value = u ? (u.start || "") : "";
   $("ed-roles").querySelectorAll("input").forEach(i => { i.checked = !!u && u.roles.includes(i.value); });
+  $("ed-start").innerHTML = startOptions(u ? u.roles : [], u ? (u.start || "") : "");
   $("ed-active").checked = u ? u.active : true; $("ed-active").disabled = !!u && u.email === ME;
   $("ed-invite").checked = !u; $("ed-invite-wrap").querySelector("input").nextSibling.textContent = u ? " Also create their sign-in if missing and email a password link" : " Create their sign-in and email a link to set a password";
   $("ed-msg").textContent = ""; $("ed-msg").className = "msg";
