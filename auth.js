@@ -71,21 +71,29 @@ const AP_ROLES = {
 };
 
 // Where each person lands after signing in (dashboard.html with no view).
-// Anyone not listed lands on Home.
+// Field techs land on the tech app's Schedule. Anyone else not listed lands on Home.
+const AP_TECH_START = "tech.html#schedule";
 const AP_START = {
   "jake.gilmore@alpinehvac.ca":     "dashboard.html?view=home",       // owner overview
   "mike.launder@alpinehvac.ca":     "dashboard.html?view=operations",
   "cole.hamilton@alpinehvac.ca":    "dashboard.html?view=operations",
   "natalie.townsend@alpinehvac.ca": "dashboard.html?view=sales",
-  "steven.coles@alpinehvac.ca":     "tech.html",                      // field techs open straight to My Visits
-  "nick.drost@alpinehvac.ca":       "tech.html",
-  "tyson.marcoux@alpinehvac.ca":    "tech.html",
-  "brandon.launder@alpinehvac.ca":  "tech.html",
-  "matt.martin@alpinehvac.ca":      "tech.html",
+  "steven.coles@alpinehvac.ca":     AP_TECH_START,                    // field techs open straight to the Schedule
+  "nick.drost@alpinehvac.ca":       AP_TECH_START,
+  "tyson.marcoux@alpinehvac.ca":    AP_TECH_START,
+  "brandon.launder@alpinehvac.ca":  AP_TECH_START,
+  "matt.martin@alpinehvac.ca":      AP_TECH_START,
 };
+// A tech is someone whose only role is Ops / tech: they go straight to the Schedule, even when added
+// later in Users & Settings without a start page.
+const AP_OFFICE_ROLES = ["owner", "super_admin", "finance", "sales", "support", "field_ops"];
 function apStartPage(session) {
   const s = session || apGetSession();
-  return (s && (s.start || AP_START[s.email])) || "dashboard.html?view=home";
+  if (!s) return "dashboard.html?view=home";
+  const roles = s.roles || [];
+  const techOnly = roles.includes("ops") && !roles.some(r => AP_OFFICE_ROLES.includes(r));
+  const start = s.start || AP_START[s.email] || (techOnly ? AP_TECH_START : "");
+  return (start === "tech.html" ? AP_TECH_START : start) || "dashboard.html?view=home";
 }
 
 // The portal's public address. Sign-in QR codes (Users & Settings) point here.

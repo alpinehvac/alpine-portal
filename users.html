@@ -153,6 +153,7 @@ const STARTS = [
   ["dashboard.html?view=sales", "Sales dashboard"],
   ["dashboard.html?view=operations", "Operations dashboard"],
   ["dashboard.html?view=financials", "Financial dashboard"],
+  ["tech.html#schedule", "Tech app: Schedule"],
 ];
 const startLabel = v => (STARTS.find(s => s[0] === v) || [0, v || "Home"])[1];
 const opensFor = roles => Object.keys(AP_TOOLS).filter(id => id !== "job-profit" && apHasAccess({ roles }, id)).map(id => AP_TOOLS[id].label);
