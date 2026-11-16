@@ -54,15 +54,15 @@ const STAFF = [...new Set([...(typeof AP_USERS === "object" ? Object.values(AP_U
 
 // Company defaults. Placeholders until Jake confirms; owners change them under Quote settings.
 const DEFAULTS = {
-  margin: 35,            // % applied to new lines (each line can differ)
+  margin: 40,            // % applied to new lines (each line can differ); Cole prices materials at 40% in BuildOps
   labourRate: 150,       // $/hr charged to the customer
   labourCost: null,      // $/hr cost to Alpine, for margin on labour; blank = not counted
   taxRate: 13,           // HST %
   validDays: 30,
   minMargin: 20,         // lines below this margin are flagged red
   nextNumber: 1190,      // running part of the next quote number this year (BuildOps was at Q20261189 on Nov 11, 2026)
-  departments: ["Service", "Construction", "Office"],
-  hstNumber: "",
+  departments: ["Service", "Construction", "Office", "Building Automation"],   // as set up in BuildOps
+  hstNumber: "715482543",   // Alpine's HST #, from BuildOps company settings
   terms: "Prices are valid for 30 days from the quote date and are subject to change after that.\n"
     + "Work is scheduled once this quote is approved in writing. Any work outside the scope above is quoted separately.\n"
     + "Equipment carries the manufacturer's warranty; Alpine HVAC warrants its workmanship for one year from completion.\n"
@@ -110,11 +110,13 @@ function totals(q) {
     if (l.cost === null || l.cost === undefined) unknown += ext; else { costKnown += qty * l.cost; priceKnown += ext; }
   });
   // A quote brought across from BuildOps as a summary has its amount but no lines.
-  if (!(q.lines || []).length && q.importedAmount !== null && q.importedAmount !== undefined) { subtotal = q.importedAmount; unknown = subtotal; }
+  // BuildOps' Amount column is the total including HST, so work the subtotal back from it.
+  if (!(q.lines || []).length && q.importedAmount !== null && q.importedAmount !== undefined) { subtotal = q.importedAmount / (1 + (Number(q.taxRate) || 0) / 100); unknown = r2(subtotal); }
   subtotal = r2(subtotal);
   const tax = r2(subtotal * (Number(q.taxRate) || 0) / 100);
   const profit = r2(priceKnown - costKnown);
-  return { subtotal, tax, total: r2(subtotal + tax), cost: r2(costKnown), profit, marginPct: priceKnown ? profit / priceKnown * 100 : null, unknown: r2(unknown) };
+  return { subtotal, tax, total: r2(subtotal + tax), cost: r2(costKnown), profit, marginPct: priceKnown ? profit / priceKnown * 100 : null,
+    markupPct: costKnown ? profit / costKnown * 100 : null, unknown: r2(unknown) };
 }
 
 // ── Quote numbers: Q + year + running number, continuing BuildOps ──
@@ -265,12 +267,12 @@ function drawList() {
     <div class="kpi"><b>${decided.length ? Math.round(decided.filter(q => q.status === "approved").length / decided.length * 100) + "%" : "–"}</b><span>won (approved ÷ decided)</span></div>`;
   const rows = filtered();
   $("q-count").textContent = rows.length + " of " + QUOTES.length;
-  $("list").innerHTML = `<tr><th>Quote #</th><th>Title</th><th>Customer</th><th>Property</th><th>Created By</th><th>Created On</th><th>Due Date</th><th class="num">Amount</th><th>Status</th><th>Department</th><th>Sold By</th><th>Job</th><th class="num">Version</th><th class="num">Margin</th></tr>`
+  $("list").innerHTML = `<tr><th>Quote #</th><th>Title</th><th>Customer</th><th>Property</th><th>Created By</th><th>Created On</th><th>Due Date</th><th class="num" title="Total including HST, as in BuildOps">Amount</th><th>Status</th><th>Department</th><th>Sold By</th><th>Job</th><th class="num">Version</th><th class="num">Margin</th></tr>`
     + (rows.length ? rows.map(q => { const t = q.totals || {}, st = STATUS[S(q)];
       return `<tr class="row" data-id="${esc(q.id)}"><td><b class="qn">${esc(q.number)}</b>${q.source === "buildops" ? '<small>from BuildOps</small>' : ""}</td>
         <td class="clip">${esc(q.title || "")}</td><td class="clip">${esc(q.customer || "")}</td><td class="clip">${esc(q.property || "")}</td>
         <td>${esc(q.createdByName || "")}</td><td>${esc(niceDate(q.createdAt || q.quoteDate))}</td><td>${esc(niceDate(q.dueDate))}</td>
-        <td class="num">${money(t.subtotal)}</td><td><span class="tag ${st.cls}">${st.label}</span></td><td>${q.department ? `<span class="tag dept-tag">${esc(q.department)}</span>` : ""}</td>
+        <td class="num">${money(t.total)}</td><td><span class="tag ${st.cls}">${st.label}</span></td><td>${q.department ? `<span class="tag dept-tag">${esc(q.department)}</span>` : ""}</td>
         <td>${esc(q.soldBy || "")}</td><td>${esc(q.jobNumber || "")}</td><td class="num">${esc(q.version || 1)}</td><td class="num">${pct(t.marginPct)}</td></tr>`; }).join("")
       : `<tr><td colspan="14" class="empty">${QUOTES.length ? "Nothing matches." : "No quotes yet. Click Create quote to start one."}</td></tr>`);
   $("list").querySelectorAll("tr.row").forEach(r => r.onclick = () => location.hash = "q=" + r.dataset.id);
@@ -278,12 +280,12 @@ function drawList() {
 // Export the list as shown (same headings as BuildOps' Export, plus Margin).
 function exportCsv() {
   const H = ["Quote #", "Title", "Customer", "Property", "Created By", "Created On", "Due Date", "Amount", "Status", "Tags", "Project Manager", "Account Manager", "Sold By",
-    "Billing Address", "Comments", "Customer PO#", "Property Representative", "Customer Representative", "Job", "Version", "Version Title", "Department", "Notes", "Issue Description", "Total incl. HST", "Margin %"];
+    "Billing Address", "Comments", "Customer PO#", "Property Representative", "Customer Representative", "Job", "Version", "Version Title", "Department", "Notes", "Issue Description", "Subtotal before HST", "Margin %"];
   const cell = v => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const rows = filtered().map(q => { const t = q.totals || {};
-    return [q.number, q.title, q.customer, q.property, q.createdByName, String(q.createdAt || q.quoteDate || "").slice(0, 10), q.dueDate, (t.subtotal ?? 0).toFixed(2), STATUS[shownStatus(q)].label,
+    return [q.number, q.title, q.customer, q.property, q.createdByName, String(q.createdAt || q.quoteDate || "").slice(0, 10), q.dueDate, (t.total ?? 0).toFixed(2), STATUS[shownStatus(q)].label,
       q.tags, q.projectManager, q.accountManager, q.soldBy, q.billingAddress, q.comments, q.poNumber, q.propertyRep, q.contactName, q.jobNumber, q.version || 1, q.versionTitle,
-      q.department, q.notes, q.issueDescription, (t.total ?? 0).toFixed(2), t.marginPct === null || t.marginPct === undefined ? "" : t.marginPct.toFixed(1)]; });
+      q.department, q.notes, q.issueDescription, (t.subtotal ?? 0).toFixed(2), t.marginPct === null || t.marginPct === undefined ? "" : t.marginPct.toFixed(1)]; });
   const csv = [H, ...rows].map(r => r.map(cell).join(",")).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
   a.download = "Basecamp quotes " + TODAY + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -485,7 +487,7 @@ function drawLines() {
 function drawTotals() {
   const t = totals(Q);
   $("tot").innerHTML = `<tr><td>Subtotal</td><td class="num">${money(t.subtotal)}</td></tr><tr><td>HST ${esc(Q.taxRate ?? 0)}%</td><td class="num">${money(t.tax)}</td></tr><tr class="big"><td>Total</td><td class="num">${money(t.total)}</td></tr>`;
-  $("tot-in").innerHTML = `<tr><td>Cost</td><td class="num">${money(t.cost)}</td></tr><tr><td>Gross profit</td><td class="num">${money(t.profit)}</td></tr><tr><td><b>Margin</b></td><td class="num"><b>${pct(t.marginPct)}</b></td></tr>`
+  $("tot-in").innerHTML = `<tr><td>Cost</td><td class="num">${money(t.cost)}</td></tr><tr><td>Gross profit</td><td class="num">${money(t.profit)}</td></tr><tr><td><b>Margin</b></td><td class="num"><b>${pct(t.marginPct)}</b></td></tr><tr><td>Markup</td><td class="num">${pct(t.markupPct)}</td></tr>`
     + (t.unknown ? `<tr><td colspan="2" class="note">${money(t.unknown)} of lines have no cost, so they're left out of profit and margin.</td></tr>` : "");
 }
 
@@ -607,7 +609,7 @@ function openImport() {
     const fresh = parsed.quotes.filter(q => !have.has(String(q.number).toUpperCase()));
     const by = {}; parsed.quotes.forEach(q => { const s = STATUS[shownStatus(q)].label; by[s] = (by[s] || 0) + 1; });
     const total = parsed.quotes.reduce((t, q) => t + (q.importedAmount || 0), 0);
-    $("imp-prev").innerHTML = `<div class="kpis" style="margin-top:1rem"><div class="kpi"><b>${parsed.quotes.length}</b><span>quotes in the file</span></div><div class="kpi"><b>${fresh.length}</b><span>new to Basecamp</span></div><div class="kpi"><b>${money(total)}</b><span>total amount</span></div></div>
+    $("imp-prev").innerHTML = `<div class="kpis" style="margin-top:1rem"><div class="kpi"><b>${parsed.quotes.length}</b><span>quotes in the file</span></div><div class="kpi"><b>${fresh.length}</b><span>new to Basecamp</span></div><div class="kpi"><b>${money(total)}</b><span>total amount (incl. HST)</span></div></div>
       <p class="note">${Object.entries(by).map(([k, v]) => `${esc(k)}: ${v}`).join(" · ")}${parsed.unknown.length ? ` · Columns not used: ${esc(parsed.unknown.join(", "))}` : ""}</p>
       <div class="tablewrap" style="max-height:300px;overflow:auto;margin-top:.6rem"><table class="list"><tr><th>Quote #</th><th>Customer</th><th>Title</th><th class="num">Amount</th><th>Status</th><th>Sold by</th><th>Job</th></tr>
       ${parsed.quotes.slice(0, 200).map(q => `<tr><td>${esc(q.number)}${have.has(String(q.number).toUpperCase()) ? "<small>already here</small>" : ""}</td><td>${esc(q.customer)}</td><td class="clip">${esc(q.title)}</td><td class="num">${money(q.importedAmount)}</td><td><span class="tag ${STATUS[shownStatus(q)].cls}">${STATUS[shownStatus(q)].label}</span></td><td>${esc(q.soldBy)}</td><td>${esc(q.jobNumber)}</td></tr>`).join("")}</table></div>
