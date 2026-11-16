@@ -55,6 +55,7 @@ const AP_TOOLS = {
   "call-log":           { label: "Alpine Call Log / On-Call",     roles: ["ops"] },
   "tech":               { label: "My Visits (techs)",              roles: ["ops", "field_ops", "owner"], strict: true }, // tech.html: phone app for techs (fs_visits, fs_time, fs_summaries, fs_photos); techs see only visits assigned to them
   "quotes":             { label: "Quotes",                        roles: ["owner", "field_ops"], strict: true }, // customer quotes priced from the Item List (margin formula, labour rate, HST, PDF): Jake, Mike + Cole (quotes, quotes_meta)
+  "crew-board":         { label: "Crew Board",                    roles: ["owner", "field_ops"], strict: true }, // Basecamp's BuildOps Dispatch: techs by day, drag to reassign, status tray, live clock states (fs_visits, fs_clock)
   "forms":              { label: "Checklists",                    roles: ["owner", "field_ops"], strict: true }, // site checklists copied from BuildOps forms: import, preview, filled checklists + customer links (forms, form_entries, form_shares)
   "items":              { label: "Item List",                     roles: ["owner", "field_ops"], strict: true }, // equipment, labour, materials price list: Jake, Mike + Cole (items_data, items_meta)
   "users":              { label: "Users & Settings",              roles: ["owner"], strict: true },   // people, roles, start pages, access: Jake, Mike only (portal_users)

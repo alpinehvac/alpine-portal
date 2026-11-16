@@ -35,7 +35,7 @@ const dayLabel = s => {
   return new Date(s + "T12:00:00").toLocaleDateString("en-CA", { weekday: "long", month: "short", day: "numeric" });
 };
 const hrsTxt = h => (Math.round((h || 0) * 100) / 100).toString() + " h";
-const STATUS = { scheduled: "Scheduled", in_progress: "In progress", complete: "Complete" };
+const STATUS = { scheduled: "Scheduled", in_progress: "In progress", on_hold: "On hold", canceled: "Canceled", complete: "Complete" };
 const first = s => String(s || "").split(" ")[0];
 const safeKey = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
 
@@ -276,7 +276,7 @@ function render() {
 }
 
 // ── List (laid out like the BuildOps app: Scheduled Visits / Open Work, Past / Today / Future) ──
-const overdueDays = v => v.status !== "complete" && v.date && v.date < TODAY ? Math.round((new Date(TODAY + "T12:00:00") - new Date(v.date + "T12:00:00")) / 864e5) : 0;
+const overdueDays = v => v.status !== "complete" && v.status !== "canceled" && v.date && v.date < TODAY ? Math.round((new Date(TODAY + "T12:00:00") - new Date(v.date + "T12:00:00")) / 864e5) : 0;
 const DAYH = s => s ? new Date(s + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "2-digit" }).replace(",", "") : "No date";
 function inView(v) {
   if (TOP === "open") return v.status !== "complete" && (v.status === "in_progress" || (v.date || "") <= TODAY);
