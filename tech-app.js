@@ -925,6 +925,8 @@ function err(e) {
   else BANNER = `<div class="banner err"><b>Can't reach the database.</b> Your saved work is safe on this phone and will upload when the connection is back.</div>`;
   LOADED = true; render();
 }
+// Opening the app (sign-in, home-screen icon, a plain link) lands on the Schedule. Visits is one tap away in the menu.
+if (!location.hash) history.replaceState(null, "", location.pathname + location.search + "#schedule");
 (async () => {
   try { store = DEMO ? demoStore() : await firestoreStore(); }
   catch (e) { err(e); return; }
