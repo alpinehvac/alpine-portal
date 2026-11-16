@@ -1013,21 +1013,78 @@ function renderWeek() {
   const sel = $('wk-sel'); if (sel) sel.onchange = () => { weekSel = +sel.value; renderWeek(); };
 }
 
-// Door-knock conversations table (Fireflies). Clicking a matched row flies to its pin.
+// Door-knock conversations (Fireflies): one condensed line per knock; open a row for the full summary,
+// pains, provider, actions and team notes. Clicking a matched company flies to its pin.
+// Notes added after the fact: ob_knock_notes { <knockId>: [ { id, text, by, at } ] }, saved to the cloud
+// for everyone. The refreshes never touch this key, so notes survive every transcript re-import.
+let knockNotes = readJSON('ob_knock_notes') || {};
+let knockOpen = new Set();
+function knockNotesSave(mutate) {
+  const cur = readJSON('ob_knock_notes') || {};       // re-read so a teammate's note saved on load isn't lost
+  mutate(cur);
+  Object.keys(cur).forEach(k => { if (!Array.isArray(cur[k]) || !cur[k].length) delete cur[k]; });
+  knockNotes = cur;
+  localStorage.setItem('ob_knock_notes', JSON.stringify(cur));
+}
+function knockShort(t, n) { t = String(t || '').replace(/\s+/g, ' ').trim(); const m = t.match(/^.*?[.!?](\s|$)/); const f = (m ? m[0] : t).trim(); return f.length > n ? f.slice(0, n - 1).trim() + '…' : f; }
+function knockNotesHTML(k) {
+  const list = (knockNotes[k.id] || []).slice().sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+  return '<div class="kc-notes"><div class="kc-h">Team notes' + (list.length ? ' (' + list.length + ')' : '') + '</div>' +
+    (list.length ? '<ul>' + list.map(n => '<li><div class="kc-nmeta"><b>' + esc((n.by || '').split(' ')[0] || '—') + '</b> · ' + fmtDate((n.at || '').slice(0, 10)) +
+      (n.by === session.name || (session.roles || []).includes('owner') ? ' <button class="kc-ndel" data-k="' + esc(k.id) + '" data-n="' + esc(n.id) + '" title="Delete note">Delete</button>' : '') +
+      '</div><div class="kc-ntext">' + esc(n.text) + '</div></li>').join('') + '</ul>' : '') +
+    '<div class="kc-add"><textarea rows="2" placeholder="Add a note: a call back, who you spoke to, what changed since the knock…"></textarea>' +
+    '<button class="btn sm kc-nadd" data-k="' + esc(k.id) + '">Add note</button></div></div>';
+}
 function renderKnocks() {
   const el = $('t-knocks'); if (!el) return;
   const note = $('knock-note');
   if (note) note.textContent = knocks.length ? knocks.length + ' conversation' + (knocks.length === 1 ? '' : 's') + ' · ' + knocks.filter(k => knockRef(k).startsWith('k:')).length + ' off the list (own pin on the map)' : '';
-  el.innerHTML = '<thead><tr><th class="nosort">Date</th><th class="nosort">Company</th><th class="nosort">Contact</th><th class="nosort">Interest</th><th class="nosort">Summary</th><th class="nosort">Next step</th><th class="nosort"></th></tr></thead><tbody>' +
-    (knocks.length ? knocks.slice(0, 200).map(k => {
-      const ref = knockRef(k), off = ref.startsWith('k:');
-      return '<tr><td>' + fmtDate(k.date) + '</td><td>' + (ref ? '<a data-fly="' + esc(ref) + '">' + esc(k.company || '—') + '</a>' : esc(k.company || '—')) + (off ? ' <span class="due" title="Not on the lead sheet or target list yet; shown on the map as an off-list knock">off list</span>' : '') +
-        '<small style="display:block;color:var(--light-grey)">' + esc(k.address || '') + '</small></td><td>' + esc(k.contact || '') + (k.role ? '<small style="display:block;color:var(--light-grey)">' + esc(k.role) + '</small>' : '') + '</td>' +
-        '<td>' + (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '</td>' +
-        '<td style="max-width:420px">' + esc(k.summary || '') + '</td><td>' + esc(k.nextStep || '') + (k.followUp ? '<small style="display:block">' + fmtDate(k.followUp) + '</small>' : '') + '</td>' +
-        '<td>' + (k.url ? '<a href="' + esc(k.url) + '" target="_blank" rel="noopener">Recording ↗</a>' : '') + '</td></tr>';
-    }).join('') : '<tr><td colspan="7" class="none" style="padding:1rem;color:var(--light-grey)">No door-knock recordings yet. Record each knock in the Fireflies app; the daily refresh transcribes, summarizes and files it here.</td></tr>') + '</tbody>';
+  if (!knocks.length) { el.innerHTML = '<p class="hint" style="padding:1rem;color:var(--light-grey)">No door-knock recordings yet. Record each knock in the Fireflies app; the daily refresh transcribes, summarizes and files it here.</p>'; return; }
+  const row = (lbl, v) => v ? '<div class="kc-f"><span>' + lbl + '</span><div>' + v + '</div></div>' : '';
+  el.innerHTML = '<div class="kc-head"><span>Date</span><span>Company</span><span>Contact</span><span>Interest</span><span>Summary</span><span></span></div>' +
+    knocks.slice(0, 300).map(k => {
+      const ref = knockRef(k), off = ref.startsWith('k:'), nn = (knockNotes[k.id] || []).length;
+      const acts = knockActions(k);
+      const contactBits = [k.contactEmail || k.email ? '<a href="mailto:' + esc(k.contactEmail || k.email) + '">' + esc(k.contactEmail || k.email) + '</a>' : '', k.contactPhone ? '<a href="tel:' + esc(k.contactPhone) + '">' + esc(k.contactPhone) + '</a>' : ''].filter(Boolean).join(' · ');
+      return '<details class="kc" data-k="' + esc(k.id) + '"' + (knockOpen.has(k.id) ? ' open' : '') + '><summary>' +
+        '<span class="kc-date">' + fmtDate(k.date) + '</span>' +
+        '<span class="kc-co">' + (ref ? '<a data-fly="' + esc(ref) + '">' + esc(k.company || '—') + '</a>' : '<b>' + esc(k.company || '—') + '</b>') + (off ? ' <span class="due" title="Not on the lead sheet or target list yet; shown on the map as an off-list knock">off list</span>' : '') + '</span>' +
+        '<span class="kc-ct">' + esc(k.contact || '') + '</span>' +
+        '<span>' + (k.interest ? '<span class="chip" style="background:' + (INTEREST[k.interest] || '#5A7A80') + '">' + esc(k.interest) + '</span>' : '') + '</span>' +
+        '<span class="kc-sum">' + esc(knockShort(k.summary, 140)) + (k.nextStep ? ' <b>Next:</b> ' + esc(knockShort(k.nextStep, 70)) : '') + '</span>' +
+        '<span class="kc-nb">' + (nn ? '<span class="kc-badge" title="Team notes">' + nn + ' note' + (nn === 1 ? '' : 's') + '</span>' : '') + '</span>' +
+        '</summary><div class="kc-body">' +
+        row('Address', k.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(k.address + ', ON') + '" target="_blank" rel="noopener">' + esc(k.address) + '</a>' : '') +
+        row('Contact', [esc(k.contact || ''), k.role ? '<small>' + esc(k.role) + '</small>' : '', contactBits].filter(Boolean).join(' · ')) +
+        row('Summary', esc(k.summary || '')) +
+        row('Pains', esc(Array.isArray(k.pains) ? k.pains.join('; ') : k.pains || '')) +
+        row('Current provider', esc(k.currentProvider || '')) +
+        row('Next step', k.nextStep ? esc(k.nextStep) + (k.followUp ? ' <small>(' + fmtDate(k.followUp) + ')</small>' : '') : '') +
+        row('Actions', acts.length > 1 || (acts[0] && acts[0].text !== k.nextStep) ? '<ul class="kc-acts">' + acts.map(a => '<li class="' + (a.done ? 'done' : '') + '">' + esc(a.text) + (a.due ? ' <small>(' + fmtDate(a.due) + ')</small>' : '') + (a.done ? ' <small>✓ ' + esc((a.doneBy || '').split(' ')[0]) + ' ' + fmtDate(a.done) + '</small>' : '') + '</li>').join('') + '</ul>' : '') +
+        row('Recorded by', esc(k.rep || 'Jake') + (k.url ? ' · <a href="' + esc(k.url) + '" target="_blank" rel="noopener">Recording ↗</a>' : '')) +
+        knockNotesHTML(k) + '</div></details>';
+    }).join('');
 }
+document.addEventListener('toggle', e => {
+  const d = e.target; if (!d.matches || !d.matches('details.kc')) return;
+  if (d.open) knockOpen.add(d.dataset.k); else knockOpen.delete(d.dataset.k);
+}, true);
+document.addEventListener('click', e => {
+  const add = e.target.closest('.kc-nadd');
+  if (add) {
+    const ta = add.closest('.kc-add').querySelector('textarea'), text = ta.value.trim(); if (!text) { ta.focus(); return; }
+    const id = add.dataset.k;
+    knockNotesSave(cur => { (cur[id] = cur[id] || []).push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, by: session.name, at: new Date().toISOString() }); });
+    knockOpen.add(id); renderKnocks(); return;
+  }
+  const del = e.target.closest('.kc-ndel');
+  if (del) {
+    if (!confirm('Delete this note?')) return;
+    knockNotesSave(cur => { cur[del.dataset.k] = (cur[del.dataset.k] || []).filter(n => n.id !== del.dataset.n); });
+    renderKnocks();
+  }
+});
 
 function renderReports() {
   const el = $('nr-list'); if (!el) return;

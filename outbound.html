@@ -157,7 +157,27 @@ html.ap-embed-map .side>div:has(#tg-rep),html.ap-embed-map .side>div:has(#tg-age
 .pop .knocks{margin-top:.6rem;border-top:1px solid var(--border);padding-top:.5rem;max-height:220px;overflow:auto}
 .pop .knocks .kh{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--light-grey);margin-bottom:.3rem}
 .pop .kn{font-size:.8rem;margin-bottom:.55rem}.pop .kn p{margin:.2rem 0}
-#t-knocks td{vertical-align:top;font-size:.84rem}
+.kc-wrap{border:1px solid var(--border);border-radius:var(--radius-lg);max-height:640px;overflow:auto;background:var(--off-black)}
+.kc-head,details.kc>summary{display:grid;grid-template-columns:5.6rem minmax(9rem,1.3fr) minmax(6rem,.8fr) 6.2rem minmax(0,3fr) 4.6rem;gap:.7rem;align-items:center;padding:.42rem .8rem}
+.kc-head{position:sticky;top:0;z-index:1;background:var(--off-black);border-bottom:1px solid var(--border);font-family:'Oswald',sans-serif;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--light-grey)}
+details.kc{border-bottom:1px solid rgba(16,68,78,.08);font-size:.83rem}
+details.kc>summary{list-style:none;cursor:pointer}details.kc>summary::-webkit-details-marker{display:none}
+details.kc>summary:hover{background:rgba(16,68,78,.05)}details.kc[open]>summary{background:rgba(16,68,78,.07)}
+.kc-date{color:var(--light-grey);font-size:.78rem}
+.kc-co a{cursor:pointer;font-weight:600}.kc-co,.kc-ct,.kc-sum{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kc-ct{color:var(--light-grey)}
+.kc-badge{font-size:.7rem;background:rgba(155,142,196,.18);color:#5E4F94;border-radius:10px;padding:1px 7px;white-space:nowrap}
+.kc-body{padding:.4rem .8rem .9rem 6.3rem;line-height:1.45}
+.kc-f{display:grid;grid-template-columns:8.5rem 1fr;gap:.6rem;padding:.18rem 0}.kc-f>span{font-family:'Oswald',sans-serif;font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--light-grey);padding-top:.15rem}
+.kc-f small{color:var(--light-grey)}
+.kc-acts{margin:0;padding-left:1rem}.kc-acts li.done{color:var(--light-grey);text-decoration:line-through}
+.kc-notes{margin-top:.6rem;border-top:1px dashed var(--border);padding-top:.5rem}
+.kc-h{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-light);margin-bottom:.3rem}
+.kc-notes ul{list-style:none;margin:0 0 .5rem;padding:0}.kc-notes li{background:rgba(16,68,78,.05);border-radius:6px;padding:.4rem .6rem;margin-bottom:.35rem}
+.kc-nmeta{font-size:.74rem;color:var(--light-grey)}.kc-ntext{white-space:pre-wrap}
+.kc-ndel{border:0;background:none;color:#B83227;font-size:.72rem;cursor:pointer;padding:0 0 0 .4rem}
+.kc-add{display:flex;gap:.5rem;align-items:flex-start}.kc-add textarea{flex:1;font:inherit;font-size:.83rem;padding:.4rem .5rem;border:1px solid var(--border);border-radius:6px;resize:vertical}
+@media(max-width:760px){.kc-head{display:none}details.kc>summary{grid-template-columns:4.8rem 1fr auto;row-gap:.15rem}.kc-ct{display:none}.kc-sum{grid-column:1/-1;white-space:normal}.kc-body{padding-left:.8rem}.kc-f{grid-template-columns:1fr;gap:0}}
 .wk-wrap{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.2rem;max-height:720px;overflow:auto}
 .wk-head{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;font-size:.9rem;margin-bottom:.4rem}
 .wk-head select{font:inherit;padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border)}
@@ -303,8 +323,8 @@ li.fu-item:last-child{border-bottom:0}
   </section>
 
   <section class="team-only">
-    <div class="h2-row"><div><h2>Door-knock conversations</h2><p class="h2-note">Transcribed and summarized from Jake's Fireflies recordings by the daily refresh, and filed against the lead or target. Start each recording by saying the company and address. <span id="knock-note"></span></p></div></div>
-    <div class="table-wrap" style="max-height:520px"><table id="t-knocks"></table></div>
+    <div class="h2-row"><div><h2>Door-knock conversations</h2><p class="h2-note">Transcribed and summarized from Jake's Fireflies recordings by the daily refresh, and filed against the lead or target. Start each recording by saying the company and address. One line per knock: open a row for the full summary and to add team notes after the fact (saved for everyone). <span id="knock-note"></span></p></div></div>
+    <div class="kc-wrap" id="t-knocks"></div>
   </section>
 
   <section class="team-only" id="nr-section">
