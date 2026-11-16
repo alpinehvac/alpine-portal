@@ -458,13 +458,20 @@ function costNumbers() {
   const inv = (C && C.invoices) || [];
   const billed = (C && C.billedQB != null) ? C.billedQB : sum(inv.filter(i => !/draft|void/i.test(i.status || "")), i => i.amount) / 1.13; // pre-HST
   const cost = labCost + matCost;
-  return { labHrs, labCost, billCost, partsCost, matCost, quoted, billed, cost, margin: billed ? (billed - cost) / billed * 100 : null };
+  const billedGp = billed - cost;
+  const margin = billed ? billedGp / billed * 100 : null; // against billed so far (secondary)
+  // Primary: gross profit against the full quoted contract value (what will be billed by job end). Falls back to billed basis when no quote (T&M).
+  const onQuote = !!quoted;
+  const gp = onQuote ? quoted - cost : billedGp;
+  const gpMargin = onQuote ? gp / quoted * 100 : margin;
+  return { labHrs, labCost, billCost, partsCost, matCost, quoted, billed, cost, margin, billedGp, onQuote, gp, gpMargin };
 }
 function costKpis() {
   const N = costNumbers();
   return `<div class="kpi"><div class="k-label">Quoted (pre-HST)</div><div class="k-value">${money(N.quoted)}</div><div class="k-sub">${C && C.estCost ? `est. cost ${money(C.estCost)}` : "&nbsp;"}</div></div>
     <div class="kpi"><div class="k-label">Cost to date</div><div class="k-value">${money(N.cost)}</div><div class="k-sub">labour ${money(N.labCost)} · materials ${money(N.matCost)}</div></div>
-    <div class="kpi"><div class="k-label">Billed (pre-HST)</div><div class="k-value">${money(N.billed)}</div><div class="k-sub">${N.margin != null ? `<span class="${N.margin < 20 ? "bad" : N.margin < 35 ? "watch" : "good"}">${Math.round(N.margin)}% margin to date</span>` : "nothing billed yet"}</div></div>`;
+    <div class="kpi"><div class="k-label">Gross profit to date${N.onQuote ? " (on quote)" : ""}</div><div class="k-value${N.gp < 0 ? " bad" : ""}">${money(N.gp)}</div><div class="k-sub">${N.gpMargin != null ? `<span class="${N.gpMargin < 20 ? "bad" : N.gpMargin < 35 ? "watch" : "good"}">${Math.round(N.gpMargin)}% margin${N.onQuote ? " on quoted value" : " on billed"}</span>` : "nothing billed yet"}</div></div>
+    <div class="kpi"><div class="k-label">Billed (pre-HST)</div><div class="k-value">${money(N.billed)}</div><div class="k-sub">${N.margin != null ? `${Math.round(N.margin)}% margin on billed so far` : "nothing billed yet"}${N.onQuote ? ` · ${money(Math.max(N.quoted - N.billed, 0))} left to bill` : ""}</div></div>`;
 }
 function ownerSections() {
   if (!C) return `<section><h2>Costs, invoices and emails<span class="lock">Jake, Mike &amp; Cole</span></h2><div class="panel empty">Not loaded yet. The next daily refresh adds costs, QuickBooks bills, invoices and emails for this job.</div></section>`;
@@ -492,8 +499,8 @@ function ownerSections() {
       <tr><td>Quoted, pre-HST</td><td class="num">${money2(N.quoted)}</td></tr>
       <tr><td>Cost to date (labour + materials)</td><td class="num">${money2(N.cost)}</td></tr>
       <tr><td>Billed to date, pre-HST</td><td class="num">${money2(N.billed)}</td></tr>
-      <tr><td><b>Gross profit to date</b></td><td class="num"><b class="${N.billed - N.cost < 0 ? "bad" : ""}">${money2(N.billed - N.cost)}</b>${N.margin != null ? `<small>${Math.round(N.margin)}% margin</small>` : ""}</td></tr>
-      ${N.quoted ? `<tr><td>Projected at quote (quoted − cost to date)</td><td class="num">${money2(N.quoted - N.cost)}</td></tr>` : ""}
+      <tr><td><b>Gross profit to date${N.onQuote ? " (quoted value − cost to date)" : ""}</b></td><td class="num"><b class="${N.gp < 0 ? "bad" : ""}">${money2(N.gp)}</b>${N.gpMargin != null ? `<small>${Math.round(N.gpMargin)}% margin${N.onQuote ? " on quoted value" : ""}</small>` : ""}</td></tr>
+      ${N.onQuote ? `<tr><td>Against billed so far (billed − cost to date)</td><td class="num"><span class="${N.billedGp < 0 ? "bad" : ""}">${money2(N.billedGp)}</span>${N.margin != null ? `<small>${Math.round(N.margin)}% margin on billed</small>` : ""}</td></tr>` : ""}
     </tbody></table></div>
   </section>
 
@@ -644,7 +651,8 @@ function internalReport(V, totalHrs) {
     <tr><td>Labour cost</td><td class="num">${money2(N.labCost)}</td></tr>
     <tr><td>Materials cost (QuickBooks bills + BuildOps parts)</td><td class="num">${money2(N.matCost)}</td></tr>
     <tr><td>Billed to date, pre-HST</td><td class="num">${money2(N.billed)}</td></tr>
-    <tr><td><b>Gross profit to date</b></td><td class="num"><b>${money2(N.billed - N.cost)}</b>${N.margin != null ? ` · ${Math.round(N.margin)}%` : ""}</td></tr>
+    <tr><td><b>Gross profit to date${N.onQuote ? " (quoted value − cost to date)" : ""}</b></td><td class="num"><b>${money2(N.gp)}</b>${N.gpMargin != null ? ` · ${Math.round(N.gpMargin)}%` : ""}</td></tr>
+    ${N.onQuote ? `<tr><td>Against billed so far (billed − cost to date)</td><td class="num">${money2(N.billedGp)}${N.margin != null ? ` · ${Math.round(N.margin)}%` : ""}</td></tr>` : ""}
   </tbody></table>`;
   const bills = (C && C.bills) || [];
   if (bills.length) h += `<div class="rp-h2">Internal: supplier bills</div><table><thead><tr><th>Date</th><th>Vendor</th><th>Memo</th><th class="num">Amount</th></tr></thead><tbody>${bills.map(b => `<tr><td>${fmtD(b.date)}</td><td>${esc(b.vendor)}</td><td>${esc(b.memo || "")}</td><td class="num">${money2(b.amount)}</td></tr>`).join("")}</tbody></table>`;
