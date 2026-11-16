@@ -189,6 +189,43 @@ let VISITS = [], LOADED = false, TOP = "scheduled", WHEN = "today", ALL = false,
 const route = () => { const m = location.hash.match(/v=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; };
 window.addEventListener("hashchange", render);
 
+// ── "Put Basecamp on your home screen" card (Schedule and visit list, phones only) ──
+// Android/Chrome: one tap opens the phone's own install box (beforeinstallprompt, caught in tech.html).
+// iPhone: Apple doesn't let a website install itself, so the card shows the two Safari taps.
+// Hidden once the app runs from the home screen, after it's installed, or for 30 days after "Not now".
+// ?install=1 shows it anyway (for testing on a computer).
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const IS_PHONE = IS_IOS || /Android/i.test(navigator.userAgent);
+const STANDALONE = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+let INSTALL_HOW = false;
+function installCard() {
+  const force = /[?&]install=1/.test(location.search);
+  let later = 0, done = false;
+  try { later = +localStorage.getItem("ap_install_later") || 0; done = localStorage.getItem("ap_installed") === "1"; } catch (e) {}
+  if (!force && (!IS_PHONE || STANDALONE() || done || Date.now() - later < 30 * 864e5)) return "";
+  const share = '<svg class="share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+  const how = IS_IOS
+    ? `<ol><li>Tap the Share button ${share} ${/CriOS|FxiOS/.test(navigator.userAgent) ? "(top right)" : "at the bottom of Safari"}.</li><li>Scroll down and tap <b style="display:inline">Add to Home Screen</b>, then <b style="display:inline">Add</b>.</li></ol>`
+    : `<ol><li>Tap the browser menu <b style="display:inline">⋮</b> (top right).</li><li>Tap <b style="display:inline">Add to Home screen</b> or <b style="display:inline">Install app</b>.</li></ol>`;
+  const canPrompt = !!window.__bip;
+  return `<div class="install" id="install"><img src="images/tech-icon-180.png" alt=""><div style="flex:1">
+    <b>Put Basecamp on your home screen</b><p>It opens like an app, full screen, straight to your schedule, and keeps working with no signal.</p>
+    ${INSTALL_HOW && !canPrompt ? how : ""}
+    <div class="row">${canPrompt ? '<button data-inst="add">Add to home screen</button>' : INSTALL_HOW ? "" : '<button data-inst="how">Show me how</button>'}<button class="ghost" data-inst="later">Not now</button></div></div></div>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-inst]"); if (!b) return;
+  const a = b.dataset.inst;
+  if (a === "add" && window.__bip) {
+    const p = window.__bip; window.__bip = null;
+    try { await p.prompt(); const r = await p.userChoice; if (r && r.outcome === "accepted") { try { localStorage.setItem("ap_installed", "1"); } catch (e) {} toast("Added. Open Basecamp from your home screen from now on."); } } catch (err) {}
+    render();
+  } else if (a === "how") { INSTALL_HOW = true; render(); }
+  else if (a === "later") { try { localStorage.setItem("ap_install_later", String(Date.now())); } catch (err) {} const el = document.getElementById("install"); if (el) el.remove(); }
+});
+document.addEventListener("ap-installable", () => { if (document.getElementById("install") || IS_PHONE) render(); });
+document.addEventListener("ap-installed", () => { const el = document.getElementById("install"); if (el) el.remove(); });
+
 function banner() {
   let h = "";
   if (DEMO) h += `<div class="banner warn"><b>Demo.</b> These are sample visits. Nothing you enter is saved, and it all resets when you reload.</div>`;
@@ -238,7 +275,7 @@ function renderList() {
   const desc = TOP === "scheduled" && WHEN === "past";
   list.sort((a, b) => (desc ? -1 : 1) * ((a.date || "").localeCompare(b.date || "") || tmin(a.time) - tmin(b.time)));
   if (desc) list = list.slice(0, 60);
-  let h = `<div class="toptabs" role="tablist"><button data-top="scheduled" class="${TOP === "scheduled" ? "on" : ""}">Scheduled Visits</button><button data-top="open" class="${TOP === "open" ? "on" : ""}">Open Work${openN ? `<span>${openN}</span>` : ""}</button></div>` + banner();
+  let h = `<div class="toptabs" role="tablist"><button data-top="scheduled" class="${TOP === "scheduled" ? "on" : ""}">Scheduled Visits</button><button data-top="open" class="${TOP === "open" ? "on" : ""}">Open Work${openN ? `<span>${openN}</span>` : ""}</button></div>` + banner() + installCard();
   if (TOP === "scheduled") h += `<div class="tabs" role="tablist">${[["past", "Past"], ["today", "Today"], ["future", "Future"]].map(([k, l]) => `<button role="tab" data-when="${k}" class="${WHEN === k ? "on" : ""}" aria-selected="${WHEN === k}">${l}</button>`).join("")}</div>`;
   h += `<div class="search"><input id="q" type="search" placeholder="Search Job #, Property, Customer…" value="${esc(Q)}" aria-label="Search visits"></div>`;
   if (OFFICE) h += `<div class="tools"><label><input type="checkbox" id="all-t" ${ALL ? "checked" : ""}> Show every tech</label></div>`;
@@ -297,7 +334,7 @@ function renderSchedule() {
   const M = SCH.mode, span = M === "week" ? 7 : 14, unit = M === "month" ? "month" : M === "week" ? "week" : "2 weeks";
   const label = M === "month" ? fmtD(SCH.month, { month: "long", year: "numeric" })
     : fmtD(SCH.start, { month: "short", day: "numeric" }) + " – " + fmtD(addDays(SCH.start, span - 1), { month: "short", day: "numeric", year: "numeric" });
-  let h = banner() + `<div class="tabs" role="tablist">${[["week", "Week"], ["2w", "2 Weeks"], ["month", "Month"]].map(([k, l]) => `<button role="tab" data-sm="${k}" class="${M === k ? "on" : ""}" aria-selected="${M === k}">${l}</button>`).join("")}</div>`;
+  let h = banner() + installCard() + `<div class="tabs" role="tablist">${[["week", "Week"], ["2w", "2 Weeks"], ["month", "Month"]].map(([k, l]) => `<button role="tab" data-sm="${k}" class="${M === k ? "on" : ""}" aria-selected="${M === k}">${l}</button>`).join("")}</div>`;
   if (OFFICE) h += `<div class="tools"><label><input type="checkbox" id="all-t" ${ALL ? "checked" : ""}> Show every tech</label></div>`;
   h += `<div class="snav"><button data-nav="-1" aria-label="Previous ${unit}">‹</button><h2>${esc(label)}</h2><button class="tdy" data-nav="0">Today</button><button data-nav="1" aria-label="Next ${unit}">›</button></div>`;
   h += `<div class="legend">${[["scheduled", "Scheduled"], ["in_progress", "In progress"], ["overdue", "Overdue"], ["complete", "Complete"]].map(([c, l]) => `<span class="${c}"><i class="dot"></i>${l}</span>`).join("")}</div>`;
