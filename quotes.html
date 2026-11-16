@@ -11,7 +11,8 @@
 <!-- QUOTES: Cole builds customer quotes from the Item List with Jake's margin formula
      (sell = cost ÷ (1 − margin%)), labour at the labour rate, HST, and a customer PDF.
      One Firestore doc per quote in quotes/{id}; numbering in quotes_meta/counter; defaults in quotes_meta/settings.
-     Owners + field ops (Jake, Mike, Cole). Cost, margin and profit never appear on the customer PDF. -->
+     Owners + field ops (Jake, Mike, Cole). Cost, margin and profit never appear on the customer PDF.
+     Laid out like BuildOps Operations > Quotes: same columns, statuses, quote numbers (Q20261190 …) and versions. -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--black:#EAF2F3;--off-black:#FFFFFF;--grey:#5A7A80;--white:#10444E;--amber:#A9821F;--red:#B83227;--green:#2E7D57;--purple:#6C5D8D;--border:rgba(16,68,78,0.12);--line:rgba(16,68,78,0.09);--radius-lg:14px}
@@ -60,8 +61,24 @@ table.list td small{display:block;color:var(--grey);font-size:.78rem}
 .st-sent{background:rgba(39,99,108,.14);color:var(--teal)}
 .st-approved{background:rgba(46,125,87,.15);color:var(--green)}
 .st-declined{background:rgba(184,50,39,.12);color:var(--red)}
+.st-jobadded{background:rgba(46,125,87,.22);color:#1d5a3c}
+.dept-tag{background:rgba(16,68,78,.07);color:var(--grey);font-weight:500}
 .st-expired{background:rgba(169,130,31,.15);color:var(--amber)}
 .empty{color:var(--grey);text-align:center;padding:2rem}
+.acts-top{display:flex;gap:.5rem;flex-wrap:wrap}
+.chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.8rem}
+.chips button{border:1px solid rgba(39,99,108,.35);background:var(--off-black);color:var(--teal);border-radius:20px;padding:.3rem .8rem;font:500 .8rem 'Inter',sans-serif;cursor:pointer}
+.chips button.on{background:rgba(46,125,87,.12);border-color:var(--green);color:var(--green);font-weight:600}
+.chips button small{opacity:.7;margin-left:.3rem}
+.toolbar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem}
+.toolbar .dept{width:auto;min-width:160px}
+.toolbar .count{font-size:.8rem;color:var(--grey);margin-left:auto}
+.tablewrap{padding:.4rem .6rem;overflow-x:auto}
+table.list td.clip{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.list .qn{color:var(--teal);text-decoration:underline;font-weight:600}
+table.list td{white-space:nowrap}
+.linkbtn{border:0;background:none;color:var(--teal);text-decoration:underline;cursor:pointer;font:inherit;font-size:.78rem;margin-left:.3rem}
+.steps{margin:.6rem 0 1rem 1.2rem;font-size:.88rem;line-height:1.6}
 .search{max-width:320px}
 .qhead{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
 .qhead .acts{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
@@ -145,6 +162,11 @@ table.list td small{display:block;color:var(--grey);font-size:.78rem}
 <div class="modal-back" id="pick"><div class="modal" role="dialog" aria-modal="true" aria-label="Add from the Item List">
   <div class="mh"><input id="pick-q" placeholder="Search the Item List: name, description, part number…" autocomplete="off"><button class="btn ghost sm" id="pick-close">Close</button></div>
   <div class="mb"><table class="pick" id="pick-list"></table></div>
+</div></div>
+
+<div class="modal-back" id="imp-back"><div class="modal" role="dialog" aria-modal="true" aria-label="Import from BuildOps" style="max-width:860px">
+  <div class="mh"><h2 style="margin:0;flex:1">Import quotes from BuildOps</h2><button class="btn ghost sm" id="imp-close">Close</button></div>
+  <div class="mb" id="imp-body"></div>
 </div></div>
 
 <div id="doc"></div>
