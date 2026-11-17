@@ -41,6 +41,7 @@ const AP_TOOLS = {
   "context":            { label: "Business Context",              roles: ["owner"], strict: true },   // single context log read by every dashboard refresh: Jake, Mike only
   "pl-calculator":      { label: "P&L + Compensation Calculator", roles: [] },       // super_admin only
   "team-hub":           { label: "Team Hub",                      roles: [] },       // super_admin only
+  "my-reports":         { label: "My Weekly Report",              roles: ["owner", "super_admin", "finance", "sales", "support", "field_ops", "ops"] }, // my-reports.html: everyone's own weekly report, report cards, exit survey (team_reports, report_cards, exit_surveys); leaders read them in Team Hub > Team Reports
   "team-files":         { label: "Team Files",                    roles: ["owner"], strict: true }, // Team Hub > Team Files + quarterly reviews: Jake, Mike only
   "service-agreement":  { label: "Service Agreement Calculator",  roles: ["sales", "support"] },
   "service-agreements": { label: "Service Agreement Tracker",     roles: ["sales"], strict: true }, // sales role required, no super_admin bypass
