@@ -297,13 +297,24 @@ function salesKpis(M, ag, touches, leads, compact) {
 const R100 = {
   start: "2026-11-17", end: "2027-02-24", perDay: 100,
   reps: [["Natalie", 70], ["Jake", 30]],
-  plan: { Natalie: "35 emails · 20 calls · 15 LinkedIn", Jake: "10 emails · 10 LinkedIn · 5–10 door knocks near active jobs" },
+  plan: { Natalie: "35 emails · 20 calls · 15 LinkedIn", Jake: "10 emails · 10 LinkedIn · 5 calls · 5 door knocks near active jobs" },
   holidays: ["2026-12-25", "2026-12-28", "2027-01-01", "2027-02-15"],   // Christmas, Boxing Day (obs.), New Year's, Family Day
 };
 const R100_CH = [["emails", "Emails"], ["calls", "Calls"], ["linkedin", "LinkedIn"], ["knocks", "Door knocks"]];
 const workdays = (a, b) => { const out = []; const d = new Date(a); while (d <= b) { const w = d.getDay(), s = iso(d); if (w && w < 6 && !R100.holidays.includes(s)) out.push(s); d.setDate(d.getDate() + 1); } return out; };
 const r100Sum = r => R100_CH.reduce((s, [k]) => s + (Number(r && r[k]) || 0), 0);
 
+// Ticks on the Outbound page's "Today's touches" queue (outbound_data/ob_queue) count as that day's touches,
+// one row per day + rep; dayCells keeps the highest of the daily log, Fireflies and these, per channel.
+function withQueue(daily, queue) {
+  if (daily === undefined) return daily;
+  const CH = { email: "emails", call: "calls", linkedin: "linkedin", knock: "knocks" }, by = {};
+  ((queue && queue.rows) || []).forEach(q => (q.items || []).forEach(i => {
+    if (!i.done || !CH[i.ch]) return; const id = i.done + "|" + q.rep;
+    by[id] = by[id] || { d: i.done, rep: q.rep, src: "queue" }; by[id][CH[i.ch]] = (by[id][CH[i.ch]] || 0) + 1;
+  }));
+  return (daily || []).concat(Object.values(by));
+}
 // Per rep per day: the daily log, or Fireflies recordings that day if higher (per channel).
 function dayCells(daily, knocks) {
   const cell = {};
@@ -440,7 +451,8 @@ async function viewSales() {
   app.innerHTML = header("Sales", "Sales Dashboard") + `<div class="sec" id="s-goal"></div><div class="sec" id="s-kpis"><p class="loading">Loading sales metrics…</p></div>
     <div class="sec"><div class="sec-h"><h2>Territory</h2><a href="outbound.html">Open Outbound →</a></div>${frame("outbound.html?embed=map", "Territory map")}</div>
     <div class="sec" id="s-touch"></div>${salesUpdateHTML()}`;
-  const [M, ag, log, leads, knocks, daily, aus] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks"), outbound("ob_touch_daily"), audits()]);
+  const [M, ag, log, leads, knocks, daily0, aus, queue] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks"), outbound("ob_touch_daily"), audits(), outbound("ob_queue")]);
+  const daily = withQueue(daily0, queue);
   $("s-goal").innerHTML = r100Panel(log, knocks, daily, aus);
   $("s-kpis").innerHTML = salesKpis(M || null, ag, touchStats(log, leads, knocks, daily), leads, false);
   $("s-touch").innerHTML = touchLogHTML(mergedTouches(log, knocks, daily), knocks, daily);
@@ -473,7 +485,8 @@ async function viewOwner() {
       <div data-job-search></div>
       <div class="grid2"><div>${frame("ops-dashboard.html?embed=ops-lite", "Field operations summary")}</div><div id="h-renew"><p class="loading">Loading…</p></div></div></div>`;
   window.apJobSearchMount && window.apJobSearchMount();
-  const [M, ag, log, leads, knocks, daily, aus] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks"), outbound("ob_touch_daily"), audits()]);
+  const [M, ag, log, leads, knocks, daily0, aus, queue] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks"), outbound("ob_touch_daily"), audits(), outbound("ob_queue")]);
+  const daily = withQueue(daily0, queue);
   $("h-sales").innerHTML = `<div style="margin-bottom:12px">${r100Panel(log, knocks, daily, aus)}</div>` + salesKpis(M || null, ag, touchStats(log, leads, knocks, daily), leads, true);
   $("h-renew").innerHTML = renewalsPanel(ag ? agreementStats(ag) : null, 5);
 }
