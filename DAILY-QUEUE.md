@@ -1,6 +1,6 @@
 # Daily Rule of 100 queue — runbook
 
-Runs Mon–Fri at 6:15 am Toronto (scheduled task "Alpine Daily Outbound Queue"). Builds the rep's
+Runs Mon–Fri at 7:04 am Toronto (scheduled task "Alpine Daily Outbound Queue"). Builds the rep's
 new-contact queue for the day, puts it on the Outbound page under **Today's touches**, writes the
 cold emails as Outlook drafts for the rep to review and send, and emails the rep a copy.
 
