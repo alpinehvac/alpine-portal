@@ -222,6 +222,17 @@ li.fu.open .fu-body{display:block}
 .fu-acts{display:flex;gap:.45rem;flex-wrap:wrap;margin:.6rem 0 0 5.1rem}
 .fu-acts .fu-del{border-color:rgba(184,50,39,.4);color:#B83227}
 .fu-count{font-size:.72rem;font-weight:600;color:var(--teal);background:rgba(39,99,108,.1);border-radius:10px;padding:1px 8px}
+/* Today's touches (Rule of 100 queue) */
+.q-prog{display:flex;gap:.5rem;flex-wrap:wrap;margin:.2rem 0 .6rem}
+.q-prog span{font-size:.8rem;background:rgba(16,68,78,.07);border-radius:10px;padding:2px 10px}
+.q-prog span.full{background:rgba(46,125,87,.15);color:var(--green);font-weight:600}
+ol.wk li.q{display:grid;grid-template-columns:1.6rem 1fr;gap:0 .5rem}
+ol.wk li.q > input{margin-top:.3rem;width:1.05rem;height:1.05rem;accent-color:var(--teal)}
+ol.wk li.q .wk-sub,ol.wk li.q .wk-note{margin-left:0}
+ol.wk li.q.done .wk-name{text-decoration:line-through;opacity:.6}
+.q-script{font-size:.8rem;margin-top:.25rem;padding:.35rem .55rem;border-left:3px solid var(--teal-light);background:rgba(61,129,138,.06);white-space:pre-wrap}
+.q-tag{font-size:.7rem;font-weight:600;color:var(--grey);text-transform:uppercase;letter-spacing:.06em}
+select.q-st{font:inherit;font-size:.78rem;padding:1px 4px;border-radius:5px;border:1px solid var(--border)}
 .btn[hidden],.wk-sub[hidden]{display:none}
 .fu-found:empty{display:none}
 .fu-note{display:block;margin:.6rem 0 0 5.1rem;font-size:.78rem;color:var(--grey)}
@@ -251,6 +262,10 @@ li.fu-item:last-child{border-bottom:0}
 <main class="wrap">
   <div class="head"><h1>Outbound</h1><div class="asof"><div id="asof">Loading…</div><button class="btn sm ghost" id="view-toggle" style="margin-top:.5rem"></button></div></div>
   <div id="banners" class="team-only"></div>
+  <section id="q-section">
+    <div class="h2-row"><div><h2>Today's touches <span class="cz-n" id="q-n"></span></h2><p class="h2-note">Your Rule of 100 queue, built every weekday at 6:15 am: new contacts only (follow-ups stay in the list below). Tick each touch as you do it; the ticks count on the Sales dashboard. Emails are already in your Outlook Drafts: review, personalise and send. LinkedIn opens the profile: send a connection request with the note shown. Door knocks are picked near today's BuildOps jobs.<span id="q-note"></span></p></div></div>
+    <div class="wk-wrap" id="q-list" style="max-height:760px"></div>
+  </section>
   <section id="fr-section">
     <div class="h2-row"><div><h2>Follow-ups required <span class="cz-n" id="fr-n"></span></h2><p class="h2-note">Actions flagged from your door-knock recordings<span class="team-only"> plus lead-sheet follow-ups due this week</span>; the same list goes out in the Tue/Fri Follow-up Radar email. One row per location. Open it to see everything to follow up on there; tick what you want and use Email draft to prospect, or Draft for a single item. Your notes sit at the top of the draft: delete them before sending. Shown when an email or phone is on file. Pick a draft template on each location: BPA is chosen for you when the conversation mentions an existing contract. Add notes on any location; an email or phone you type there goes into its drafts. Done and Remove clear one item (Undo if you slip).<span id="fr-note"></span></p></div></div>
     <div class="wk-wrap" id="fr-list" style="max-height:620px"></div>
@@ -300,6 +315,12 @@ li.fu-item:last-child{border-bottom:0}
       <span class="count" id="t-count"></span>
     </div>
     <div class="table-wrap"><table id="t-targets"></table></div>
+  </section>
+
+  <section class="team-only" id="pr-section">
+    <div class="h2-row"><div><h2>Prospect contacts <span class="cz-n" id="pr-n"></span></h2><p class="h2-note">Named property, facility and building managers sourced from Apollo, with existing customers and lead-sheet companies taken out. The morning queue picks from here, A tier first. Change a status if someone is not a fit or asks not to be contacted.</p></div></div>
+    <div class="filters"><input id="pq" type="search" placeholder="Name, company or city"><select id="pf-tier"><option value="">All tiers</option><option>A</option><option>B</option><option>C</option></select><select id="pf-status"><option value="">Any status</option></select><span class="count" id="p-count"></span></div>
+    <div class="table-wrap" style="max-height:520px"><table id="t-pros"></table></div>
   </section>
 
   <section class="team-only">

@@ -1100,6 +1100,8 @@ function renderAll(redrawMap) {
   renderReports();
   renderWeek();
   renderFollowReq();
+  renderQueue();
+  renderProspects();
   fitInitial();
 }
 
@@ -1112,6 +1114,29 @@ async function mergeImport(P) {
     localStorage.setItem('ob_target_contacts', JSON.stringify(cur));
     await new Promise(r => setTimeout(r, 2500));
     return 'contacts: ' + n + ' rows merged to the cloud.';
+  }
+  if (P.kind === 'prospects') {          // merge by id; status, touches and notes set on this page are kept
+    const cur = readJSON('ob_prospects') || { rows: [] }, by = {}; let n = 0;
+    (cur.rows || []).forEach(r => by[r.id] = r);
+    (P.data.rows || []).forEach(r => { if (!r.id) return; const old = by[r.id];
+      by[r.id] = old ? { ...old, ...r, status: old.status || r.status || 'New', touches: { ...(r.touches || {}), ...(old.touches || {}) }, statusBy: old.statusBy, statusAt: old.statusAt } : { status: 'New', touches: {}, addedAt: todayISO(), ...r };
+      n++; });
+    localStorage.setItem('ob_prospects', JSON.stringify({ rows: Object.values(by), importedAt: Date.now(), importedBy: session.name }));
+    await new Promise(r => setTimeout(r, 2500));
+    const st = typeof apSyncStatus === 'function' ? apSyncStatus() : { unsynced: [] };
+    return 'prospects: ' + n + ' rows merged' + (st.unsynced.includes('ob_prospects') ? ' locally; cloud save still pending' : ' to the cloud') + '.';
+  }
+  if (P.kind === 'queue') {              // merge by date + rep; ticks already made on this page are kept
+    const cur = readJSON('ob_queue') || { rows: [] }, by = {}; let n = 0;
+    (cur.rows || []).forEach(r => by[r.date + '|' + r.rep] = r);
+    (P.data.rows || []).forEach(r => { if (!r.date || !r.rep || !Array.isArray(r.items)) return; const old = by[r.date + '|' + r.rep];
+      if (old) r.items = r.items.map(i => { const o = (old.items || []).find(x => x.qid === i.qid); return o && o.done ? { ...i, done: o.done, doneBy: o.doneBy } : i; });
+      by[r.date + '|' + r.rep] = r; n++; });
+    const keep = Object.values(by).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);   // about 6 weeks per rep
+    localStorage.setItem('ob_queue', JSON.stringify({ rows: keep }));
+    await new Promise(r => setTimeout(r, 2500));
+    const st = typeof apSyncStatus === 'function' ? apSyncStatus() : { unsynced: [] };
+    return 'queue: ' + n + ' rows merged' + (st.unsynced.includes('ob_queue') ? ' locally; cloud save still pending' : ' to the cloud') + '.';
   }
   if (!P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
   let n = 0;
@@ -1148,7 +1173,7 @@ async function mergeImport(P) {
 
 // ── Import (used by the daily refresh via Claude in Chrome) ──────────
 // obImport.start(); obImport.add(base64Chunk) ...; await obImport.finish()
-// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches'|'weeks'|'contacts'|'reports', data}).
+// The chunks join into base64 of gzip(JSON {kind: 'leads'|'customers'|'targets'|'knocks'|'touches'|'weeks'|'contacts'|'reports'|'prospects'|'queue', data}).
 window.obImport = (() => {
   let parts = [];
   return {
@@ -1159,7 +1184,7 @@ window.obImport = (() => {
       parts = [];
       const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
       const P = JSON.parse(text);
-      if (P.kind === 'knocks' || P.kind === 'touches' || P.kind === 'weeks' || P.kind === 'contacts' || P.kind === 'reports') return mergeImport(P);
+      if (['knocks', 'touches', 'weeks', 'contacts', 'reports', 'prospects', 'queue'].includes(P.kind)) return mergeImport(P);
       const key = { leads: 'ob_leads', customers: 'ob_customers', targets: 'ob_targets' }[P.kind];
       if (!key || !P.data || !Array.isArray(P.data.rows)) throw new Error('Unrecognised payload');
       if (P.kind === 'leads' && P.data.rows.length < 0.8 * ((readJSON('ob_leads') || { rows: [] }).rows.length)) throw new Error('Refusing: new lead list is more than 20% shorter than the current one (' + P.data.rows.length + ' rows). Check the sheet read.');
@@ -1264,7 +1289,177 @@ window.obBuildStatus = () => window.__obBuild || 'idle';
 
 window.obGeocodeStatus = () => ({ busy: geoBusy, cached: Object.keys(geo).length, failed: Object.values(geo).filter(g => g.src === 'fail').length });
 
+
+// ── Rule of 100: Today's touches + Apollo prospect contacts ─────────
+// ob_prospects { rows: [ {id, name, title, company, city, email, emailStatus, phone, linkedin, tier, segment, notes,
+//                src, addedAt, status, touches: {email|linkedin|call|knock: 'YYYY-MM-DD'}} ] }  (merged by id)
+// ob_queue     { rows: [ {date, rep, builtAt, items: [ {qid, ch, pid?, tid?, name, title, company, city, address,
+//                email, phone, linkedin, why, script, draft, done, doneBy} ]} ] }  (merged by date + rep)
+// Both are written by the 6:15 am daily-queue run (DAILY-QUEUE.md) through obImport; ticks here save to ob_queue,
+// and the Sales dashboard counts ticked items as that day's touches (highest source per channel wins).
+const Q_PLAN = { Jake: { knock: 5, email: 10, linkedin: 10, call: 5 }, Natalie: { email: 35, call: 20, linkedin: 15, knock: 0 } };
+const Q_CH = [['knock', 'Door knocks'], ['email', 'Emails'], ['linkedin', 'LinkedIn'], ['call', 'Calls']];
+const P_STATUS = ['New', 'In sequence', 'Conversation', 'BPA booked', 'Not a fit', 'Do not contact'];
+let qRep = Q_PLAN[myName] ? myName : 'Jake';
+const telHref = p => 'tel:' + String(p || '').replace(/\s*(ext|x)\b.*$/i, '').replace(/[^0-9+]/g, '');
+function qDoc() { return readJSON('ob_queue') || { rows: [] }; }
+function prosDoc() { return readJSON('ob_prospects') || { rows: [] }; }
+function qCurrent() {
+  const today = todayISO();
+  const mine = (qDoc().rows || []).filter(r => r.rep === qRep && r.date <= today).sort((a, b) => b.date.localeCompare(a.date));
+  return mine[0] || null;
+}
+function renderQueue() {
+  const el = $('q-list'); if (!el) return;
+  const Q = qCurrent(), plan = Q_PLAN[qRep], today = todayISO();
+  const tabs = '<div class="seg" id="q-rep">' + Object.keys(Q_PLAN).map(r => '<button type="button" data-r="' + r + '" class="' + (r === qRep ? 'on' : '') + '">' + r + '</button>').join('') + '</div>';
+  if (!Q) { el.innerHTML = '<div class="wk-head">' + tabs + '</div><p class="hint">No queue built for ' + esc(qRep) + ' yet. The 6:15 am weekday run builds it here and emails a copy.</p>'; if ($('q-n')) $('q-n').textContent = ''; return; }
+  const items = Q.items || [], done = items.filter(i => i.done).length;
+  const goal = Object.values(plan).reduce((a, b) => a + b, 0);
+  if ($('q-n')) $('q-n').textContent = (Q.date === today ? 'Today' : fmtDate(Q.date)) + ' · ' + done + ' / ' + goal + ' done';
+  const prog = Q_CH.filter(([k]) => plan[k] || items.some(i => i.ch === k)).map(([k, l]) => {
+    const n = items.filter(i => i.ch === k && i.done).length, t = plan[k] || 0;
+    return '<span class="' + (t && n >= t ? 'full' : '') + '">' + l + ' ' + n + ' / ' + t + '</span>';
+  }).join('');
+  let h = '<div class="wk-head">' + tabs + '<b>' + (Q.date === today ? 'Today' : fmtDate(Q.date)) + '</b>' +
+    (Q.date !== today ? ' <span class="wk-count">Today\'s queue isn\'t built yet; this is the latest one.</span>' : '') + '</div><div class="q-prog">' + prog + '</div>';
+  Q_CH.forEach(([k, l]) => {
+    const list = items.filter(i => i.ch === k); if (!list.length) return;
+    h += '<h3 class="wk-h">' + l + ' (' + list.filter(i => i.done).length + ' / ' + list.length + ')</h3><ol class="wk">' + list.map(i => {
+      const who = [i.name, i.title].filter(Boolean).join(', ');
+      const links = [
+        i.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(i.address + (i.city ? ', ' + i.city : '') + ', ON') + '" target="_blank" rel="noopener">' + esc(i.address) + '</a>' : '',
+        i.phone ? '☎ <a href="' + esc(telHref(i.phone)) + '">' + esc(i.phone) + '</a>' : '',
+        i.email ? '<a href="mailto:' + esc(i.email) + '">' + esc(i.email) + '</a>' : '',
+        i.linkedin ? '<a href="' + esc(i.linkedin) + '" target="_blank" rel="noopener">LinkedIn ↗</a>' : '',
+        i.draft ? '<span class="q-tag">Draft in Outlook</span>' : '',
+      ].filter(Boolean).join(' · ');
+      return '<li class="q' + (i.done ? ' done' : '') + '" data-q="' + esc(i.qid) + '"><input type="checkbox" class="q-tick" aria-label="Done"' + (i.done ? ' checked' : '') + '><div>' +
+        '<div class="wk-top">' + (i.tid ? '<a class="wk-name" data-fly="t:' + esc(i.tid) + '">' + esc(i.company || i.name) + '</a>' : '<b class="wk-name">' + esc(i.company || i.name) + '</b>') +
+        (i.city ? '<span class="wk-type">' + esc(i.city) + '</span>' : '') + (i.done ? '<span class="wk-date">done ' + fmtDate(i.done) + '</span>' : '') + '</div>' +
+        (who && i.company ? '<div class="wk-sub">' + esc(who) + '</div>' : '') + (links ? '<div class="wk-sub">' + links + '</div>' : '') +
+        (i.why ? '<div class="wk-note">' + esc(i.why) + '</div>' : '') + (i.script ? '<div class="q-script">' + esc(i.script) + '</div>' : '') + '</div></li>';
+    }).join('') + '</ol>';
+  });
+  el.innerHTML = h;
+}
+function qTick(qid, on) {
+  const doc = qDoc(), Q = (doc.rows || []).find(r => r.rep === qRep && r.date === (qCurrent() || {}).date); if (!Q) return;
+  const it = (Q.items || []).find(i => i.qid === qid); if (!it) return;
+  it.done = on ? todayISO() : ''; it.doneBy = on ? session.name : '';
+  localStorage.setItem('ob_queue', JSON.stringify(doc));
+  if (it.pid) {
+    const pd = prosDoc(), p = (pd.rows || []).find(r => r.id === it.pid);
+    if (p) {
+      p.touches = p.touches || {};
+      if (on) { p.touches[it.ch] = todayISO(); if (!p.status || p.status === 'New') p.status = 'In sequence'; }
+      else { delete p.touches[it.ch]; if (p.status === 'In sequence' && !Object.keys(p.touches).length) p.status = 'New'; }
+      localStorage.setItem('ob_prospects', JSON.stringify(pd));
+    }
+  }
+  renderQueue(); renderProspects();
+}
+document.addEventListener('click', e => {
+  const rb = e.target.closest('#q-rep button'); if (rb) { qRep = rb.dataset.r; renderQueue(); return; }
+  const cb = e.target.closest('#q-list .q-tick'); if (cb) qTick(cb.closest('li.q').dataset.q, cb.checked);
+});
+
+function renderProspects() {
+  const el = $('t-pros'); if (!el) return;
+  const rows = (prosDoc().rows || []);
+  const sel = $('pf-status');
+  if (sel && sel.options.length <= 1) sel.innerHTML = '<option value="">Any status</option>' + P_STATUS.map(s => '<option>' + s + '</option>').join('');
+  const q = ($('pq').value || '').trim().toLowerCase(), ft = $('pf-tier').value, fs = $('pf-status').value;
+  const list = rows.filter(r => (!ft || r.tier === ft) && (!fs || (r.status || 'New') === fs) &&
+    (!q || [r.name, r.company, r.city, r.title].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => (a.tier || 'Z').localeCompare(b.tier || 'Z') || (a.company || '').localeCompare(b.company || ''));
+  const touched = rows.filter(r => r.touches && Object.keys(r.touches).length).length;
+  if ($('pr-n')) $('pr-n').textContent = rows.length ? rows.length + ' contacts · ' + touched + ' touched' : '';
+  $('p-count').textContent = list.length + ' of ' + rows.length;
+  const CAP = 300;
+  el.innerHTML = '<thead><tr><th class="nosort">Tier</th><th class="nosort">Name</th><th class="nosort">Company</th><th class="nosort">Contact</th><th class="nosort">Last touch</th><th class="nosort">Status</th></tr></thead><tbody>' +
+    (list.length ? list.slice(0, CAP).map(r => {
+      const last = Object.entries(r.touches || {}).sort((a, b) => b[1].localeCompare(a[1]))[0];
+      return '<tr><td>' + esc(r.tier || '') + '</td><td>' + esc(r.name) + '<small>' + esc(r.title || '') + '</small></td><td>' + esc(r.company || '') + '<small>' + esc(r.city || '') + '</small></td>' +
+        '<td>' + [r.email ? '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>' : '', r.phone ? '<a href="' + esc(telHref(r.phone)) + '">' + esc(r.phone) + '</a>' : '', r.linkedin ? '<a href="' + esc(r.linkedin) + '" target="_blank" rel="noopener">LinkedIn ↗</a>' : ''].filter(Boolean).join('<br>') + '</td>' +
+        '<td>' + (last ? fmtDate(last[1]) + '<small>' + esc(last[0]) + '</small>' : '<small>—</small>') + '</td>' +
+        '<td><select class="q-st" data-p="' + esc(r.id) + '">' + P_STATUS.map(s => '<option' + ((r.status || 'New') === s ? ' selected' : '') + '>' + s + '</option>').join('') + '</select></td></tr>';
+    }).join('') : '<tr><td colspan="6" class="empty-row">No prospect contacts yet. The daily-queue run loads them from Apollo.</td></tr>') + '</tbody>';
+}
+['pq', 'pf-tier', 'pf-status'].forEach(id => { const x = $(id); if (x) x.addEventListener(id === 'pq' ? 'input' : 'change', renderProspects); });
+document.addEventListener('change', e => {
+  const s = e.target.closest('select.q-st'); if (!s) return;
+  const pd = prosDoc(), p = (pd.rows || []).find(r => r.id === s.dataset.p); if (!p) return;
+  p.status = s.value; p.statusBy = session.name; p.statusAt = todayISO();
+  localStorage.setItem('ob_prospects', JSON.stringify(pd));
+  renderProspects();
+});
+
+
+// ── Daily-queue picker (called by the 6:15 am run, DAILY-QUEUE.md) ──
+// window.obPickQueue({ rep, date, anchors: ['55 King St', …] }) returns { items, meta } and saves nothing.
+// anchors = today's BuildOps visit properties (ops_dashboard/latest); door knocks are the closest open targets to them.
+// Prospects never repeat: anyone already queued (either rep) or touched is skipped. Jake gets A tier first, Natalie B first.
+window.obPickQueue = function ({ rep = 'Jake', date = todayISO(), anchors = [] } = {}) {
+  const plan = Q_PLAN[rep] || Q_PLAN.Jake, items = [], meta = { rep, date, anchorsFound: [], anchorsMissed: [] };
+  const queued = new Set(), queuedT = new Set();
+  (qDoc().rows || []).forEach(q => (q.items || []).forEach(i => { if (i.pid) queued.add(i.pid); if (i.tid) queuedT.add(i.tid); }));
+  // 1. Door knocks near today's jobs.
+  if (plan.knock) {
+    const norm = a => addrKey(String(a || '').split('/')[0]);
+    const pts = [];
+    anchors.forEach(a => {
+      const k = norm(a); if (!k) return;
+      const c = customers.find(c => { const ck = addrKey(c.address || ''); return ck && (ck.startsWith(k) || k.startsWith(ck)); }) ||
+        customers.find(c => normName(c.name || '').includes(normName(a)) && normName(a).length > 4);
+      const p = c && posOf(c); if (p) { pts.push(p); meta.anchorsFound.push(a); } else meta.anchorsMissed.push(a);
+    });
+    if (!pts.length) pts.push(shopPos());
+    meta.knockFrom = pts.length && meta.anchorsFound.length ? 'today\'s jobs' : 'the shop (no job address matched)';
+    const knocked = new Set(knocks.map(k => k.targetId).filter(Boolean));
+    const cand = openTargets().filter(t => !knocked.has(t.id) && !queuedT.has(t.id) && !(claims[t.id] && claims[t.id].by !== session.name))
+      .map(t => { const p = posOf(t); if (!p) return null; const d = Math.min(...pts.map(q => km(q, p))); return { t, d }; })
+      .filter(x => x && x.d <= 12).sort((a, b) => (a.d - b.d) || ((b.t.sqft || 0) - (a.t.sqft || 0)));
+    cand.slice(0, plan.knock).forEach(({ t, d }) => {
+      const c = (contactsDoc.rows || {})[t.id] || {};
+      items.push({ qid: date + ':' + rep + ':k:' + t.id, ch: 'knock', tid: t.id, company: t.name, city: t.area || '', address: t.address || ((geo['rev:' + t.id] || {}).addr) || '',
+        phone: c.phone || '', why: (t.type || '') + (t.sqft ? ' · ' + fmtSqft(t.sqft) : '') + ' · ' + d.toFixed(1) + ' km from your job. ' + fieldNote(t) });
+    });
+    meta.knocksAvailable = cand.length;
+  }
+  // 2. Named prospects for email + LinkedIn (same person on both channels), calls where a phone is on file.
+  const order = rep === 'Jake' ? ['A', 'B'] : ['B', 'A', 'C'];
+  const fresh = (prosDoc().rows || []).filter(p => (p.status || 'New') === 'New' && !queued.has(p.id) && !(p.touches && Object.keys(p.touches).length))
+    .sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier) || (a.company || '').localeCompare(b.company || ''))
+    .filter(p => order.includes(p.tier));
+  const used = new Set();
+  const add = (ch, p, script) => { items.push({ qid: date + ':' + rep + ':' + ch + ':' + p.id, ch, pid: p.id, name: p.name, title: p.title, company: p.company, city: p.city,
+    email: p.email || '', phone: p.phone || '', linkedin: p.linkedin || '', why: [p.tier ? 'Tier ' + p.tier : '', p.notes].filter(Boolean).join(' · '), script }); used.add(p.id); };
+  const first = n => String(n || '').split(' ')[0];
+  fresh.filter(p => p.email).slice(0, plan.email || 0).forEach(p => add('email', p, ''));
+  // LinkedIn goes to today's email contacts first (two channels, one person), then to people with no email.
+  const li = fresh.filter(p => p.linkedin && used.has(p.id)).concat(fresh.filter(p => p.linkedin && !used.has(p.id) && !p.email))
+    .concat(fresh.filter(p => p.linkedin && !used.has(p.id) && p.email)).slice(0, plan.linkedin || 0);
+  li.forEach(p => add('linkedin', p, 'Connection note: Hi ' + first(p.name) + ', we work with property and facility managers across Niagara and Hamilton on HVAC Building Performance Audits. Had a quick question about ' + (p.company || 'your buildings') + '\'s maintenance setup. Mind if I send it over?'));
+  const calls = fresh.filter(p => p.phone && !items.some(i => i.ch === 'call' && i.pid === p.id)).slice(0, plan.call || 0);
+  calls.forEach(p => add('call', p, 'Opener: Hi ' + first(p.name) + ', ' + myName + ' from Alpine HVAC in Vineland. ' + (used.has(p.id) ? 'I sent you a short note about a Building Performance Audit. ' : '') + 'We do 5 of these a month for buildings like yours: a reliability scorecard, downtime cost estimate and a 12-month plan, and if it isn\'t worth 10x the fee you don\'t pay. Is that worth 20 minutes next week?\nNo answer: 20-second voicemail, then text.'));
+  // No direct dials yet (Apollo phones cost credits): fill calls from researched buildings with a phone on file.
+  if (calls.length < (plan.call || 0)) {
+    const knocked = new Set(knocks.map(k => k.targetId).filter(Boolean)), picked = new Set(items.map(i => i.tid).filter(Boolean));
+    openTargets().filter(t => { const c = (contactsDoc.rows || {})[t.id]; return c && c.phone && !knocked.has(t.id) && !queuedT.has(t.id) && !picked.has(t.id); })
+      .slice(0, (plan.call || 0) - calls.length).forEach(t => { const c = contactsDoc.rows[t.id];
+        items.push({ qid: date + ':' + rep + ':call:' + t.id, ch: 'call', tid: t.id, company: t.name, city: t.area || '', address: t.address || '', phone: c.phone, email: c.email || '',
+          why: (t.type || '') + (t.sqft ? ' · ' + fmtSqft(t.sqft) : '') + '. Main line: ask who looks after HVAC and maintenance, get their name and email.',
+          script: 'Gatekeeper: Hi, ' + myName + ' from Alpine HVAC in Vineland. Who looks after the heating and cooling for the building? … Great, what\'s the best email for them? I\'ll send a short note about a Building Performance Audit.' }); calls.push(t); });
+  }
+  meta.callsShort = Math.max(0, (plan.call || 0) - calls.length);
+  meta.prospectsLeft = fresh.length - used.size;
+  meta.counts = {}; items.forEach(i => meta.counts[i.ch] = (meta.counts[i.ch] || 0) + 1);
+  return { items, meta };
+};
+
 if (session.roles && session.roles.includes('owner')) { const w = $('osm-wrap'); if (w) w.style.display = ''; const st = $('osm-status'); const d = readJSON('ob_targets_osm_ind'); if (st && d) st.textContent = 'Building list from OpenStreetMap, ' + fmtDate(d.builtAt) + '. Takes 10–30 min; keep the tab open.'; else if (st) st.textContent = 'Pulls buildings from OpenStreetMap. Takes 10–30 min; keep the tab open.'; }
 renderAll(true);
+if (!EMBED) czSet(document.getElementById('q-section'), true);   // the day's queue starts open
 runGeocoder();
 })();
