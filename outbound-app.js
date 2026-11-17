@@ -1429,9 +1429,14 @@ window.obPickQueue = function ({ rep = 'Jake', date = todayISO(), anchors = [] }
   }
   // 2. Named prospects for email + LinkedIn (same person on both channels), calls where a phone is on file.
   const order = rep === 'Jake' ? ['A', 'B'] : ['B', 'A', 'C'];
+  // Best fit first: property / facility managers at property firms, then health care and hospitality, then large plants.
+  const rank = p => (/real estate|facilities services/i.test(p.segment || '') || /property|condo|building (manager|operator)|portfolio/i.test(p.title || '') ? 3 : 0) +
+    (/hospital|health|hospitality|casino|leisure/i.test(p.segment || '') ? 2 : 0) + (p.src === 'Apollo' && !p.segment ? 3 : 0) + (/Large site/.test(p.notes || '') ? 1 : 0) +
+    (/lead sheet/i.test(p.notes || '') ? -2 : 0);
   const fresh = (prosDoc().rows || []).filter(p => (p.status || 'New') === 'New' && !queued.has(p.id) && !(p.touches && Object.keys(p.touches).length))
-    .sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier) || (a.company || '').localeCompare(b.company || ''))
-    .filter(p => order.includes(p.tier));
+    .filter(p => order.includes(p.tier))
+    .sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier) || rank(b) - rank(a) || (a.company || '').localeCompare(b.company || ''));
+  const localLine = ph => /^(\+?1[\s-]?)?\(?(905|289|365|416|647|437|519|226|548)\)?/.test(String(ph || '').trim());
   const used = new Set();
   const add = (ch, p, script) => { items.push({ qid: date + ':' + rep + ':' + ch + ':' + p.id, ch, pid: p.id, name: p.name, title: p.title, company: p.company, city: p.city,
     email: p.email || '', phone: p.phone || '', linkedin: p.linkedin || '', why: [p.tier ? 'Tier ' + p.tier : '', p.notes].filter(Boolean).join(' · '), script }); used.add(p.id); };
@@ -1441,7 +1446,7 @@ window.obPickQueue = function ({ rep = 'Jake', date = todayISO(), anchors = [] }
   const li = fresh.filter(p => p.linkedin && used.has(p.id)).concat(fresh.filter(p => p.linkedin && !used.has(p.id) && !p.email))
     .concat(fresh.filter(p => p.linkedin && !used.has(p.id) && p.email)).slice(0, plan.linkedin || 0);
   li.forEach(p => add('linkedin', p, 'Connection note: Hi ' + first(p.name) + ', we work with property and facility managers across Niagara and Hamilton on HVAC Building Performance Audits. Had a quick question about ' + (p.company || 'your buildings') + '\'s maintenance setup. Mind if I send it over?'));
-  const calls = fresh.filter(p => p.phone && !items.some(i => i.ch === 'call' && i.pid === p.id)).slice(0, plan.call || 0);
+  const calls = fresh.filter(p => p.phone && localLine(p.phone)).slice(0, plan.call || 0);   // skip head-office lines outside Ontario
   calls.forEach(p => add('call', p, 'Opener: Hi ' + first(p.name) + ', ' + myName + ' from Alpine HVAC in Vineland. ' + (used.has(p.id) ? 'I sent you a short note about a Building Performance Audit. ' : '') + 'We do 5 of these a month for buildings like yours: a reliability scorecard, downtime cost estimate and a 12-month plan, and if it isn\'t worth 10x the fee you don\'t pay. Is that worth 20 minutes next week?\nNo answer: 20-second voicemail, then text.'));
   // No direct dials yet (Apollo phones cost credits): fill calls from researched buildings with a phone on file.
   if (calls.length < (plan.call || 0)) {
