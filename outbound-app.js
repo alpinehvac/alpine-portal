@@ -1437,8 +1437,9 @@ window.obPickQueue = function ({ rep = 'Jake', date = todayISO(), anchors = [] }
     email: p.email || '', phone: p.phone || '', linkedin: p.linkedin || '', why: [p.tier ? 'Tier ' + p.tier : '', p.notes].filter(Boolean).join(' · '), script }); used.add(p.id); };
   const first = n => String(n || '').split(' ')[0];
   fresh.filter(p => p.email).slice(0, plan.email || 0).forEach(p => add('email', p, ''));
-  const li = fresh.filter(p => p.linkedin && (used.has(p.id) || !p.email)).slice(0, plan.linkedin || 0);
-  if (li.length < (plan.linkedin || 0)) fresh.filter(p => p.linkedin && !li.includes(p)).slice(0, (plan.linkedin || 0) - li.length).forEach(p => li.push(p));
+  // LinkedIn goes to today's email contacts first (two channels, one person), then to people with no email.
+  const li = fresh.filter(p => p.linkedin && used.has(p.id)).concat(fresh.filter(p => p.linkedin && !used.has(p.id) && !p.email))
+    .concat(fresh.filter(p => p.linkedin && !used.has(p.id) && p.email)).slice(0, plan.linkedin || 0);
   li.forEach(p => add('linkedin', p, 'Connection note: Hi ' + first(p.name) + ', we work with property and facility managers across Niagara and Hamilton on HVAC Building Performance Audits. Had a quick question about ' + (p.company || 'your buildings') + '\'s maintenance setup. Mind if I send it over?'));
   const calls = fresh.filter(p => p.phone && !items.some(i => i.ch === 'call' && i.pid === p.id)).slice(0, plan.call || 0);
   calls.forEach(p => add('call', p, 'Opener: Hi ' + first(p.name) + ', ' + myName + ' from Alpine HVAC in Vineland. ' + (used.has(p.id) ? 'I sent you a short note about a Building Performance Audit. ' : '') + 'We do 5 of these a month for buildings like yours: a reliability scorecard, downtime cost estimate and a 12-month plan, and if it isn\'t worth 10x the fee you don\'t pay. Is that worth 20 minutes next week?\nNo answer: 20-second voicemail, then text.'));
