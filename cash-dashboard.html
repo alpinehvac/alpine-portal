@@ -307,6 +307,14 @@ html.ap-embed-fin main>#ap-emb-kpis,html.ap-embed-fin main>#ap-emb-charts{displa
       <ol class="assume" id="target-rules" style="margin-top:1rem"></ol>
     </div>
 
+    <div id="mkt-wrap" style="display:none;margin-top:2.25rem">
+      <h2>Sales &amp; marketing budget</h2>
+      <p class="h2-note" id="mkt-note"></p>
+      <div class="health" id="mkt-cards" style="margin:1rem 0 1.25rem"></div>
+      <div class="table-wrap"><table id="mkt-table"></table></div>
+      <ol class="assume" id="mkt-rules" style="margin-top:1rem"></ol>
+    </div>
+
     <div id="reserve-wrap" style="display:none;margin-top:2.25rem">
       <h2>Net reserve position</h2>
       <p class="h2-note" id="reserve-note"></p>
@@ -760,10 +768,12 @@ function render(){
     try{ renderMix(); }catch(err){ console.error("Revenue mix/allocation render failed",err); }
     try{ renderTargets(); }catch(err){ console.error("FY2027 targets render failed",err); }
     try{ renderReserve(); }catch(err){ console.error("Net reserve render failed",err); }
+    try{ renderMarketing(); }catch(err){ console.error("Marketing budget render failed",err); }
   }
   renderHealth();
 
-  document.getElementById("checks").innerHTML=DATA.checks.map(c=>`<div class="check"><span class="${c[0]?"ok":"bad"}">${c[0]?"✓":"✕"}</span><span>${esc(c[1])}</span></div>`).join("");
+  const mk=marketingCheck(); const CH=mk?DATA.checks.concat([mk]):DATA.checks;
+  document.getElementById("checks").innerHTML=CH.map(c=>`<div class="check"><span class="${c[0]?"ok":"bad"}">${c[0]?"✓":"✕"}</span><span>${esc(c[1])}</span></div>`).join("");
   document.getElementById("assumptions").innerHTML=DATA.assumptions.map(a=>`<li>${esc(a)}</li>`).join("");
 }
 
@@ -803,6 +813,65 @@ function renderReserve(){
     +row("Cash, excluding line of credit",cash-loc)+row("Receivables",ar)+row("Supplier bills",-ap)+row("Credit cards",-cards)+row("Taxes owed, net of tax accounts",-owed)
     +row("Usable within 30 days",liquid,1)+row("Earned, not yet billed",enb)+row("Billed ahead of work done",-ahead)+row("Net reserve position",net,1)+`</tbody>`;
   document.getElementById("reserve-rules").innerHTML=["Materials on unbilled jobs are already in earned, not yet billed at sell price, so supplier bills are deducted only once.","Billed ahead of work done is money customers paid for work not done yet. It's held in cash, so it comes off.","The projection adds weekly earned profit and takes off owner draws, extra owner dividends and non-recoverable COGS, assuming no new jobs. It falls once the booked work runs out.",`Core burn of ${fmt(wk)}/week is after the cost cuts planned through January. ${T.reserveWeeks} weeks of it is ${fmt(wk*T.reserveWeeks)}.`,"Points before Nov 2 use earned-not-billed figures from early October, so read them as a rough trend."].map(x=>`<li>${x}</li>`).join("");
+}
+
+// ── Sales & marketing budget ─────────────────────────────────────────
+// Owner decision (Jake, Nov 17 2026): all sales & marketing cash (BDR fully loaded, agency, tools, ads)
+// stays at 10–15% of monthly gross profit and must not go above 15%. MKT_DEFAULT is the Nov 17 baseline
+// from QuickBooks; the daily refresh overrides it with DATA.marketing when it recalculates.
+const MKT_DEFAULT={
+  asOf:"2026-11-17", gpMonthly:85000, gpMarginPct:33, capLow:0.10, capHigh:0.15,
+  gpBasis:"Planning gross profit ~$85K/month (~33%): Aug 1 – Nov 17 QuickBooks actual $88K/month (33%); next 13 weeks projected ~$86K/month after costs not yet booked; FY2026 29.3%. Field labour and vehicles count as cost of sales; owner salaries do not.",
+  lines:[
+    {name:"BDR, fully loaded (base, vacation pay, employer CPP/EI, commission)",monthly:3750,group:"People"},
+    {name:"Giant Shoe: content retainer (moving from culture content to LinkedIn audit ads)",monthly:3500,group:"Agency"},
+    {name:"Giant Shoe: SEO",monthly:800,group:"Agency"},
+    {name:"Giant Shoe: digital strategy",monthly:200,group:"Agency"},
+    {name:"The Editors Connection (video editing)",monthly:1015,group:"Tools"},
+    {name:"Sprout Social",monthly:358,group:"Tools"},
+    {name:"Page Hub",monthly:255,group:"Tools"},
+    {name:"Apollo.io Professional (estimate until the first charge posts)",monthly:280,group:"Tools"},
+    {name:"Print: flyers, business cards (average)",monthly:110,group:"Tools"}
+  ],
+  excluded:[
+    "ACQ Vantage (~$8,700/month to Feb 2027) is owner education under Growth, not sales & marketing. Counted in, the total would be about 22% of gross profit.",
+    "Owner selling time (inside owner salaries) and travel/meals (QuickBooks doesn't split sales from operations).",
+    "Recruiting ads (Indeed job postings) are hiring costs, not marketing."
+  ],
+  rules:[
+    "Any new marketing spend (LinkedIn ads, new tools, events) must fit under the 15% cap by cutting or pausing another line. The cap is not raised to make room.",
+    "ACQ's 90-day guidance (Nov 17 2026): hold total spend flat at about 10–12% until Rule of 100 outbound shows a real cost per BPA and per new contract. LinkedIn tests wait for that data.",
+    "Spending is judged on lifetime gross profit vs the cost to win a customer, not the percentage alone. Once CAC is known, a channel at 3:1 or better can earn a higher cap.",
+    "Over 15% shows red here and as a ✕ in the daily data checks."
+  ]
+};
+function marketingCheck(){
+  const M={...MKT_DEFAULT,...(DATA.marketing||{})}; if(!M.gpMonthly||!M.lines) return null;
+  const t=M.lines.reduce((a,l)=>a+(l.monthly||0),0), cap=M.gpMonthly*M.capHigh;
+  return [t<=cap, `Sales & marketing ${fmt(t)}/month = ${pct(t/M.gpMonthly*100,1)} of gross profit (${fmt(M.gpMonthly)}/month); cap ${pct(M.capHigh*100)} = ${fmt(cap)}. `+(t<=cap?`${fmt(cap-t)} of room left.`:`Over by ${fmt(t-cap)}: cut or pause a line.`)+` As of ${dShort(M.asOf)}.`];
+}
+function renderMarketing(){
+  const M={...MKT_DEFAULT,...(DATA.marketing||{})};
+  if(!M.gpMonthly||!M.lines||!M.lines.length) return;
+  const total=M.lines.reduce((a,l)=>a+(l.monthly||0),0), gp=M.gpMonthly, share=total/gp*100;
+  const lo=gp*M.capLow, hi=gp*M.capHigh, room=hi-total, over=total>hi, near=!over&&total>hi*0.95;
+  const status=over?"down":near?"watch":"up";
+  const label=over?`Over the ${pct(M.capHigh*100)} cap by ${fmt(-room)}`:near?`Within ${fmt(room)} of the cap`:share<M.capLow*100?"Below the band":"Inside the band";
+  document.getElementById("mkt-wrap").style.display="";
+  document.getElementById("mkt-note").textContent=`All sales & marketing cash (BDR fully loaded, agency, tools and ads) is held at ${pct(M.capLow*100)}–${pct(M.capHigh*100)} of monthly gross profit and does not go above ${pct(M.capHigh*100)}. As of ${dShort(M.asOf)}.`;
+  const scale=Math.max(hi*1.25,total*1.05), w=v=>Math.min(100,v/scale*100);
+  document.getElementById("mkt-cards").innerHTML=`
+    <div class="h-card"><div class="h-label">Sales &amp; marketing, per month</div><div class="h-value ${status}">${fmt(total)}</div>
+      <div class="fillbar"><b style="width:${w(total)}%;${over?"background:var(--red)":""}"></b><u style="left:${w(lo)}%"></u><u style="left:${w(hi)}%"></u></div>
+      <div class="h-foot">${pct(share,1)} of gross profit. ${label}.</div></div>
+    <div class="h-card"><div class="h-label">Budget band (${pct(M.capLow*100)}–${pct(M.capHigh*100)})</div><div class="h-value">${fmtK(lo)}–${fmtK(hi)}</div><div class="h-foot">On ${fmt(gp)}/month gross profit.</div></div>
+    <div class="h-card"><div class="h-label">Room under the ${pct(M.capHigh*100)} cap</div><div class="h-value ${room<0?"down":near?"watch":"up"}">${fmt(room)}</div><div class="h-foot">${room<0?"Cut or pause a line to get back under.":"Anything new must fit in this or replace a line."}</div></div>
+    <div class="h-card"><div class="h-label">Gross profit used</div><div class="h-value">${fmt(gp)}/mo</div><div class="h-foot">${pct(M.gpMarginPct||33)} gross margin. How it was set is in the notes below.</div></div>`;
+  document.getElementById("mkt-table").innerHTML=`<thead><tr><th style="text-align:left">Line</th><th>Group</th><th>Per month</th><th>% of gross profit</th></tr></thead><tbody>`
+    +M.lines.map(l=>`<tr><td style="text-align:left">${esc(l.name)}</td><td>${esc(l.group||"")}</td><td>${fmt(l.monthly)}</td><td>${pct(l.monthly/gp*100,1)}</td></tr>`).join("")
+    +`<tr style="font-weight:600"><td style="text-align:left">Total</td><td></td><td class="${over?"down":""}">${fmt(total)}</td><td class="${over?"down":""}">${pct(share,1)}</td></tr>`
+    +`<tr><td style="text-align:left">Cap (${pct(M.capHigh*100)})</td><td></td><td>${fmt(hi)}</td><td>${pct(M.capHigh*100,1)}</td></tr></tbody>`;
+  document.getElementById("mkt-rules").innerHTML=[...M.rules,"Gross profit used: "+M.gpBasis,...M.excluded.map(x=>"Not counted: "+x)].map(x=>`<li>${esc(x)}</li>`).join("");
 }
 
 // Targets. The owner allocation is never kept in this file: it comes from saved data as
