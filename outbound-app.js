@@ -1295,7 +1295,7 @@ window.obGeocodeStatus = () => ({ busy: geoBusy, cached: Object.keys(geo).length
 //                src, addedAt, status, touches: {email|linkedin|call|knock: 'YYYY-MM-DD'}} ] }  (merged by id)
 // ob_queue     { rows: [ {date, rep, builtAt, items: [ {qid, ch, pid?, tid?, name, title, company, city, address,
 //                email, phone, linkedin, why, script, draft, done, doneBy} ]} ] }  (merged by date + rep)
-// Both are written by the 6:15 am daily-queue run (DAILY-QUEUE.md) through obImport; ticks here save to ob_queue,
+// Both are written by the 7:04 am daily-queue run (DAILY-QUEUE.md) through obImport; ticks here save to ob_queue,
 // and the Sales dashboard counts ticked items as that day's touches (highest source per channel wins).
 const Q_PLAN = { Jake: { knock: 5, email: 10, linkedin: 10, call: 5 }, Natalie: { email: 35, call: 20, linkedin: 15, knock: 0 } };
 const Q_CH = [['knock', 'Door knocks'], ['email', 'Emails'], ['linkedin', 'LinkedIn'], ['call', 'Calls']];
@@ -1313,7 +1313,7 @@ function renderQueue() {
   const el = $('q-list'); if (!el) return;
   const Q = qCurrent(), plan = Q_PLAN[qRep], today = todayISO();
   const tabs = '<div class="seg" id="q-rep">' + Object.keys(Q_PLAN).map(r => '<button type="button" data-r="' + r + '" class="' + (r === qRep ? 'on' : '') + '">' + r + '</button>').join('') + '</div>';
-  if (!Q) { el.innerHTML = '<div class="wk-head">' + tabs + '</div><p class="hint">No queue built for ' + esc(qRep) + ' yet. The 6:15 am weekday run builds it here and emails a copy.</p>'; if ($('q-n')) $('q-n').textContent = ''; return; }
+  if (!Q) { el.innerHTML = '<div class="wk-head">' + tabs + '</div><p class="hint">No queue built for ' + esc(qRep) + ' yet. The 7:04 am weekday run builds it here and emails a copy.</p>'; if ($('q-n')) $('q-n').textContent = ''; return; }
   const items = Q.items || [], done = items.filter(i => i.done).length;
   const goal = Object.values(plan).reduce((a, b) => a + b, 0);
   if ($('q-n')) $('q-n').textContent = (Q.date === today ? 'Today' : fmtDate(Q.date)) + ' · ' + done + ' / ' + goal + ' done';
