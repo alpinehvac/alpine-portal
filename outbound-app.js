@@ -1441,12 +1441,14 @@ window.obPickQueue = function ({ rep = 'Jake', date = todayISO(), anchors = [] }
   const add = (ch, p, script) => { items.push({ qid: date + ':' + rep + ':' + ch + ':' + p.id, ch, pid: p.id, name: p.name, title: p.title, company: p.company, city: p.city,
     email: p.email || '', phone: p.phone || '', linkedin: p.linkedin || '', why: [p.tier ? 'Tier ' + p.tier : '', p.notes].filter(Boolean).join(' · '), script }); used.add(p.id); };
   const first = n => String(n || '').split(' ')[0];
-  fresh.filter(p => p.email).slice(0, plan.email || 0).forEach(p => add('email', p, ''));
+  // At most 2 people per company per day for email, and one call per company (same main line).
+  const perCo = (list, n, max) => { const c = {}; return list.filter(p => { const k = normName(p.company); c[k] = (c[k] || 0) + 1; return c[k] <= max; }).slice(0, n); };
+  perCo(fresh.filter(p => p.email), plan.email || 0, 2).forEach(p => add('email', p, ''));
   // LinkedIn goes to today's email contacts first (two channels, one person), then to people with no email.
   const li = fresh.filter(p => p.linkedin && used.has(p.id)).concat(fresh.filter(p => p.linkedin && !used.has(p.id) && !p.email))
     .concat(fresh.filter(p => p.linkedin && !used.has(p.id) && p.email)).slice(0, plan.linkedin || 0);
   li.forEach(p => add('linkedin', p, 'Connection note: Hi ' + first(p.name) + ', we work with property and facility managers across Niagara and Hamilton on HVAC Building Performance Audits. Had a quick question about ' + (p.company || 'your buildings') + '\'s maintenance setup. Mind if I send it over?'));
-  const calls = fresh.filter(p => p.phone && localLine(p.phone)).slice(0, plan.call || 0);   // skip head-office lines outside Ontario
+  const calls = perCo(fresh.filter(p => p.phone && localLine(p.phone)), plan.call || 0, 1);   // Ontario lines only, one per company
   calls.forEach(p => add('call', p, 'Opener: Hi ' + first(p.name) + ', ' + myName + ' from Alpine HVAC in Vineland. ' + (used.has(p.id) ? 'I sent you a short note about a Building Performance Audit. ' : '') + 'We do 5 of these a month for buildings like yours: a reliability scorecard, downtime cost estimate and a 12-month plan, and if it isn\'t worth 10x the fee you don\'t pay. Is that worth 20 minutes next week?\nNo answer: 20-second voicemail, then text.'));
   // No direct dials yet (Apollo phones cost credits): fill calls from researched buildings with a phone on file.
   if (calls.length < (plan.call || 0)) {
