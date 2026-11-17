@@ -71,10 +71,17 @@ iframe.emb{display:block;width:100%;border:0;min-height:120px;background:transpa
 .badge.teal{background:rgba(61,129,138,.14);color:var(--teal)}
 .empty{font-size:.85rem;color:var(--muted);padding:.4rem 0}
 
-/* door-knock goal */
+/* Rule of 100 goal */
 .goal-bar{height:12px;border-radius:6px;background:rgba(16,68,78,.09);overflow:hidden;margin:.15rem 0 .8rem}
 .goal-bar i{display:block;height:100%;min-width:4px;border-radius:0 4px 4px 0;background:var(--teal)}
 .goal-mix{margin-top:.7rem}
+.r100-bar{position:relative;overflow:visible}
+.r100-bar i{border-radius:6px}
+.r100-bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.55}
+table.r100-reps td{white-space:nowrap}table.r100-reps td:last-child{white-space:normal;min-width:260px}table.r100-reps td small{display:block;color:var(--muted);font-size:.72rem}
+table.r100-reps td.green{color:var(--green);font-weight:600}table.r100-reps td.amber{color:var(--amber);font-weight:600}table.r100-reps td.red{color:var(--red);font-weight:600}
+.tl-form.tl-day{grid-template-columns:repeat(7,minmax(0,1fr)) auto}
+@media (max-width:900px){table.tl{display:block;overflow-x:auto}}
 
 /* touch log */
 .tl-form{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:8px;align-items:end;margin:.4rem 0 .8rem}
@@ -102,7 +109,7 @@ details.upd textarea{width:100%;margin:.6rem 0;font:12px ui-monospace,monospace;
 
 @media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
 @media (max-width:900px){.wrap{padding:4rem 1rem 3rem}}
-@media (max-width:640px){.tl-form{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.tl-form,.tl-form.tl-day{grid-template-columns:1fr 1fr}}
 </style>
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -219,24 +226,26 @@ function renewalsPanel(st, limit = 6) {
 }
 
 // ═══════════ Sales metrics ═══════════
-const TOUCH_CH = [["knocks", "Door knocks"], ["calls", "Calls"], ["emails", "Emails"], ["meetings", "Site visits / meetings"]];
+const TOUCH_CH = [["emails", "Emails"], ["calls", "Calls"], ["linkedin", "LinkedIn"], ["knocks", "Door knocks"], ["meetings", "Site visits / meetings"]];
 // ob_knocks also holds recorded prospect phone calls (type "call"); those aren't door knocks.
 const knockRows = knocks => ((knocks && knocks.rows) || []).filter(k => k.type !== "call");
 // Touches per rep per week come from three sources: the manual log, automatic counts
 // (Outlook emails/meetings, src "auto") and Fireflies door-knock recordings. For each rep,
 // week and channel the highest source wins, so nothing is counted twice.
-function mergedTouches(log, knocks) {
+// Daily log rows and Fireflies recordings are summed into their week first.
+function mergedTouches(log, knocks, daily) {
   const cell = {};
   const put = (wk, rep, k, v) => { const id = wk + "|" + rep; cell[id] = cell[id] || { wk, rep }; cell[id][k] = Math.max(cell[id][k] || 0, Number(v) || 0); };
   (log || []).forEach(r => TOUCH_CH.forEach(([k]) => put(r.wk, r.rep, k, r[k])));
-  const kn = {}; knockRows(knocks).forEach(k => { const d = pd(k.date); if (!d) return; const id = iso(monday(d)) + "|" + (k.rep || "Jake"); kn[id] = (kn[id] || 0) + 1; });
-  Object.entries(kn).forEach(([id, n]) => { const [wk, rep] = id.split("|"); put(wk, rep, "knocks", n); });
+  const wk = {};
+  Object.values(dayCells(daily, knocks)).forEach(c => { const id = iso(monday(pd(c.d))) + "|" + c.rep; wk[id] = wk[id] || {}; TOUCH_CH.forEach(([k]) => wk[id][k] = (wk[id][k] || 0) + (Number(c[k]) || 0)); });
+  Object.entries(wk).forEach(([id, v]) => { const [w, rep] = id.split("|"); TOUCH_CH.forEach(([k]) => v[k] && put(w, rep, k, v[k])); });
   return Object.values(cell);
 }
-function touchStats(log, leads, knocks) {
+function touchStats(log, leads, knocks, daily) {
   const wk0 = monday(T), weeks = [];
   for (let i = 7; i >= 0; i--) { const d = new Date(wk0); d.setDate(d.getDate() - i * 7); weeks.push(iso(d)); }
-  const rows = mergedTouches(log, knocks).filter(r => weeks.includes(r.wk));
+  const rows = mergedTouches(log, knocks, daily).filter(r => weeks.includes(r.wk));
   const tot = r => TOUCH_CH.reduce((s, [k]) => s + (Number(r[k]) || 0), 0);
   if (rows.length) {
     const first = weeks.findIndex(w => rows.some(r => r.wk === w));
@@ -281,73 +290,131 @@ function salesKpis(M, ag, touches, leads, compact) {
   return `<div class="kpis">${tiles.join("")}</div>${M ? `<p class="note" style="margin-top:.5rem">Sales metrics as of ${fmtD(pd(M.asOf))} · ${esc(M.source)}.</p>` : ""}`;
 }
 
-// Jake's door-knock goal. Doors = his weekly knock counts (Fireflies, or the Touches by week number
-// if that's higher). Success = knocks rated Hot or Warm ÷ all doors knocked.
-const KNOCK_GOAL = 1000, KNOCK_REP = "Jake", KNOCK_LIST_PER_WEEK = 100;
-function knockGoalPanel(log, knocks) {
-  if (knocks === undefined) return "";                          // no access, or the load failed
-  const n = v => v.toLocaleString("en-CA");
-  const rows = knockRows(knocks).filter(k => (k.rep || "Jake") === KNOCK_REP);
-  const weeks = mergedTouches(log, knocks).filter(r => r.rep === KNOCK_REP && Number(r.knocks) > 0);
-  const done = weeks.reduce((s, r) => s + Number(r.knocks), 0);
-  const left = Math.max(0, KNOCK_GOAL - done);
-  const thisWk = weeks.filter(r => r.wk === iso(monday(T))).reduce((s, r) => s + Number(r.knocks), 0);
-  const count = i => rows.filter(k => k.interest === i).length;
-  const mix = [["Hot", count("Hot")], ["Warm", count("Warm")], ["Cold", count("Cold")], ["Not interested", count("Not interested")]];
-  const wins = mix[0][1] + mix[1][1], rated = mix.reduce((s, m) => s + m[1], 0);
-  const rate = done ? wins / done * 100 : null;
-  // Pace: doors per week since the first knock, counting at least one full week so day one doesn't overstate it.
-  const dates = (rows.length ? rows.map(k => k.date) : weeks.map(r => r.wk)).filter(Boolean).sort();
-  const first = dates.length ? pd(dates[0]) : null;
-  const days = first ? Math.max(7, Math.round((T - first) / 864e5) + 1) : 0;
-  const pace = days ? done / days * 7 : 0;
-  const after = wk => { const d = new Date(T); d.setDate(d.getDate() + Math.ceil(wk * 7)); return d; };
-  const finish = !left ? "Done" : pace ? fmtD(after(left / pace)) : "—";
-  const pct = Math.min(100, done / KNOCK_GOAL * 100);
-  return `<div class="panel"><div class="sec-h"><h2>Road to ${n(KNOCK_GOAL)} door knocks</h2><a href="outbound.html">Open Outbound →</a></div>
-    <div class="goal-bar" role="img" aria-label="${n(done)} of ${n(KNOCK_GOAL)} door knocks" title="${n(done)} of ${n(KNOCK_GOAL)} door knocks"><i style="width:${done ? pct.toFixed(1) : 0}%"></i></div>
+// ═══════════ Rule of 100 (replaces the 1,000-door-knock goal, Nov 17 2026) ═══════════
+// 100 NEW cold touches every weekday, Natalie 70 + Jake 30, from Nov 17 2026 to the February
+// workshop. Every channel counts: emails, calls, LinkedIn, door knocks. Site visits/meetings are
+// tracked but are not cold touches. Change END when the workshop date is set.
+const R100 = {
+  start: "2026-11-17", end: "2027-02-24", perDay: 100,
+  reps: [["Natalie", 70], ["Jake", 30]],
+  plan: { Natalie: "35 emails · 20 calls · 15 LinkedIn", Jake: "10 targeted emails/DMs · 5 calls · 5–10 door knocks near active jobs" },
+  holidays: ["2026-12-25", "2026-12-28", "2027-01-01", "2027-02-15"],   // Christmas, Boxing Day (obs.), New Year's, Family Day
+};
+const R100_CH = [["emails", "Emails"], ["calls", "Calls"], ["linkedin", "LinkedIn"], ["knocks", "Door knocks"]];
+const workdays = (a, b) => { const out = []; const d = new Date(a); while (d <= b) { const w = d.getDay(), s = iso(d); if (w && w < 6 && !R100.holidays.includes(s)) out.push(s); d.setDate(d.getDate() + 1); } return out; };
+const r100Sum = r => R100_CH.reduce((s, [k]) => s + (Number(r && r[k]) || 0), 0);
+
+// Per rep per day: the daily log, or Fireflies recordings that day if higher (per channel).
+function dayCells(daily, knocks) {
+  const cell = {};
+  const put = (d, rep, k, v) => { const id = d + "|" + rep; cell[id] = cell[id] || { d, rep }; cell[id][k] = Math.max(cell[id][k] || 0, Number(v) || 0); };
+  (daily || []).forEach(r => TOUCH_CH.forEach(([k]) => r[k] != null && put(r.d, r.rep, k, r[k])));
+  const ff = {};
+  ((knocks && knocks.rows) || []).forEach(k => { if (!pd(k.date)) return; const id = k.date.slice(0, 10) + "|" + (k.rep || "Jake") + "|" + (k.type === "call" ? "calls" : "knocks"); ff[id] = (ff[id] || 0) + 1; });
+  Object.entries(ff).forEach(([id, n]) => { const [d, rep, k] = id.split("|"); put(d, rep, k, n); });
+  return cell;
+}
+
+async function audits() {
+  try {
+    const snap = await getDocs(collection(db, "audit_data"));
+    const out = []; snap.forEach(d => { if (!d.id.startsWith("au_")) return; try { const a = JSON.parse(d.data().value); if (a && a.id && a.client) out.push(a); } catch (e) {} });
+    return out;
+  } catch (e) { return undefined; }
+}
+
+function r100Panel(log, knocks, daily, aus) {
+  if (knocks === undefined) return "";                          // no sales access, or the load failed
+  const n = v => Math.round(v).toLocaleString("en-CA");
+  const S = pd(R100.start), E = pd(R100.end), upTo = T < E ? T : E;
+  const all = workdays(S, E), toDate = T < S ? [] : workdays(S, upTo);
+  const goal = all.length * R100.perDay, tgtToDate = toDate.length * R100.perDay;
+  const cells = dayCells(daily, knocks);
+  const wkS = iso(monday(S)), wkE = iso(monday(E)), wkNow = iso(monday(T));
+  const weeks = mergedTouches(log, knocks, daily).filter(r => r.wk >= wkS && r.wk <= wkE && R100.reps.some(([p]) => p === r.rep));
+  const repTot = rep => weeks.filter(r => r.rep === rep).reduce((s, r) => s + r100Sum(r), 0);
+  const repCh = (rep, k) => weeks.filter(r => r.rep === rep).reduce((s, r) => s + (Number(r[k]) || 0), 0);
+  const repWk = rep => weeks.filter(r => r.rep === rep && r.wk === wkNow).reduce((s, r) => s + r100Sum(r), 0);
+  const repDay = (rep, d) => r100Sum(cells[d + "|" + rep]);
+  const done = R100.reps.reduce((s, [p]) => s + repTot(p), 0);
+  const todayIso = iso(T), isWorkday = all.includes(todayIso);
+  const today = R100.reps.reduce((s, [p]) => s + repDay(p, todayIso), 0);
+  const fri = new Date(monday(T)); fri.setDate(fri.getDate() + 4);
+  const wkDays = workdays(monday(T) < S ? S : monday(T), fri < E ? fri : E).length;
+  const thisWk = R100.reps.reduce((s, [p]) => s + repWk(p), 0);
+  const hit = toDate.filter(d => d !== todayIso || today >= R100.perDay).filter(d => R100.reps.reduce((s, [p]) => s + repDay(p, d), 0) >= R100.perDay).length;
+  const counted = toDate.filter(d => d < todayIso).length + (today >= R100.perDay ? 1 : 0);
+  const pace = tgtToDate ? done / tgtToDate * 100 : null;
+  const cls = p => p == null ? "" : p >= 100 ? "green" : p >= 70 ? "amber" : "red";
+  const dayNo = toDate.length;
+  // BPA funnel since the start: audits come from the Building Performance Audit tool.
+  const A = (aus || []).filter(a => (a.createdAt || "") >= R100.start);
+  const st = s => A.filter(a => s.includes(a.status)).length;
+  const booked = A.length, completed = st(["onsite", "report", "debriefed", "won", "lost"]), proposals = st(["debriefed", "won", "lost"]), signed = st(["won"]);
+  const preCalls = new Set(((knocks && knocks.rows) || []).filter(k => (k.preCall || "") >= R100.start).map(k => (k.leadId || k.targetId || k.company || k.id))).size;
+  const perBpa = booked ? Math.round(done / booked) : null;
+  const pct = goal ? Math.min(100, done / goal * 100) : 0, mark = goal ? Math.min(100, tgtToDate / goal * 100) : 0;
+  const rows = R100.reps.map(([p, t]) => {
+    const tot = repTot(p), tgt = toDate.length * t, avg = toDate.length ? tot / toDate.length : 0;
+    return `<tr><td><b>${esc(p)}</b></td><td>${isWorkday ? `${n(repDay(p, todayIso))} / ${t}` : "—"}</td><td>${n(repWk(p))} / ${n(wkDays * t)}</td><td>${n(tot)} / ${n(tgt)}</td><td class="${cls(tgt ? tot / tgt * 100 : null)}">${n(avg)} / ${t}</td>
+      <td style="text-align:left">${R100_CH.map(([k, l]) => `${l.split(" ").pop().toLowerCase()} ${n(repCh(p, k))}`).join(" · ")}<small>Plan: ${esc(R100.plan[p])}</small></td></tr>`;
+  }).join("");
+  return `<div class="panel"><div class="sec-h"><h2>Rule of 100 · ${R100.perDay} new touches every weekday</h2><a href="outbound.html">Open Outbound →</a></div>
+    <div class="goal-bar r100-bar" role="img" aria-label="${n(done)} of ${n(goal)} touches" title="${n(done)} of ${n(goal)} touches · target to date ${n(tgtToDate)}"><i style="width:${done ? pct.toFixed(1) : 0}%"></i><b style="left:${mark.toFixed(1)}%"></b></div>
     <div class="kpis">
-      ${kpi("hero", "Doors knocked", `${n(done)} <small style="font-size:.6em;font-weight:500">/ ${n(KNOCK_GOAL)}</small>`, left ? `${n(left)} to go · ${pct.toFixed(1)}%` : "Goal reached")}
-      ${kpi("", "Success rate", rate == null ? "—" : rate.toFixed(rate < 10 && rate > 0 ? 1 : 0) + "%", `${n(wins)} of ${n(done)} doors rated Hot or Warm`)}
-      ${kpi("", "This week", n(thisWk), `${Math.max(0, KNOCK_LIST_PER_WEEK - thisWk)} left on the ${KNOCK_LIST_PER_WEEK}-a-week list`)}
-      ${kpi("", "Projected finish", finish, left ? (pace ? `At ${Math.round(pace)} a week · ${KNOCK_LIST_PER_WEEK} a week finishes ${fmtD(after(Math.ceil(left / KNOCK_LIST_PER_WEEK)))}` : `${KNOCK_LIST_PER_WEEK} a week finishes ${fmtD(after(Math.ceil(left / KNOCK_LIST_PER_WEEK)))}`) : "")}
+      ${kpi("hero " + (isWorkday ? cls(today / R100.perDay * 100) : ""), "Today", isWorkday ? `${n(today)} <small style="font-size:.6em;font-weight:500">/ ${R100.perDay}</small>` : "—", isWorkday ? R100.reps.map(([p, t]) => `${p} ${n(repDay(p, todayIso))}/${t}`).join(" · ") : T < S ? `Starts ${fmtD(S)}` : T > E ? "Sprint finished" : "Not a workday")}
+      ${kpi(cls(wkDays ? thisWk / (wkDays * R100.perDay) * 100 : null), "This week", `${n(thisWk)} <small style="font-size:.6em;font-weight:500">/ ${n(wkDays * R100.perDay)}</small>`, `${wkDays} workday${wkDays === 1 ? "" : "s"} × ${R100.perDay}`)}
+      ${kpi(cls(pace), "Since " + fmtD(S), `${n(done)} <small style="font-size:.6em;font-weight:500">/ ${n(tgtToDate)}</small>`, `${pace == null ? "—" : Math.round(pace) + "% of target to date"} · ${n(goal)} by ${fmtD(E)} (${all.length} workdays)`)}
+      ${kpi(counted ? cls(hit / counted * 100) : "", "Days at 100", counted ? `${hit} <small style="font-size:.6em;font-weight:500">/ ${counted}</small>` : "—", `Workday ${Math.min(dayNo, all.length)} of ${all.length}. Combined 100+ on the day (daily log + recordings)`)}
     </div>
-    <p class="note goal-mix">${mix.map(([l, c]) => `${l} ${n(c)}`).join(" · ")}${done > rated ? ` · Not rated ${n(done - rated)}` : ""}. Counts Jake's recorded knocks, filed by the 7 am sync; phone calls are excluded. To add doors you didn't record, enter the week's full total in Touches by week.</p>
+    <table class="tl r100-reps" style="margin-top:12px"><thead><tr><th>Rep</th><th>Today</th><th>This week</th><th>Since start</th><th>Avg / workday</th><th style="text-align:left">Mix since start</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="kpis" style="margin-top:12px">
+      ${kpi("hero", "BPAs booked", n(booked), `${preCalls} pre-call${preCalls === 1 ? "" : "s"} booked from recorded conversations${perBpa ? ` · ${n(perBpa)} touches per BPA` : ""}`)}
+      ${kpi("", "BPAs completed", n(completed), "Site visit done or later in the Audit tool")}
+      ${kpi("", "Proposals / debriefs", n(proposals), booked ? `${Math.round(proposals / booked * 100)}% of BPAs booked` : "Debriefed, signed or closed-lost")}
+      ${kpi(signed ? "green" : "", "Contracts signed", n(signed), proposals ? `${Math.round(signed / proposals * 100)}% close rate on debriefs` : "Marked Signed in the Audit tool")}
+    </div>
+    <p class="note goal-mix">Counts every cold touch by Natalie and Jake: emails, calls, LinkedIn and door knocks (site visits and meetings are tracked below but aren't touches). Sources: the daily log below, Fireflies recordings, and Jake's prospect emails from Outlook; the highest number per rep, day or week and channel wins, never both. Natalie's emails and LinkedIn only count when logged. BPA funnel = audits created in the Audit tool since ${fmtD(S)}${aus === undefined ? " (not available for this account)" : ""}.</p>
   </div>`;
 }
 
-// Touch log: one row per rep per week. Saved to outbound_data (sales only).
-function touchLogHTML(log, knocks) {
+// Daily touch log: one row per rep per day. Saved to outbound_data/ob_touch_daily (sales only).
+function touchLogHTML(rows, knocks, daily) {
   const reps = ["Natalie", "Jake", "Mike", "Cole"];
   const me = reps.find(r => r === firstName) || reps[0];
-  const wkOpts = [0, 1, 2, 3].map(i => { const d = monday(T); d.setDate(d.getDate() - i * 7); return `<option value="${iso(d)}">Week of ${fmtD(d)}</option>`; }).join("");
-  const recent = (log || []).filter(r => TOUCH_CH.some(([k]) => r[k])).slice().sort((a, b) => b.wk.localeCompare(a.wk) || a.rep.localeCompare(b.rep)).slice(0, 10);
-  const nk = knockRows(knocks).length;
-  return `<div class="panel"><div class="sec-h"><h3>Touches by week</h3><span class="note">Filled automatically: door knocks from Fireflies (${nk} recorded), Jake's prospect emails and meetings from Outlook. Add anything the automation can't see (Natalie's calls and emails) below; the higher number per week wins, never both.</span></div>
-    <div class="tl-form">
-      <label>Week<select id="tl-wk">${wkOpts}</select></label>
+  const days = []; for (let i = 0; days.length < 10 && i < 30; i++) { const d = new Date(T); d.setDate(d.getDate() - i); const w = d.getDay(); if (w && w < 6) days.push(d); }
+  const dOpts = days.map(d => `<option value="${iso(d)}">${d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })}</option>`).join("");
+  const cells = dayCells(daily, knocks);
+  const recentD = Object.values(cells).filter(c => TOUCH_CH.some(([k]) => c[k])).sort((a, b) => b.d.localeCompare(a.d) || a.rep.localeCompare(b.rep)).slice(0, 10);
+  const recentW = (rows || []).filter(r => TOUCH_CH.some(([k]) => r[k])).slice().sort((a, b) => b.wk.localeCompare(a.wk) || a.rep.localeCompare(b.rep)).slice(0, 8);
+  const tbl = (first, list, key, fmt) => `<table class="tl"><thead><tr><th>${first}</th><th>Rep</th>${TOUCH_CH.map(([, l]) => `<th>${l.split(" ")[0].replace("Door", "Knocks").replace("Site", "Mtgs")}</th>`).join("")}<th>Touches</th></tr></thead><tbody>${list.map(r => `<tr><td>${fmt(r[key])}</td><td style="text-align:left">${esc(r.rep)}</td>${TOUCH_CH.map(([k]) => `<td>${Number(r[k]) || 0}</td>`).join("")}<td><b>${r100Sum(r)}</b></td></tr>`).join("")}</tbody></table>`;
+  return `<div class="panel"><div class="sec-h"><h3>Daily touch log</h3><span class="note">Log each day's new cold touches by channel (takes 20 seconds). Door knocks and calls recorded in Fireflies and Jake's prospect emails fill in automatically; enter the day's full number and the higher one counts, never both.</span></div>
+    <div class="tl-form tl-day">
+      <label>Day<select id="tl-d">${dOpts}</select></label>
       <label>Rep<select id="tl-rep">${reps.map(r => `<option${r === me ? " selected" : ""}>${r}</option>`).join("")}</select></label>
-      ${TOUCH_CH.map(([k, l]) => `<label>${l.replace("Site visits / meetings", "Meetings")}<input type="number" min="0" step="1" id="tl-${k}" placeholder="0"></label>`).join("")}
+      ${TOUCH_CH.map(([k, l]) => `<label>${l.replace("Site visits / meetings", "Meetings")}<input type="number" min="0" step="1" inputmode="numeric" id="tl-${k}" placeholder="0"></label>`).join("")}
       <button class="btn" id="tl-save" type="button">Save</button>
     </div>
     <p class="note" id="tl-msg"></p>
-    ${recent.length ? `<table class="tl"><thead><tr><th>Week</th><th>Rep</th>${TOUCH_CH.map(([, l]) => `<th>${l.split(" ")[0]}</th>`).join("")}<th>Total</th></tr></thead><tbody>${recent.map(r => `<tr><td>${fmtD(pd(r.wk))}</td><td style="text-align:left">${esc(r.rep)}</td>${TOUCH_CH.map(([k]) => `<td>${Number(r[k]) || 0}</td>`).join("")}<td><b>${TOUCH_CH.reduce((s, [k]) => s + (Number(r[k]) || 0), 0)}</b></td></tr>`).join("")}</tbody></table>` : ""}
+    ${recentD.length ? tbl("Day", recentD, "d", d => fmtD(pd(d))) : `<p class="empty">No daily entries yet.</p>`}
+    ${recentW.length ? `<h3 style="margin-top:1rem">By week</h3>${tbl("Week of", recentW, "wk", d => fmtD(pd(d)))}` : ""}
   </div>`;
 }
 function wireTouchLog() {
   const btn = $("tl-save"); if (!btn) return;
-  const fill = async () => { const log = (await outbound("ob_touch_log")) || []; const r = log.find(x => !x.src && x.wk === $("tl-wk").value && x.rep === $("tl-rep").value) || {}; TOUCH_CH.forEach(([k]) => $("tl-" + k).value = r[k] != null ? r[k] : ""); };
-  $("tl-wk").onchange = fill; $("tl-rep").onchange = fill; fill();
+  const fill = async () => { const log = (await outbound("ob_touch_daily")) || []; const r = log.find(x => x.d === $("tl-d").value && x.rep === $("tl-rep").value) || {}; TOUCH_CH.forEach(([k]) => $("tl-" + k).value = r[k] != null ? r[k] : ""); };
+  $("tl-d").onchange = fill; $("tl-rep").onchange = fill; fill();
   btn.onclick = async () => {
     btn.disabled = true; $("tl-msg").textContent = "Saving…";
     try {
-      const log = (await outbound("ob_touch_log")) || [];          // re-read right before saving
-      const row = { wk: $("tl-wk").value, rep: $("tl-rep").value, by: session.email, at: new Date().toISOString() };
+      const log = await outbound("ob_touch_daily");               // re-read right before saving
+      if (log === undefined) throw new Error("couldn't read the current log");
+      const row = { d: $("tl-d").value, rep: $("tl-rep").value, by: session.email, at: new Date().toISOString() };
       TOUCH_CH.forEach(([k]) => row[k] = Math.max(0, parseInt($("tl-" + k).value, 10) || 0));
-      const next = log.filter(x => x.src || !(x.wk === row.wk && x.rep === row.rep)).concat([row]);   // only replaces the manual row; automatic rows are kept
-      await setDoc(doc(db, "outbound_data", "ob_touch_log"), { value: JSON.stringify(next), updatedAt: Date.now() });
+      const next = (log || []).filter(x => !(x.d === row.d && x.rep === row.rep)).concat([row]);
+      await setDoc(doc(db, "outbound_data", "ob_touch_daily"), { value: JSON.stringify(next), updatedAt: Date.now() });
       $("tl-msg").textContent = "Saved."; setTimeout(() => location.reload(), 600);
-    } catch (e) { $("tl-msg").textContent = "Save failed (" + (e.code || e) + "). Nothing was changed."; btn.disabled = false; }
+    } catch (e) { $("tl-msg").textContent = "Save failed (" + (e.code || e.message || e) + "). Nothing was changed."; btn.disabled = false; }
   };
 }
 // Owners paste the output of sales-metrics.py (QuickBooks) here.
@@ -373,10 +440,10 @@ async function viewSales() {
   app.innerHTML = header("Sales", "Sales Dashboard") + `<div class="sec" id="s-goal"></div><div class="sec" id="s-kpis"><p class="loading">Loading sales metrics…</p></div>
     <div class="sec"><div class="sec-h"><h2>Territory</h2><a href="outbound.html">Open Outbound →</a></div>${frame("outbound.html?embed=map", "Territory map")}</div>
     <div class="sec" id="s-touch"></div>${salesUpdateHTML()}`;
-  const [M, ag, log, leads, knocks] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks")]);
-  $("s-goal").innerHTML = knockGoalPanel(log, knocks);
-  $("s-kpis").innerHTML = salesKpis(M || null, ag, touchStats(log, leads, knocks), leads, false);
-  $("s-touch").innerHTML = touchLogHTML(mergedTouches(log, knocks), knocks);
+  const [M, ag, log, leads, knocks, daily, aus] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks"), outbound("ob_touch_daily"), audits()]);
+  $("s-goal").innerHTML = r100Panel(log, knocks, daily, aus);
+  $("s-kpis").innerHTML = salesKpis(M || null, ag, touchStats(log, leads, knocks, daily), leads, false);
+  $("s-touch").innerHTML = touchLogHTML(mergedTouches(log, knocks, daily), knocks, daily);
   wireTouchLog(); wireSalesUpdate();
 }
 
@@ -406,8 +473,8 @@ async function viewOwner() {
       <div data-job-search></div>
       <div class="grid2"><div>${frame("ops-dashboard.html?embed=ops-lite", "Field operations summary")}</div><div id="h-renew"><p class="loading">Loading…</p></div></div></div>`;
   window.apJobSearchMount && window.apJobSearchMount();
-  const [M, ag, log, leads, knocks] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks")]);
-  $("h-sales").innerHTML = salesKpis(M || null, ag, touchStats(log, leads, knocks), leads, true) + `<div style="margin-top:12px">${knockGoalPanel(log, knocks)}</div>`;
+  const [M, ag, log, leads, knocks, daily, aus] = await Promise.all([json("sales_dashboard", "latest"), agreements(), outbound("ob_touch_log"), outbound("ob_leads"), outbound("ob_knocks"), outbound("ob_touch_daily"), audits()]);
+  $("h-sales").innerHTML = `<div style="margin-bottom:12px">${r100Panel(log, knocks, daily, aus)}</div>` + salesKpis(M || null, ag, touchStats(log, leads, knocks, daily), leads, true);
   $("h-renew").innerHTML = renewalsPanel(ag ? agreementStats(ag) : null, 5);
 }
 
