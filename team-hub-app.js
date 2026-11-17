@@ -1336,7 +1336,8 @@ function thOwnerOk() { return typeof apIsOwner === 'function' && apIsOwner(); }
 
 function thSubVisible(btn) {
   const roles = (btn.getAttribute('data-roles') || '').split(' ');
-  if (btn.getAttribute('data-group') === 'team' && !thOwnerOk()) return false;
+  const grp = btn.getAttribute('data-group');
+  if ((grp === 'team' || grp === 'reports') && !thOwnerOk()) return false;
   return thRole === 'owners' || roles.indexOf(thRole) !== -1;
 }
 
@@ -1361,6 +1362,7 @@ function showTab(name) {
   }
   if (name === 'team' && typeof tfRenderDirectory === 'function') tfRenderDirectory();
   if (name === 'reviews' && typeof renderList === 'function') renderList();
+  if ((name === 'wr' || name === 'rc' || name === 'ob') && typeof window.trRender === 'function') window.trRender(name);
 }
 
 function showGroup(group) {

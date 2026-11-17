@@ -62,6 +62,8 @@
       { tool: "pl-calculator", label: "P&L Calculator" },
     ] },
     { key: "context", label: "Business Context", icon: "ctx", tool: "context" },
+    // Everyone: weekly report to leadership, monthly report cards, exit survey (my-reports.html)
+    { key: "me", label: "My Weekly Report", icon: "me", tool: "my-reports" },
     { key: "users", label: "Users & Settings", icon: "users", tool: "users" },
   ];
   const EXT = {
@@ -74,6 +76,7 @@
     ops: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
     fin: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     ctx: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/>',
+    me: '<path d="M8 3h8l3 3v15H5V3zM9 9h6M9 13h6M9 17h3"/>',
     users: '<path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1M16 3.5a4 4 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.6"/>',
     chev: '<path d="m9 6 6 6-6 6"/>',
     collapse: '<path d="m15 6-6 6 6 6"/>',

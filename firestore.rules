@@ -337,6 +337,39 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
+    // Team Reports (Team Hub > Team Reports; my-reports.html). Team members write and read only their own.
+    // Weekly report: one per person per week, id {week}_{email}. Owners read all and can mark followed up.
+    match /team_reports/{id} {
+      allow read: if isOwner() || (signedIn() && resource.data.email == email());
+      allow create: if signedIn() && request.resource.data.email == email() && id == request.resource.data.week + '_' + email();
+      allow update: if isOwner() || (signedIn() && resource.data.email == email() && request.resource.data.email == email()
+                      && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['followedUp', 'followedUpBy']));
+      allow delete: if isOwner();
+    }
+    // Monthly report card: owners write; the person reads it once published and can only acknowledge / reply.
+    match /report_cards/{id} {
+      allow read: if isOwner() || (signedIn() && resource.data.email == email() && resource.data.status == 'published');
+      allow create, delete: if isOwner();
+      allow update: if isOwner() || (signedIn() && resource.data.email == email() && resource.data.status == 'published'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ackAt', 'ackReply']));
+    }
+    // Leaders' evidence behind each card: owners only.
+    match /report_cards_private/{id} {
+      allow read, write: if isOwner();
+    }
+    // Exit survey, id = the person's email. Owners send / read / withdraw; the person fills it in until submitted.
+    match /exit_surveys/{userEmail} {
+      allow read: if isOwner() || (signedIn() && userEmail == email());
+      allow create, delete: if isOwner();
+      allow update: if isOwner() || (signedIn() && userEmail == email() && resource.data.status == 'sent'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'updatedAt'])
+                      && request.resource.data.status in ['sent', 'submitted']);
+    }
+    // Offboarding checklists: owners only.
+    match /offboarding/{id} {
+      allow read, write: if isOwner();
+    }
+
     // Everything else is denied by default.
   }
 }
