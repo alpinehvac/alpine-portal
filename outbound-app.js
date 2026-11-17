@@ -1396,7 +1396,7 @@ document.addEventListener('change', e => {
 });
 
 
-// ── Daily-queue picker (called by the 6:15 am run, DAILY-QUEUE.md) ──
+// ── Daily-queue picker (called by the 7:04 am run, DAILY-QUEUE.md) ──
 // window.obPickQueue({ rep, date, anchors: ['55 King St', …] }) returns { items, meta } and saves nothing.
 // anchors = today's BuildOps visit properties (ops_dashboard/latest); door knocks are the closest open targets to them.
 // Prospects never repeat: anyone already queued (either rep) or touched is skipped. Jake gets A tier first, Natalie B first.
