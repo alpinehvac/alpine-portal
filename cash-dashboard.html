@@ -419,8 +419,10 @@ let DATA = null;
 
 const CREW_KEY="ap_cash_crew", CREW_DEFAULT={techs:6,hoursPerWeek:40};
 function loadCrew(){try{const v=JSON.parse(localStorage.getItem(CREW_KEY));if(v&&v.techs>0&&v.hoursPerWeek>0)return v;}catch(e){}return {...CREW_DEFAULT};}
-function saveCrew(c){try{localStorage.setItem(CREW_KEY,JSON.stringify(c));return true;}catch(e){return false;}}
+// The crew setting is saved to the database (cash_dashboard/crew) so it follows the login; this browser keeps a copy.
+function saveCrew(c){try{localStorage.setItem(CREW_KEY,JSON.stringify(c));}catch(e){} if(window.apCrewCloudSave){window.apCrewCloudSave(c);} return true;}
 let crew=loadCrew();
+window.apSetCrew=c=>{if(c&&c.techs>0&&c.hoursPerWeek>0){crew={techs:+c.techs,hoursPerWeek:+c.hoursPerWeek};try{localStorage.setItem(CREW_KEY,JSON.stringify(crew));}catch(e){}}};
 
 const fmt=n=>(n<0?"−$":"$")+Math.abs(Math.round(n)).toLocaleString("en-CA");
 const fmtK=n=>Math.round(n)===0?"$0":(n<0?"−$":"$")+(Math.abs(n)/1000).toFixed(Math.abs(n)>=100000?0:1)+"K";
@@ -1056,6 +1058,13 @@ const user = await currentUser();
 if (!user) { sessionStorage.clear(); window.location.href = "index.html"; }
 else {
   document.getElementById("update-section").style.display = "";
+  window.apCrewCloudSave = c => setDoc(doc(db, "cash_dashboard", "crew"), { techs: c.techs, hoursPerWeek: c.hoursPerWeek, updatedAt: serverTimestamp(), updatedBy: user.email })
+    .catch(e => { const s = document.getElementById("crew-saved"); if (s) { s.textContent = "Not saved to the cloud (" + e.code + ")"; s.classList.add("show"); } });
+  try {
+    const cs = await getDoc(doc(db, "cash_dashboard", "crew"));
+    if (cs.exists()) window.apSetCrew(cs.data());
+    else if (localStorage.getItem("ap_cash_crew")) window.apCrewCloudSave(JSON.parse(localStorage.getItem("ap_cash_crew")));   // first time: send this browser's setting up
+  } catch (e) { /* falls back to this browser's copy */ }
   try {
     const snap = await getDoc(doc(db, "cash_dashboard", "latest"));
     if (snap.exists()) { const s=snap.data(); window.__apSaved={ at: s.updatedAt && s.updatedAt.toDate ? s.updatedAt.toDate().toISOString() : null, by: s.updatedBy||"" }; window.apCashStart(JSON.parse(s.json)); }
@@ -1075,4 +1084,4 @@ else {
   });
 }
 </script>
-</body></html>
+</body></html>

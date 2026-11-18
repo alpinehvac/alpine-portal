@@ -317,6 +317,11 @@ service cloud.firestore {
       allow read, write: if isSales() || isAdmin();
     }
 
+    // P&L + Compensation Calculator (autosave + saved presets, via cloud-sync.js): super admins only
+    match /pl_calculator_data/{doc=**} {
+      allow read, write: if isAdmin();
+    }
+
     // Sales Strategy: sales + super admins
     match /sales_strategy_data/{doc=**} {
       allow read, write: if isSales() || isAdmin();
