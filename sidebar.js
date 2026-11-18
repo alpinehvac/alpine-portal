@@ -46,7 +46,7 @@
       { tool: "tech", label: "Schedule", href: "tech.html#schedule", match: [], show: () => can("tech") && !can("crew-board") },
       { tool: "tech", label: "My Visits", href: "tech.html#visits", match: [], show: () => can("tech") && !can("crew-board") },
       { tool: "quotes", label: "Quotes" },
-      { tool: "forms", label: "Checklists" },
+      { tool: "forms", label: "Checklists", match: ["forms.html"] },   // filled-in checklists; the form library is under Users & Settings
       { tool: "invoicing", label: "Invoicing" },
       { tool: "items", label: "Item List" },
       { tool: "po-numbers", label: "PO Numbers" },
@@ -66,7 +66,10 @@
     { key: "context", label: "Business Context", icon: "ctx", tool: "context" },
     // Everyone: weekly report to leadership, monthly report cards, exit survey (my-reports.html)
     { key: "me", label: "My Weekly Report", icon: "me", tool: "my-reports" },
-    { key: "users", label: "Users & Settings", icon: "users", tool: "users" },
+    { key: "users", label: "Users & Settings", icon: "users", items: [
+      { tool: "users", label: "Users & Permissions", match: ["users.html"] },
+      { tool: "forms", label: "Checklist forms", href: "checklist-forms.html", match: ["checklist-forms.html"] },
+    ] },
   ];
   const EXT = {
     "lead-sheets": "https://netorg13787440-my.sharepoint.com/:x:/g/personal/natalie_townsend_alpinehvac_ca/IQDFyXX0JO36RaKmRK5rUj8TATpMgjfqE_WIuufYkn7YIIw?e=cX7qOq",

@@ -17,7 +17,10 @@ const $ = id => document.getElementById(id);
 const esc = CF.esc;
 const SESSION = (typeof apGetSession === "function" && apGetSession()) || {};
 const ME = SESSION.email || "";
-let TAB = "forms", Q = "", INDEX = [], ENTRIES = [], LOADED = false;
+// Two pages share this code: checklist-forms.html (Users & Settings: the form library, import, editor later)
+// and forms.html (Operations: every checklist techs have filled in, and customer links).
+const LIBRARY = window.FORMS_MODE === "library";
+let TAB = LIBRARY ? "forms" : "filled", Q = "", INDEX = [], ENTRIES = [], LOADED = false;
 
 function toast(t, bad) { const el = $("toast"); el.textContent = t; el.className = "toast" + (bad ? " bad" : ""); el.style.display = "block"; clearTimeout(toast._t); toast._t = setTimeout(() => el.style.display = "none", bad ? 7000 : 3000); }
 const when = iso => iso ? new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "";
@@ -38,14 +41,16 @@ function render() {
     body = !ENTRIES.length ? `<div class="panel empty">No checklists filled in yet. Techs add them on a visit in the tech app.</div>`
       : `<table class="list"><thead><tr><th>Checklist</th><th>Customer / job</th><th>Tech</th><th>Status</th><th>Customer link</th></tr></thead><tbody>${list.map(e => `<tr class="row" data-e="${esc(e.id)}"><td><b>${esc(e.formName)}</b><small>${esc(e.formSite || "")}</small></td><td>${esc(e.customer || "")}<small>${esc([e.jobNo, e.visitDate].filter(Boolean).join(" · "))}</small></td><td>${esc(e.techName || e.tech)}<small>started ${esc(when(e.startedAt))}</small></td><td><span class="tag ${e.status === "done" ? "done" : "open"}">${e.status === "done" ? "Done" : "In progress"}</span><small>${e.total ? `${e.filled || 0} of ${e.total}` : ""}</small></td><td>${e.shareToken ? "Sent" : "<small>—</small>"}</td></tr>`).join("")}</tbody></table>${list.length ? "" : `<div class="empty">Nothing matches.</div>`}`;
   }
-  $("app").innerHTML = `<div class="top"><div><h1>Checklists</h1><p class="sub">Mike's site forms from BuildOps, copied as they are. Techs add them to a visit in the tech app, fill them in on site, and send the customer a private link to a copy they can save as a PDF.</p></div>
-      <div><button class="btn" id="imp">Import from BuildOps</button></div></div>
-    <div class="tabs"><button data-tab="forms" class="${TAB === "forms" ? "on" : ""}">Forms <small>${INDEX.length}</small></button><button data-tab="filled" class="${TAB === "filled" ? "on" : ""}">Filled in <small>${ENTRIES.length}</small></button></div>
+  $("app").innerHTML = (LIBRARY
+      ? `<div class="top"><div><h1>Checklist forms</h1><p class="sub">The ${INDEX.length} checklist forms techs can add to a visit, copied from BuildOps as they are. Click one to preview it.</p></div>
+      <div><button class="btn" id="imp">Import from BuildOps</button></div></div>`
+      : `<div class="top"><div><h1>Checklists</h1><p class="sub">Every checklist a tech has filled in on a visit (${ENTRIES.length}). Open one to see it, or send the customer a private link to a copy they can save as a PDF.</p></div>
+      <div><a class="btn ghost" href="checklist-forms.html">Checklist forms</a></div></div>`) + `
     <div class="bar"><input id="q" placeholder="${TAB === "forms" ? "Search forms: unit, building, type (AHU 2, boiler, 21 King)" : "Search: form, customer, job, tech"}" value="${esc(Q)}"></div>
     <div class="panel" style="padding:.4rem .6rem">${LOADED ? body : '<div class="empty">Loading…</div>'}</div>`;
   document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; render(); });
   const q = $("q"); q.oninput = () => { Q = q.value; const pos = q.selectionStart; render(); const n = $("q"); n.focus(); n.setSelectionRange(pos, pos); };
-  $("imp").onclick = () => { const f = $("imp-file"); f.value = ""; f.click(); };
+  if ($("imp")) $("imp").onclick = () => { const f = $("imp-file"); f.value = ""; f.click(); };
   document.querySelectorAll("[data-f]").forEach(r => r.onclick = () => previewForm(r.dataset.f));
   document.querySelectorAll("[data-e]").forEach(r => r.onclick = () => openEntry(r.dataset.e));
 }
