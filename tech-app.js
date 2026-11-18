@@ -19,7 +19,7 @@
 import {
   collection, doc, query, where, onSnapshot, setDoc, addDoc, deleteDoc, updateDoc, serverTimestamp, getDocs, getDoc
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
-import * as CF from "./forms-lib.js?v=1";
+import * as CF from "./forms-lib.js?v=2";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

@@ -11,7 +11,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, limit, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import { db, currentUser } from "./ap-firebase.js";
-import * as CF from "./forms-lib.js?v=1";
+import * as CF from "./forms-lib.js?v=2";
 
 const $ = id => document.getElementById(id);
 const esc = CF.esc;

@@ -4,7 +4,9 @@
 //
 // Data (Firestore, see firestore.rules):
 //   forms/{id}         a checklist: { name, site, entity, source: "buildops", boId, boUpdated, rows, images, active,
-//                      importedAt, importedBy }. rows = [[item, item], [item]] (items side by side share a row).
+//                      importedAt, importedBy }. rows = [{ i: [item, item] }, { i: [item] }] (items side by side share
+//                      a row). The database can't store a list inside a list, hence the { i: [...] }; rowsOf() reads
+//                      either shape.
 //                      item = { k (answer key), t, label?, html?, req?, lines?, img? }
 //                      t: "h" section header · "text" text block · "img" picture · "check" tick box ·
 //                         "short" one-line answer · "long" multi-line answer · "date" date ·
@@ -42,6 +44,9 @@ export function cleanHtml(html) {
   return d.innerHTML.trim();
 }
 export const htmlText = html => { const d = document.createElement("div"); d.innerHTML = String(html || ""); return d.textContent.replace(/\s+/g, " ").trim(); };
+
+// The rows of a form as lists of items, whichever shape they were saved in.
+export const rowsOf = form => (form && form.rows || []).map(r => Array.isArray(r) ? r : (r && r.i) || []).filter(r => r.length);
 
 // BuildOps form definition (formDefinitionJson) → Basecamp rows.
 export function convertBuildOps(rec) {
@@ -81,14 +86,15 @@ export function convertBuildOps(rec) {
   return {
     name: rec.name || "Untitled form", site: rec.description || "", entity: rec.entity || "Job",
     source: "buildops", boId: rec.id, boUpdated: rec.updated || null, createdBy: rec.createdBy || "",
-    rows: rows.filter(r => r.some(i => i.t !== "text" || htmlText(i.html) || i.t === "img")),
+    rows: rows.filter(r => r.some(i => i.t !== "text" || htmlText(i.html) || i.t === "img")).map(r => ({ i: r })),
     images: rec.images || {}, active: true
   };
+  // (no undefined values: the database refuses them)
 }
 
 // Keys that hold answers, and how many are filled / ticked.
 const ANSWER_TYPES = new Set(["check", "short", "long", "date", "select", "multi", "sign"]);
-export const answerItems = form => (form.rows || []).flat().filter(i => ANSWER_TYPES.has(i.t));
+export const answerItems = form => rowsOf(form).flat().filter(i => ANSWER_TYPES.has(i.t));
 const isFilled = (i, v) => i.t === "check" ? v === true : i.t === "multi" ? Array.isArray(v) && v.length > 0 : String(v ?? "").trim() !== "";
 export function progress(form, answers) {
   const items = answerItems(form), a = answers || {};
@@ -128,7 +134,7 @@ export function fillHtml(form, answers, locked) {
       default: return `<label class="cf-field">${lab ? `<span>${esc(lab)}${req}</span>` : ""}<input class="inp" data-k="${esc(i.k)}" value="${esc(a[i.k] || "")}"${dis}${lab ? "" : ' placeholder="Answer"'}></label>`;
     }
   };
-  return (form.rows || []).map(r => r.length > 1 ? `<div class="cf-row">${r.map(i => `<div>${cell(i)}</div>`).join("")}</div>` : cell(r[0])).join("");
+  return rowsOf(form).map(r => r.length > 1 ? `<div class="cf-row">${r.map(i => `<div>${cell(i)}</div>`).join("")}</div>` : cell(r[0])).join("");
 }
 export function readAnswers(root) {
   const a = {};
@@ -170,7 +176,7 @@ export function reportHtml(form, answers, opts = {}) {
       default: { const v = String(a[i.k] ?? "").trim(); return `<div class="cr-ans${i.t === "long" ? " long" : ""}">${lab ? `<span>${esc(lab)}</span>` : ""}<b>${esc(v || blank)}</b></div>`; }
     }
   };
-  return (form.rows || []).map(r => r.length > 1 ? `<div class="cr-row">${r.map(i => `<div>${cell(i)}</div>`).join("")}</div>` : cell(r[0])).join("");
+  return rowsOf(form).map(r => r.length > 1 ? `<div class="cr-row">${r.map(i => `<div>${cell(i)}</div>`).join("")}</div>` : cell(r[0])).join("");
 }
 
 // Which forms belong to a visit's site: BuildOps keeps the building in the form description ("21 King", "Wainfleet").
