@@ -598,10 +598,10 @@ document.addEventListener("click",e=>{const b=e.target.closest("#mix-basis .phas
 function render(){
   const A=DATA.accounts, burn=DATA.burn, floor=4*burn, target=8*burn;
   const opCash=A.operating.reduce((s,a)=>s+a[1],0);
-  const locAvail=A.locLimit-A.loc;
+  const locAvail=A.locLimit-A.loc, locFull=A.locLimit;
   let bal=opCash;
   const weeks=DATA.weeks.map((w,i)=>{const cin=sum(w.in),cout=sum(w.out),open=bal;bal=open+cin-cout;
-    return {...w,i,open,cin,cout,close:bal,belowFloor:bal<floor,belowTarget:bal<target,beyondLoc:bal<-locAvail};});
+    return {...w,i,open,cin,cout,close:bal,belowFloor:bal<floor,belowTarget:bal<target,beyondLoc:bal<-locFull};});
   const low=weeks.reduce((a,b)=>b.close<a.close?b:a);
   const neg=weeks.filter(w=>w.close<0), beyond=weeks.filter(w=>w.beyondLoc);
 
@@ -615,11 +615,11 @@ function render(){
   const v=document.getElementById("verdict");
   let line,sub;
   if(beyond.length){v.className="verdict alert";
-    line=`Forecast needs ${fmt(-low.close-locAvail)} more than the credit line in the week of ${dShort(low.start)}.`;
-    sub=`Operating cash goes negative the week of ${dShort(neg[0].start)} and bottoms at ${fmt(low.close)}. The line has ${fmt(locAvail)} available. Supplier bills due in the next 3 weeks: ${fmt(DATA.ap.byWeek.slice(0,3).reduce((a,b)=>a+b,0))}. ${DATA.squeezeNote||''}`;}
+    line=`Forecast needs ${fmt(-low.close-locFull)} more than the full ${fmtK(locFull)} credit line in the week of ${dShort(low.start)}.`;
+    sub=`Operating cash goes negative the week of ${dShort(neg[0].start)} and bottoms at ${fmt(low.close)}. The line has ${fmt(locAvail)} still available (${fmt(A.loc)} already drawn). Supplier bills due in the next 3 weeks: ${fmt(DATA.ap.byWeek.slice(0,3).reduce((a,b)=>a+b,0))}. ${DATA.squeezeNote||''}`;}
   else if(neg.length){v.className="verdict alert";
-    line=`Operating cash goes negative in ${neg.length} of 13 weeks; the credit line covers it.`;
-    sub=`Low ${fmt(low.close)} in the week of ${dShort(low.start)}, within the ${fmt(locAvail)} available.`;}
+    line=`Cash net of the credit line goes negative in ${neg.length} of 13 weeks: the business is running on borrowed money, within the ${fmtK(locFull)} line.`;
+    sub=`Low ${fmt(low.close)} in the week of ${dShort(low.start)}, within the ${fmt(locFull)} line (${fmt(A.loc)} drawn today).`;}
   else if(weeks.some(w=>w.belowFloor)){v.className="verdict warn";line="Cash stays positive but drops below the 4-week floor.";sub=`Low ${fmt(low.close)} week of ${dShort(low.start)}.`;}
   else {v.className="verdict";line="Cash stays above the floor for all 13 weeks.";sub=`Low ${fmt(low.close)} week of ${dShort(low.start)}.`;}
   document.getElementById("verdict-line").textContent=line;
@@ -627,7 +627,7 @@ function render(){
 
   const R=DATA.ar, burnWks=opCash/burn, ap3=DATA.ap.byWeek.slice(0,3).reduce((a,b)=>a+b,0);
   const metrics=[
-    ["Operating cash",fmtK(opCash),`+ ${fmtK(locAvail)} credit line available`],
+    ["Operating cash",fmtK(opCash),`Net of the line of credit · bank ${fmtK(A.bank)} − ${fmtK(A.loc)} drawn · ${fmtK(locAvail)} of ${fmtK(locFull)} still available`],
     ["Weeks of core burn covered",burnWks.toFixed(1)+" wks",`<span class="${burnWks<4?"down":burnWks<8?"watch":"up"}">Floor 4, target 8</span>`],
     ["Supplier bills due next 3 weeks",fmtK(ap3),`${fmtK(DATA.ap.total)} total payables`],
     ["Receivables",fmtK(R.total),`${fmtK(R.postdated)} dated Oct 1`],
@@ -636,17 +636,17 @@ function render(){
   ];
   document.getElementById("metrics").innerHTML=metrics.map(m=>`<div class="metric"><div class="m-label">${m[0]}</div><div class="m-value">${m[1]}</div><div class="m-sub">${m[2]}</div><div class="m-trend"><span class="flat">Trend starts next week</span></div></div>`).join("");
 
-  document.getElementById("chart-note").textContent=`Closing operating cash each week from committed money only (solid line); the dashed line adds expected service/T&M work net of parts. Floor ${fmt(floor)} (4 weeks of core burn), target ${fmt(target)} (8 weeks). Core burn ${fmt(burn)}/week (actual Jul–Sep costs). Below $0 is drawn on the credit line; the purple line is where the ${fmt(locAvail)} available runs out. Hover or tap a week.`;
+  document.getElementById("chart-note").textContent=`Closing operating cash each week, net of the line of credit, from committed money only (solid line); the dashed line adds expected service/T&M work net of parts. Floor ${fmt(floor)} (4 weeks of core burn), target ${fmt(target)} (8 weeks), both measured on cash net of the line. Core burn ${fmt(burn)}/week (actual Jul–Sep costs). Below $0 the business is running on borrowed money; the purple line is the full ${fmt(locFull)} line used (${fmt(A.loc)} drawn today). Hover or tap a week.`;
   const fNote=document.getElementById("chart-note").textContent;
-  const cNote="Left of TODAY: actual closing operating cash each week (QuickBooks book balance). Right of TODAY: forecast from committed money only (solid) and with expected service work (dashed). White dots are the actual cash logged by each daily refresh, so you can see how the forecast is tracking. "+fNote.replace(/^Closing operating cash each week from committed money only \(solid line\); the dashed line adds expected service\/T&M work net of parts\. /,"");
+  const cNote="Left of TODAY: actual closing operating cash each week (QuickBooks book balance, net of the line of credit). Right of TODAY: forecast from committed money only (solid) and with expected service work (dashed). White dots are the actual cash logged by each daily refresh, so you can see how the forecast is tracking. "+fNote.replace(/^Closing operating cash each week from committed money only \(solid line\); the dashed line adds expected service\/T&M work net of parts\. /,"");
   document.getElementById("chart-note").textContent=cNote;
-  drawCombined(weeks,floor,target,-locAvail);
+  drawCombined(weeks,floor,target,-locFull);
   document.querySelectorAll("#view-toggle .phase").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#view-toggle .phase").forEach(x=>x.classList.remove("on","p0")); b.classList.add("on","p0");
     const v=b.dataset.v, legend=document.querySelector(".chart-box .legend");
-    if(v==="c"){document.getElementById("chart-title").textContent="Last 13 weeks and next 13 weeks";document.getElementById("chart-note").textContent=cNote;legend.style.display="";document.getElementById("lg-past").style.display="";drawCombined(weeks,floor,target,-locAvail);}
-    else if(v==="f"){document.getElementById("chart-title").textContent="Next 13 weeks";document.getElementById("chart-note").textContent=fNote;legend.style.display="";document.getElementById("lg-past").style.display="none";drawChart(weeks,floor,target,-locAvail);}
-    else{const n=+v;document.getElementById("chart-title").textContent=n===52?"Last 12 months":n===26?"Last 6 months":"Last 3 months";legend.style.display="none";drawHistory(n,floor,-locAvail);}
+    if(v==="c"){document.getElementById("chart-title").textContent="Last 13 weeks and next 13 weeks";document.getElementById("chart-note").textContent=cNote;legend.style.display="";document.getElementById("lg-past").style.display="";drawCombined(weeks,floor,target,-locFull);}
+    else if(v==="f"){document.getElementById("chart-title").textContent="Next 13 weeks";document.getElementById("chart-note").textContent=fNote;legend.style.display="";document.getElementById("lg-past").style.display="none";drawChart(weeks,floor,target,-locFull);}
+    else{const n=+v;document.getElementById("chart-title").textContent=n===52?"Last 12 months":n===26?"Last 6 months":"Last 3 months";legend.style.display="none";drawHistory(n,floor,-locFull);}
   });
 
   if(DATA.levers&&DATA.levers.items&&DATA.levers.items.length){
@@ -656,7 +656,7 @@ function render(){
   // Accounts
   const earm=A.earmarked;
   let h=`<table class="acct"><tbody>`;
-  h+=`<tr><td colspan="2"><h5>Operating</h5></td></tr>`+A.operating.map(a=>`<tr><td>${a[0]}</td><td>${fmt(a[1])}</td></tr>`).join("")+`<tr class="total"><td>Operating cash</td><td>${fmt(opCash)}</td></tr>`;
+  h+=`<tr><td colspan="2"><h5>Operating</h5></td></tr>`+A.operating.filter(a=>!isLocRow(a)).map(a=>`<tr><td>${a[0]}</td><td>${fmt(a[1])}</td></tr>`).join("")+`<tr class="sub"><td>Bank balance</td><td>${fmt(A.bank)}</td></tr>`+A.operating.filter(isLocRow).map(a=>`<tr><td>${a[0]}</td><td class="down">${fmt(a[1])}</td></tr>`).join("")+`<tr class="total"><td>Operating cash (net of the line)</td><td>${fmt(opCash)}</td></tr>`;
   h+=`<tr><td colspan="2"><h5>Earmarked for taxes</h5></td></tr>`+earm.map(a=>{const gap=a[1]-a[3];return `<tr><td>${a[0]}</td><td>${fmt(a[1])}</td></tr><tr class="sub"><td>${a[2]}: ${fmt(a[3])}</td><td class="${gap<0?"down":"up"}">${gap<0?"short "+fmt(-gap):"covered"}</td></tr>`;}).join("");
   h+=`<tr><td colspan="2"><h5>Credit</h5></td></tr><tr><td>Operating line (${fmt(A.loc)} drawn)</td><td>${fmt(A.locLimit-A.loc)} available</td></tr><tr><td>Credit cards (${fmt(A.cards)} owing)</td><td>${fmt(A.cardLimit-A.cards)} available</td></tr>`;
   h+=`</tbody></table>`;
@@ -722,7 +722,7 @@ function render(){
   const lm=l=>l[3].includes("2 weeks")?l[2]*26/12:l[2];
   document.getElementById("loans").innerHTML=DATA.loans.map(l=>kv(`${esc(l[0])}<br><span style="color:var(--light-grey);font-size:.8rem">${fmt(l[2])} ${l[3]} · balance ${fmt(l[4])}</span>`,fmt(lm(l))+"/mo")).join("")+kv("<b>Total</b>","<b>"+fmt(DATA.loans.reduce((s,l)=>s+lm(l),0))+"/mo</b>");
   const sc=DATA.scen||[], wk=DATA.weeks.map(w=>dShort(w.start)); if(DATA.scenNote) document.getElementById("scen-note").textContent=DATA.scenNote;
-  document.getElementById("scen").innerHTML=`<thead><tr><th>Scenario</th><th>Low</th>${wk.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>`+sc.map(s=>`<tr><td>${esc(s[0])}</td><td class="${Math.min(...s[1])<-140?"down":Math.min(...s[1])<0?"watch":"up"}"><b>${Math.min(...s[1])}</b></td>${s[1].map(v=>`<td class="${v<-140?"down":v<0?"watch":""}">${v}</td>`).join("")}</tr>`).join("")+`</tbody>`;
+  document.getElementById("scen").innerHTML=`<thead><tr><th>Scenario</th><th>Low</th>${wk.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>`+sc.map(s=>`<tr><td>${esc(s[0])}</td><td class="${Math.min(...s[1])<-(DATA.accounts.locLimit||150000)/1000?"down":Math.min(...s[1])<0?"watch":"up"}"><b>${Math.min(...s[1])}</b></td>${s[1].map(v=>`<td class="${v<-(DATA.accounts.locLimit||150000)/1000?"down":v<0?"watch":""}">${v}</td>`).join("")}</tr>`).join("")+`</tbody>`;
   const TG=DATA.targets;
   document.getElementById("targets").innerHTML=`<thead><tr><th>Sector</th><th>Last 13 wks (avg/wk)</th><th>Margin kept per $1</th><th>Break-even</th><th>Cash break-even</th><th>10% profit</th><th>15% profit</th></tr></thead><tbody>`+
     TG.rows.map(r=>`<tr><td>${r[0]}</td><td>${fmt(r[1])}</td><td>${Math.round(r[2]*100)}¢</td><td>${fmt(r[3])}</td><td>${fmt(r[4])}</td><td>${fmt(r[5])}</td><td>${fmt(r[6])}</td></tr>`).join("")+
@@ -773,7 +773,7 @@ function render(){
 function renderReserve(){
   const T={...FY_TARGETS,...(DATA.fyTargets||{})}, A=DATA.accounts, P=DATA.profit;
   if(!T.reserveCoreBurn||!A||!P||!P.wip) return;
-  const total=l=>l.reduce((s,x)=>s+x,0), cash=total(A.operating.map(a=>a[1])), loc=A.loc||0, ar=DATA.ar.total, ap=DATA.ap.total, cards=A.cards||0;
+  const total=l=>l.reduce((s,x)=>s+x,0), cash=A.bank!=null?A.bank:total(A.operating.map(a=>a[1])), loc=A.loc||0, ar=DATA.ar.total, ap=DATA.ap.total, cards=A.cards||0;
   const owed=total((A.earmarked||[]).map(r=>Math.max(0,(r[3]||0)-r[1])));
   const enb=total(P.wip.map(j=>Math.max(0,j.underBilled))), ahead=total(P.wip.map(j=>Math.max(0,-j.underBilled)));
   const liquid=cash-loc+ar-ap-cards-owed, net=liquid+enb-ahead, wk=T.reserveCoreBurn, target=Math.max(T.reserveGoal||0,wk*T.reserveWeeks), wks=v=>(v/wk).toFixed(1);
@@ -928,7 +928,7 @@ function drawCombined(weeks,floor,target,locLine){
   g+=`<rect x="${L}" y="${y1(0)}" width="${W-L-R}" height="${y1(locLine)-y1(0)}" fill="rgba(224,112,94,0.10)"/>`;
   g+=`<rect x="${L}" y="${y1(locLine)}" width="${W-L-R}" height="${top1+h1-y1(locLine)}" fill="rgba(176,106,217,0.12)"/>`;
   g+=`<line x1="${L}" x2="${W-R}" y1="${y1(0)}" y2="${y1(0)}" stroke="rgba(16,68,78,0.455)"/>`;
-  [[target,"#A9821F","Target "+fmtK(target)],[floor,"#B83227","Floor "+fmtK(floor)],[locLine,"#B06AD9","Credit line used up "+fmtK(locLine)]].forEach(([v,c,t])=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y1(v)}" y2="${y1(v)}" stroke="${c}" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(v)-7}" fill="${c}" font-size="12" text-anchor="end" font-family="Inter">${t}</text>`;});
+  [[target,"#A9821F","Target "+fmtK(target)],[floor,"#B83227","Floor "+fmtK(floor)],[locLine,"#B06AD9","Full credit line used "+fmtK(locLine)]].forEach(([v,c,t])=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y1(v)}" y2="${y1(v)}" stroke="${c}" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(v)-7}" fill="${c}" font-size="12" text-anchor="end" font-family="Inter">${t}</text>`;});
   // Today divider + period labels
   g+=`<line x1="${base}" x2="${base}" y1="${top1-6}" y2="${top2+h2}" stroke="#10444E" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${base}" y="${top1-10}" fill="#10444E" font-size="12" text-anchor="middle" font-family="Oswald" font-weight="500">TODAY</text>`;
   if(P) g+=`<text x="${L+8}" y="${top1+14}" fill="#5A7A80" font-size="11" font-family="Inter">Last ${P} weeks (actual)</text>`;
@@ -970,7 +970,7 @@ function drawChart(weeks,floor,target,locLine){
   g+=`<rect x="${L}" y="${y1(0)}" width="${W-L-R}" height="${y1(locLine)-y1(0)}" fill="rgba(224,112,94,0.10)"/>`;
   g+=`<rect x="${L}" y="${y1(locLine)}" width="${W-L-R}" height="${top1+h1-y1(locLine)}" fill="rgba(176,106,217,0.12)"/>`;
   g+=`<line x1="${L}" x2="${W-R}" y1="${y1(0)}" y2="${y1(0)}" stroke="rgba(16,68,78,0.455)"/>`;
-  [[target,"#A9821F","Target "+fmtK(target)],[floor,"#B83227","Floor "+fmtK(floor)],[locLine,"#B06AD9","Credit line used up "+fmtK(locLine)]].forEach(([v,c,t])=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y1(v)}" y2="${y1(v)}" stroke="${c}" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(v)-7}" fill="${c}" font-size="12" text-anchor="end" font-family="Inter">${t}</text>`;});
+  [[target,"#A9821F","Target "+fmtK(target)],[floor,"#B83227","Floor "+fmtK(floor)],[locLine,"#B06AD9","Full credit line used "+fmtK(locLine)]].forEach(([v,c,t])=>{g+=`<line x1="${L}" x2="${W-R}" y1="${y1(v)}" y2="${y1(v)}" stroke="${c}" stroke-width="2" stroke-dasharray="6 5"/><text x="${W-R}" y="${y1(v)-7}" fill="${c}" font-size="12" text-anchor="end" font-family="Inter">${t}</text>`;});
   const pts=weeks.map(w=>[x(w.i),y1(w.close)]),all=[[L,y1(weeks[0].open)],...pts],path=all.map(p=>p.join(",")).join(" L");
   if(DATA.upside){const up=[[L,y1(weeks[0].open)],...DATA.upside.map((v,i)=>[x(i),y1(v)])];g+=`<path d="M${up.map(p=>p.join(",")).join(" L")}" fill="none" stroke="#27636C" stroke-width="2" stroke-dasharray="4 4"/>`;}
   g+=`<path d="M${path}" fill="none" stroke="#3D818A" stroke-width="3" stroke-linejoin="round"/>`;
@@ -985,7 +985,26 @@ function drawChart(weeks,floor,target,locLine){
   svg.innerHTML=g;
   svg.querySelectorAll(".hit").forEach(r=>{const w=weeks[+r.dataset.i];const show=e=>{tip.innerHTML=`<b>Week of ${dShort(w.start)}</b><br>In ${fmt(w.cin)}<br>Out ${fmt(w.cout)}<br>Closing ${fmt(w.close)}`+(w.driver?`<br><span style="color:#5A7A80">${esc(w.driver)}</span>`:"");tip.style.display="block";const px=e.touches?e.touches[0].clientX:e.clientX,py=e.touches?e.touches[0].clientY:e.clientY;tip.style.left=Math.min(px+14,window.innerWidth-260)+"px";tip.style.top=(py+14)+"px";};r.addEventListener("mousemove",show);r.addEventListener("touchstart",show,{passive:true});r.addEventListener("mouseleave",()=>tip.style.display="none");});
 }
-window.apCashStart = d => { DATA = d; render(); apTabs(); if (document.documentElement.classList.contains("ap-embed-fin")) apEmbedFin(); };
+// Operating cash is shown net of the operating line of credit (Jake, Nov 18 2026): money drawn on the line sits in
+// chequing but is borrowed, so it never counts toward cash, the floor or the target. Bank balances stay visible in
+// "Cash by account". $0 on the chart = own money used up; the purple line = the full line limit used.
+const isLocRow=a=>/line of credit/i.test(a[0]||"");
+function netOfLine(d){
+  const A=d.accounts; if(!A||A.netOfLine) return d;
+  const loc=+A.loc||0; A.bank=A.operating.filter(a=>!isLocRow(a)).reduce((s,a)=>s+a[1],0);
+  A.operating=A.operating.filter(a=>!isLocRow(a)).concat([["RBC operating line of credit (drawn)",-loc]]); A.netOfLine=true;
+  const H=d.history, hasHist=!!(H&&H.weeks&&Array.isArray(H.loc)&&H.loc.length===H.weeks.length);
+  const locAt=date=>{let v=null; if(hasHist) H.weeks.forEach((w,i)=>{if(w<=date&&H.loc[i]!=null)v=H.loc[i];}); return v==null?loc:v;};
+  if(H&&H.close){
+    if(hasHist){H.close=H.close.map((c,i)=>c-(H.loc[i]||0)); H.basis=(H.basis||"")+" Net of the line of credit drawn at each week's end.";}
+    else H.basis=(H.basis||"")+" Bank balance: line of credit history not saved yet, so past weeks are not net of the line.";
+  }
+  (d.actuals||[]).forEach(a=>{if(a&&isFinite(a.cash)&&a.netOfLine!==true){a.bank=a.cash;a.cash=a.cash-(a.loc!=null?a.loc:locAt(a.date));a.netOfLine=true;}});
+  if(Array.isArray(d.upside)) d.upside=d.upside.map(v=>v-loc);
+  if(Array.isArray(d.scen)) d.scen=d.scen.map(r=>Array.isArray(r)&&Array.isArray(r[1])?[r[0],r[1].map(v=>Math.round(v-loc/1000)),...r.slice(2)]:r);
+  return d;
+}
+window.apCashStart = d => { DATA = netOfLine(d); render(); apTabs(); if (document.documentElement.classList.contains("ap-embed-fin")) apEmbedFin(); };
 // Condensed view for the Financial and Home dashboards (?embed=fin). Same numbers as this page.
 function apEmbedFin(){
   const main=document.querySelector("main");
