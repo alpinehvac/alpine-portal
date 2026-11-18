@@ -969,8 +969,10 @@ async function openEntry(v, eid, fresh) {
       }, $("ce-saved"), "Customer copy ready");
       if (!ok) return;
       const url = shareUrl(token);
-      $("ce-share").innerHTML = `<div class="sharebox"><b>Customer copy</b><p>Anyone with this link can see this one checklist (read only) and save it as a PDF.</p><input class="inp" readonly value="${esc(url)}" id="ce-url">
+      $("ce-share").innerHTML = `<div class="sharebox" id="ce-box"><b>Customer copy</b><p>Anyone with this link can see this one checklist (read only) and save it as a PDF.</p><input class="inp" readonly value="${esc(url)}" id="ce-url">
         <div class="btnrow" style="margin-top:.5rem">${navigator.share ? '<button class="act" id="ce-send">Send…</button>' : ""}<button class="act" id="ce-copy">Copy link</button><a class="act" href="${esc(url)}" target="_blank" rel="noopener">Open / PDF</a></div></div>`;
+      // The box sits under the form, so on a long checklist bring it into view (the buttons stay pinned at the bottom).
+      $("ce-box").scrollIntoView({ behavior: "smooth", block: "center" });
       if ($("ce-send")) $("ce-send").onclick = () => navigator.share({ title: e.formName + " · Alpine HVAC", text: `${e.formName} checklist from Alpine HVAC${e.customer ? " for " + e.customer : ""}.`, url }).catch(() => {});
       $("ce-copy").onclick = async () => { try { await navigator.clipboard.writeText(url); toast("Link copied"); } catch (x) { $("ce-url").select(); toast("Press and hold the link to copy it."); } };
     };

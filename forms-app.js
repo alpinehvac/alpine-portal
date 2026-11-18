@@ -88,7 +88,18 @@ async function openEntry(id) {
     const link = e.shareToken ? `<div class="linkbox"><b>Customer link</b><input readonly value="${esc(shareUrl(e.shareToken))}" id="lk"><button class="btn sm" id="lk-copy">Copy</button><a class="btn ghost sm" target="_blank" rel="noopener" href="${esc(shareUrl(e.shareToken))}">Open / PDF</a><button class="btn danger sm" id="lk-off">Turn off link</button></div>`
       : `<div class="linkbox"><span style="flex:1">No customer link yet.</span><button class="btn sm" id="lk-make">Make customer link</button></div>`;
     openMod(e.formName, `<div class="meta"><div><span>Customer</span>${esc(e.customer || "")}</div><div><span>Site</span>${esc([e.site, e.formSite].filter(Boolean).join(" · "))}</div><div><span>Job</span>${esc(e.jobNo || "")}</div><div><span>Tech</span>${esc(e.techName || e.tech)}</div><div><span>Status</span>${e.status === "done" ? "Done " + esc(when(e.doneAt)) : "In progress"}</div><div><span>Filled in</span>${e.filled || 0} of ${e.total || 0}</div></div>${link}${CF.reportHtml(f, e.answers || {})}`,
-      e.visitId ? `<a class="btn ghost sm" href="tech.html#v=${encodeURIComponent(e.visitId)}">Open visit</a>` : "");
+      (e.status === "done" ? `<button class="btn ghost sm" id="reopen">Reopen for changes</button> ` : "") + (e.visitId ? `<a class="btn ghost sm" href="tech.html#v=${encodeURIComponent(e.visitId)}">Open visit</a>` : ""));
+    // A done checklist is locked for techs. Reopening puts it back to in progress so the tech can fix it and mark it done again.
+    if ($("reopen")) $("reopen").onclick = async () => {
+      if (!confirm(`Reopen this checklist so ${(e.techName || "the tech").split(" ")[0]} can change it? It goes back to In progress until it's marked done again.`)) return;
+      const at = new Date().toISOString();
+      try {
+        await updateDoc(doc(db, "form_entries", e.id), { status: "draft", doneAt: null, reopenedBy: ME, reopenedAt: at, updatedAt: serverTimestamp() });
+        Object.assign(e, { status: "draft", doneAt: null });
+        if (e.shareToken) await updateDoc(doc(db, "form_shares", e.shareToken), { status: "draft", doneAt: null, updatedAt: serverTimestamp() }).catch(x => console.warn("share", x));
+        draw(); toast("Reopened. The tech can change it now.");
+      } catch (x) { console.error(x); toast("Couldn't reopen it: " + (x.code || x.message), true); }
+    };
     if ($("lk-copy")) $("lk-copy").onclick = async () => { try { await navigator.clipboard.writeText($("lk").value); toast("Link copied"); } catch (x) { $("lk").select(); } };
     if ($("lk-make")) $("lk-make").onclick = async () => {
       const token = CF.newToken();
