@@ -127,7 +127,13 @@ ul.eq small{color:var(--muted)}
 .field>span{display:block;font-size:.8rem;color:var(--muted);margin-bottom:.25rem}
 .inp{width:100%;border:1px solid rgba(16,68,78,.25);border-radius:10px;padding:.7rem .75rem;background:#fff;font-size:16px}
 textarea.inp{min-height:140px;resize:vertical}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.6rem}
+.two>*{min-width:0}
+/* iOS Safari gives date inputs a built-in minimum width and its own look, so they spilled under the next box.
+   Same height and left-aligned text as the other inputs. */
+input.inp[type="date"]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;box-sizing:border-box;height:3rem;line-height:normal;text-align:left;display:block}
+input.inp[type="date"]::-webkit-date-and-time-value{text-align:left;margin:0}
+select.inp{height:3rem;box-sizing:border-box}
 .stepper{display:flex;align-items:center;gap:.4rem}
 .stepper button{width:48px;height:48px;border-radius:10px;border:1px solid var(--border);background:#fff;font-size:1.3rem;cursor:pointer}
 .stepper input{text-align:center;font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:500}
