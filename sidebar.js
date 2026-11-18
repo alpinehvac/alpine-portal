@@ -40,9 +40,11 @@
       { label: "Dashboard", href: D("operations"), show: () => can("ops-dashboard"), match: [D("operations")] },
       { tool: "ops-dashboard", label: "Field Operations", match: ["ops-dashboard.html", "job.html", "job-profit.html"] },
       { tool: "crew-board", label: "Crew Board" },
-      // The tech app (tech.html): opens on its Schedule; My Visits is the visit list.
-      { tool: "tech", label: "Schedule", href: "tech.html#schedule", match: [] },
-      { tool: "tech", label: "My Visits", href: "tech.html#visits", match: [] },
+      // The tech app (tech.html): techs get Schedule + My Visits. Office staff schedule on the Crew Board,
+      // so they get one "Tech App" link instead (to see what techs see).
+      { tool: "tech", label: "Schedule", href: "tech.html#schedule", match: [], show: () => can("tech") && !can("crew-board") },
+      { tool: "tech", label: "My Visits", href: "tech.html#visits", match: [], show: () => can("tech") && !can("crew-board") },
+      { tool: "tech", label: "Tech App", href: "tech.html#schedule", match: [], show: () => can("tech") && can("crew-board") },
       { tool: "quotes", label: "Quotes" },
       { tool: "forms", label: "Checklists" },
       { tool: "invoicing", label: "Invoicing" },
