@@ -51,6 +51,43 @@ const _origSetItem = Storage.prototype.setItem;
 const _origRemoveItem = Storage.prototype.removeItem;
 const _origGetItem = Storage.prototype.getItem;
 
+// ── Running out of browser storage (added Nov 18 2026) ──
+// Browsers give the whole site about 5 MB (Safari is strictest), shared by every page. Each page only needs
+// its own collections, so when space runs out we first drop other pages' copies that are safely in the cloud
+// (they come back next time that page opens). If a value still won't fit, it's kept in memory for this visit
+// and still saved to the cloud, so nothing is lost; only a page that lists keys by scanning storage won't see it.
+const _mem = {};
+const _myColls = () => new Set([COLLECTION, ...Object.values(ROUTES)]);
+const isQuota = e => e && (e.name === "QuotaExceededError" || e.code === 22 || e.code === 1014 || /quota/i.test(e.message || ""));
+let _freed = false;
+function freeSpace() {
+  if (_freed) return 0;
+  _freed = true;
+  const m = loadMeta(), mine = _myColls();
+  let n = 0;
+  for (const k of Object.keys(m)) {
+    const e = m[k];
+    if (!e || e.dirty || !e.c || mine.has(e.c)) continue;
+    if (_origGetItem.call(localStorage, k) !== null) { _origRemoveItem.call(localStorage, k); n++; }
+    delete m[k];
+  }
+  for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith("__ap_backup_")) { _origRemoveItem.call(localStorage, k); n++; } }
+  saveMeta(m);
+  console.info("Alpine cloud sync: storage was full, cleared " + n + " copies other pages keep in the cloud.");
+  return n;
+}
+function localGet(key) { return Object.prototype.hasOwnProperty.call(_mem, key) ? _mem[key] : _origGetItem.call(localStorage, key); }
+function localSet(key, value) {
+  try { _origSetItem.call(localStorage, key, value); delete _mem[key]; return; }
+  catch (e) { if (!isQuota(e)) throw e; }
+  freeSpace();
+  try { _origSetItem.call(localStorage, key, value); delete _mem[key]; return; }
+  catch (e) { if (!isQuota(e)) throw e; }
+  try { _origRemoveItem.call(localStorage, key); } catch (e) {}   // don't leave an older copy behind
+  _mem[key] = String(value);
+  console.warn("Alpine cloud sync: browser storage is full; keeping " + key + " in memory for this visit (it is still saved to the cloud).");
+}
+
 // ── Local sync bookkeeping (kept in this browser only, never synced) ──
 // meta[key] = { t: last change time (ms), dirty: true while not confirmed in the cloud,
 //              c: the collection it belongs to (pages route keys differently) }
@@ -88,7 +125,7 @@ async function pushKey(key) {
   const run = (async () => {
     const meta = loadMeta()[key];
     const t = meta ? meta.t : Date.now();
-    const value = _origGetItem.call(localStorage, key);
+    const value = localGet(key);
     const coll = (meta && meta.c) || collFor(key);
     try {
       if (value === null) {
@@ -119,9 +156,16 @@ async function retryDirty() {
 }
 
 // ── Write-through: every localStorage save also pushes to Firestore ──
+Storage.prototype.getItem = function (key) {
+  if (this === localStorage) return localGet(key);
+  return _origGetItem.call(this, key);
+};
+
 Storage.prototype.setItem = function (key, value) {
-  _origSetItem.call(this, key, value);
-  if (this === localStorage && !isInternal(key)) {
+  if (this !== localStorage) return _origSetItem.call(this, key, value);
+  if (isInternal(key)) { try { _origSetItem.call(this, key, value); } catch (e) { if (!isQuota(e)) throw e; freeSpace(); try { _origSetItem.call(this, key, value); } catch (e2) {} } return; }
+  localSet(key, value);
+  if (!isInternal(key)) {
     markDirty(key, Date.now());
     renderBanner();
     pushKey(key);
@@ -129,6 +173,7 @@ Storage.prototype.setItem = function (key, value) {
 };
 
 Storage.prototype.removeItem = function (key) {
+  if (this === localStorage) delete _mem[key];
   _origRemoveItem.call(this, key);
   if (this === localStorage && !isInternal(key)) {
     markDirty(key, Date.now());
@@ -171,14 +216,14 @@ async function apCloudHydrate() {
     // Someone else saved a newer copy while this change was unsynced: keep this
     // browser's version as a recoverable copy instead of silently discarding it.
     if (local && local.dirty) {
-      const mine = _origGetItem.call(localStorage, key);
+      const mine = localGet(key);
       if (mine !== null) {
         try { _origSetItem.call(localStorage, "__ap_backup_" + key, mine); } catch (e) {}
         setDoc(doc(db, c, key, "versions", "conflict-" + local.t), { value: mine, savedAt: local.t, conflict: true })
           .catch(err => console.warn("Alpine cloud sync: could not store conflict copy for", key, err));
       }
     }
-    _origSetItem.call(localStorage, key, data.value);
+    localSet(key, data.value);
     meta[key] = { t: cloudT, dirty: false, c: collFor(key) };
   }
   // Keep dirty flags written by other tabs in the meantime.
