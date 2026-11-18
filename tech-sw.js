@@ -1,7 +1,7 @@
 // Alpine tech app: keeps the My Visits screen opening with no signal (basements, rooftops).
 // Only the files listed here are cached, network first; every other portal page is left alone.
 // Visit data is not cached here: Firestore keeps its own copy and queues saves (see ap-firebase.js).
-const CACHE = "alpine-tech-v12";
+const CACHE = "alpine-tech-v13";
 const FILES = ["tech.html", "tech-app.js", "auth.js", "ap-firebase.js", "ap-report.js", "forms-lib.js?v=1", "tech.webmanifest", "images/tech-icon-192.png"];
 const FB = /^https:\/\/www\.gstatic\.com\/firebasejs\//;
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
@@ -11,6 +11,8 @@ self.addEventListener("fetch", e => {
   const u = new URL(e.request.url);
   const mine = u.origin === location.origin && FILES.some(f => u.pathname.endsWith("/" + f));
   if (!mine && !FB.test(e.request.url)) return;
-  e.respondWith(fetch(e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); } return r; })
+  // Our own files: always check GitHub for a newer copy (no-cache), so an update shows on the next open
+  // instead of up to 10 minutes later from the browser's cache. Firebase's library files can come from cache.
+  e.respondWith(fetch(mine ? new Request(e.request, { cache: "no-cache" }) : e.request).then(r => { if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); } return r; })
     .catch(() => caches.match(e.request, { ignoreSearch: true })));
 });
