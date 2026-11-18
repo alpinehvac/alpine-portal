@@ -26,14 +26,32 @@ const kind = t => /over/i.test(t.type || "") ? "ot" : /travel/i.test(t.type || "
 const LS = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem("hrs_" + k)); localStorage.setItem("hrs_" + k, JSON.stringify(v)); } catch (e) { return null; } };
 const LONG_DAY = 10, OT_WEEK = 44;   // flag days over 10 h; Ontario overtime starts after 44 h in a week
 
-let ME = "", TECHS = [], WEEK = monday(LS("week") && LS("week") <= TODAY ? LS("week") : TODAY), TAB = LS("tab") || "week";
+// The range on screen. Presets are worked out fresh each visit; a custom range is remembered.
+const PRESETS = [["this-week", "This week"], ["last-week", "Last week"], ["last-2", "Last 2 weeks"], ["this-month", "This month"], ["last-month", "Last month"], ["custom", "Custom dates"]];
+function presetRange(p) {
+  const mon = monday(TODAY), first = TODAY.slice(0, 8) + "01";
+  if (p === "last-week") return [addDays(mon, -7), addDays(mon, -1)];
+  if (p === "last-2") return [addDays(mon, -14), addDays(mon, -1)];
+  if (p === "this-month") return [first, TODAY];
+  if (p === "last-month") { const lastEnd = addDays(first, -1); return [lastEnd.slice(0, 8) + "01", lastEnd]; }
+  return [mon, addDays(mon, 6)];
+}
+const MAX_DAYS = 93;
+let PRESET = LS("preset") || "this-week", FROM, TO;
+if (PRESET === "week" || PRESET === "custom") { const r = LS("range") || []; FROM = r[0]; TO = r[1]; }
+if (!FROM || !TO || FROM > TO) { if (PRESET === "week" || PRESET === "custom") PRESET = "this-week"; [FROM, TO] = presetRange(PRESET); }
+const isWeek = () => FROM === monday(FROM) && TO === addDays(FROM, 6);   // exactly one Mon–Sun week: can be approved
+let WEEK = monday(FROM);
+let ME = "", TECHS = [], TAB = LS("tab") || "week";
 let TIME = [], VISITS = [], WEEKDOC = null, JOBS = null, ALLTIME = null, unsub = [];
 
 const toast = (m, bad) => { const t = $("toast"); t.textContent = m; t.className = "toast" + (bad ? " bad" : ""); t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 3200); };
 const errMsg = e => /permission/i.test((e && (e.code || e.message)) || "") ? "Not allowed. Have the updated rules been published?" : "Couldn't save. Check the connection.";
-const days = () => [...Array(7)].map((_, i) => addDays(WEEK, i));
+const days = () => { const out = []; for (let d = FROM; d <= TO && out.length < MAX_DAYS; d = addDays(d, 1)) out.push(d); return out; };
+const weeksIn = () => [...new Set(days().map(monday))];
+const fmtRange = (a, b) => fmtDay(a, { month: "short", day: "numeric" }) + " – " + fmtDay(b, { month: "short", day: "numeric", year: "numeric" });
 const nameOf = e => (TECHS.find(t => t.email === e) || {}).name || (TIME.find(t => String(t.tech).toLowerCase() === e) || {}).techName || e;
-const approved = () => !!(WEEKDOC && WEEKDOC.approved);
+const approved = () => isWeek() && !!(WEEKDOC && WEEKDOC.approved);
 
 async function loadTechs() {
   const map = new Map();
@@ -57,8 +75,10 @@ const split = list => { const o = { reg: 0, ot: 0, tr: 0 }; list.forEach(t => o[
 function flags() {
   const out = [], D = days();
   rows().forEach(t => {
-    const wk = split(entries(t.email));
-    if (wk.all > OT_WEEK && !wk.ot) out.push({ lvl: "red", tag: "Over 44 h", t: `${t.name}: ${h(wk.all)} h this week, none marked Overtime`, s: "Ontario overtime starts after 44 hours in a week. Check before payroll.", tech: t.email });
+    weeksIn().forEach(w => {
+      const wk = split(entries(t.email).filter(x => monday(x.date) === w));
+      if (wk.all > OT_WEEK && !wk.ot) out.push({ lvl: "red", tag: "Over 44 h", t: `${t.name}: ${h(wk.all)} h in the week of ${fmtDay(w, { month: "short", day: "numeric" })}, none marked Overtime`, s: "Ontario overtime starts after 44 hours in a week. Check before payroll.", tech: t.email });
+    });
     D.forEach(d => {
       const e = entries(t.email, d), v = visitsOf(t.email, d), tot = sumH(e);
       if (tot > LONG_DAY) out.push({ lvl: "red", tag: "Long day", t: `${t.name}: ${h(tot)} h on ${fmtDay(d)}`, s: "Over " + LONG_DAY + " hours in one day. Make sure it isn't a typo.", tech: t.email, day: d });
@@ -82,15 +102,16 @@ function render() {
   const D = days(), R = rows(), all = split(TIME), F = flags(), done = approved();
   const ot = all.ot, tr = all.tr, chase = F.filter(f => f.lvl !== "grey").length;
   $("app").innerHTML = `
-    <div class="top"><div><h1>Hours</h1><p class="sub">Every hour your techs log in the tech app. Check the week, chase the flags, approve it, then download it for payroll.</p></div></div>
+    <div class="top"><div><h1>Hours</h1><p class="sub">Every hour your techs log in the tech app. Pick the dates, check the hours, chase the flags, approve each week, then download for payroll.</p></div></div>
     <div class="bar">
-      <button class="btn ghost sm" id="prev" aria-label="Previous week">‹</button>
-      <div class="wk">${fmtDay(WEEK, { month: "short", day: "numeric" })} – ${fmtDay(addDays(WEEK, 6), { month: "short", day: "numeric", year: "numeric" })}</div>
-      <button class="btn ghost sm" id="next" aria-label="Next week">›</button>
-      ${WEEK !== monday(TODAY) ? '<button class="btn ghost sm" id="this">This week</button>' : ""}
+      <select id="preset" aria-label="Date range">${PRESETS.map(([v, l]) => `<option value="${v}"${v === PRESET ? " selected" : ""}>${l}</option>`).join("")}${PRESET === "week" ? '<option value="week" selected>One week</option>' : ""}</select>
+      ${isWeek() ? '<button class="btn ghost sm" id="prev" aria-label="Previous week">‹</button>' : ""}
+      <div class="wk">${fmtRange(FROM, TO)}</div>
+      ${isWeek() ? '<button class="btn ghost sm" id="next" aria-label="Next week">›</button>' : ""}
+      <span id="custom" style="display:${PRESET === "custom" ? "inline-flex" : "none"};gap:.4rem;align-items:center"><input type="date" id="from" value="${FROM}" aria-label="From"> to <input type="date" id="to" value="${TO}" aria-label="To"></span>
       <span class="sp"></span>
-      <span class="state ${done ? "done" : ""}">${done ? `✓ Approved by ${esc(nameOf(WEEKDOC.approvedBy).split(" ")[0])}${WEEKDOC.approvedAt && WEEKDOC.approvedAt.toDate ? " · " + WEEKDOC.approvedAt.toDate().toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : ""}` : "Not approved yet"}</span>
-      ${done ? '<button class="btn ghost sm" id="reopen">Reopen</button>' : `<button class="btn ok sm" id="approve">Approve week</button>`}
+      ${isWeek() ? `<span class="state ${done ? "done" : ""}">${done ? `✓ Approved by ${esc(nameOf(WEEKDOC.approvedBy).split(" ")[0])}${WEEKDOC.approvedAt && WEEKDOC.approvedAt.toDate ? " · " + WEEKDOC.approvedAt.toDate().toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : ""}` : "Not approved yet"}</span>
+      ${done ? '<button class="btn ghost sm" id="reopen">Reopen</button>' : `<button class="btn ok sm" id="approve">Approve week</button>`}` : `<span class="state" title="Pick one Monday to Sunday week to approve it">${weeksIn().length} weeks</span>`}
       <button class="btn ghost sm" id="csv-tot">Totals CSV</button>
       <button class="btn ghost sm" id="csv-all">Every entry CSV</button>
     </div>
@@ -102,23 +123,25 @@ function render() {
       <div class="kpi ${chase ? "warn" : ""}"><span>Flags to check</span><b>${chase}</b></div>
     </div>
     <div class="tabs" id="tabs">
-      <button data-t="week" class="${TAB === "week" ? "on" : ""}">Week</button>
+      <button data-t="week" class="${TAB === "week" ? "on" : ""}">${D.length > 7 ? "By tech" : "Week"}</button>
       <button data-t="jobs" class="${TAB === "jobs" ? "on" : ""}">By job</button>
       <button data-t="flags" class="${TAB === "flags" ? "on" : ""}">Flags${chase ? `<small>${chase}</small>` : ""}</button>
     </div>
     <div class="panel" id="body"></div>`;
-  $("prev").onclick = () => go(addDays(WEEK, -7));
-  $("next").onclick = () => go(addDays(WEEK, 7));
-  if ($("this")) $("this").onclick = () => go(monday(TODAY));
+  if ($("prev")) $("prev").onclick = () => setRange("week", addDays(FROM, -7), addDays(TO, -7));
+  if ($("next")) $("next").onclick = () => setRange("week", addDays(FROM, 7), addDays(TO, 7));
+  $("preset").onchange = e => { const p = e.target.value; if (p === "custom") { PRESET = "custom"; LS("preset", p); LS("range", [FROM, TO]); $("custom").style.display = "inline-flex"; return; } if (p === "week") return; setRange(p, ...presetRange(p)); };
+  const custom = () => { const a = $("from").value, b = $("to").value; if (!a || !b) return; if (a > b) { toast("The start date is after the end date.", true); return; } if ((new Date(b) - new Date(a)) / 864e5 >= MAX_DAYS) { toast("Pick up to " + MAX_DAYS + " days at a time.", true); return; } setRange("custom", a, b); };
+  $("from").onchange = custom; $("to").onchange = custom;
   if ($("approve")) $("approve").onclick = approve;
   if ($("reopen")) $("reopen").onclick = reopen;
   $("csv-tot").onclick = csvTotals; $("csv-all").onclick = csvAll;
   $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => { TAB = b.dataset.t; LS("tab", TAB); render(); });
-  if (TAB === "jobs") renderJobs(); else if (TAB === "flags") renderFlags(F); else renderWeek(D, R);
+  if (TAB === "jobs") renderJobs(); else if (TAB === "flags") renderFlags(F); else if (D.length > 7) renderWeeks(R); else renderWeek(D, R);
 }
 
 function renderWeek(D, R) {
-  if (!R.length) { $("body").innerHTML = `<div class="empty">No techs or hours this week.</div>`; return; }
+  if (!R.length) { $("body").innerHTML = `<div class="empty">No techs or hours in these dates.</div>`; return; }
   const cell = (t, d) => {
     const e = entries(t.email, d), s = split(e), v = visitsOf(t.email, d);
     const cls = !e.length ? (d < TODAY && v.length ? "none miss" : "none") : s.all > LONG_DAY ? "long" : "";
@@ -134,6 +157,19 @@ function renderWeek(D, R) {
     </tbody></table></div>
     <p class="note">Click a day to see the entries behind it. Shaded: booked on a visit that day but no hours logged. Red: over ${LONG_DAY} hours in a day or ${OT_WEEK} in the week.</p>`;
   $("body").querySelectorAll(".day").forEach(b => b.onclick = () => openDay(b.dataset.t, b.dataset.d));
+}
+
+// Longer ranges: one column per week (only the days inside the range count). Click a week to open it.
+function renderWeeks(R) {
+  const W = weeksIn(), inW = (list, w) => list.filter(x => monday(x.date) === w);
+  const lbl = w => { const a = w < FROM ? FROM : w, b = addDays(w, 6) > TO ? TO : addDays(w, 6); return fmtDay(a, { month: "short", day: "numeric" }) + "–" + fmtDay(b, { day: "numeric" }); };
+  $("body").innerHTML = `<div class="scroll"><table class="grid"><thead><tr><th>Tech</th>${W.map(w => `<th>Week of<small>${lbl(w)}</small></th>`).join("")}<th>Regular</th><th>OT</th><th>Travel</th><th>Total</th></tr></thead><tbody>
+    ${R.map(t => { const mine = entries(t.email), s = split(mine); return `<tr><td class="who">${esc(t.name)}<small>${mine.length} entries</small></td>${W.map(w => { const ws = split(inW(mine, w)); const parts = [ws.ot && `${h(ws.ot)} OT`, ws.tr && `${h(ws.tr)} travel`].filter(Boolean).join(" · "); return `<td><button class="day wkc ${ws.all ? (ws.all > OT_WEEK ? "long" : "") : "none"}" data-w="${w}"><b>${ws.all ? h(ws.all) : "–"}</b><small>${esc(parts)}</small></button></td>`; }).join("")}
+      <td class="tot">${h(s.reg)}</td><td class="tot">${h(s.ot)}</td><td class="tot">${h(s.tr)}</td><td class="tot big">${h(s.all)}</td></tr>`; }).join("")}
+    <tr class="sum"><td>All techs</td>${W.map(w => `<td>${h(sumH(inW(TIME, w)))}</td>`).join("")}<td>${h(split(TIME).reg)}</td><td>${h(split(TIME).ot)}</td><td>${h(split(TIME).tr)}</td><td>${h(split(TIME).all)}</td></tr>
+    </tbody></table></div>
+    <p class="note">Click a week to open it day by day (and approve it). Red: over ${OT_WEEK} hours in the week.</p>`;
+  $("body").querySelectorAll(".wkc").forEach(b => b.onclick = () => setRange("week", b.dataset.w, addDays(b.dataset.w, 6)));
 }
 
 async function renderJobs() {
@@ -152,8 +188,8 @@ async function renderJobs() {
   const life = id => sumH(ALLTIME.filter(t => key(t) === id));
   const list = ids.map(id => { const j = JOBS[id] || {}, wk = TIME.filter(t => key(t) === id), lt = Math.max(life(id), sumH(wk)); return { id, j, week: sumH(wk), life: lt, techs: [...new Set(wk.map(t => (t.techName || t.tech || "").split(" ")[0]))], customer: j.customer || (wk.find(t => t.customer) || {}).customer || "", budget: Number(j.budgetHrs) || 0, bo: Number(j.actualHrs) || 0 }; })
     .sort((a, b) => b.week - a.week);
-  if (!list.length) { $("body").innerHTML = `<div class="empty">No hours logged this week.</div>`; return; }
-  $("body").innerHTML = `<div class="scroll"><table class="list"><thead><tr><th>Job</th><th>Customer</th><th class="num">This week</th><th class="num">Basecamp to date</th><th class="num">BuildOps to date</th><th class="num">Budget</th><th>Used</th></tr></thead><tbody>
+  if (!list.length) { $("body").innerHTML = `<div class="empty">No hours logged in these dates.</div>`; return; }
+  $("body").innerHTML = `<div class="scroll"><table class="list"><thead><tr><th>Job</th><th>Customer</th><th class="num">${isWeek() ? "This week" : "These dates"}</th><th class="num">Basecamp to date</th><th class="num">BuildOps to date</th><th class="num">Budget</th><th>Used</th></tr></thead><tbody>
     ${list.map(r => { const used = r.budget ? (r.life + r.bo) / r.budget : 0; return `<tr>
       <td>${r.id !== "(no job #)" ? `<a href="job.html?id=${encodeURIComponent(r.id)}">${esc(r.id)}</a>` : `<span class="tag amber">No job #</span>`}<small>${esc(r.techs.join(", "))}</small></td>
       <td>${esc((r.customer || "").replace(/^\*/, ""))}<small>${esc(r.j.title || "")}</small></td>
@@ -165,7 +201,7 @@ async function renderJobs() {
 
 function renderFlags(F) {
   $("body").innerHTML = F.length ? F.map((f, i) => `<div class="flag"><span class="tag ${f.lvl === "red" ? "red" : f.lvl === "amber" ? "amber" : ""}">${esc(f.tag)}</span><div class="t">${esc(f.t)}<small>${esc(f.s)}</small></div>${f.tech && f.day ? `<button class="btn ghost sm" data-i="${i}">Open</button>` : ""}</div>`).join("")
-    : `<div class="empty">Nothing to chase this week. ✓</div>`;
+    : `<div class="empty">Nothing to chase in these dates. ✓</div>`;
   $("body").querySelectorAll("[data-i]").forEach(b => b.onclick = () => { const f = F[+b.dataset.i]; openDay(f.tech, f.day); });
 }
 
@@ -231,28 +267,28 @@ function download(name, rowsOut) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 function csvTotals() {
-  const D = days();
-  const out = [["Week of", "Tech", "Email", ...D.map(d => fmtDay(d)), "Regular", "Overtime", "Travel", "Total", "Approved"]];
-  rows().forEach(t => { const s = split(entries(t.email)); if (!s.all) return; out.push([WEEK, t.name, t.email, ...D.map(d => h(sumH(entries(t.email, d)))), h(s.reg), h(s.ot), h(s.tr), h(s.all), approved() ? "Yes" : "No"]); });
-  download(`alpine-hours-totals-${WEEK}.csv`, out);
+  const D = days(), byDay = D.length <= 7, cols = byDay ? D : weeksIn();
+  const out = [["From", "To", "Tech", "Email", ...cols.map(c => byDay ? fmtDay(c) : "Week of " + fmtDay(c, { month: "short", day: "numeric" })), "Regular", "Overtime", "Travel", "Total", ...(isWeek() ? ["Approved"] : [])]];
+  rows().forEach(t => { const mine = entries(t.email), s = split(mine); if (!s.all) return; out.push([FROM, TO, t.name, t.email, ...cols.map(c => h(sumH(byDay ? entries(t.email, c) : mine.filter(x => monday(x.date) === c)))), h(s.reg), h(s.ot), h(s.tr), h(s.all), ...(isWeek() ? [approved() ? "Yes" : "No"] : [])]); });
+  download(`alpine-hours-totals-${FROM}-to-${TO}.csv`, out);
 }
 function csvAll() {
   const out = [["Date", "Tech", "Email", "Job", "Customer", "Type", "Hours", "Note", "Changed by office"]];
   TIME.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "") || String(a.techName).localeCompare(String(b.techName)))
     .forEach(t => out.push([t.date, t.techName || nameOf(t.tech), t.tech, t.jobNo || "", (t.customer || "").replace(/^\*/, ""), t.type || "Regular", h(t.hours), t.note || "", t.editedBy ? nameOf(t.editedBy) : ""]));
-  download(`alpine-hours-entries-${WEEK}.csv`, out);
+  download(`alpine-hours-entries-${FROM}-to-${TO}.csv`, out);
 }
 
 // ── Live data for the week on screen ──
-function go(w) { WEEK = w; LS("week", w); listen(); }
+function setRange(p, a, b) { PRESET = p; FROM = a; TO = b; WEEK = monday(FROM); LS("preset", p); if (p === "week" || p === "custom") LS("range", [a, b]); listen(); }
 function listen() {
   unsub.forEach(u => u()); unsub = [];
   TIME = []; VISITS = []; WEEKDOC = null;
-  const end = addDays(WEEK, 6), redraw = () => { render(); if (openDay.redraw) openDay.redraw(); };
+  const start = FROM, end = TO, redraw = () => { render(); if (openDay.redraw) openDay.redraw(); };
   const fail = what => e => { console.error(what, e); $("app").innerHTML = `<div class="empty">The ${what} couldn't load: ${esc(/permission/i.test(e.code || e.message) ? "this account isn't allowed to see them." : "check the connection.")}</div>`; };
-  unsub.push(onSnapshot(query(collection(db, "fs_time"), where("date", ">=", WEEK), where("date", "<=", end)), s => { TIME = s.docs.map(d => ({ id: d.id, ...d.data() })); ALLTIME = null; redraw(); }, fail("hours")));
-  unsub.push(onSnapshot(query(collection(db, "fs_visits"), where("date", ">=", WEEK), where("date", "<=", end)), s => { VISITS = s.docs.map(d => ({ id: d.id, ...d.data() })); redraw(); }, e => console.warn("visits", e)));
-  unsub.push(onSnapshot(doc(db, "hours_weeks", WEEK), s => { WEEKDOC = s.exists() ? s.data() : null; redraw(); }, e => console.warn("hours_weeks", e)));
+  unsub.push(onSnapshot(query(collection(db, "fs_time"), where("date", ">=", start), where("date", "<=", end)), s => { TIME = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => t.date >= start && t.date <= end); ALLTIME = null; redraw(); }, fail("hours")));
+  unsub.push(onSnapshot(query(collection(db, "fs_visits"), where("date", ">=", start), where("date", "<=", end)), s => { VISITS = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(v => v.date >= start && v.date <= end); redraw(); }, e => console.warn("visits", e)));
+  if (isWeek()) unsub.push(onSnapshot(doc(db, "hours_weeks", WEEK), s => { WEEKDOC = s.exists() ? s.data() : null; redraw(); }, e => console.warn("hours_weeks", e)));
 }
 
 (async () => {
