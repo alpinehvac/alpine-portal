@@ -145,10 +145,17 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusAt', 'statusBy', 'updatedAt']));
     }
     // Hours, visit summaries and photos: each record names its tech; techs read and write only their own.
+    // Once the office approves a week on the Hours page, its entries carry locked: true and only the office can change them.
     match /fs_time/{id} {
       allow read: if isFieldOps() || (isOps() && resource.data.tech == email());
-      allow create: if isFieldOps() || (isOps() && request.resource.data.tech == email());
-      allow update, delete: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email());
+      allow create: if isFieldOps() || (isOps() && request.resource.data.tech == email() && request.resource.data.get('locked', false) == false);
+      allow update: if isFieldOps() || (isOps() && resource.data.tech == email() && request.resource.data.tech == email()
+                       && resource.data.get('locked', false) == false && request.resource.data.get('locked', false) == false);
+      allow delete: if isFieldOps() || (isOps() && resource.data.tech == email() && resource.data.get('locked', false) == false);
+    }
+    // Hours page: one doc per week (Monday's date) recording who approved it and the totals. Office only.
+    match /hours_weeks/{week} {
+      allow read, write: if isFieldOps();
     }
     // Visit summaries: a dated log, one entry per save. Everyone on the tools reads them (techs see the
     // whole visit's story, the office sees all). Techs add entries signed as themselves and can fix their

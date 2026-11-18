@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpine HVAC — Hours</title>
+<script src="auth.js"></script>
+<script>if (typeof apGuard === "function") apGuard("hours");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- HOURS: every hour a tech logs in the tech app (fs_time), for the office.
+     Week: techs by day with Regular / Overtime / Travel totals; click a day to see and fix the entries.
+     By job: hours logged against each job's budget. Flags: things to chase before payroll.
+     Approve week locks that week's entries (techs can't change them) and records the totals in hours_weeks/{monday}.
+     Downloads: weekly totals and every entry, as CSV for payroll. Owners + field ops (Jake, Mike, Cole). -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#27636C;--teal-light:#3D818A;--teal-dark:#10444E;--black:#EAF2F3;--off-black:#FFFFFF;--grey:#5A7A80;--white:#10444E;--amber:#A9821F;--red:#B83227;--green:#2E7D57;--purple:#6C5D8D;--border:rgba(16,68,78,0.12);--line:rgba(16,68,78,0.09);--radius-lg:14px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(--white);font-size:14px;line-height:1.45}
+.wrap{max-width:1250px;margin:0 auto;padding:1.6rem 1.6rem 4rem}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+h1{font-family:'Oswald',sans-serif;font-size:clamp(1.6rem,3vw,2.1rem);font-weight:700;text-transform:uppercase;line-height:1.1}
+h2{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.sub{color:var(--grey);font-size:.88rem;margin-top:.3rem;max-width:760px}
+.btn{font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:none;background:var(--teal);color:#fff;border-radius:6px;padding:.55rem 1rem;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block}
+.btn:hover{background:var(--teal-light)}
+.btn.ghost{background:var(--off-black);color:var(--teal);border:1px solid rgba(39,99,108,.35)}
+.btn.danger{background:none;color:var(--red);border:1px solid rgba(184,50,39,.35)}
+.btn.ok{background:var(--green)}
+.btn.sm{padding:.35rem .7rem;font-size:.72rem}
+.btn:disabled{opacity:.5;cursor:default}
+.panel{background:var(--off-black);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.2rem;margin-bottom:1.1rem}
+input,select{font:inherit;font-size:.88rem;color:var(--white);background:var(--off-black);border:1px solid rgba(16,68,78,.22);border-radius:6px;padding:.4rem .55rem}
+.bar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
+.bar .wk{font:600 1.05rem 'Oswald',sans-serif;letter-spacing:.03em;min-width:200px}
+.bar .sp{flex:1}
+.state{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:600;border-radius:20px;padding:4px 12px;background:rgba(169,130,31,.14);color:#6B5210}
+.state.done{background:rgba(46,125,87,.14);color:var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-bottom:1rem}
+.kpi{background:var(--off-black);border:1px solid var(--border);border-radius:12px;padding:.75rem .9rem}
+.kpi span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--grey)}
+.kpi b{font:600 1.45rem 'Oswald',sans-serif}
+.kpi.warn b{color:var(--red)}
+.tabs{display:flex;gap:.3rem;border-bottom:1px solid var(--border);margin:0 0 1rem;flex-wrap:wrap}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:.55rem .9rem;font:500 .9rem 'Inter',sans-serif;color:var(--grey);cursor:pointer;margin-bottom:-1px}
+.tabs button.on{color:var(--teal);border-bottom-color:var(--teal);font-weight:600}
+.tabs button small{font-size:.72rem;margin-left:.3rem;background:rgba(184,50,39,.12);color:var(--red);border-radius:10px;padding:1px 7px}
+.scroll{overflow-x:auto}
+table.grid{width:100%;border-collapse:collapse;font-size:.86rem;min-width:900px}
+table.grid th{text-align:center;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--grey);font-weight:600;padding:.5rem .4rem;border-bottom:1px solid var(--border)}
+table.grid th:first-child{text-align:left}
+table.grid th small{display:block;text-transform:none;letter-spacing:0;font-weight:500}
+table.grid th.today{color:var(--teal)}
+table.grid td{padding:.35rem .35rem;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}
+table.grid td.who{text-align:left;font-weight:600;white-space:nowrap}
+table.grid td.who small{display:block;font-weight:400;color:var(--grey);font-size:.75rem}
+.day{display:block;width:100%;min-height:46px;border:1px solid transparent;border-radius:8px;background:none;cursor:pointer;padding:.3rem;font:inherit;color:inherit}
+.day:hover{background:rgba(39,99,108,.06);border-color:rgba(39,99,108,.2)}
+.day b{display:block;font:600 1.05rem 'Oswald',sans-serif}
+.day small{display:block;font-size:.7rem;color:var(--grey);white-space:nowrap}
+.day.none b{color:#b7c6c9;font-weight:400}
+.day.miss{background:rgba(169,130,31,.08)}
+.day.long b{color:var(--red)}
+td.tot{font-weight:600;background:#F4F8F8}
+td.tot.big{font:600 1.05rem 'Oswald',sans-serif}
+tr.sum td{border-top:2px solid var(--border);font-weight:600;background:#F4F8F8}
+table.list{width:100%;border-collapse:collapse;font-size:.86rem}
+table.list th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--grey);font-weight:600;padding:.5rem .6rem;border-bottom:1px solid var(--border)}
+table.list td{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+table.list td small{display:block;color:var(--grey);font-size:.78rem}
+.num{text-align:right;white-space:nowrap}
+a{color:var(--teal);font-weight:600}
+.meter{height:7px;border-radius:4px;background:rgba(16,68,78,.1);overflow:hidden;min-width:110px;margin-top:4px}
+.meter i{display:block;height:100%;background:var(--teal)}
+.meter.over i{background:var(--red)}
+.tag{display:inline-block;font-size:.7rem;font-weight:600;border-radius:20px;padding:2px 9px;white-space:nowrap;background:rgba(90,122,128,.14);color:var(--grey)}
+.tag.red{background:rgba(184,50,39,.12);color:var(--red)}
+.tag.amber{background:rgba(169,130,31,.14);color:#6B5210}
+.tag.purple{background:rgba(108,93,141,.14);color:var(--purple)}
+.tag.ot{background:rgba(184,50,39,.1);color:var(--red)}
+.tag.tr{background:rgba(108,93,141,.14);color:var(--purple)}
+.flag{display:flex;gap:.8rem;align-items:flex-start;padding:.7rem .2rem;border-bottom:1px solid var(--line)}
+.flag:last-child{border-bottom:none}
+.flag .t{flex:1}
+.flag .t small{display:block;color:var(--grey);font-size:.8rem}
+.empty{color:var(--grey);text-align:center;padding:2rem}
+.toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:var(--teal-dark);color:#fff;padding:.6rem 1rem;border-radius:8px;font-size:.86rem;display:none;z-index:1000}
+.toast.bad{background:var(--red)}
+.modal-back{position:fixed;inset:0;background:rgba(16,68,78,.45);display:none;align-items:flex-start;justify-content:center;z-index:900;padding:6vh 1rem 1rem}
+.modal-back.on{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:760px;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.modal .mh{padding:1rem 1.2rem .6rem;display:flex;gap:.6rem;align-items:center;border-bottom:1px solid var(--line)}
+.modal .mh h2{flex:1}
+.modal .mb{overflow:auto;padding:1rem 1.2rem 1.2rem}
+.ent{display:grid;grid-template-columns:1fr 92px 110px auto;gap:.5rem;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--line)}
+.ent:last-child{border-bottom:none}
+.ent small{display:block;color:var(--grey);font-size:.78rem}
+.ent input,.ent select{width:100%}
+.lockmsg{font-size:.84rem;color:var(--green);background:rgba(46,125,87,.08);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem}
+.note{font-size:.82rem;color:var(--grey);margin-top:.7rem}
+@media (max-width:700px){.wrap{padding:1rem .8rem 3rem}.ent{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main class="wrap" id="app"><div class="empty">Loading hours…</div></main>
+<div class="modal-back" id="mod"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mod-h">
+  <div class="mh"><h2 id="mod-h"></h2><button class="btn ghost sm" id="mod-close">Close</button></div>
+  <div class="mb" id="mod-b"></div>
+</div></div>
+<div class="toast" id="toast"></div>
+<script type="module" src="hours-app.js?v=1"></script>
+</body>
+</html>

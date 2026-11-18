@@ -40,6 +40,7 @@
       { label: "Dashboard", href: D("operations"), show: () => can("ops-dashboard"), match: [D("operations")] },
       { tool: "ops-dashboard", label: "Field Operations", match: ["ops-dashboard.html", "job.html", "job-profit.html"] },
       { tool: "crew-board", label: "Crew Board" },
+      { tool: "hours", label: "Hours" },
       // The tech app (tech.html): techs get Schedule + My Visits. Office staff schedule on the Crew Board,
       // so neither shows for them. The tech app is still at basecamp.alpinehvac.ca/tech.html.
       { tool: "tech", label: "Schedule", href: "tech.html#schedule", match: [], show: () => can("tech") && !can("crew-board") },
