@@ -429,6 +429,9 @@ const TIME_DEFAULTS = {
   breakReminderMin: 45,      // remind a tech whose break has run this long
   clockReminderHours: 10,    // remind a tech whose clock has run this many hours
 };
+// The On my way / Start work timer. Switched off Nov 18: hours are entered by hand under My hours.
+// A clock already running when this shipped still shows so it can be finished. Set true to bring the timer back.
+const CLOCK_ON = false;
 let CLOCK = null, TIMECFG = { ...TIME_DEFAULTS }, MYTIME = [];
 const STATE_LABEL = { travel: "On the way", work: "Working", lunch: "On lunch", coffee: "Coffee break" };
 const mins = ms => Math.max(0, ms / 60000);
@@ -462,6 +465,8 @@ function clockPanel(v) {
   }
   if (!CLOCK || CLOCK.visitId !== v.id) {
     if (st === "complete") return `<div class="statusbar"><button class="big ghost" data-st="in_progress">Reopen visit</button></div>`;
+    // Nov 18: the drive / work timer is off (Alpine's call). Techs log hours under My hours; this just completes the visit.
+    if (!CLOCK_ON) return `<div class="statusbar"><button class="big done" data-st="complete">Complete visit</button></div>`;
     return `<div class="clock idle"><div class="cl-row"><button class="big" data-clk="travel">🚚 On my way</button></div><div class="cl-row"><button class="big ghost" data-clk="work">Already here, start work</button></div></div>`;
   }
   const e = lastEvent(CLOCK), tot = clockTotals(CLOCK, TIMECFG), brk = CLOCK.state === "lunch" || CLOCK.state === "coffee";
@@ -745,7 +750,10 @@ function renderVisit(id) {
     const hours = Math.round((parseFloat(hIn.value) || 0) * 100) / 100;
     if (!(hours > 0) || hours > 24) { toast("Enter the hours, between 0.25 and 24.", true); return; }
     const rec = { visitId: v.id, jobNo: v.jobNo || "", customer: v.customer || "", tech: ME, techName: MY_NAME, date: $("h-date").value || TODAY, hours, type: $("h-type").value, note: $("h-note").value.trim() };
-    if (await save(() => store.addTime(rec), $("h-saved"), hrsTxt(hours) + " added")) { $("h-note").value = ""; }
+    if (await save(() => store.addTime(rec), $("h-saved"), hrsTxt(hours) + " added")) {
+      $("h-note").value = "";
+      if ((v.status || "scheduled") === "scheduled") save(() => store.setStatus(v, "in_progress"));   // hours logged = work has started
+    }
   };
   unsub.push(store.time(v.id, rows => {
     const own = OFFICE ? rows : rows.filter(r => r.tech === ME);
@@ -972,7 +980,16 @@ async function openEntry(v, eid, fresh) {
 
 function wireClock(v) {
   document.querySelectorAll("[data-clk]").forEach(b => b.onclick = async () => { b.disabled = true; await clockAction(v, b.dataset.clk); if (b.isConnected) b.disabled = false; });
-  document.querySelectorAll("#clock-box [data-st]").forEach(b => b.onclick = () => save(() => store.setStatus(v, "in_progress"), $("st-saved"), "Visit reopened"));
+  document.querySelectorAll("#clock-box [data-st]").forEach(b => b.onclick = async () => {
+    const st = b.dataset.st;
+    if (st === "complete") {
+      const mine = MYTIME.filter(r => r.visitId === v.id);
+      if (!confirm(mine.length ? "Mark this visit complete?" : "You haven't logged any hours on this visit. Complete it anyway?")) return;
+    }
+    b.disabled = true;
+    await save(() => store.setStatus(v, st), $("st-saved"), st === "complete" ? "Visit complete" : "Visit reopened");
+    if (b.isConnected) b.disabled = false;
+  });
 }
 // Clock or time rules changed: redraw just the clock on an open visit (keeps whatever the tech is typing).
 function refreshClock() {
