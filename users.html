@@ -38,6 +38,9 @@ th{font:600 .7rem 'Oswald',sans-serif;letter-spacing:.08em;text-transform:upperc
 td{padding:.65rem .5rem;border-bottom:1px solid var(--border);vertical-align:top}
 tr:last-child td{border-bottom:none}
 tr.off td{opacity:.55}
+.btn.sm{padding:.3rem .65rem;font-size:.7rem}
+.btn.danger{background:none;color:var(--red);border:1px solid rgba(184,50,39,.35)}
+#api-panel code{font-size:.8rem;background:var(--black);border-radius:4px;padding:1px 5px}
 td small{display:block;color:var(--grey);font-size:.76rem}
 .tag{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:10px;margin:0 .25rem .25rem 0;white-space:nowrap}
 .tag.teal{background:rgba(42,138,142,.18);color:#27636C}.tag.purple{background:rgba(155,142,196,.2);color:#4E4268}.tag.amber{background:rgba(226,168,69,.18);color:#8A6A12}.tag.grey{background:rgba(16,68,78,.08);color:var(--grey)}.tag.red{background:rgba(224,112,94,.16);color:var(--red)}.tag.green{background:rgba(46,125,87,.14);color:var(--green)}
@@ -399,5 +402,6 @@ $("ed-form").addEventListener("submit", async ev => {
 if (!me) { sessionStorage.clear(); location.href = "index.html"; }
 else load();
 </script>
+<script type="module" src="api-keys-app.js?v=1"></script>
 </body>
 </html>

@@ -259,6 +259,27 @@ service cloud.firestore {
     match /portal_context/{doc=**} {
       allow read, write: if isOwner();
     }
+    // Basecamp API keys (Users & Settings > API keys, owners only). Only a hash of each key is stored.
+    // A key can be made or switched off from the page, never edited or deleted. The API itself
+    // (functions/index.js) reads these with the Admin SDK and stamps lastUsedAt.
+    match /api_keys/{id} {
+      allow read: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.keys().hasOnly(['name', 'scopes', 'hash', 'createdBy', 'createdAt', 'revoked'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.scopes is list
+        && request.resource.data.hash is string && request.resource.data.hash.matches('^[a-f0-9]{64}$')
+        && request.resource.data.revoked == false;
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked', 'revokedAt', 'revokedBy'])
+        && request.resource.data.revoked == true;
+      allow delete: if false;
+    }
+    // API logbook: written only by the API, read by owners
+    match /api_audit/{id} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
     match /ops_dashboard_history/{doc=**} {
       allow read, write: if isOwner();
     }
