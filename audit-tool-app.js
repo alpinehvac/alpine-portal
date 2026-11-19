@@ -315,9 +315,9 @@ function renderList() {
     '<div class="row" style="margin-top:.6rem"><button class="btn primary" data-act="new">＋ New audit</button><span class="note">' + all.length + ' total · ' + open.length + ' open · ' +
     (closed ? Math.round(won / closed * 100) + '% audit → agreement' : 'no closed audits yet') + '</span></div>';
   if (!all.length) { $('main').innerHTML = h + '<div class="card empty" style="margin-top:1rem">No audits yet. Create one when a pre-call books.</div>'; return; }
-  h += '<h2>All audits <span class="note">Credit deadline = debrief + 45 days</span></h2><div class="tbl-wrap"><table><thead><tr><th>Building</th><th>Client</th><th>Status</th><th>Visit</th><th>Debrief</th><th>Score</th><th>Fee</th><th>Credit deadline</th></tr></thead><tbody>' +
+  h += '<h2>All audits <span class="note">Credit deadline = debrief + 30 days</span></h2><div class="tbl-wrap"><table><thead><tr><th>Building</th><th>Client</th><th>Status</th><th>Visit</th><th>Debrief</th><th>Score</th><th>Fee</th><th>Credit deadline</th></tr></thead><tbody>' +
     all.map(a => {
-      const sc = score(a); const dl = a.debriefDate ? addDays(a.debriefDate, 45) : ''; const left = daysUntil(dl);
+      const sc = score(a); const dl = a.debriefDate ? addDays(a.debriefDate, 30) : ''; const left = daysUntil(dl);
       const dlCell = !dl ? '—' : a.status === 'won' || a.status === 'lost' ? fmtD(dl) : fmtD(dl) + ' <span class="badge ' + (left < 0 ? 'b-grey' : left <= 7 ? 'b-crit' : 'b-teal') + '">' + (left < 0 ? 'expired' : left + 'd') + '</span>';
       return '<tr class="clickable" data-act="open" data-id="' + a.id + '"><td><b>' + esc(a.client.building || '(unnamed)') + '</b></td><td>' + esc(a.client.company) + '</td><td><span class="badge ' + STATUS[a.status].cls + '">' + STATUS[a.status].label + '</span></td>' +
         '<td>' + fmtD(a.visitDate) + '</td><td>' + fmtD(a.debriefDate) + '</td><td>' + (a.assets.length ? sc.total + ' · ' + sc.grade.l : '—') + '</td><td>' + money(a.fee) + '</td><td>' + dlCell + '</td></tr>';
@@ -361,7 +361,7 @@ function tabSetup() {
     fld('Site visit date', 'visitDate', { type: 'date', rr: true }) + fld('Debrief date', 'debriefDate', { type: 'date', rr: true }) +
     fld('Status', 'status', { options: Object.keys(STATUS).map(k => [k, STATUS[k].label]), rr: true }) +
     '</div><div class="callout info" style="margin-top:.7rem">' + esc(TIERS[cur.tier].desc) + '. Deposit <b>' + money(dep) + '</b> by credit card at booking; balance <b>' + money((num(cur.fee) || 0) - dep) + '</b> due on receipt with the report.' +
-    (cur.debriefDate ? ' Credit deadline: <b>' + fmtD(addDays(cur.debriefDate, 45)) + '</b>.' : '') +
+    (cur.debriefDate ? ' Credit deadline: <b>' + fmtD(addDays(cur.debriefDate, 30)) + '</b>.' : '') +
     (cur.visitDate && cur.debriefDate && daysUntil(cur.debriefDate) - daysUntil(cur.visitDate) > 7 ? '<br><b style="color:#7a3b10">Debrief is more than 5 business days after the visit — playbook SLA.</b>' : '') + '</div></div>' +
     '<div class="row" style="margin-top:1.4rem"><span class="spacer"></span><button class="btn danger sm" data-act="delete-audit">Delete audit</button></div>';
 }
@@ -559,7 +559,7 @@ function reportHtml(sc) {
     (a.complianceNotes ? '<h2>Vendor &amp; compliance notes</h2><p>' + esc(a.complianceNotes) + '</p>' : '') +
 
     '<h2>Recommended care level: ' + rt.t + '</h2><p>' + esc(a.summary.careLevel || rt.why + '.') + '</p>' +
-    '<p style="background:#F1EEF6;padding:8px 10px;border-radius:6px">Your audit fee of ' + money(a.fee) + ' is credited in full against the first year of an Alpine maintenance agreement signed by <b>' + (a.debriefDate ? fmtD(addDays(a.debriefDate, 45)) : '45 days after your debrief') + '</b>. This report is yours either way.</p>' +
+    '<p style="background:#F1EEF6;padding:8px 10px;border-radius:6px">Your audit fee of ' + money(a.fee) + ' is credited in full against the first year of an Alpine maintenance agreement signed by <b>' + (a.debriefDate ? fmtD(addDays(a.debriefDate, 30)) : '30 days after your debrief') + '</b>. This report is yours either way.</p>' +
     '<div class="foot"><span>Alpine HVAC Service Inc. · Commercial, Industrial &amp; Institutional · TSSA Reg. FS-R-51098</span><span>alpinehvac.ca</span></div></div>';
 }
 function printReport() {
@@ -572,9 +572,9 @@ function printReport() {
 // ── tab: debrief & handoff ───────────────────────────────────────────
 function tabHandoff(sc) {
   const rt = recTier(cur, sc);
-  const dl = cur.debriefDate ? addDays(cur.debriefDate, 45) : '';
+  const dl = cur.debriefDate ? addDays(cur.debriefDate, 30) : '';
   const left = daysUntil(dl);
-  const fu = [[3, 'Email recap — scorecard, recommended tier, credit deadline'], [10, 'Call — any questions from the decision-maker?'], [21, 'Email — seasonal risk tied to their top finding'], [40, 'Call — credit expires soon, lock it in?']];
+  const fu = [[3, 'Email recap — scorecard, recommended tier, credit deadline'], [10, 'Call — any questions from the decision-maker?'], [17, 'Email — seasonal risk tied to their top finding'], [26, 'Call — credit expires soon, lock it in?']];
   const annual = num(cur.outcome.annualValue);
   const credit = annual == null ? null : Math.min(num(cur.fee) || 0, annual);
   return '<h2>Recommendation</h2><div class="card"><div style="font-family:Oswald;font-size:1.5rem;color:var(--teal)">' + rt.t + '</div><div>' + esc(rt.why) + '.</div>' +
@@ -582,7 +582,7 @@ function tabHandoff(sc) {
     '<h2>Credit window</h2><div class="card">' + (dl
       ? '<div>Credit deadline <b>' + fmtD(dl) + '</b> ' + (left < 0 ? '<span class="badge b-grey">expired</span>' : '<span class="badge ' + (left <= 7 ? 'b-crit' : 'b-teal') + '">' + left + ' days left</span>') + '</div>' +
         '<h3 style="margin-top:.9rem">Follow-up cadence</h3>' + fu.map(([d, l]) => chk('Day ' + d + ' (' + fmtD(addDays(cur.debriefDate, d)) + ') — ' + l, 'followups.d' + d)).join('')
-      : '<div class="muted">Set the debrief date on Setup to start the 45-day credit clock.</div>') + '</div>' +
+      : '<div class="muted">Set the debrief date on Setup to start the 30-day credit clock.</div>') + '</div>' +
     '<h2>Outcome</h2><div class="card"><div class="grid">' +
     fld('Status', 'status', { options: Object.keys(STATUS).map(k => [k, STATUS[k].label]), rr: true }) +
     fld('Signed tier', 'outcome.signedTier', { options: ['', ['Minimum', 'Base'], 'Core', 'Premium'] }) +

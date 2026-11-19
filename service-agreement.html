@@ -800,6 +800,18 @@
   .pkg-row select{ font-family:'Inter',sans-serif; font-size:12px; padding:4px 6px; border:1px solid var(--mist); border-radius:4px; color:var(--slate); background:#fff; }
   .pkg-sep{ width:1px; height:18px; background:var(--mist); }
   body.svc-onetime .pkg-row{ display:none !important; }
+  .bpa-panel{ margin-top:16px; padding:12px 14px; border:1px solid var(--mist); border-left:4px solid var(--purple); border-radius:6px; background:var(--purple-lt); font-family:'Inter',sans-serif; font-size:12px; color:var(--slate-mid); }
+  .bpa-panel.bpa-hide{ display:none; }
+  body.customer-mode .bpa-panel.bpa-off{ display:none; }
+  .bpa-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .bpa-toggle{ margin-left:auto; display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--stone); cursor:pointer; }
+  .bpa-body{ display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .bpa-price{ font-size:26px; font-weight:700; color:var(--purple-dk); line-height:1.1; white-space:nowrap; }
+  .bpa-price .per{ font-size:11px; font-weight:500; color:var(--stone); margin-left:5px; }
+  .bpa-text{ flex:1 1 280px; display:flex; flex-direction:column; gap:4px; line-height:1.45; }
+  .bpa-desc{ color:var(--slate); }
+  .bpa-terms{ font-weight:600; color:var(--slate); }
+  .bpa-formula{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--stone); }
   .ovr-panel{ margin-top:16px; padding:12px 14px; border:1px dashed var(--mist); border-radius:6px; background:#fff; font-family:'Inter',sans-serif; font-size:12px; color:var(--slate-mid); }
   .ovr-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
   .ovr-hint{ flex:1 1 240px; font-size:11.5px; color:var(--stone); }
@@ -1189,6 +1201,20 @@
         </div>
         <div class="tier-divider"></div>
         <ul class="tier-features" id="oneTimeFeatures"></ul>
+      </div>
+    </div>
+    <div class="bpa-panel" id="bpaPanel">
+      <div class="bpa-head">
+        <span class="svc-mode-lbl">Building Performance Audit</span>
+        <label class="bpa-toggle rep-only"><input type="checkbox" id="bpaShow" checked> Show to customer</label>
+      </div>
+      <div class="bpa-body">
+        <div class="bpa-price">$<span id="bpaFee">0</span><span class="per">+ HST</span></div>
+        <div class="bpa-text">
+          <div class="bpa-desc">On-site assessment of every unit listed above, a scored condition report and a 12&ndash;24 month plan with budget ranges.</div>
+          <div class="bpa-terms">Credited in full toward year one of a maintenance agreement signed within <span id="bpaDays">30</span> days. Worth at least 10x in identified risk and savings, or you owe nothing.</div>
+          <div class="bpa-formula rep-only" id="bpaFormula"></div>
+        </div>
       </div>
     </div>
     <div class="ovr-panel rep-only" id="overridePanel">

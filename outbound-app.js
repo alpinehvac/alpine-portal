@@ -863,7 +863,7 @@ function fuBpaLetter(x) {
     'How it works: ' + crew + ' would come to site and go through each piece of equipment, just as we would on a maintenance visit. You then get a detailed report with clear action steps and flags, and we walk you through it on a follow-up call.\n\n' +
     'Why it\'s zero-risk:\n\n' +
     '1. If we don\'t find at least 3 things you agree are worth acting on, you don\'t pay.\n' +
-    '2. If you start a service agreement with Alpine within 45 days of the follow-up call, the full audit fee is credited toward your first year.\n' +
+    '2. If you start a service agreement with Alpine within 30 days of the follow-up call, the full audit fee is credited toward your first year.\n' +
     '3. If you stay with your current contractor, the report is yours to keep, with a clear list of what to take back to them.\n\n' +
     'And if you ever change contractors or need backup in a pinch, we would already have your equipment information and could arrive ready to work.\n\n' +
     'Here is a sample so you can see what the report looks like: ' + BPA_SAMPLE + '\n\n' +

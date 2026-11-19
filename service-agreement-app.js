@@ -151,6 +151,16 @@
       total > 0 ? `Base agreement: $${fmtCurrency(total * 150 * bufferMult / 12)}/mo · Semi-Annual Base: $${fmtCurrency(modeTotal('semi') * 150 * bufferMult / 12)}/mo` : ''
     ].filter(Boolean).join(' · ');
     document.getElementById('oneTimeFeatures').innerHTML = ONE_TIME_FEATURES.map(f => `<li class="feat-yes">${f}</li>`).join('');
+    // Building Performance Audit fee
+    const bpa = bpaFee();
+    const bpaPanel = document.getElementById('bpaPanel');
+    bpaPanel.classList.toggle('bpa-hide', mode === 'onetime' || total <= 0);
+    bpaPanel.classList.toggle('bpa-off', !bpaShown());
+    document.getElementById('bpaDays').textContent = BPA_CREDIT_DAYS;
+    document.getElementById('bpaFee').textContent = bpa.custom ? 'Custom' : fmtCurrency(bpa.fee).replace(/\.00$/, '');
+    document.getElementById('bpaFormula').textContent = bpa.custom
+      ? `20% of Core $${fmtCurrency(bpa.coreAnnual)} = $${fmtCurrency(bpa.raw)} — over $${BPA_MAX.toLocaleString()}, quote custom`
+      : `20% of Core $${fmtCurrency(bpa.coreAnnual)} (Quarterly+, 5% buffer) → $${fmtCurrency(bpa.fee)}${bpa.floored ? ' (minimum)' : ''} · 10x guarantee bar $${fmtCurrency(bpa.fee * 10)}`;
   }
 
 
@@ -275,6 +285,16 @@
   let overrides = {};
   function ovrNum(v){ const n = parseFloat(v); return n > 0 ? n : 0; }
   // Enter one figure and the other is derived; enter both and each is used as typed.
+  // Building Performance Audit fee: 20% of the calculated Core annual price (Quarterly+, 5% buffer),
+  // rounded to the nearest $25, minimum $800; above $5,000 it is quoted custom. Overrides are ignored.
+  const BPA_PCT = 0.20, BPA_MIN = 800, BPA_MAX = 5000, BPA_CREDIT_DAYS = 30;
+  function bpaFee(){
+    const coreAnnual = modeTotal('standard') * 300 * 1.05;
+    const raw = Math.round(coreAnnual * BPA_PCT / 25) * 25;
+    const fee = Math.max(BPA_MIN, raw);
+    return { coreAnnual, raw, fee, custom: fee > BPA_MAX, floored: raw < BPA_MIN };
+  }
+  function bpaShown(){ const el = document.getElementById('bpaShow'); return !el || el.checked; }
   function priceFor(mode, key, calcAnnual){
     const o = (overrides[mode] || {})[key] || {};
     const a = ovrNum(o.annual), m = ovrNum(o.monthly);
@@ -557,6 +577,7 @@
   render();
 
   document.getElementById('bufferToggle').addEventListener('change', render);
+  document.getElementById('bpaShow').addEventListener('change', render);
   document.querySelectorAll('input[name="svcMode"]').forEach(r => r.addEventListener('change', function(){
     loadOverrideInputs();
     render();
@@ -728,6 +749,17 @@
         </div>`;
     }).join('');
 
+    const bpaP = bpaFee();
+    const bpaSection = (oneTime || total <= 0 || (isCustomer && !bpaShown())) ? '' : `
+      <div style="margin-top:14px;padding:12px 16px;border:1px solid #d9d2e6;border-left:5px solid #6c5d8d;border-radius:4px;background:#f6f3fa;break-inside:avoid;page-break-inside:avoid;">
+        <div style="font-family:sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:#4e4268;">Building Performance Audit</div>
+        <div style="display:flex;gap:16px;align-items:flex-start;margin-top:6px;">
+          <div style="font-size:20px;font-weight:700;color:#4e4268;white-space:nowrap;">${bpaP.custom ? 'Custom quote' : '$' + fmtCurrency(bpaP.fee).replace(/\.00$/, '')}<span style="font-size:10px;font-weight:500;color:#666;"> + HST</span></div>
+          <div style="font-size:10.5px;color:#333;line-height:1.55;">On-site assessment of every unit listed above, a scored condition report and a 12–24 month plan with budget ranges. <strong>Credited in full toward year one of a maintenance agreement signed within ${BPA_CREDIT_DAYS} days. Worth at least 10x in identified risk and savings, or you owe nothing.</strong>
+          ${isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">20% of Core $${fmtCurrency(bpaP.coreAnnual)} (Quarterly+, 5% buffer)${bpaP.floored ? ' · $' + BPA_MIN + ' minimum applied' : ''} · 10x bar $${fmtCurrency(bpaP.fee * 10)}${bpaShown() ? '' : ' · hidden on customer PDF'}</div>`}</div>
+        </div>
+      </div>`;
+
     const totalSection = isCustomer ? '' : `
       <div style="background:#e4f0f1;border:1px solid #10444e;border-left:5px solid #10444e;border-radius:4px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div>
@@ -845,6 +877,7 @@
       + specialSection
       + '<div class="section-label">' + (oneTime ? 'One-Time Service Cost' : 'On-Going Cost Calculator') + '</div>'
       + '<div class="tier-grid" style="grid-template-columns:' + tierCols + ';">' + tierCards + '</div>'
+      + bpaSection
       + paymentSection
       + restaurantSection
       + (isCustomer ? buildDisclaimerHTML(mode) : '')
