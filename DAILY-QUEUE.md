@@ -80,7 +80,7 @@ I look after Building Performance Audits for commercial buildings across Niagara
 
 Buildings like yours often carry avoidable HVAC energy waste and are one equipment failure away from tenant complaints. Our Building Performance Audit puts numbers on both: a reliability scorecard, a downtime and complaint cost estimate, and a 12-month action plan.
 
-We cap it at 5 audits a month. If it isn't worth at least 10x the fee in identified savings or avoided risk, you don't pay and you keep the report.
+We cap it at 5 audits a month. If you don't feel it's worth 10x the cost, you don't pay, and you keep the report.
 
 Worth a quick look for <company>, or are you set for this year?
 

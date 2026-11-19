@@ -410,7 +410,7 @@ function tabFindings() {
   const n = actionable(cur);
   const assetOpts = [['', '— none —']].concat(cur.assets.map(x => [x.id, (x.tag || '?') + ' · ' + x.type]));
   return '<div class="callout ' + (n >= 3 ? 'ok' : 'warn') + '" style="margin-top:1rem"><b>' + n + ' actionable finding' + (n === 1 ? '' : 's') + '.</b> ' +
-    (n >= 3 ? 'Findings guarantee met.' : 'The guarantee needs at least 3 the client would act on.') + ' Use the iPhone keyboard mic to dictate observations on site.</div>' +
+    (n >= 3 ? 'Quality bar met.' : 'Aim for at least 3 the client would act on (guarantee: if they don\'t feel it\'s worth 10x the cost, they don\'t pay).') + ' Use the iPhone keyboard mic to dictate observations on site.</div>' +
     '<div class="row"><button class="btn primary" data-act="f-add">＋ Add finding</button><button class="btn" data-act="f-fromassets">＋ Findings from Critical/High assets</button></div><div style="margin-top:.8rem">' +
     (cur.findings.length ? cur.findings.map((f, i) => '<div class="finding' + (f.ai ? ' ai' : '') + '">' +
       '<div class="top"><b style="font-family:Oswald;font-size:1rem">#' + (i + 1) + '</b>' + (f.ai ? '<span class="badge b-purple">Claude draft — review</span>' : '') +
@@ -426,7 +426,7 @@ function tabFindings() {
       '<label class="fld wide">What we found (dictate on site)<textarea class="inp" data-f="findings.' + i + '.observation">' + esc(f.observation) + '</textarea></label>' +
       '<label class="fld wide">Why it matters (cost, comfort, risk, compliance)<textarea class="inp" data-f="findings.' + i + '.why">' + esc(f.why) + '</textarea></label>' +
       '<label class="fld wide">Recommended action<textarea class="inp" data-f="findings.' + i + '.action" style="min-height:56px">' + esc(f.action) + '</textarea></label>' +
-      '</div><label class="chk"><input type="checkbox" data-f="findings.' + i + '.agreed" data-rr="1"' + (f.agreed !== false ? ' checked' : '') + '><span>Actionable — counts toward the 3-finding guarantee</span></label>' +
+      '</div><label class="chk"><input type="checkbox" data-f="findings.' + i + '.agreed" data-rr="1"' + (f.agreed !== false ? ' checked' : '') + '><span>Actionable — counts toward the 3-finding quality bar</span></label>' +
       photoStrip(f.photos, { kind: 'finding', id: f.id }) + '</div>').join('') : '<div class="card empty">No findings yet.</div>') + '</div>';
 }
 
@@ -589,7 +589,7 @@ function tabHandoff(sc) {
     fld('Signed date', 'outcome.signedDate', { type: 'date', rr: true }) +
     fld('First-year agreement value ($)', 'outcome.annualValue', { num: true, rr: true }) +
     fld('Lost reason', 'outcome.lostReason') + '</div>' +
-    chk('Findings guarantee claimed (refund deposit + balance)', 'outcome.guaranteeClaimed') +
+    chk('10x guarantee claimed (refund deposit + balance)', 'outcome.guaranteeClaimed') +
     (credit != null ? '<div class="callout info">Audit credit: <b>' + money(credit) + '</b>' + (credit < (num(cur.fee) || 0) ? ' (capped at annual agreement value)' : '') + ', applied evenly across first-year invoices — <b>' + money(credit / 4) + '</b> per quarterly invoice.' +
       (cur.outcome.signedDate && dl && cur.outcome.signedDate > dl ? '<br><b style="color:#7a3b10">Signed after the credit deadline — credit needs founder approval.</b>' : '') + '</div>' : '') + '</div>' +
     '<h2>Hand off to CLEAR reports <span class="note">Once signed and set up in BuildOps</span></h2><div class="card">' +

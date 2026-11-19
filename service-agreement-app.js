@@ -160,7 +160,7 @@
     document.getElementById('bpaFee').textContent = bpa.custom ? 'Custom' : fmtCurrency(bpa.fee).replace(/\.00$/, '');
     document.getElementById('bpaFormula').textContent = bpa.custom
       ? `20% of Core $${fmtCurrency(bpa.coreAnnual)} = $${fmtCurrency(bpa.raw)} — over $${BPA_MAX.toLocaleString()}, quote custom`
-      : `20% of Core $${fmtCurrency(bpa.coreAnnual)} (Quarterly+, 5% buffer) → $${fmtCurrency(bpa.fee)}${bpa.floored ? ' (minimum)' : ''} · 10x guarantee bar $${fmtCurrency(bpa.fee * 10)}`;
+      : `20% of Core $${fmtCurrency(bpa.coreAnnual)} (Quarterly+, 5% buffer) → $${fmtCurrency(bpa.fee)}${bpa.floored ? ' (minimum)' : ''} · 10x value bar $${fmtCurrency(bpa.fee * 10)}`;
   }
 
 
@@ -755,8 +755,8 @@
         <div style="font-family:sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:#4e4268;">Building Performance Audit</div>
         <div style="display:flex;gap:16px;align-items:flex-start;margin-top:6px;">
           <div style="font-size:20px;font-weight:700;color:#4e4268;white-space:nowrap;">${bpaP.custom ? 'Custom quote' : '$' + fmtCurrency(bpaP.fee).replace(/\.00$/, '')}<span style="font-size:10px;font-weight:500;color:#666;"> + HST</span></div>
-          <div style="font-size:10.5px;color:#333;line-height:1.55;">On-site assessment of every unit listed above, a scored condition report and a 12–24 month plan with budget ranges. <strong>Credited in full toward year one of a maintenance agreement signed within ${BPA_CREDIT_DAYS} days. Worth at least 10x in identified risk and savings, or you owe nothing.</strong>
-          ${isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">20% of Core $${fmtCurrency(bpaP.coreAnnual)} (Quarterly+, 5% buffer)${bpaP.floored ? ' · $' + BPA_MIN + ' minimum applied' : ''} · 10x bar $${fmtCurrency(bpaP.fee * 10)}${bpaShown() ? '' : ' · hidden on customer PDF'}</div>`}</div>
+          <div style="font-size:10.5px;color:#333;line-height:1.55;">On-site assessment of every unit listed above, a scored condition report and a 12–24 month plan with budget ranges. <strong>Credited in full toward year one of a maintenance agreement signed within ${BPA_CREDIT_DAYS} days. If you don’t feel it’s worth 10x the cost, you don’t pay.</strong>
+          ${isCustomer ? '' : `<div style="font-size:10px;color:#666;margin-top:4px;">20% of Core $${fmtCurrency(bpaP.coreAnnual)} (Quarterly+, 5% buffer)${bpaP.floored ? ' · $' + BPA_MIN + ' minimum applied' : ''} · 10x value bar $${fmtCurrency(bpaP.fee * 10)}${bpaShown() ? '' : ' · hidden on customer PDF'}</div>`}</div>
         </div>
       </div>`;
 

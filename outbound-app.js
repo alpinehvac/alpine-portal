@@ -862,7 +862,7 @@ function fuBpaLetter(x) {
     '3. A 12 to 24 month plan with budget ranges, so there are no gaps ' + season + '\n\n' +
     'How it works: ' + crew + ' would come to site and go through each piece of equipment, just as we would on a maintenance visit. You then get a detailed report with clear action steps and flags, and we walk you through it on a follow-up call.\n\n' +
     'Why it\'s zero-risk:\n\n' +
-    '1. If we don\'t find at least 3 things you agree are worth acting on, you don\'t pay.\n' +
+    '1. If you don\'t feel it\'s worth 10x the cost, you don\'t pay.\n' +
     '2. If you start a service agreement with Alpine within 30 days of the follow-up call, the full audit fee is credited toward your first year.\n' +
     '3. If you stay with your current contractor, the report is yours to keep, with a clear list of what to take back to them.\n\n' +
     'And if you ever change contractors or need backup in a pinch, we would already have your equipment information and could arrive ready to work.\n\n' +
@@ -1449,7 +1449,7 @@ window.obPickQueue = function ({ rep = 'Jake', date = todayISO(), anchors = [] }
     .concat(fresh.filter(p => p.linkedin && !used.has(p.id) && p.email)).slice(0, plan.linkedin || 0);
   li.forEach(p => add('linkedin', p, 'Connection note: Hi ' + first(p.name) + ', we work with property and facility managers across Niagara and Hamilton on HVAC Building Performance Audits. Had a quick question about ' + (p.company || 'your buildings') + '\'s maintenance setup. Mind if I send it over?'));
   const calls = perCo(fresh.filter(p => p.phone && localLine(p.phone)), plan.call || 0, 1);   // Ontario lines only, one per company
-  calls.forEach(p => add('call', p, 'Opener: Hi ' + first(p.name) + ', ' + myName + ' from Alpine HVAC in Vineland. ' + (used.has(p.id) ? 'I sent you a short note about a Building Performance Audit. ' : '') + 'We do 5 of these a month for buildings like yours: a reliability scorecard, downtime cost estimate and a 12-month plan, and if it isn\'t worth 10x the fee you don\'t pay. Is that worth 20 minutes next week?\nNo answer: 20-second voicemail, then text.'));
+  calls.forEach(p => add('call', p, 'Opener: Hi ' + first(p.name) + ', ' + myName + ' from Alpine HVAC in Vineland. ' + (used.has(p.id) ? 'I sent you a short note about a Building Performance Audit. ' : '') + 'We do 5 of these a month for buildings like yours: a reliability scorecard, downtime cost estimate and a 12-month plan, and if you don\'t feel it\'s worth 10x the cost, you don\'t pay. Is that worth 20 minutes next week?\nNo answer: 20-second voicemail, then text.'));
   // No direct dials yet (Apollo phones cost credits): fill calls from researched buildings with a phone on file.
   if (calls.length < (plan.call || 0)) {
     const knocked = new Set(knocks.map(k => k.targetId).filter(Boolean)), picked = new Set(items.map(i => i.tid).filter(Boolean));
