@@ -25,11 +25,9 @@ const session = (typeof apGetSession === 'function' && apGetSession()) || { name
 const $ = id => document.getElementById(id);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const TIERS = {
-  standard:  { label: 'Standard',  fee: 1500, desc: 'Single building, up to ~50,000 sq ft, up to 10 major units' },
-  complex:   { label: 'Complex',   fee: 2500, desc: '50,000–150,000 sq ft, or full BAS / central plant' },
-  portfolio: { label: 'Portfolio', fee: 3500, desc: 'Over 150,000 sq ft or multi-building (custom, from $3,500)' }
-};
+// Audit fee comes from the SA Calculator: 20% of the Core annual price (Quarterly+, 5% buffer),
+// nearest $25, minimum $800; over $5,000 is quoted custom. The old Standard/Complex/Portfolio tiers are retired.
+const FEE_NOTE = 'Fee = 20% of the Core annual price in the SA Calculator (nearest $25, minimum $800; over $5,000 quote custom).';
 const STATUS = {
   booked:    { label: 'Booked',        cls: 'b-grey' },
   onsite:    { label: 'Site visit done', cls: 'b-teal' },
@@ -102,7 +100,7 @@ function blank() {
   return {
     id: uid('a'), createdAt: today(), createdBy: session.name, status: 'booked',
     client: { company: '', contact: '', title: '', email: '', phone: '', decisionMaker: '', building: '', address: '', sqft: '', yearBuilt: '', occupancy: '', critical: false, bas: '', contractor: '', hook: '', pains: '', source: 'Natalie' },
-    tier: 'standard', fee: 1500, depositDate: '', balanceDate: '', visitDate: '', debriefDate: '',
+    fee: '', depositDate: '', balanceDate: '', visitDate: '', debriefDate: '',
     assets: [], checks: { bas: {}, energy: {}, comfort: {}, vendor: {} }, checkNotes: {},
     findings: [], summary: { working: '', risk: '', opportunity: '', ifNothing: '', careLevel: '' },
     energyNotes: '', complianceNotes: '', followups: {},
@@ -291,7 +289,7 @@ async function render() {
   if (photosLoadedFor !== cur.id) { loadPhotos(cur.id).then(got => { if (got && cur) render(); }); }
   const sc = score(cur);
   const c = cur.client;
-  let h = '<div class="kicker">Zero-Risk Building Performance Audit · ' + esc(TIERS[cur.tier].label) + ' · ' + money(cur.fee) + '</div>' +
+  let h = '<div class="kicker">Zero-Risk Building Performance Audit · ' + (num(cur.fee) ? money(cur.fee) : 'fee not set') + '</div>' +
     '<h1>' + esc(c.building || c.company || 'New audit') + '</h1>' +
     '<div class="row" style="font-size:.85rem"><span class="muted">' + esc([c.company, c.address].filter(Boolean).join(' · ')) + '</span>' +
     '<span class="badge ' + STATUS[cur.status].cls + '">' + STATUS[cur.status].label + '</span></div>' +
@@ -355,12 +353,11 @@ function tabSetup() {
     '</div><div style="margin-top:.6rem">' + chk('Critical occupancy (data, healthcare, food, process) — pushes recommendation to Premium', 'client.critical') + '</div>' +
     '<div class="grid" style="margin-top:.4rem">' + fld('Pains from the pre-call (their words)', 'client.pains', { area: true, wide: true, ph: 'Why now, last surprise, what it cost, contractor visibility…' }) + '</div></div>' +
     '<h2>Fee, deposit & dates</h2><div class="card"><div class="grid">' +
-    fld('Audit tier', 'tier', { options: Object.keys(TIERS).map(k => [k, TIERS[k].label + ' — ' + money(TIERS[k].fee) + (k === 'portfolio' ? '+' : '')]), rr: true }) +
-    fld('Audit fee ($)', 'fee', { num: true, rr: true }) +
+    fld('Audit fee ($) — from the SA Calculator', 'fee', { num: true, rr: true, ph: 'e.g. 975' }) +
     fld('10% deposit taken (date)', 'depositDate', { type: 'date' }) + fld('Balance paid (date)', 'balanceDate', { type: 'date' }) +
     fld('Site visit date', 'visitDate', { type: 'date', rr: true }) + fld('Debrief date', 'debriefDate', { type: 'date', rr: true }) +
     fld('Status', 'status', { options: Object.keys(STATUS).map(k => [k, STATUS[k].label]), rr: true }) +
-    '</div><div class="callout info" style="margin-top:.7rem">' + esc(TIERS[cur.tier].desc) + '. Deposit <b>' + money(dep) + '</b> by credit card at booking; balance <b>' + money((num(cur.fee) || 0) - dep) + '</b> due on receipt with the report.' +
+    '</div><div class="callout info" style="margin-top:.7rem">' + esc(FEE_NOTE) + ' <a href="service-agreement.html" target="_blank">Open the SA Calculator</a>. Deposit <b>' + money(dep) + '</b> by credit card at booking; balance <b>' + money((num(cur.fee) || 0) - dep) + '</b> due on receipt with the report.' +
     (cur.debriefDate ? ' Credit deadline: <b>' + fmtD(addDays(cur.debriefDate, 30)) + '</b>.' : '') +
     (cur.visitDate && cur.debriefDate && daysUntil(cur.debriefDate) - daysUntil(cur.visitDate) > 7 ? '<br><b style="color:#7a3b10">Debrief is more than 5 business days after the visit — playbook SLA.</b>' : '') + '</div></div>' +
     '<div class="row" style="margin-top:1.4rem"><span class="spacer"></span><button class="btn danger sm" data-act="delete-audit">Delete audit</button></div>';
@@ -626,7 +623,6 @@ function onField(el, final) {
   let v = el.type === 'checkbox' ? el.checked : el.value;
   if (el.dataset.num && el.type !== 'checkbox') v = v === '' ? '' : (num(v) == null ? v : num(v));
   setPath(cur, p, v);
-  if (p === 'tier') { cur.fee = TIERS[v].fee; }
   if (/^assets\.\d+\.(cond|crit)$/.test(p)) { const x = cur.assets[Number(p.split('.')[1])]; if (x) x.ai = false; }
   save(!!el.dataset.rr);
   if (el.dataset.rr && final) render();
