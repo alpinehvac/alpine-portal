@@ -256,6 +256,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('techstd')">Technician Standards</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="operations admin owners" onclick="showTab('fivelevels')">The 5 Levels</button>
   <button class="subtab-btn" data-group="onboarding" data-roles="admin owners" onclick="showTab('foreman')">Foreman Standards</button>
+  <button class="subtab-btn" data-group="onboarding" data-roles="admin owners" onclick="showTab('offboarding')">Offboarding</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('team')">Team Members</button>
   <button class="subtab-btn" data-group="team" data-roles="owners" onclick="showTab('reviews')">Quarterly Reviews</button>
   <button class="subtab-btn" data-group="reports" data-roles="owners" onclick="showTab('wr')">Weekly Reports</button>
@@ -2764,6 +2765,42 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--black);color:var(
 </div>
 
 
+
+<!-- ── TAB: ONBOARDING › OFFBOARDING (process, owners, templates) ── -->
+<div id="panel-offboarding" class="tab-panel" style="overflow-y:auto;height:calc(100vh - 56px)">
+<style>
+.ofb-table{width:100%;border-collapse:collapse;margin:0 0 2rem;font-size:.875rem}
+.ofb-table th{background:#27636C;color:#fff;text-align:left;padding:.55rem .75rem;font-family:'Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase;font-size:.75rem}
+.ofb-table td{padding:.5rem .75rem;border-bottom:1px solid rgba(16,68,78,.15);vertical-align:top;color:#10444E}
+.ofb-table td:last-child{white-space:nowrap;width:1%}
+.ofb-table tr.ofb-cat td{background:#DDE8E9;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.75rem}
+.ofb-h{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#10444E;margin:1.5rem 0 .75rem}
+.ofb-q{color:#10444E;font-size:.9rem;line-height:1.8;margin:0 0 2rem 1.2rem}
+</style>
+<div class="fm-wrap">
+  <div class="fm-eyebrow">Every Departure · Every Role</div>
+  <h1 class="fm-page-title">Offboarding</h1>
+  <p class="fm-page-sub">The standard process when someone leaves Alpine. An offboarding survey replaces a formal exit interview. The service manager runs the in-person part on the last day.</p>
+
+  <div class="fl-pdfs">
+    <a class="fl-pdf" href="standards/offboarding/Alpine-Offboarding-Checklist-Template.pdf" target="_blank" rel="noopener">Offboarding checklist (PDF)</a>
+    <a class="fl-pdf" href="standards/offboarding/Alpine-Vehicle-Tool-Return-Template.pdf" target="_blank" rel="noopener">Vehicle &amp; tool return (PDF)</a>
+    <a class="fl-pdf" href="standards/offboarding/Alpine-Offboarding-Survey-Template.pdf" target="_blank" rel="noopener">Offboarding survey (PDF)</a>
+  </div>
+
+  <div class="fm-intro">
+    <p><strong>Masters live in SharePoint:</strong> Admin-HR › Employees › Offboarding Templates. Truck inventories come from the <strong>Alpine HVAC Truck Audit</strong> workbook (SharePoint › SpreadSheets) — check the employee's current truck tab <em>and</em> any truck they drove before, since tools often stay booked to the old truck.</p>
+  </div>
+
+  <div class="ofb-h">Process &amp; accountability</div>
+  <table class="ofb-table"><tr><th>Task</th><th>Owner</th></tr><tr class="ofb-cat"><td colspan="2">When notice is received</td></tr><tr><td>Confirm resignation and last day in writing; acknowledge by reply</td><td>Owner (Jake)</td></tr><tr><td>Announce departure to the team</td><td>Owner (Jake)</td></tr><tr><td>Email employee: next steps, return list, offboarding survey</td><td>Owner (Jake)</td></tr><tr><td>Print vehicle &amp; tool return sheet from the Truck Audit workbook (that truck's tab + any truck they drove before)</td><td>Service Manager (Mike)</td></tr><tr><td>List open jobs to walk through; plan handoff</td><td>Service Manager (Mike)</td></tr><tr class="ofb-cat"><td colspan="2">Last day: in person</td></tr><tr><td>Truck walk-through against inventory; damage photos; odometer and fuel</td><td>Service Manager (Mike)</td></tr><tr><td>Collect keys, fobs, fuel card, company credit card, tablet/phone, PPE, job paperwork</td><td>Service Manager (Mike)</td></tr><tr><td>Walk through open job sites</td><td>Service Manager (Mike)</td></tr><tr><td>Offboarding survey (in person or written)</td><td>Service Manager (Mike)</td></tr><tr><td>Employee and manager sign the return sheet</td><td>Service Manager (Mike)</td></tr><tr class="ofb-cat"><td colspan="2">End of last day</td></tr><tr><td>Disable M365 sign-in; forward mailbox; auto-reply</td><td>Owner (Jake)</td></tr><tr><td>Remove portal and other system access</td><td>Owner (Jake)</td></tr><tr><td>Remove from BuildOps; reassign open visits and jobs</td><td>Support Coordinator (Cole)</td></tr><tr><td>Remove from huddle invite and meeting-recap lists</td><td>Support Coordinator (Cole)</td></tr><tr><td>Tell suppliers the employee can no longer order or pick up</td><td>Support Coordinator (Cole)</td></tr><tr><td>Cancel company credit card; reconcile last statement</td><td>Admin (Clarissa)</td></tr><tr class="ofb-cat"><td colspan="2">Within ESA deadlines</td></tr><tr><td>Final pay: wages, vacation pay owed, earned premiums (later of 7 days or next payday)</td><td>Admin (Clarissa)</td></tr><tr><td>Issue ROE (resignation = Code E) within 5 days of pay-period end</td><td>Admin (Clarissa)</td></tr><tr><td>End benefits; send conversion info</td><td>Admin (Clarissa)</td></tr><tr><td>No deductions for missing items without owner sign-off (ESA restricts)</td><td>Admin (Clarissa)</td></tr><tr class="ofb-cat"><td colspan="2">Close-out</td></tr><tr><td>File resignation, signed return sheet, survey and ROE in Admin-HR › Employees</td><td>Admin (Clarissa)</td></tr><tr><td>Restock truck from gaps; reassign vehicle</td><td>Service Manager (Mike)</td></tr><tr><td>Review survey answers; log changes worth making</td><td>Owner + Service Manager</td></tr></table>
+
+  <div class="ofb-h">Offboarding survey</div>
+  <p class="fl-note">About 10 minutes. In person or written, whichever the employee prefers. Answers don't affect final pay, ROE or references.</p>
+  <ol class="ofb-q"><li>What was the main reason you decided to leave?</li><li>Was there anything that would have kept you?</li><li>How clear were your role and expectations? (1–5)</li><li>Did you get the training and support you needed? (1–5)</li><li>How well did leadership give feedback and communicate? (1–5)</li><li>Were your tools, truck and equipment adequate? What was missing?</li><li>What is Alpine doing well that we should keep?</li><li>What's one thing you'd change if you ran the place?</li><li>Would you recommend Alpine to a tradesperson you respect? Why or why not?</li><li>Is there anything else you want us to know?</li></ol>
+  <p class="fl-note">File the completed survey and signed return sheet in Admin-HR › Employees › [Employee name].</p>
+</div>
+</div><!-- end panel-offboarding -->
 
 <!-- ── TAB: THE 5 LEVELS (Bring Solutions, Not Problems — every team member) ── -->
 <div id="panel-fivelevels" class="tab-panel" style="overflow-y:auto;height:calc(100vh - 56px)">
